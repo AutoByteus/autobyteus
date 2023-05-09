@@ -51,4 +51,8 @@ pytest-integration
 pytest-mock
 vcrpy
 pytest-vcr
-pyppeteer
+
+strawberry-graphql
+llm_workflow_core
+automated_coding_workflow
+llm_integrations
