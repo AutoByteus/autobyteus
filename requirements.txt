@@ -56,3 +56,6 @@ strawberry-graphql
 llm_workflow_core
 automated_coding_workflow
 llm_integrations
+grpcio 
+grpcio-tools
+fastapi

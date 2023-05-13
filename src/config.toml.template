@@ -1,0 +1,3 @@
+[workflows]
+enabled_workflows = ["automated_coding_workflow"]
+
