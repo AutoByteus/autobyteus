@@ -59,3 +59,5 @@ llm_integrations
 grpcio 
 grpcio-tools
 fastapi
+toml
+python-dotenv

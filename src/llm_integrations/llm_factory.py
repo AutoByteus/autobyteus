@@ -13,9 +13,9 @@ def create_llm_integration():
     :return: An instance of the required LLM integration.
     :rtype: BaseLLMIntegration
     """
-    integration_type = config.get('llm_integration')['type']
+    integration_type = config.get('LLM_INTEGRATION_TYPE')
     
-    if integration_type == 'openai_gpt':
+    if integration_type == 'openai':
         return OpenAIGPTIntegration(config)
     # Add more elif conditions for other LLM integration types as needed
     else:
