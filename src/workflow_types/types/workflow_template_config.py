@@ -13,5 +13,5 @@ class StageTemplateConfig(TypedDict, total=False):
 
 
 class WorkflowTemplateStagesConfig(TypedDict, total=False):
-    workflow_class: type
+    workspace_path: str
     stages: Dict[str, StageTemplateConfig]

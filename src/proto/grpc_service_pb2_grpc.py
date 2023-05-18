@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import src.proto.grpc_service_pb2 as grpc__service__pb2
+import grpc_service_pb2 as grpc__service__pb2
 
 
 class AutomatedCodingWorkflowServiceStub(object):
@@ -24,6 +24,11 @@ class AutomatedCodingWorkflowServiceStub(object):
                 request_serializer=grpc__service__pb2.GetWorkflowConfigRequest.SerializeToString,
                 response_deserializer=grpc__service__pb2.GetWorkflowConfigResponse.FromString,
                 )
+        self.SetWorkspacePath = channel.unary_unary(
+                '/automatedcodingworkflow.AutomatedCodingWorkflowService/SetWorkspacePath',
+                request_serializer=grpc__service__pb2.SetWorkspacePathRequest.SerializeToString,
+                response_deserializer=grpc__service__pb2.SetWorkspacePathResponse.FromString,
+                )
 
 
 class AutomatedCodingWorkflowServiceServicer(object):
@@ -41,6 +46,12 @@ class AutomatedCodingWorkflowServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def SetWorkspacePath(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_AutomatedCodingWorkflowServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -53,6 +64,11 @@ def add_AutomatedCodingWorkflowServiceServicer_to_server(servicer, server):
                     servicer.GetWorkflowConfig,
                     request_deserializer=grpc__service__pb2.GetWorkflowConfigRequest.FromString,
                     response_serializer=grpc__service__pb2.GetWorkflowConfigResponse.SerializeToString,
+            ),
+            'SetWorkspacePath': grpc.unary_unary_rpc_method_handler(
+                    servicer.SetWorkspacePath,
+                    request_deserializer=grpc__service__pb2.SetWorkspacePathRequest.FromString,
+                    response_serializer=grpc__service__pb2.SetWorkspacePathResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -95,5 +111,22 @@ class AutomatedCodingWorkflowService(object):
         return grpc.experimental.unary_unary(request, target, '/automatedcodingworkflow.AutomatedCodingWorkflowService/GetWorkflowConfig',
             grpc__service__pb2.GetWorkflowConfigRequest.SerializeToString,
             grpc__service__pb2.GetWorkflowConfigResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def SetWorkspacePath(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/automatedcodingworkflow.AutomatedCodingWorkflowService/SetWorkspacePath',
+            grpc__service__pb2.SetWorkspacePathRequest.SerializeToString,
+            grpc__service__pb2.SetWorkspacePathResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

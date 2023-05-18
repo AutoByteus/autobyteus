@@ -1,14 +1,13 @@
 from asyncio import futures
 import grpc
-from src.services.grpc_service import AutomatedCodingWorkflowService
+from src.endpoints.grpc.grpc_service import AutomatedCodingWorkflowService
 import src.proto.grpc_service_pb2_grpc as automated_coding_workflow_pb2_grpc
 
 
-def grpc_server_mode(config, host, port):
+def grpc_server_mode(host, port):
     """
     Run the application in gRPC server mode.
     
-    :param config: Config object containing the loaded configuration.
     :param host: Server hostname.
     :param port: Server port.
     """

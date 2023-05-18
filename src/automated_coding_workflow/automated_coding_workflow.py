@@ -24,6 +24,7 @@ class AutomatedCodingWorkflow:
 
     name = "automated_coding_workflow"
     config = WORKFLOW_CONFIG
+    workspace_path = None
 
     def __init__(self, llm_integration: BaseLLMIntegration):
         self.llm_integration = llm_integration
