@@ -27,7 +27,7 @@ class Config(metaclass=SingletonMeta):
         except Exception as e:
             raise ValueError(f"Error reading configuration file '{config_file}': {e}")
 
-    def get(self, key: str):
-        return self.config_data.get(key)
+    def get(self, key: str, default=None):
+        return self.config_data.get(key, default)
     
 config = Config()

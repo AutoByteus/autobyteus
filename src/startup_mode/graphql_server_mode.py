@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 import uvicorn
-from src.graphql.schema import schema
+from src.endpoints.graphql.schema import schema
 from strawberry.fastapi import GraphQLRouter
 
 def graphql_server_mode(config, host, port):

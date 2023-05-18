@@ -10,16 +10,8 @@ class BaseLLMIntegration(ABC):
     """
     BaseLLMIntegration is an abstract base class that defines the common interface for all LLM integrations.
     It now includes an optional config attribute for providing project configurations.
-
-    :param config: A dictionary containing project configurations, defaults to an empty dictionary.
-    :type config: dict, optional
     """
-
-    def __init__(self, config=None):
-        if config is None:
-            config = {}
-        self.config = config
-
+    
     @abstractmethod
     async def process_input_messages(self, input_messages):
         """

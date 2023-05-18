@@ -62,3 +62,4 @@ fastapi
 toml
 python-dotenv
 uvicorn
+grpcurl

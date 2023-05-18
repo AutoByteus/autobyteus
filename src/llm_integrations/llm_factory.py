@@ -16,7 +16,9 @@ def create_llm_integration():
     integration_type = config.get('LLM_INTEGRATION_TYPE')
     
     if integration_type == 'openai':
-        return OpenAIGPTIntegration(config)
+        return OpenAIGPTIntegration()
     # Add more elif conditions for other LLM integration types as needed
     else:
         raise ValueError(f"Unsupported LLM integration type: {integration_type}")
+
+

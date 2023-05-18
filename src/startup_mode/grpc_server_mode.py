@@ -1,18 +1,12 @@
-from asyncio import futures
+from concurrent import futures
 import grpc
 from src.endpoints.grpc.grpc_service import AutomatedCodingWorkflowService
 import src.proto.grpc_service_pb2_grpc as automated_coding_workflow_pb2_grpc
 
 
-def grpc_server_mode(host, port):
-    """
-    Run the application in gRPC server mode.
-    
-    :param host: Server hostname.
-    :param port: Server port.
-    """
+def grpc_server_mode():
     print("Running in gRPC server mode")
-    serve(host, port)
+    serve()
 
 
 def serve():
@@ -21,4 +15,3 @@ def serve():
     server.add_insecure_port('[::]:50051')
     server.start()
     server.wait_for_termination()
-    

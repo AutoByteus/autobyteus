@@ -4,6 +4,7 @@ This class integrates the OpenAI GPT models (gpt3.5-turbo, gpt4) with the agent 
 """
 
 import openai
+from src.config.config import config
 from src.llm_integrations.base_llm_integration import BaseLLMIntegration
 
 class OpenAIGPTIntegration(BaseLLMIntegration):
@@ -12,8 +13,8 @@ class OpenAIGPTIntegration(BaseLLMIntegration):
     This class is responsible for processing input messages and returning responses from the OpenAI GPT model.
     """
 
-    def __init__(self, config):
-        super().__init__(config)
+    def __init__(self):
+        super().__init__()
         self.api_key = config.get('OPEN_AI_API_KEY')
         self.model = config.get('OPEN_AI_MODEL', 'gpt-3.5-turbo')  # default model is gpt-3.5-turbo
 

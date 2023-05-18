@@ -46,7 +46,7 @@ def main():
     if args.mode == 'commandline':
         command_line_mode(config)
     elif args.mode == 'grpcserver':
-        grpc_server_mode(config, args.host, args.port)
+        grpc_server_mode()
     elif args.mode == 'graphqlserver':
         graphql_server_mode(config, args.host, args.port)
     else:

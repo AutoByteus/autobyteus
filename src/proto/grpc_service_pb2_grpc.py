@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import grpc_service_pb2 as grpc__service__pb2
+import src.proto.grpc_service_pb2 as grpc__service__pb2
 
 
 class AutomatedCodingWorkflowServiceStub(object):

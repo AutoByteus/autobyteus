@@ -1,11 +1,9 @@
 import json
 import strawberry
 from strawberry.scalars import JSON
-from src.graphql.custom_json_encoder import CustomJSONEncoder
-from src.workflow.automated_coding_workflow import AutomatedCodingWorkflow
-from src.workflow.config.workflow_config import WORKFLOW_CONFIG
-
-from src.graphql.json_scalar import JSONScalar
+from src.endpoints.graphql.schema.custom_json_encoder import CustomJSONEncoder
+from src.automated_coding_workflow.automated_coding_workflow import AutomatedCodingWorkflow
+from src.automated_coding_workflow.config import WORKFLOW_CONFIG
 
 @strawberry.type
 class Query:
