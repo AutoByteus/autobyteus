@@ -31,7 +31,7 @@ class AutomatedCodingWorkflowService(automated_coding_workflow_pb2_grpc.Automate
 def _build_workflow_config_protobuf():
     workflow_config = automated_coding_workflow_pb2.GetWorkflowConfigResponse()
 
-    for stage_name, stage_data in WORKFLOW_CONFIG['stages']:
+    for stage_name, stage_data in WORKFLOW_CONFIG['stages'].items():
         stage = _build_stage_protobuf(stage_name, stage_data)
         workflow_config.stages.add().CopyFrom(stage)
 
@@ -41,7 +41,7 @@ def _build_stage_protobuf(stage_name: str, stage_data: StageTemplateConfig):
     stage = automated_coding_workflow_pb2.Stage()
     stage.stage_name = stage_name
 
-    stage.class_name = stage_data["stage_class"]
+    stage.stage_class = stage_data["stage_class"].__name__
     if "stages" in stage_data:
         for substage_name, substage_data in stage_data["stages"].items():
             substage = _build_stage_protobuf(substage_name, substage_data)
