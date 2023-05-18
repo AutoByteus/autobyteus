@@ -28,9 +28,7 @@ from src.startup_mode.cli_mode import command_line_mode
 from src.startup_mode.grpc_server_mode import grpc_server_mode
 from src.startup_mode.graphql_server_mode import graphql_server_mode
 from src.config.config import config
-
-# Set up logging
-logging.basicConfig(filename='app.log', level=logging.INFO)
+from src.config.logging_config import configure_logger
 
 def parse_command_line_arguments():
     parser = argparse.ArgumentParser(description='Python app with three modes: command line, gRPC server mode, and GraphQL server mode.')
@@ -41,6 +39,9 @@ def parse_command_line_arguments():
     return parser.parse_args()
 
 def main():
+    # Call the logging configuration function to set up logging
+    configure_logger()
+    
     args = parse_command_line_arguments()
     
     if args.mode == 'commandline':

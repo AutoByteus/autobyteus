@@ -16,7 +16,7 @@ import src.proto.grpc_service_pb2_grpc as automated_coding_workflow_pb2_grpc
 
 For local development, we can install grpccurl
 
-<https://github.com/fullstorydev/grpcurl> 
+<https://github.com/fullstorydev/grpcurl>
 
 If you already have go, then do the following
 
@@ -24,4 +24,11 @@ If you already have go, then do the following
 go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
 ```
 
- \n 
+```javascript
+grpcurl -d '{}' -proto autobyteus/src/proto/grpc_service.proto -plaintext localhost:50051 automatedcodingworkflow.AutomatedCodingWorkflowService/StartWorkflow
+{
+"result": "Workflow started successfully"
+}
+```
+
+
