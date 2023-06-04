@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 import uvicorn
+from fastapi.middleware.cors import CORSMiddleware
 from src.endpoints.graphql.schema import schema
 from strawberry.fastapi import GraphQLRouter
+
 
 def graphql_server_mode(config, host, port):
     """
@@ -12,7 +14,23 @@ def graphql_server_mode(config, host, port):
     :param port: Server port.
     """
     print("Running in GraphQL server mode")
+
     app = FastAPI()
+
+    origins = [
+        "http://localhost:5173",
+        # Add other origins if required
+    ]
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
     graphql_router = GraphQLRouter(schema)
     app.include_router(graphql_router, prefix="/graphql")
+
     uvicorn.run(app, host=host, port=port)

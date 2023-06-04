@@ -37,13 +37,11 @@ def parse_command_line_arguments():
     parser.add_argument('--port', type=int, help='Server port', default=8000)
 
     return parser.parse_args()
-
 def main():
-    # Call the logging configuration function to set up logging
     configure_logger()
-    
+
     args = parse_command_line_arguments()
-    
+
     if args.mode == 'commandline':
         command_line_mode(config)
     elif args.mode == 'grpcserver':
@@ -53,6 +51,7 @@ def main():
     else:
         print("Invalid mode selected.")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

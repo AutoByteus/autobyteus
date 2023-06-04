@@ -1,7 +1,7 @@
 import json
 import strawberry
 from typing import Any
-from src.graphql.custom_json_encoder import CustomJSONEncoder
+from src.endpoints.graphql.json.custom_json_encoder import CustomJSONEncoder
 
 
 @strawberry.scalar(name="JSON")

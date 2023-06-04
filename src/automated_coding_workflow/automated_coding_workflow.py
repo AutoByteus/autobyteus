@@ -10,7 +10,6 @@ from src.workflow_types.types.base_stage import BaseStage
 from src.workflow_types.types.workflow_status import WorkflowStatus
 from src.workflow_types.types.workflow_template_config import StageTemplateConfig
 
-
 class AutomatedCodingWorkflow:
     """
     A class to represent and manage a fully automated coding workflow.
