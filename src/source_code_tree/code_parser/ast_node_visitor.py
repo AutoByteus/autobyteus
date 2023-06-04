@@ -47,7 +47,6 @@ class AstNodeVisitor(ast.NodeVisitor):
         return class_entity
 
 
-
     @staticmethod
     def _get_signature(function_node):
         """
@@ -60,4 +59,4 @@ class AstNodeVisitor(ast.NodeVisitor):
             A string representing the function's signature.
         """
         args = [a.arg for a in function_node.args.args]
-        return ', '.join(args)
+        return f'({", ".join(args)})'

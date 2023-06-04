@@ -3,7 +3,7 @@ import tempfile
 import textwrap
 from src.source_code_tree.code_parser.source_code_parser import SourceCodeParser
 
-def test_parse_source_code_with_valid_python_file():
+def test_parser_handles_file_with_function_and_class():
     # Arrange
     parser = SourceCodeParser()
     with tempfile.NamedTemporaryFile(suffix=".py") as temp:
@@ -39,3 +39,46 @@ def test_parse_source_code_with_valid_python_file():
         assert "test_method" in result.classes["TestClass"].methods
         assert result.classes["TestClass"].methods["test_method"].docstring == "This is a test method"
 
+
+def test_parser_handles_standalone_function_with_multiple_arguments():
+    parser = SourceCodeParser()
+    with tempfile.NamedTemporaryFile(suffix=".py") as temp:
+        code_string = textwrap.dedent("""
+        def func_with_args(arg1, arg2):
+            \"\"\"Function with multiple arguments\"\"\"
+            pass
+        """)
+        temp.write(code_string.encode('utf-8'))
+        temp.seek(0)
+
+        result = parser.parse_source_code(temp.name)
+
+        assert "func_with_args" in result.functions
+        assert result.functions["func_with_args"].signature == "(arg1, arg2)"
+
+def test_parser_handles_class_with_multiple_methods():
+    parser = SourceCodeParser()
+    with tempfile.NamedTemporaryFile(suffix=".py") as temp:
+        code_string = textwrap.dedent("""
+        class MyClass:
+            \"\"\"Class with multiple methods\"\"\"
+            
+            def method_one(self):
+                \"\"\"First method\"\"\"
+                pass
+            
+            def method_two(self, arg):
+                \"\"\"Second method with argument\"\"\"
+                pass
+        """)
+        temp.write(code_string.encode('utf-8'))
+        temp.seek(0)
+
+        result = parser.parse_source_code(temp.name)
+
+        assert "MyClass" in result.classes
+        assert "method_one" in result.classes["MyClass"].methods
+        assert "method_two" in result.classes["MyClass"].methods
+        assert result.classes["MyClass"].methods["method_two"].signature == "(self, arg)"
+
+# Other tests can follow a similar pattern
