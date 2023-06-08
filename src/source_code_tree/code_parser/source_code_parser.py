@@ -11,7 +11,7 @@ and ClassEntity objects for each class, which in turn contain MethodEntity objec
 
 import ast
 from src.source_code_tree.file_reader import FileReader
-from src.source_code_tree.code_parser.entities import ModuleEntity, FunctionEntity, ClassEntity, MethodEntity
+from src.semantic_code.index.document.entities import ModuleEntity, FunctionEntity, ClassEntity, MethodEntity
 from src.source_code_tree.code_parser.ast_node_visitor import AstNodeVisitor
 
 class SourceCodeParser:

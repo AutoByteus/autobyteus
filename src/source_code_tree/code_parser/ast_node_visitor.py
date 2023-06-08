@@ -1,5 +1,5 @@
 import ast
-from src.source_code_tree.code_parser.entities import FunctionEntity, ClassEntity, MethodEntity
+from src.semantic_code.index.document.entities import FunctionEntity, ClassEntity, MethodEntity
 
 class AstNodeVisitor(ast.NodeVisitor):
     """
