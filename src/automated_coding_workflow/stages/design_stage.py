@@ -4,7 +4,7 @@ design_stage.py
 This module contains the DesignStage class, which represents the design stage of the automated coding workflow.
 """
 
-from llm_workflow_core.types.base_stage import BaseStage
+from src.workflow_types.types.base_stage import BaseStage
 
 class DesignStage(BaseStage):
     """

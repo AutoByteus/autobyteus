@@ -3,7 +3,7 @@ test_generation_stage.py
 
 This module contains the TestGenerationStage class, which represents the test generation stage of the automated coding workflow.
 """
-from llm_workflow_core.types.base_stage import BaseStage
+from src.workflow_types.types.base_stage import BaseStage
 
 
 class TestGenerationStage(BaseStage):

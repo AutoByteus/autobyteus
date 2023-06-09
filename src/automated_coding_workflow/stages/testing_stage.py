@@ -1,4 +1,4 @@
-from llm_workflow_core.types.base_stage import BaseStage
+from src.workflow_types.types.base_stage import BaseStage
 
 class TestingStage(BaseStage):
     """

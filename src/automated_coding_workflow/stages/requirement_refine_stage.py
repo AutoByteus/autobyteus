@@ -3,7 +3,7 @@ requirement_refine_stage.py
 
 This module contains the RequirementRefineStage class, which represents the requirement refinement stage of the automated coding workflow.
 """
-from llm_workflow_core.types.base_stage import BaseStage
+from src.workflow_types.types.base_stage import BaseStage
 
 
 class RequirementRefineStage(BaseStage):

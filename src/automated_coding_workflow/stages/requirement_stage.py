@@ -5,7 +5,7 @@ This module contains the RequirementStage class, derived from the Stage base cla
 """
 
 from typing_extensions import override
-from llm_workflow_core.types.base_stage import BaseStage
+from src.workflow_types.types.base_stage import BaseStage
 
 class RequirementStage(BaseStage):
     name = "Refine And Enhance Task Description"
