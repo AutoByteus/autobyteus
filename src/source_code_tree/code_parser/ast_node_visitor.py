@@ -1,6 +1,7 @@
 import ast
-from src.semantic_code.index.document.entities import FunctionEntity, ClassEntity, MethodEntity
-
+from src.semantic_code.index.document.function_entity import FunctionEntity
+from src.semantic_code.index.document.class_entity import ClassEntity
+from src.semantic_code.index.document.method_entity import MethodEntity
 class AstNodeVisitor(ast.NodeVisitor):
     """
     This class is an extension of the NodeVisitor class from Python's ast module.
