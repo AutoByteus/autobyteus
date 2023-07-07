@@ -1,7 +1,9 @@
 import ast
-from src.semantic_code.index.document.function_entity import FunctionEntity
-from src.semantic_code.index.document.class_entity import ClassEntity
-from src.semantic_code.index.document.method_entity import MethodEntity
+from src.source_code_tree.code_entities.class_entity import ClassEntity
+
+from src.source_code_tree.code_entities.function_entity import FunctionEntity
+from src.source_code_tree.code_entities.method_entity import MethodEntity
+
 class AstNodeVisitor(ast.NodeVisitor):
     """
     This class is an extension of the NodeVisitor class from Python's ast module.
@@ -12,7 +14,6 @@ class AstNodeVisitor(ast.NodeVisitor):
         visit_FunctionDef(node): Returns a FunctionEntity object created from a function definition node.
         visit_ClassDef(node): Returns a ClassEntity object created from a class definition node.
     """
-
     def visit_FunctionDef(self, node):
         """
         Extracts the name, docstring, and signature of a function definition node and creates a FunctionEntity.
@@ -42,7 +43,7 @@ class AstNodeVisitor(ast.NodeVisitor):
         methods = [self.visit(n) for n in node.body if isinstance(n, ast.FunctionDef)]
 
         for method in methods:
-            method_entity = MethodEntity(method.name, method.docstring, method.signature)
+            method_entity = MethodEntity(method.name, method.docstring, method.signature, class_entity)
             class_entity.add_method(method_entity)
 
         return class_entity

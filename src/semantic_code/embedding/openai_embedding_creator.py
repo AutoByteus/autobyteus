@@ -25,8 +25,8 @@ class OpenAIEmbeddingCreator(BaseEmbeddingCreator):
         Initialize the OpenAIEmbeddingCreator class by reading the API key and model name
         from the configuration file.
         """
-        self.api_key = config.get('OPENAI_API_KEY')
-        self.model_name = config.get('OPENAI_EMBEDDING_MODEL', default="text-embedding-ada-002")
+        self.api_key = config.get('OPEN_AI_API_KEY')
+        self.model_name = config.get('OPEN_AI_EMBEDDING_MODEL', default="text-embedding-ada-002")
         logger.info("OpenAIEmbeddingCreator using embedding model %s", self.model_name)
 
     def create_embedding(self, text: str):

@@ -37,4 +37,4 @@ class BaseEmbeddingCreator(ABC):
         numerical array or tensor.
         """
         pass
-``
+

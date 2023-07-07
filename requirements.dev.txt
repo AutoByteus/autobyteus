@@ -14,6 +14,7 @@ duckduckgo-search
 google-api-python-client #(https://developers.google.com/custom-search/v1/overview)
 pinecone-client==2.2.1
 redis
+weaviate-client
 orjson
 Pillow
 selenium==4.1.4
@@ -60,3 +61,6 @@ toml
 python-dotenv
 uvicorn
 grpcurl
+
+## huggingface
+sentence-transformers

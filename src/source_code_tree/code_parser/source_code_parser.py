@@ -10,8 +10,8 @@ and ClassEntity objects for each class, which in turn contain MethodEntity objec
 """
 
 import ast
+from src.source_code_tree.code_entities.module_entity import ModuleEntity
 from src.source_code_tree.file_reader import FileReader
-from src.semantic_code.index.document.module_entity import ModuleEntity
 from src.source_code_tree.code_parser.ast_node_visitor import AstNodeVisitor
 
 class SourceCodeParser:
@@ -40,11 +40,12 @@ class SourceCodeParser:
 
         module = ast.parse(source_code)
         visitor = AstNodeVisitor()
+
+        module_entity = ModuleEntity(filepath, ast.get_docstring(module))
+
         functions = [visitor.visit(n) for n in module.body if isinstance(n, ast.FunctionDef)]
         classes = [visitor.visit(n) for n in module.body if isinstance(n, ast.ClassDef)]
         
-        module_entity = ModuleEntity(filepath, ast.get_docstring(module))
-
         for function in functions:
             module_entity.add_function(function)
 

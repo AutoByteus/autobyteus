@@ -10,7 +10,7 @@ Classes:
     - ModuleEntity: Represents a module in source code.
 """
 
-from src.source_code_tree.code_entities import CodeEntity
+from src.source_code_tree.code_entities.base_entity import CodeEntity
 
 
 class ModuleEntity(CodeEntity):

@@ -1,6 +1,4 @@
 """
-search_service.py
-
 This module contains the SearchService class, which is responsible for searching for code entities.
 The SearchService utilizes embeddings created from queries and retrieves relevant code entity embeddings
 from the provided storage backend.
