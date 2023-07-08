@@ -1,3 +1,6 @@
+from abc import ABCMeta
+
+
 class SingletonMeta(type):
     """
     SingletonMeta is a metaclass that implements the Singleton design pattern.
@@ -9,3 +12,7 @@ class SingletonMeta(type):
         if cls not in cls._instances:
             cls._instances[cls] = super().__call__(*args, **kwargs)
         return cls._instances[cls]
+    
+
+class ABCSingletonMeta(SingletonMeta, ABCMeta):
+    pass

@@ -1,9 +1,9 @@
 """
 File: src/source_code_tree/code_entities/module_entity.py
 
-This module defines the ModuleEntity class which represents a module in source code. 
-It is used to store and represent information about a module such as its file path, docstring, 
-classes, and functions. The ModuleEntity is a subclass of CodeEntity and provides an 
+This module defines the ModuleEntity class which represents a module in source code.
+It is used to store and represent information about a module such as its file path, docstring,
+classes, and functions. The ModuleEntity is a subclass of CodeEntity and provides an
 implementation for the `to_representation` method as per the contract defined in the base class.
 
 Classes:
@@ -23,8 +23,7 @@ class ModuleEntity(CodeEntity):
         :param classes: Dictionary holding information on classes defined within the module. Defaults to None. (dict)
         :param functions: Dictionary holding information on functions defined within the module. Defaults to None. (dict)
         """
-        super().__init__(docstring)
-        self.file_path = file_path
+        super().__init__(docstring, file_path)
         self.classes = classes or {}
         self.functions = functions or {}
 
@@ -47,7 +46,7 @@ class ModuleEntity(CodeEntity):
     def to_representation(self):
         """
         Convert the module entity to a human-readable description format. This method returns a string
-        representing the module, including its file path, docstring
+        representing the module, including its file path, docstring, classes, and functions.
         
         :return: A human-readable description of the module entity. (str)
         """
@@ -57,3 +56,14 @@ class ModuleEntity(CodeEntity):
             description.append(f"Docstring: {self.docstring}")
 
         return "\n".join(description)
+
+    def to_unique_id(self):
+        """
+        Get a unique identifier for the module entity.
+        
+        Note: This method is implemented to provide specific logic for generating a unique identifier.
+              
+        :return: A unique identifier for the module entity.
+        :rtype: str
+        """
+        return f"Module:{hash(self.file_path)}"

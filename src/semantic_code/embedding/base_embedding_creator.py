@@ -11,7 +11,9 @@ the implementation of the `create_embedding` method.
 
 from abc import ABC, abstractmethod
 
-class BaseEmbeddingCreator(ABC):
+from src.singleton import ABCSingletonMeta
+
+class BaseEmbeddingCreator(metaclass=ABCSingletonMeta):
     """
     This is an abstract base class that defines the interface for embedding
     creator classes. Classes inheriting from BaseEmbeddingCreator must
@@ -20,6 +22,14 @@ class BaseEmbeddingCreator(ABC):
     Embedding creators are classes that convert input text into a numerical
     representation (embedding) which can be used by machine learning models.
     """
+
+    @property
+    @abstractmethod
+    def embedding_dim(self):
+        """
+        This property should return the dimension of the embedding produced by a specific embedding creator.
+        """
+        pass
 
     @abstractmethod
     def create_embedding(self, text: str):

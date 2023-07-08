@@ -44,7 +44,7 @@ def test_parser_handles_standalone_function_with_multiple_arguments():
     parser = SourceCodeParser()
     with tempfile.NamedTemporaryFile(suffix=".py") as temp:
         code_string = textwrap.dedent("""
-        def func_with_args(arg1, arg2):
+        def func_with_args(arg1: str, arg2: str):
             \"\"\"Function with multiple arguments\"\"\"
             pass
         """)

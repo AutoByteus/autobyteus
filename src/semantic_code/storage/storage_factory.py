@@ -1,32 +1,27 @@
 """
-This module contains the WeaviateStorage class, which is a concrete implementation
-of the BaseStorage class for interacting with a Weaviate database. The WeaviateStorage
-class is responsible for storing and retrieving code entities and their embeddings
-in a Weaviate database.
-
-Example:
-    storage = WeaviateStorage()
-    storage.store(key="example", entity=CodeEntity(docstring="Example"), vector=[1.0, 2.0, 3.0])
-    retrieved_entity = storage.retrieve(key="example")
-
+This module contains the get_storage function which is responsible for getting instances of storage
+classes based on a given configuration. It supports getting different types of storage classes,
+such as RedisStorage and WeaviateStorage. Each type of storage class is implemented as a singleton,
+ensuring only one instance of each type can exist.
 """
+
 from src.config.config import config
 from src.semantic_code.storage.redis_storage import RedisStorage
 from src.semantic_code.storage.weaviate_storage import WeaviateStorage
+from src.semantic_code.embedding.embedding_creator_factory import get_embedding_creator
 
-def create_storage():
+def get_storage():
     """
-    Factory method to create an instance of the appropriate storage backend class
-    based on the configuration.
+    Factory method to get an instance of the appropriate storage backend class
+    based on the configuration. If the instance does not exist, it is created due to the singleton nature of the classes.
     
     :return: An instance of a storage backend class.
     """
-
     storage_backend = config.get('STORAGE_BACKEND', default='redis').lower()
 
     if storage_backend == 'redis':
-        return RedisStorage()
+        return RedisStorage(get_embedding_creator().embedding_dim)
     elif storage_backend == 'weaviate':
-        return WeaviateStorage()
+        return WeaviateStorage(get_embedding_creator().embedding_dim)
     else:
         raise ValueError(f"Invalid storage backend: {storage_backend}")

@@ -39,7 +39,7 @@ class SourceCodeParser:
             return None
 
         module = ast.parse(source_code)
-        visitor = AstNodeVisitor()
+        visitor = AstNodeVisitor(filepath)
 
         module_entity = ModuleEntity(filepath, ast.get_docstring(module))
 

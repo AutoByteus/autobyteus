@@ -5,26 +5,31 @@ Description: Defines the abstract base class for storage implementations.
 
 from abc import ABC, abstractmethod
 
-class BaseStorage(ABC):
+from src.singleton import ABCSingletonMeta
+from src.source_code_tree.code_entities.base_entity import CodeEntity
+
+class BaseStorage(metaclass=ABCSingletonMeta):
     """
     BaseStorage is an abstract base class that defines the interface for storage implementations.
     Subclasses must implement the store and retrieve methods.
 
     Methods:
-        store(key: str, embedding): Stores the embedding with the given key.
+        store(key: str, entity: CodeEntity, embedding): Stores the embedding with the given key.
         retrieve(query: str): Retrieves the embedding for the given query.
     """
 
     @abstractmethod
-    def store(self, key: str, embedding):
+    def store(self, key: str, entity: CodeEntity, embedding):
         """
         Stores the embedding with the given key.
 
         Args:
             key (str): The key used to store the embedding.
+            entity (CodeEntity): The code entity to be stored.
             embedding: The embedding to be stored.
         """
         pass
+
 
     @abstractmethod
     def retrieve(self, query: str):

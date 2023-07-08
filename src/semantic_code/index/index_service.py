@@ -3,21 +3,23 @@ index_service.py
 
 This module contains the IndexService class, which is responsible for indexing code entities.
 The IndexService utilizes embeddings created from code entities and stores them using a storage backend
-created by a factory method.
+retrieved by a get function.
 
 Classes:
     - IndexService: Manages the indexing of code entities.
 """
 
+from src.semantic_code.storage.base_storage import BaseStorage
+from src.singleton import SingletonMeta
 from src.source_code_tree.code_entities.base_entity import CodeEntity
-from src.semantic_code.embedding.embedding_creator_factory import EmbeddingCreatorFactory
-from src.semantic_code.storage.storage_factory import create_storage
+from src.semantic_code.embedding.embedding_creator_factory import get_embedding_creator
+from src.semantic_code.storage.storage_factory import get_storage
 
 
-class IndexService:
+class IndexService(metaclass=SingletonMeta):
     """
     This class is responsible for indexing code entities by creating embeddings for them and storing them using
-    a storage backend created by a factory method.
+    a storage backend retrieved by a get function.
 
     Attributes:
         base_storage (BaseStorage): Storage backend for storing code entity embeddings.
@@ -26,12 +28,12 @@ class IndexService:
     
     def __init__(self):
         """
-        Initializes an IndexService with a storage backend created by a factory method and an embedding creator
-        created by the EmbeddingCreatorFactory.
+        Initializes an IndexService with a storage backend retrieved by a get function and an embedding creator
+        retrieved by get_embedding_creator function.
         """
         try:
-            self.base_storage = create_storage()
-            self.embedding_creator = EmbeddingCreatorFactory.create_embedding_creator()
+            self.base_storage: BaseStorage = get_storage()
+            self.embedding_creator = get_embedding_creator()
         except Exception as e:
             raise RuntimeError(f"Failed to initialize IndexService: {str(e)}")
     
@@ -41,13 +43,9 @@ class IndexService:
 
         Args:
             code_entity (CodeEntity): The code entity to be indexed.
-
-        Note:
-            The provided code_entity should have a method called `to_representation` which should return an
-            appropriate representation of the code entity that can be passed to the embedding creator.
         """
         try:
             embedding = self.embedding_creator.create_embedding(code_entity.to_representation())
-            self.base_storage.store(code_entity.to_representation(), embedding)
+            self.base_storage.store(code_entity.to_unique_id(), code_entity, embedding.tobytes())
         except Exception as e:
             raise RuntimeError(f"Failed to index code entity: {str(e)}")

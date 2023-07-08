@@ -11,6 +11,7 @@ import numpy as np
 import logging
 from src.semantic_code.embedding.base_embedding_creator import BaseEmbeddingCreator
 from src.config.config import config
+from src.singleton import ABCSingletonMeta
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,13 @@ class OpenAIEmbeddingCreator(BaseEmbeddingCreator):
         self.model_name = config.get('OPEN_AI_EMBEDDING_MODEL', default="text-embedding-ada-002")
         logger.info("OpenAIEmbeddingCreator using embedding model %s", self.model_name)
 
+    @property
+    def embedding_dim(self):
+        """
+        This property returns the dimension of the embedding produced by OpenAIEmbeddingCreator.
+        """
+        return config.get('OPEN_AI_EMBEDDING_MODEL.EMBEDDING_DIM', default=1536)  # for instance
+    
     def create_embedding(self, text: str):
         """
         Create an embedding for the given text using OpenAI's API.

@@ -5,6 +5,7 @@ from redis.commands.search.field import VectorField, TextField
 from redis.commands.search.indexDefinition import IndexDefinition, IndexType
 from src.semantic_code.storage.base_storage import BaseStorage
 from src.config.config import config
+from src.singleton import SingletonMeta
 from src.source_code_tree.code_entities.base_entity import CodeEntity
 
 logger = logging.getLogger(__name__)
@@ -14,9 +15,12 @@ class RedisStorage(BaseStorage):
     RedisStorage is a concrete class that extends the BaseStorage class.
     This class is responsible for storing and retrieving embeddings in a Redis database.
     """
-    def __init__(self):
+    def __init__(self, embedding_dim):
         """
         Initialize the RedisStorage class with a connection to Redis and create an index if not already exists.
+
+        :param embedding_dim: The dimensionality of the embeddings.
+        :type embedding_dim: int
         """
         # Read configurations
         host = config.get('REDIS_HOST', default='localhost')
@@ -26,23 +30,26 @@ class RedisStorage(BaseStorage):
         # Initialize Redis connection
         self.redis_client = redis.Redis(host=host, port=port, db=db, encoding='utf-8', decode_responses=True)
 
-        self._initialize_schema()
+        self._initialize_schema(embedding_dim)
 
-    def _initialize_schema(self):
-            """
-            Initialize the schema for the Redis database.
-            """
-            schema = [
-                TextField("id"),  # New field
-                TextField("docstring"),  # New field
-                VectorField("embedding", "HNSW", {"TYPE": "FLOAT32", "DIM": 1536, "DISTANCE_METRIC": "COSINE"}),
-            ]
-            try:
-                self.redis_client.ft("code_entities").create_index(fields=schema, definition=IndexDefinition(prefix=["code_entity:"], index_type=IndexType.HASH))
-            except Exception as e:
-                logger.info("Index already exists")
+    def _initialize_schema(self, embedding_dim):
+        """
+        Initialize the schema for the Redis database.
 
-    def store(self, key: str, entity: CodeEntity, vector):
+        :param embedding_dim: The dimensionality of the embeddings.
+        :type embedding_dim: int
+        """
+        schema = [
+            TextField("id"),  # New field
+            TextField("representation"),  # New field
+            VectorField("embedding", "HNSW", {"TYPE": "FLOAT32", "DIM": embedding_dim, "DISTANCE_METRIC": "COSINE"}),
+        ]
+        try:
+            self.redis_client.ft("code_entities").create_index(fields=schema, definition=IndexDefinition(prefix=["code_entity:"], index_type=IndexType.HASH))
+        except Exception as e:
+            logger.info("Index already exists")
+
+    def store(self, key: str, entity: CodeEntity, embedding):
         """
         Store a CodeEntity with its embedding vector associated with a key in Redis.
 
@@ -50,12 +57,12 @@ class RedisStorage(BaseStorage):
         :type key: str
         :param entity: The code entity.
         :type entity: CodeEntity
-        :param vector: The embedding vector.
+        :param embedding: The embedding vector.
         """
         code_entities_fields = {
             "id": key,
-            "docstring": entity.docstring,
-            "embedding": vector
+            "representation": entity.to_representation(),
+            "embedding": embedding
         }
         self.redis_client.hset(name=f"code_entity:{key}", mapping=code_entities_fields)
 
@@ -80,7 +87,7 @@ class RedisStorage(BaseStorage):
         :return: The list of closest code entities and associated keys.
         """
         base_query = f"*=>[KNN {top_k} @embedding $vector AS vector_score]"
-        query = Query(base_query).return_fields("id", "docstring", "vector_score").sort_by("vector_score").dialect(2)
+        query = Query(base_query).return_fields("id", "representation", "vector_score").sort_by("vector_score").dialect(2)
         try:
             results = self.redis_client.ft("code_entities").search(query, query_params={"vector": vector})
         except Exception as e:

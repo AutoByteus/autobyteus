@@ -8,6 +8,7 @@ representation (embedding) which can be used by machine learning models.
 """
 
 from sentence_transformers import SentenceTransformer
+from src.config.config import config
 from src.semantic_code.embedding.base_embedding_creator import BaseEmbeddingCreator
 
 class SentenceTransformerEmbeddingCreator(BaseEmbeddingCreator):
@@ -16,13 +17,20 @@ class SentenceTransformerEmbeddingCreator(BaseEmbeddingCreator):
     This class is responsible for generating embeddings using the SentenceTransformer library.
     """
 
-    def __init__(self, model_name: str = 'sentence-transformers/all-mpnet-base-v2'):
+    def __init__(self):
         """
         Initialize the SentenceTransformerEmbeddingCreator class by setting the model name.
         """
-        self.model_name = model_name
+        self.model_name = config.get('DEFAULT_SENTENCE_TRANSFORMER_MODEL', default='sentence-transformers/all-mpnet-base-v2')
         self.model = SentenceTransformer(self.model_name)
 
+    @property
+    def embedding_dim(self):
+        """
+        This property returns the dimension of the embedding produced by SentenceTransformerEmbeddingCreator.
+        """
+        return config.get('DEFAULT_SENTENCE_TRANSFORMER_MODEL.EMBEDDING_DIM', default=768)  # for instance
+    
     def create_embedding(self, text: str):
         """
         Creates an embedding from the input text using the SentenceTransformer library.
@@ -33,4 +41,4 @@ class SentenceTransformerEmbeddingCreator(BaseEmbeddingCreator):
         Returns:
         This method returns an embedding, usually in the form of a numerical array or tensor.
         """
-        return self.model.encode([text])
+        return self.model.encode(text)
