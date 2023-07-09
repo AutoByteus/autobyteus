@@ -1,4 +1,5 @@
 import logging
+import numpy as np
 import redis
 from redis.commands.search.query import Query
 from redis.commands.search.field import VectorField, TextField
@@ -60,13 +61,13 @@ class RedisStorage(BaseStorage):
         :type entity: CodeEntity
         :param embedding: The embedding vector.
         """
-        code_entities_fields = {
+        code_entity_fields = {
             "id": key,
             "type": entity.type.value,
             "representation": entity.to_json(),
             "embedding": embedding
         }
-        self.redis_client.hset(name=f"code_entity:{key}", mapping=code_entities_fields)
+        self.redis_client.hset(name=f"code_entity:{key}", mapping=code_entity_fields)
 
 
     def retrieve(self, key: str):
@@ -88,8 +89,8 @@ class RedisStorage(BaseStorage):
         :param top_k: The number of closest code entities to retrieve. Defaults to 5.
         :return: The list of closest code entities and associated keys.
         """
-        base_query = f"*=>[KNN {top_k} @embedding $vector AS vector_score]"
-        query = Query(base_query).return_fields("id", "type", "representation", "vector_score").sort_by("vector_score").dialect(2)
+        base_query = f"*=>[KNN {top_k} @embedding $vector AS score]"
+        query = Query(base_query).return_fields("id", "type", "representation", "score").sort_by("score").dialect(2)
         try:
             results = self.redis_client.ft("code_entities").search(query, query_params={"vector": embedding})
         except Exception as e:

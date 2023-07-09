@@ -62,7 +62,6 @@ class CodeEntity(ABC):
         :return: A string representation of the class entity.
         :rtype: str
         """
-        # Start with the class name
         representation = f''
         
         # Add the docstring
@@ -78,7 +77,7 @@ class CodeEntity(ABC):
                 description_lines.append(line)
 
             docstring_description = '\n'.join(description_lines)
-            representation += f'{docstring_description.strip()}\n'
+            representation += f'{docstring_description.strip()}'
         
         return representation
 

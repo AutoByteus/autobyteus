@@ -7,6 +7,7 @@ containing entities
 """
 
 from typing import Any
+import numpy as np
 from redis.commands.search.result import Result
 from src.semantic_code.search.search_result import ScoredEntity, SearchResult
 from src.source_code_tree.code_entities.base_entity import CodeEntity
@@ -23,7 +24,8 @@ def convert_redis_result_to_search_result(redis_search_result: Result) -> Search
         SearchResult: The SearchResult object created from the Redis search result.
     """
     # Convert Redis documents to ScoredEntity objects
-    entities = [ScoredEntity(CodeEntityFactory.create_entity(doc["type"], doc["representation"]), doc["vector_score"]) for doc in redis_search_result.docs]
+    # Remark: The real score is calculated by this expression: 1 - float(doc["score"])
+    entities = [ScoredEntity(CodeEntityFactory.create_entity(doc["type"], doc["representation"]), 1 - float(doc["score"])) for doc in redis_search_result.docs]
 
     # Create SearchResult object
     search_result = SearchResult(total=redis_search_result.total, entities=entities)

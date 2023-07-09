@@ -34,7 +34,7 @@ grpcurl -d '{}' -proto autobyteus/src/proto/grpc_service.proto -plaintext localh
 
 
 ```javascript
-pytest -k test_parse_source_code_returns_expected_dict tests/source_code_tree/test_source_code_parser.py
+pytest  tests/source_code_tree/test_source_code_parser.py
 ```
 
 
