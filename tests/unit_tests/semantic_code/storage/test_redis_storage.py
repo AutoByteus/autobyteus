@@ -19,7 +19,7 @@ def redis_storage(mock_redis_client):
 
 
 class MockCodeEntity(CodeEntity):
-    def to_representation(self):
+    def to_description(self):
         return "Mock Code Entity"
 
 

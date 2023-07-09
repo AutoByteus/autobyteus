@@ -10,6 +10,8 @@ Classes:
 
 from abc import ABC, abstractmethod
 
+from src.source_code_tree.code_entities.code_entity_type import CodeEntityType
+
 
 class CodeEntity(ABC):
     """
@@ -18,15 +20,6 @@ class CodeEntity(ABC):
     Code entities are parts or components in source code. 
     The class provides a structure for representing these entities
     and converting them into a human-readable description format.
-    
-    Attributes:
-        docstring (str): The documentation string for the code entity.
-        file_path (str): The path of the source code file where the code entity is defined.
-    
-    Methods:
-        __init__(self, docstring: str, file_path: str): Initializes a CodeEntity with the provided docstring and file path.
-        to_representation(self): Abstract method to convert the code entity to a human-readable description format.
-        to_unique_id(self): Abstract method to get a unique identifier for the code entity.
     """
     
     def __init__(self, docstring: str, file_path: str):
@@ -40,17 +33,80 @@ class CodeEntity(ABC):
         """
         self.docstring = docstring
         self.file_path = file_path
+    
+    def __init__(self, docstring: str, file_path: str):
+        """
+        Initialize a generic code entity.
+        
+        :param docstring: Documentation string for the entity.
+        :type docstring: str
+        :param file_path: Path of the source code file where the code entity is defined.
+        :type file_path: str
+        """
+        self.docstring = docstring
+        self.file_path = file_path
+
+    @property
+    @abstractmethod
+    def type(self) -> CodeEntityType:
+        """
+        Abstract property representing the type of code entity.
+        Subclasses must implement this property.
+        """
+        pass
+
+    def to_description(self):
+        """
+        Convert the class entity to a string representation, keeping only the description part of the docstring.
+                
+        :return: A string representation of the class entity.
+        :rtype: str
+        """
+        # Start with the class name
+        representation = f''
+        
+        # Add the docstring
+        if self.docstring:
+            # Split the docstring by lines
+            docstring_lines = self.docstring.split('\n')
+            # Initialize a list to hold description lines
+            description_lines = []
+            for line in docstring_lines:
+                # When a line starts with a whitespace followed by ":", it's likely we're into parameter or return descriptions
+                if line.strip().startswith(":"):
+                    break
+                description_lines.append(line)
+
+            docstring_description = '\n'.join(description_lines)
+            representation += f'{docstring_description.strip()}\n'
+        
+        return representation
+
 
     @abstractmethod
-    def to_representation(self):
+    def to_json(self) -> str:
         """
-        Convert the code entity to a human-readable description format.
+        Convert the code entity to json representation
         
         Note: This method should be implemented by the subclasses to
               provide specific conversion logic.
         
-        :return: A human-readable description of the code entity.
+        :return: A json representation of the code entity.
         :rtype: str
+        """
+
+    @classmethod
+    @abstractmethod
+    def from_json(cls, representation: str) -> "CodeEntity":
+        """
+        Create a code entity from json representation.
+        
+        Note: This method should be implemented by the subclasses to
+              provide specific creation logic.
+        
+        :param representation: The json representation of the code entity.
+        :type representation: str
+        :return: A code entity created from the representation.
         """
 
     @abstractmethod

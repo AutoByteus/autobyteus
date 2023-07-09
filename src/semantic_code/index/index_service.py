@@ -45,7 +45,7 @@ class IndexService(metaclass=SingletonMeta):
             code_entity (CodeEntity): The code entity to be indexed.
         """
         try:
-            embedding = self.embedding_creator.create_embedding(code_entity.to_representation())
+            embedding = self.embedding_creator.create_embedding(code_entity.to_description())
             self.base_storage.store(code_entity.to_unique_id(), code_entity, embedding.tobytes())
         except Exception as e:
             raise RuntimeError(f"Failed to index code entity: {str(e)}")

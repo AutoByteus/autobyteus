@@ -7,6 +7,7 @@ the `create_embedding` method. The class uses a specific SentenceTransformer mod
 representation (embedding) which can be used by machine learning models.
 """
 
+import numpy as np
 from sentence_transformers import SentenceTransformer
 from src.config.config import config
 from src.semantic_code.embedding.base_embedding_creator import BaseEmbeddingCreator
@@ -31,7 +32,7 @@ class SentenceTransformerEmbeddingCreator(BaseEmbeddingCreator):
         """
         return config.get('DEFAULT_SENTENCE_TRANSFORMER_MODEL.EMBEDDING_DIM', default=768)  # for instance
     
-    def create_embedding(self, text: str):
+    def create_embedding(self, text: str) -> np.ndarray:
         """
         Creates an embedding from the input text using the SentenceTransformer library.
         

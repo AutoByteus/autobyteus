@@ -10,19 +10,16 @@ Classes:
 """
 
 from src.semantic_code.embedding.embedding_creator_factory import get_embedding_creator
+from src.semantic_code.search.result_converter.redis_result_converter import convert_redis_result_to_search_result
+from src.semantic_code.search.search_result import SearchResult
 from src.semantic_code.storage.storage_factory import get_storage
 from src.singleton import SingletonMeta
-from src.source_code_tree.code_entities.base_entity import CodeEntity
 
 
 class SearchService(metaclass=SingletonMeta):
     """
     This class is responsible for searching for code entities by converting queries into embeddings and 
     retrieving relevant code entity embeddings from the provided storage backend.
-    
-    Attributes:
-        base_storage (BaseStorage): Storage backend for retrieving code entity embeddings.
-        embedding_creator (BaseEmbeddingCreator): Object responsible for creating embeddings from queries.
     """
     
     def __init__(self):
@@ -33,7 +30,7 @@ class SearchService(metaclass=SingletonMeta):
         self.base_storage = get_storage()
         self.embedding_creator = get_embedding_creator()
     
-    def search(self, query: str) -> list[CodeEntity]:
+    def search(self, query: str) -> SearchResult:
         """
         Searches for relevant code entities by converting the given query into an embedding and retrieving
         relevant embeddings from the storage backend.
@@ -42,10 +39,15 @@ class SearchService(metaclass=SingletonMeta):
             query (str): The search query.
         
         Returns:
-            list[CodeEntity]: A list of relevant code entities.
+            SearchResult: The search result.
         """
         # Convert the query to an embedding
         query_embedding = self.embedding_creator.create_embedding(query)
         
-        # Retrieve and return relevant code entities from the storage
-        return self.base_storage.search(query_embedding)
+        # Retrieve relevant documents from the storage
+        redis_search_result = self.base_storage.search(query_embedding.tobytes())
+        
+        # Convert Redis search result to SearchResult
+        search_result = convert_redis_result_to_search_result(redis_search_result)
+
+        return search_result

@@ -40,8 +40,9 @@ class RedisStorage(BaseStorage):
         :type embedding_dim: int
         """
         schema = [
-            TextField("id"),  # New field
-            TextField("representation"),  # New field
+            TextField("id"),  
+            TextField("type"),
+            TextField("representation"), 
             VectorField("embedding", "HNSW", {"TYPE": "FLOAT32", "DIM": embedding_dim, "DISTANCE_METRIC": "COSINE"}),
         ]
         try:
@@ -61,7 +62,8 @@ class RedisStorage(BaseStorage):
         """
         code_entities_fields = {
             "id": key,
-            "representation": entity.to_representation(),
+            "type": entity.type.value,
+            "representation": entity.to_json(),
             "embedding": embedding
         }
         self.redis_client.hset(name=f"code_entity:{key}", mapping=code_entities_fields)
@@ -78,7 +80,7 @@ class RedisStorage(BaseStorage):
         entity_hash = self.redis_client.hgetall(name=f"code_entity:{key}")
         return entity_hash
 
-    def search(self, vector, top_k=5):
+    def search(self, embedding, top_k=5):
         """
         Search for the top_k closest code entities to the given vector in Redis.
 
@@ -87,9 +89,9 @@ class RedisStorage(BaseStorage):
         :return: The list of closest code entities and associated keys.
         """
         base_query = f"*=>[KNN {top_k} @embedding $vector AS vector_score]"
-        query = Query(base_query).return_fields("id", "representation", "vector_score").sort_by("vector_score").dialect(2)
+        query = Query(base_query).return_fields("id", "type", "representation", "vector_score").sort_by("vector_score").dialect(2)
         try:
-            results = self.redis_client.ft("code_entities").search(query, query_params={"vector": vector})
+            results = self.redis_client.ft("code_entities").search(query, query_params={"vector": embedding})
         except Exception as e:
             logging.error(f"Error calling Redis search: {e}")
             return None

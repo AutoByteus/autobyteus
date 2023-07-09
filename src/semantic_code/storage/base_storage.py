@@ -45,12 +45,12 @@ class BaseStorage(metaclass=ABCSingletonMeta):
         pass
 
     @abstractmethod
-    def search(self, vector, top_k=5):
+    def search(self, embedding, top_k=5):
         """
         Searches for the top_k closest embeddings to the given vector.
 
         Args:
-            vector: The query embedding vector.
+            embedding: The query embedding vector.
             top_k (int): The number of closest embeddings to retrieve. Defaults to 5.
 
         Returns:

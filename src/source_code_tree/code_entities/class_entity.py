@@ -6,25 +6,14 @@ This module defines the ClassEntity class which represents a class in code that 
 Classes:
     - ClassEntity: Represents a class in code that can be converted to string representations.
 """
-
+import json
 from src.source_code_tree.code_entities.base_entity import CodeEntity
+from src.source_code_tree.code_entities.code_entity_type import CodeEntityType
 
 
 class ClassEntity(CodeEntity):
     """
     Represents a class in code that can be converted to string representations.
-    
-    Attributes:
-        docstring (str): The documentation string for the class.
-        class_name (str): The name of the class.
-        methods (dict): A dictionary holding information on methods defined within the class, with method names as keys and method entities as values.
-        file_path (str): The path of the source code file where the class entity is defined.
-    
-    Methods:
-        __init__(self, docstring: str, class_name: str, file_path: str, methods: dict = None): Initializes a ClassEntity with the provided docstring, class name, and methods.
-        add_method(self, method_entity): Add a method entity to the class.
-        to_representation(self): Convert the class entity to a string representation.
-        to_unique_id(self): Get a unique identifier for the class entity.
     """
     
     def __init__(self, docstring: str, class_name: str, file_path: str, methods: dict = None):
@@ -44,6 +33,12 @@ class ClassEntity(CodeEntity):
         self.class_name = class_name
         self.methods = methods or {}
 
+    @property
+    def type(self) -> CodeEntityType:
+        """
+        Property representing the type of class entity.
+        """
+        return CodeEntityType.CLASS
 
     def add_method(self, method_entity):
         """
@@ -54,21 +49,35 @@ class ClassEntity(CodeEntity):
         """
         self.methods[method_entity.name] = method_entity
 
-    def to_representation(self):
+
+    def to_json(self) -> str:
         """
-        Convert the class entity to a string representation.
-                
-        :return: A string representation of the class entity.
+        Convert the class entity to json representation
+        
+        :return: A json representation of the class entity.
         :rtype: str
         """
-        # Start with the class name
-        representation = f'class {self.class_name}:\n'
+        return json.dumps({
+            'class_name': self.class_name,
+            'docstring': self.docstring,
+            'file_path': self.file_path
+        })
+
+    @classmethod
+    def from_json(cls, representation: str) -> "ClassEntity":
+        """
+        Create a class entity from json representation.
         
-        # Add the docstring
-        if self.docstring:
-            representation += f'    """{self.docstring}"""\n'
-        
-        return representation
+        :param representation: The json representation of the class entity.
+        :type representation: str
+        :return: A class entity created from the representation.
+        """
+        data = json.loads(representation)
+        return cls(
+            class_name=data['class_name'], 
+            docstring=data['docstring'], 
+            file_path=data['file_path']
+        )
 
     def to_unique_id(self):
         """
@@ -80,3 +89,11 @@ class ClassEntity(CodeEntity):
         :rtype: str
         """
         return f"{self.file_path}:{self.class_name}"
+    
+
+    def __eq__(self, other):
+        if isinstance(other, ClassEntity):
+            return (self.name == other.class_name and
+                    self.docstring == other.docstring and
+                    self.file_path == other.file_path)
+        return False

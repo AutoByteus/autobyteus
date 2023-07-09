@@ -4,13 +4,15 @@ File: src/source_code_tree/code_entities/module_entity.py
 This module defines the ModuleEntity class which represents a module in source code.
 It is used to store and represent information about a module such as its file path, docstring,
 classes, and functions. The ModuleEntity is a subclass of CodeEntity and provides an
-implementation for the `to_representation` method as per the contract defined in the base class.
+implementation for the `to_description` method as per the contract defined in the base class.
 
 Classes:
     - ModuleEntity: Represents a module in source code.
 """
 
+import json
 from src.source_code_tree.code_entities.base_entity import CodeEntity
+from src.source_code_tree.code_entities.code_entity_type import CodeEntityType
 
 
 class ModuleEntity(CodeEntity):
@@ -26,6 +28,14 @@ class ModuleEntity(CodeEntity):
         super().__init__(docstring, file_path)
         self.classes = classes or {}
         self.functions = functions or {}
+
+    @property
+    def type(self) -> CodeEntityType:
+        """
+        Property representing the type of module entity.
+        """
+        return CodeEntityType.Module
+    
 
     def add_class(self, class_entity):
         """
@@ -43,20 +53,6 @@ class ModuleEntity(CodeEntity):
         """
         self.functions[function_entity.name] = function_entity
 
-    def to_representation(self):
-        """
-        Convert the module entity to a human-readable description format. This method returns a string
-        representing the module, including its file path, docstring, classes, and functions.
-        
-        :return: A human-readable description of the module entity. (str)
-        """
-        description = [f"Module: {self.file_path}"]
-
-        if self.docstring:
-            description.append(f"Docstring: {self.docstring}")
-
-        return "\n".join(description)
-
     def to_unique_id(self):
         """
         Get a unique identifier for the module entity.
@@ -67,3 +63,41 @@ class ModuleEntity(CodeEntity):
         :rtype: str
         """
         return f"Module:{hash(self.file_path)}"
+
+    def to_json(self) -> str:
+        """
+        Convert the module entity to json representation
+        
+        :return: A json representation of the module entity.
+        :rtype: str
+        """
+        return json.dumps({
+            'docstring': self.docstring,
+            'file_path': self.file_path,
+            'type': 'module'
+        })
+
+    @classmethod
+    def from_json(cls, representation: str, classes: dict = None, functions: dict = None) -> "ModuleEntity":
+        """
+        Create a module entity from json representation.
+        
+        :param representation: The json representation of the module entity.
+        :type representation: str
+        :param classes: Dictionary holding information on classes defined within the module, defaults to None. (dict)
+        :param functions: Dictionary holding information on functions defined within the module, defaults to None. (dict)
+        :return: A module entity created from the representation.
+        """
+        data = json.loads(representation)
+        return cls(
+            file_path=data['file_path'], 
+            docstring=data['docstring'], 
+            classes=classes, 
+            functions=functions
+        )
+    
+    def __eq__(self, other):
+        if isinstance(other, ModuleEntity):
+            return (self.docstring == other.docstring and
+                    self.file_path == other.file_path)
+        return False

@@ -8,28 +8,18 @@ and a reference to the class it belongs to.
 Classes:
     - MethodEntity: Represents a method within a class in source code.
 """
-
+import json
 from src.source_code_tree.code_entities.base_entity import CodeEntity
+from src.source_code_tree.code_entities.code_entity_type import CodeEntityType
 
 
 class MethodEntity(CodeEntity):
     """
     Represents a method in source code. It contains information such as the method's name,
     documentation string (docstring), signature, and the class entity it belongs to.
-    
-    Attributes:
-        name (str): Name of the method.
-        signature (str): Signature of the method.
-        class_entity (CodeEntity): The CodeEntity instance representing the class to which this method belongs.
-    
-    Methods:
-        __init__(self, name: str, docstring: str, signature: str, class_entity: CodeEntity, file_path: str):
-            Initializes a MethodEntity instance.
-        to_representation(self) -> str: Converts the MethodEntity to a human-readable string representation.
-        to_unique_id(self) -> str: Returns a unique identifier for the MethodEntity.
     """
 
-    def __init__(self, name: str, docstring: str, signature: str, class_entity: CodeEntity, file_path: str):
+    def __init__(self, name: str, docstring: str, signature: str, file_path: str, class_entity: CodeEntity = None):
         """
         Initialize a MethodEntity instance with the given name, docstring, signature, and class entity.
         
@@ -49,16 +39,13 @@ class MethodEntity(CodeEntity):
         self.signature = signature
         self.class_entity = class_entity
 
-    def to_representation(self) -> str:
+
+    @property
+    def type(self) -> CodeEntityType:
         """
-        Converts the MethodEntity to a human-readable string representation.
-        The output format is "Name: <name>, Signature: <signature>, Docstring: <docstring>, Class: <class_representation>"
-        
-        :return: A string representation of the method entity.
-        :rtype: str
+        Property representing the type of method entity.
         """
-        class_representation = self.class_entity.to_representation() if self.class_entity else "Unknown"
-        return f"Name: {self.name}, Signature: {self.signature}, Docstring: {self.docstring}, Class: {class_representation}"
+        return CodeEntityType.METHOD
     
     def to_unique_id(self) -> str:
         """
@@ -69,3 +56,42 @@ class MethodEntity(CodeEntity):
         :rtype: str
         """
         return f"{self.name}:{self.signature}"
+
+    def to_json(self) -> str:
+        """
+        Convert the method entity to json representation
+        
+        :return: A json representation of the method entity.
+        :rtype: str
+        """
+        return json.dumps({
+            'name': self.name,
+            'docstring': self.docstring,
+            'file_path': self.file_path,
+            'type': 'method'
+        })
+
+    @classmethod
+    def from_json(cls, representation: str) -> "MethodEntity":
+        """
+        Create a method entity from json representation.
+        
+        :param representation: The json representation of the method entity.
+        :type representation: str
+        :return: A method entity created from the representation.
+        """
+        data = json.loads(representation)
+        return cls(
+            name=data['name'], 
+            docstring=data['docstring'], 
+            signature=data['signature'],
+            file_path=data['file_path'], 
+        )
+
+    def __eq__(self, other):
+        if isinstance(other, MethodEntity):
+            return (self.name == other.name and
+                    self.docstring == other.docstring and
+                    self.signature == other.signature and
+                    self.file_path == other.file_path)
+        return False

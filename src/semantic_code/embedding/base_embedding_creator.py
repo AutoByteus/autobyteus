@@ -11,6 +11,8 @@ the implementation of the `create_embedding` method.
 
 from abc import ABC, abstractmethod
 
+import numpy as np
+
 from src.singleton import ABCSingletonMeta
 
 class BaseEmbeddingCreator(metaclass=ABCSingletonMeta):
@@ -32,7 +34,7 @@ class BaseEmbeddingCreator(metaclass=ABCSingletonMeta):
         pass
 
     @abstractmethod
-    def create_embedding(self, text: str):
+    def create_embedding(self, text: str) -> np.ndarray:
         """
         Creates an embedding from the input text.
         
