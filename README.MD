@@ -37,4 +37,8 @@ grpcurl -d '{}' -proto autobyteus/src/proto/grpc_service.proto -plaintext localh
 pytest  tests/source_code_tree/test_source_code_parser.py
 ```
 
+```python
+python src/app.py --mode graphqlserver --host 127.0.0.1 --port 8000
+```
+
 

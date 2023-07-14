@@ -39,6 +39,16 @@ class ClassEntity(CodeEntity):
         Property representing the type of class entity.
         """
         return CodeEntityType.CLASS
+    
+    @property
+    def children(self):
+        """
+        Gets the children of this ClassEntity, which are the methods defined in the class.
+
+        Returns:
+            list: List of FunctionEntity instances representing the methods in this class.
+        """
+        return list(self.methods.values())
 
     def add_method(self, method_entity):
         """

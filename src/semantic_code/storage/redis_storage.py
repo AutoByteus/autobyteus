@@ -98,10 +98,14 @@ class RedisStorage(BaseStorage):
             return None
         return results
 
+    def flush_db(self):
+        """
+        Flushes the Redis database, removing all stored embeddings.
+        """
+        self.redis_client.flushdb()
+
     def close_connection(self):
         """
         Close the connection to Redis.
         """
         self.redis_client.close()
-
-

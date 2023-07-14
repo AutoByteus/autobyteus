@@ -30,4 +30,7 @@ class Config(metaclass=SingletonMeta):
     def get(self, key: str, default=None):
         return self.config_data.get(key, default)
     
+    def set(self, key: str, value: str):
+        self.config_data.get(key, value)
+    
 config = Config()

@@ -38,14 +38,28 @@ class IndexService(metaclass=SingletonMeta):
             raise RuntimeError(f"Failed to initialize IndexService: {str(e)}")
     
     def index(self, code_entity: CodeEntity):
-        """
-        Indexes a code entity by creating an embedding for it and storing it using the provided storage backend.
+            """
+            Indexes a code entity by creating an embedding for it and storing it using the provided storage backend.
+            If the entity has any children entities (e.g. a ModuleEntity having ClassEntities and FunctionEntities),
+            it indexes those as well.
 
+            Args:
+                code_entity (CodeEntity): The code entity to be indexed.
+            """
+            try:
+                self._index_entity(code_entity)
+                if code_entity.children:
+                    for child_entity in code_entity.children:
+                        self._index_entity(child_entity)
+            except Exception as e:
+                raise RuntimeError(f"Failed to index code entity: {str(e)}")
+
+    def _index_entity(self, code_entity: CodeEntity):
+        """
+        Helper method to index a single code entity.
+        
         Args:
             code_entity (CodeEntity): The code entity to be indexed.
         """
-        try:
-            embedding = self.embedding_creator.create_embedding(code_entity.to_description())
-            self.base_storage.store(code_entity.to_unique_id(), code_entity, embedding.tobytes())
-        except Exception as e:
-            raise RuntimeError(f"Failed to index code entity: {str(e)}")
+        embedding = self.embedding_creator.create_embedding(code_entity.to_description())
+        self.base_storage.store(code_entity.to_unique_id(), code_entity, embedding.tobytes())

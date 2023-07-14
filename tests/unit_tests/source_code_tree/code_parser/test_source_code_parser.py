@@ -1,6 +1,7 @@
 import pytest
 import tempfile
 import textwrap
+from src.source_code_tree.code_entities.module_entity import ModuleEntity
 from src.source_code_tree.code_parser.source_code_parser import SourceCodeParser
 
 def test_parser_handles_file_with_function_and_class():
@@ -74,7 +75,7 @@ def test_parser_handles_class_with_multiple_methods():
         temp.write(code_string.encode('utf-8'))
         temp.seek(0)
 
-        result = parser.parse_source_code(temp.name)
+        result: ModuleEntity = parser.parse_source_code(temp.name)
 
         assert "MyClass" in result.classes
         assert "method_one" in result.classes["MyClass"].methods

@@ -6,11 +6,14 @@ tests/integration_tests/semantic_code/search/test_search_service_integration.py
 Integration tests for the SearchService class to ensure that it correctly searches for code entities.
 """
 
+import tempfile
+import textwrap
 from typing import List
 import pytest
 from src.semantic_code.search.search_service import SearchService
 from src.source_code_tree.code_entities.function_entity import FunctionEntity
 from src.semantic_code.index.index_service import IndexService
+from src.source_code_tree.code_parser.source_code_parser import SourceCodeParser
 
 
 @pytest.fixture
@@ -58,7 +61,7 @@ def valid_function_entities() -> List[FunctionEntity]:
 
 
 @pytest.mark.integration
-def test_search_service_retrieves_indexed_entities_correctly(valid_function_entities: List[FunctionEntity]):
+def test_search_service_retrieves_indexed_entities_correctly(valid_function_entities: List[FunctionEntity], setup_and_teardown_redis):
     """
     This test checks if the SearchService correctly retrieves multiple previously indexed code entities with a real storage backend.
     It also checks the order of the results to evaluate the quality of the natural language search.
@@ -92,3 +95,46 @@ def test_search_service_retrieves_indexed_entities_correctly(valid_function_enti
     # Check that the most relevant entity is first in the result
     most_relevant_entity = next(entity for entity in valid_function_entities if "subtract" in entity.docstring)
     assert result_entities[0] == most_relevant_entity, "the returned first entity is not the most relevant one"
+
+
+@pytest.mark.integration
+def test_parser_and_search_integration(setup_and_teardown_redis):
+    """
+    This test checks if the system can correctly parse a Python file, index the parsed code entities, and then retrieve them via search.
+    It tests both SourceCodeParser and SearchService in an integrated manner.
+    Note: This assumes that a real storage backend and OpenAI embedding creator are configured and accessible.
+    """
+    index_service = IndexService()
+    search_service = SearchService()
+    parser = SourceCodeParser()
+
+    with tempfile.NamedTemporaryFile(suffix=".py") as temp:
+        # Arrange
+        code_string = textwrap.dedent("""
+        \"\"\"A simple Python file containing a function to subtract two numbers.\"\"\"
+        
+        def subtract(a: int, b: int):
+            \"\"\"This is a function that subtracts two numbers\"\"\"
+            return a - b
+        """)
+        temp.write(code_string.encode('utf-8'))
+        temp.seek(0)
+
+        # Parse the source code
+        module_entity = parser.parse_source_code(temp.name)
+
+        try:
+            index_service.index(module_entity)
+        except Exception as e:
+            pytest.fail(f"Indexing failed with exception: {str(e)}")
+
+        # Perform a search operation
+        search_query = "subtract two numbers."
+        result = search_service.search(search_query)
+
+        # Assert that the search result contains the indexed function entity
+        result_entities = [scored_entity.entity for scored_entity in result.entities]
+        assert module_entity.functions["subtract"] in result_entities, "The subtract function was not found in the search results"
+
+        # Check that the indexed function entity is first in the search result
+        assert result_entities[0] == module_entity.functions["subtract"], "The subtract function is not the most relevant result"

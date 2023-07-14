@@ -3,8 +3,7 @@ File: src/source_code_tree/code_entities/module_entity.py
 
 This module defines the ModuleEntity class which represents a module in source code.
 It is used to store and represent information about a module such as its file path, docstring,
-classes, and functions. The ModuleEntity is a subclass of CodeEntity and provides an
-implementation for the `to_description` method as per the contract defined in the base class.
+classes, and functions. The ModuleEntity is a subclass of CodeEntity.
 
 Classes:
     - ModuleEntity: Represents a module in source code.
@@ -34,7 +33,17 @@ class ModuleEntity(CodeEntity):
         """
         Property representing the type of module entity.
         """
-        return CodeEntityType.Module
+        return CodeEntityType.MODULE
+    
+    @property
+    def children(self):
+        """
+        Gets the children of this ModuleEntity, which are the classes and functions defined in the module.
+
+        Returns:
+            list: List of ClassEntity and FunctionEntity instances representing the classes and functions in this module.
+        """
+        return list(self.classes.values()) + list(self.functions.values())
     
 
     def add_class(self, class_entity):

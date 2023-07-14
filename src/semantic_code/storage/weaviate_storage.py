@@ -1,12 +1,3 @@
-"""
-This module contains a factory method for creating instances of storage backend classes.
-Based on the configuration, this factory will instantiate the appropriate storage
-backend (e.g., RedisStorage, WeaviateStorage) and return it.
-
-Example:
-    storage = create_storage() # Creates an instance of the storage backend as per configuration
-
-"""
 import weaviate
 from src.semantic_code.storage.base_storage import BaseStorage
 from src.config.config import config
@@ -37,17 +28,22 @@ class WeaviateStorage(BaseStorage):
 
     def store(self, key: str, entity: CodeEntity, embedding):
         # TODO: Store a CodeEntity and its embedding vector in Weaviate
-        raise  NotImplemented()
+        raise NotImplementedError()
 
     def retrieve(self, key: str):
         # TODO: Retrieve a CodeEntity from Weaviate
-        raise  NotImplemented()
+        raise NotImplementedError()
 
     def search(self, vector, top_k=5):
         # TODO: Search for the top_k closest code entities in Weaviate
-        raise  NotImplemented()
+        raise NotImplementedError()
 
     def close_connection(self):
         # TODO: Close the connection to Weaviate if necessary
-        raise  NotImplemented()
+        raise NotImplementedError()
 
+    def flush_db(self):
+        """
+        Flushes the Weaviate database, removing all stored embeddings.
+        """
+        self.client.delete_all()

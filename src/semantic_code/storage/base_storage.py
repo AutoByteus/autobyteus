@@ -11,11 +11,13 @@ from src.source_code_tree.code_entities.base_entity import CodeEntity
 class BaseStorage(metaclass=ABCSingletonMeta):
     """
     BaseStorage is an abstract base class that defines the interface for storage implementations.
-    Subclasses must implement the store and retrieve methods.
+    Subclasses must implement the store, retrieve, and search methods.
 
     Methods:
         store(key: str, entity: CodeEntity, embedding): Stores the embedding with the given key.
         retrieve(query: str): Retrieves the embedding for the given query.
+        search(embedding, top_k=5): Searches for the top_k closest embeddings to the given vector.
+        flush_db(): Flushes the database, removing all stored embeddings.
     """
 
     @abstractmethod
@@ -55,5 +57,12 @@ class BaseStorage(metaclass=ABCSingletonMeta):
 
         Returns:
             A list of closest embeddings.
+        """
+        pass
+
+    @abstractmethod
+    def flush_db(self):
+        """
+        Flushes the database, removing all stored embeddings.
         """
         pass

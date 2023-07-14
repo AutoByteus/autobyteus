@@ -55,6 +55,16 @@ class CodeEntity(ABC):
         """
         pass
 
+    @property
+    def children(self):
+        """
+        Gets the children of this CodeEntity. By default, a CodeEntity has no children.
+
+        Returns:
+            list: Empty list, since a base CodeEntity has no children.
+        """
+        return []
+
     def to_description(self):
         """
         Convert the class entity to a string representation, keeping only the description part of the docstring.
