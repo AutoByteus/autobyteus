@@ -10,7 +10,7 @@ import openai
 import numpy as np
 import logging
 from src.semantic_code.embedding.base_embedding_creator import BaseEmbeddingCreator
-from src.config.config import config
+from src.config import config
 from src.singleton import ABCSingletonMeta
 
 logger = logging.getLogger(__name__)

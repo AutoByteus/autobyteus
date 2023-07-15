@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.startup_mode.cli_mode import command_line_mode
 from src.startup_mode.grpc_server_mode import grpc_server_mode
 from src.startup_mode.graphql_server_mode import graphql_server_mode
-from src.config.config import config
+from src.config import config
 from src.config.logging_config import configure_logger
 
 def parse_command_line_arguments():

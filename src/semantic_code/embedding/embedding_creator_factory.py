@@ -10,7 +10,7 @@ is implemented as a singleton, ensuring only one instance of each type can exist
 from src.semantic_code.embedding.base_embedding_creator import BaseEmbeddingCreator
 from src.semantic_code.embedding.openai_embedding_creator import OpenAIEmbeddingCreator
 from src.semantic_code.embedding.sentence_transformer_embedding_creator import SentenceTransformerEmbeddingCreator
-from src.config.config import config
+from src.config import config
 
 
 def get_embedding_creator() -> BaseEmbeddingCreator:

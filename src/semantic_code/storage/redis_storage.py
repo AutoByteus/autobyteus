@@ -5,7 +5,7 @@ from redis.commands.search.query import Query
 from redis.commands.search.field import VectorField, TextField
 from redis.commands.search.indexDefinition import IndexDefinition, IndexType
 from src.semantic_code.storage.base_storage import BaseStorage
-from src.config.config import config
+from src.config import config
 from src.singleton import SingletonMeta
 from src.source_code_tree.code_entities.base_entity import CodeEntity
 

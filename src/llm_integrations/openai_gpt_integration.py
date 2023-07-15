@@ -4,7 +4,7 @@ This class integrates the OpenAI GPT models (gpt3.5-turbo, gpt4) with the agent 
 """
 
 import openai
-from src.config.config import config
+from src.config import config
 from src.llm_integrations.base_llm_integration import BaseLLMIntegration
 
 class OpenAIGPTIntegration(BaseLLMIntegration):

@@ -1,6 +1,5 @@
-from src.config.config import Config
 from src.llm_integrations.openai_gpt_integration import OpenAIGPTIntegration
-from src.config.config import config
+from src.config import config
 # Import other LLM integrations as needed
 
 def create_llm_integration():
