@@ -1,3 +1,9 @@
+# src/semantic_code/schema.py
+"""
+This file contains the GraphQL schema for the project. 
+It includes the `Query` and `Mutation` types, which define 
+the available queries and mutations that the client can execute.
+"""
 import json
 import strawberry
 from strawberry.scalars import JSON
@@ -27,21 +33,22 @@ class Mutation:
         return True
 
     @strawberry.mutation
-    def add_workspace(self, workspace_path: str) -> bool:
+    def add_workspace(self, workspace_root_path: str) -> JSON:
         """
-        Adds a new workspace to the workspace service.
+        Adds a new workspace to the workspace service and 
+        returns a JSON representation of the workspace directory tree.
 
         Args:
-            workspace_path (str): The root path of the workspace to be added.
+            workspace_root_path (str): The root path of the workspace to be added.
 
         Returns:
-            bool: True if the workspace was added successfully, False otherwise.
+            JSON: The JSON representation of the workspace directory tree if the workspace 
+            was added successfully, otherwise a JSON with an error message.
         """
         try:
-            workspace_service.add_workspace(workspace_path)
-            return True
+            workspace_tree = workspace_service.add_workspace(workspace_root_path)
+            return workspace_tree.to_json()
         except Exception as e:
-            print(f"Error while adding workspace: {e}")
-            return False@strawberry.type
+            return json.dumps({"error": f"Error while adding workspace: {str(e)}"})
 
 schema = strawberry.Schema(query=Query, mutation=Mutation)

@@ -1,6 +1,3 @@
-from src.source_code_tree.code_tree_generator import SourceCodeTreeGenerator
-
-
 class WorkspaceSetting:
     """
     Class to store the parsed workspace structure and other related objects.
@@ -13,5 +10,3 @@ class WorkspaceSetting:
         """
         Parses and stores the workspace structure.
         """
-        code_tree_generator = SourceCodeTreeGenerator()
-        self.structure = code_tree_generator.generate_tree(self.root_path)
