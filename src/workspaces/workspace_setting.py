@@ -1,12 +1,19 @@
+from src.workspaces.workspace_directory_tree import WorkspaceDirectoryTree
+
+
 class WorkspaceSetting:
     """
     Class to store the parsed workspace structure and other related objects.
     """
     def __init__(self, root_path: str):
         self.root_path = root_path
-        self.structure = None
+        self.directory_tree = None  # Added directory_tree attribute
 
-    def parse_structure(self):
+    def set_directory_tree(self, directory_tree: WorkspaceDirectoryTree):
         """
-        Parses and stores the workspace structure.
+        Set the directory tree of the workspace.
+
+        Args:
+            directory_tree (WorkspaceDirectoryTree): The directory tree of the workspace.
         """
+        self.directory_tree = directory_tree  # Set directory_tree

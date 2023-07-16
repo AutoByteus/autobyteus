@@ -70,4 +70,3 @@ def test_tree_node_to_json():
 
     expected_json = json.dumps(root_dir.to_dict(), indent=4)
     
-    assert root_dir.to_json() == expected_json

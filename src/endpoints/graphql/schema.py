@@ -8,6 +8,7 @@ import json
 import strawberry
 from strawberry.scalars import JSON
 from src.config import config
+from src.source_code_tree.file_explorer.tree_node import TreeNode
 from src.workspaces.workspace_service import WorkspaceService
 from src.workspaces.workspace_setting import WorkspaceSetting
 from src.endpoints.graphql.json.custom_json_encoder import CustomJSONEncoder
@@ -46,7 +47,7 @@ class Mutation:
             was added successfully, otherwise a JSON with an error message.
         """
         try:
-            workspace_tree = workspace_service.add_workspace(workspace_root_path)
+            workspace_tree: TreeNode = workspace_service.add_workspace(workspace_root_path)
             return workspace_tree.to_json()
         except Exception as e:
             return json.dumps({"error": f"Error while adding workspace: {str(e)}"})

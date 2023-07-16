@@ -1,13 +1,4 @@
-## Original ignores
-autogpt/keys.py
-autogpt/*json
-autogpt/node_modules/
-autogpt/__pycache__/keys.cpython-310.pyc
-autogpt/auto_gpt_workspace
-package-lock.json
 *.pyc
-auto_gpt_workspace/*
-*.mpeg
 .env
 azure.yaml
 ai_settings.yaml
@@ -34,7 +25,6 @@ __pycache__/
 build/
 develop-eggs/
 dist/
-plugins/
 downloads/
 eggs/
 .eggs/

@@ -13,6 +13,9 @@ import logging
 from typing import Optional
 
 from src.source_code_tree.file_explorer.directory_traversal import DirectoryTraversal
+from src.source_code_tree.file_explorer.traversal_ignore_strategy.git_ignore_strategy import GitIgnoreStrategy
+from src.source_code_tree.file_explorer.traversal_ignore_strategy.specific_folder_ignore_strategy import SpecificFolderIgnoreStrategy
+from src.workspaces.workspace_directory_tree import WorkspaceDirectoryTree
 from src.workspaces.workspace_setting import WorkspaceSetting
 from src.source_code_tree.file_explorer.tree_node import TreeNode
 
@@ -30,39 +33,46 @@ class WorkspaceService:
     def __init__(self):
         """
         Initialize WorkspaceService.
-
-        Args:
-            directory_traversal (DirectoryTraversal): An instance of DirectoryTraversal.
         """
         self.workspace_settings = {}
-        self.directory_traversal = DirectoryTraversal()
 
     def add_workspace(self, workspace_root_path: str) -> TreeNode:
         """
-        Adds a workspace setting to the workspace settings and returns the directory tree of the workspace.
+        Adds a workspace setting to the workspace settings and builds the directory tree of the workspace.
 
         Args:
             workspace_root_path (str): The root path of the workspace.
 
         Returns:
             TreeNode: The root TreeNode of the directory tree.
-
-        Raises:
-            ValueError: If the workspace could not be added.
         """
-        try:
-            workspace_setting = WorkspaceSetting(root_path=workspace_root_path)  # Create the workspace setting object
-            self.workspace_settings[workspace_root_path] = workspace_setting
-        except Exception as e:
-            logging.error(f"Error while adding workspace setting: {e}")
-            raise ValueError(f"Error while adding workspace setting: {e}")
+        workspace_setting = self._add_workspace_setting(workspace_root_path)
+        directory_tree = self.build_workspace_directory_tree(workspace_root_path)
+        workspace_setting.set_directory_tree(WorkspaceDirectoryTree(directory_tree))
 
-        try:
-            directory_tree = self.directory_traversal.build_tree(workspace_root_path)
-            return directory_tree
-        except Exception as e:
-            logging.error(f"Error while building directory tree: {e}")
-            raise ValueError(f"Error while building directory tree: {e}")
+        return directory_tree
+
+
+    def build_workspace_directory_tree(self, workspace_root_path: str) -> TreeNode:
+        """
+        Builds and returns the directory tree of a workspace.
+
+        Args:
+            workspace_root_path (str): The root path of the workspace.
+
+        Returns:
+            TreeNode: The root TreeNode of the directory tree.
+        """
+
+        files_ignore_strategies = [
+            SpecificFolderIgnoreStrategy(root_path=workspace_root_path, folders_to_ignore=['.git']),
+            GitIgnoreStrategy(root_path=workspace_root_path)
+        ]
+        self.directory_traversal = DirectoryTraversal(strategies=files_ignore_strategies)
+
+        directory_tree = self.directory_traversal.build_tree(workspace_root_path)
+        return directory_tree
+    
 
     def get_workspace_setting(self, workspace_root_path: str) -> Optional[WorkspaceSetting]:
         """
@@ -76,4 +86,19 @@ class WorkspaceService:
         """
         return self.workspace_settings.get(workspace_root_path, None)
 
-    
+    def _add_workspace_setting(self, workspace_root_path: str) -> WorkspaceSetting:
+        """
+        Adds a workspace setting to the workspace settings.
+
+        Args:
+            workspace_root_path (str): The root path of the workspace.
+
+        Returns:
+            WorkspaceSetting: The workspace setting that has been added.
+
+        """
+
+        workspace_setting = WorkspaceSetting(root_path=workspace_root_path)
+        self.workspace_settings[workspace_root_path] = workspace_setting
+        return workspace_setting
+       
