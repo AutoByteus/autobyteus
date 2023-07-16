@@ -13,6 +13,7 @@ import logging
 from typing import Optional
 
 from src.source_code_tree.file_explorer.directory_traversal import DirectoryTraversal
+from src.source_code_tree.file_explorer.sort_strategy.default_sort_strategy import DefaultSortStrategy
 from src.source_code_tree.file_explorer.traversal_ignore_strategy.git_ignore_strategy import GitIgnoreStrategy
 from src.source_code_tree.file_explorer.traversal_ignore_strategy.specific_folder_ignore_strategy import SpecificFolderIgnoreStrategy
 from src.workspaces.workspace_directory_tree import WorkspaceDirectoryTree

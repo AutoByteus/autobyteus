@@ -1,15 +1,18 @@
 # src/source_code_tree/file_explorer/directory_traversal.py
 
 import os
-from typing import List, Optional
 import pathlib
+from typing import List, Optional
 from src.source_code_tree.file_explorer.traversal_ignore_strategy.traversal_ignore_strategy import TraversalIgnoreStrategy
-
 from src.source_code_tree.file_explorer.tree_node import TreeNode
+from src.source_code_tree.file_explorer.sort_strategy.default_sort_strategy import DefaultSortStrategy
+from src.source_code_tree.file_explorer.sort_strategy.sort_strategy import SortStrategy
+
 
 class DirectoryTraversal:
     """
     A class used to traverse directories and represent the directory structure as a TreeNode.
+    The traversal order follows a specified SortStrategy.
 
     Methods
     -------
@@ -17,15 +20,19 @@ class DirectoryTraversal:
         Traverses a specified directory and returns its structure as a TreeNode.
     """
 
-    def __init__(self, strategies: Optional[List[TraversalIgnoreStrategy]] = None):
+    def __init__(self, strategies: Optional[List[TraversalIgnoreStrategy]] = None, 
+                 sort_strategy: Optional[SortStrategy] = None):
         """
         Initialize DirectoryTraversal.
 
         Args:
             strategies (Optional[List[TraversalIgnoreStrategy]]): A list of strategies to ignore files or folders.
                 If none is provided, no file or folder will be ignored.
+            sort_strategy (Optional[SortStrategy]): A strategy for sorting directories and files.
+                If none is provided, DefaultSortStrategy is used.
         """
         self.strategies = strategies or []
+        self.sort_strategy = sort_strategy or DefaultSortStrategy()
 
     def build_tree(self, folder_path: str) -> TreeNode:
         """
@@ -45,7 +52,10 @@ class DirectoryTraversal:
         node = TreeNode(name, folder_path, os.path.isfile(folder_path))
 
         if not node.is_file:  # if the node is a directory, we add its children
-            for child_path in os.listdir(folder_path):
+            children_paths = os.listdir(folder_path)
+            sorted_paths = self.sort_strategy.sort(paths=children_paths)
+
+            for child_path in sorted_paths:
                 full_child_path = os.path.join(folder_path, child_path)
                 if any(strategy.should_ignore(full_child_path) for strategy in self.strategies):
                     continue
