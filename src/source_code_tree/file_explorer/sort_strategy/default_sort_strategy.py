@@ -1,7 +1,7 @@
 # src/source_code_tree/file_explorer/sort_strategy/default_sort_strategy.py
 
 import os
-from typing import List, Tuple
+from typing import List
 from src.source_code_tree.file_explorer.sort_strategy.sort_strategy import SortStrategy
 
 
@@ -9,8 +9,9 @@ class DefaultSortStrategy(SortStrategy):
     """
     Default sorting strategy for directory traversal.
 
-    The strategy is to sort folders and files so that all directories come first, 
-    all files come later, and directories starting with a dot come before others.
+    The strategy is to sort folders and files such that all directories come first, 
+    and all files come later. Both directories and files are sorted in alphabetical 
+    order by their basename.
     """
 
     def sort(self, paths: List[str]) -> List[str]:
@@ -32,5 +33,4 @@ class DefaultSortStrategy(SortStrategy):
             The sort key for the path.
         """
         is_directory = os.path.isdir(path)
-        starts_with_dot = os.path.basename(path).startswith('.')
-        return (not is_directory, starts_with_dot, path)
+        return (not is_directory, os.path.basename(path))

@@ -53,8 +53,8 @@ class DirectoryTraversal:
 
         if not node.is_file:  # if the node is a directory, we add its children
             children_paths = os.listdir(folder_path)
-            sorted_paths = self.sort_strategy.sort(paths=children_paths)
-
+            sorted_paths = self.sort_strategy.sort(paths=[os.path.abspath(os.path.join(folder_path, p)) for p in children_paths])
+            
             for child_path in sorted_paths:
                 full_child_path = os.path.join(folder_path, child_path)
                 if any(strategy.should_ignore(full_child_path) for strategy in self.strategies):

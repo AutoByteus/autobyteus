@@ -36,7 +36,6 @@ def setup_files_and_folders():
         yield tmp_dir
 
 
-
 def test_sorts_folders_and_files_correctly(sort_strategy: DefaultSortStrategy, setup_files_and_folders):
     # Arrange
     paths = [os.path.join(setup_files_and_folders, path_name) 
@@ -51,7 +50,7 @@ def test_sorts_folders_and_files_correctly(sort_strategy: DefaultSortStrategy, s
         os.path.join(setup_files_and_folders, 'normal_dir'),
         os.path.join(setup_files_and_folders, '.dot_file'),
         os.path.join(setup_files_and_folders, 'normal_file'),
-    ]
+    ], "Sorting at root level failed."
 
     # Testing the nested directories in '.dot_dir'
     dot_dir_paths = [os.path.join(setup_files_and_folders, '.dot_dir', path_name)
@@ -62,7 +61,7 @@ def test_sorts_folders_and_files_correctly(sort_strategy: DefaultSortStrategy, s
         os.path.join(setup_files_and_folders, '.dot_dir', 'nested_dir'),
         os.path.join(setup_files_and_folders, '.dot_dir', '.nested_dot_file'),
         os.path.join(setup_files_and_folders, '.dot_dir', 'nested_file'),
-    ]
+    ], "Sorting in '.dot_dir' failed."
 
     # Testing the nested directories in 'normal_dir'
     normal_dir_paths = [os.path.join(setup_files_and_folders, 'normal_dir', path_name)
@@ -73,4 +72,34 @@ def test_sorts_folders_and_files_correctly(sort_strategy: DefaultSortStrategy, s
         os.path.join(setup_files_and_folders, 'normal_dir', 'nested_dir'),
         os.path.join(setup_files_and_folders, 'normal_dir', '.nested_dot_file'),
         os.path.join(setup_files_and_folders, 'normal_dir', 'nested_file'),
-    ]
+    ], "Sorting in 'normal_dir' failed."
+
+
+# Create test files and directories
+@pytest.fixture
+def create_test_directory_structure(tmp_path):
+    directories = ['src', '.vscode', 'public']
+    files = ['README.md', 'codegen.yml', 'graphql.schema.json', 'index.html', 'package-lock.json', 'package.json', 'tsconfig.json', 'tsconfig.node.json', 'vite.config.ts', 'yarn.lock', '.gitignore']
+
+    for directory in directories:
+        (tmp_path / directory).mkdir()
+
+    for file in files:
+        (tmp_path / file).touch()
+
+    return [str(tmp_path / name) for name in directories + files]
+
+
+def test_default_sort_strategy(create_test_directory_structure, tmp_path):
+    # Arrange
+    sort_strategy = DefaultSortStrategy()
+    unsorted_paths = create_test_directory_structure
+
+    # Act
+    sorted_paths = sort_strategy.sort(unsorted_paths)
+
+    # Assert
+    expected_order = ['.vscode', 'public', 'src', '.gitignore', 'README.md', 'codegen.yml', 'graphql.schema.json', 'index.html', 'package-lock.json', 'package.json', 'tsconfig.json', 'tsconfig.node.json', 'vite.config.ts', 'yarn.lock']
+    expected_order = [str(tmp_path / path) for path in expected_order]  # Convert to string to compare with sorted_paths
+
+    assert sorted_paths == expected_order, f"Expected order is {expected_order}, but got {sorted_paths}"
