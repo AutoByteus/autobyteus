@@ -7,7 +7,7 @@ The BaseWorkflow class offers a foundation for creating custom workflows with un
 from enum import Enum
 from src.llm_integrations.base_llm_integration import BaseLLMIntegration
 
-from src.workflow_types.types.workflow_template_config import WorkflowTemplateStagesConfig
+from src.workflow_types.types.workflow_template_config import WorkflowTemplateStepsConfig
 from src.workflow_types.utils.unique_id_generator import UniqueIDGenerator
 
 class WorkflowStatus(Enum):
@@ -27,12 +27,12 @@ class BaseWorkflow:
     name = None
     config = None
 
-    def __init__(self, config: WorkflowTemplateStagesConfig = None, llm_integration: BaseLLMIntegration = None):
+    def __init__(self, config: WorkflowTemplateStepsConfig = None, llm_integration: BaseLLMIntegration = None):
         """
         Initialize a BaseWorkflow instance with a unique ID, status, and optional configuration. Optionally accepts an LLM integration.
 
         :param config: (optional) The configuration for the workflow.
-        :type config: WorkflowTemplateStagesConfig, optional
+        :type config: WorkflowTemplateStepsConfig, optional
         :param llm_integration: An instance of a subclass of BaseLLMIntegration to be used for LLM integration, defaults to None.
         :type llm_integration: BaseLLMIntegration, optional
         """
@@ -47,7 +47,7 @@ class BaseWorkflow:
         cls.name = name
 
     @classmethod
-    def set_workflow_config(cls, config: WorkflowTemplateStagesConfig):
+    def set_workflow_config(cls, config: WorkflowTemplateStepsConfig):
         cls.config = config
 
     def get_workflow_status(self):
@@ -66,11 +66,11 @@ class BaseWorkflow:
         self.status = WorkflowStatus.Started
         raise NotImplementedError("start_workflow method must be implemented in derived classes")
 
-    def execute_stage(self, stage_config: dict):
+    def execute_step(self, step_config: dict):
         """
-        Execute a stage in the workflow and raise a NotImplementedError for derived classes to implement.
+        Execute a step in the workflow and raise a NotImplementedError for derived classes to implement.
 
         Args:
-            stage_config (dict): The configuration of the stage to be executed.
+            step_config (dict): The configuration of the step to be executed.
         """
-        raise NotImplementedError("execute_stage method must be implemented in derived classes")
+        raise NotImplementedError("execute_step method must be implemented in derived classes")

@@ -1,17 +1,17 @@
 """
-workflow_template_config.py
+src/workflow_template_config.py
+
 This module contains the type definitions for the workflow configuration templates.
 """
 
-from __future__ import annotations
-from typing import TypedDict, Dict, Type, Union
+from typing import TypedDict, Dict
 
 
-class StageTemplateConfig(TypedDict, total=False):
-    stage_class: type
-    stages: Dict[str, 'StageTemplateConfig']
+class StepsTemplateConfig(TypedDict, total=False):
+    step_class: type
+    steps: Dict[str, 'StepsTemplateConfig']
 
 
-class WorkflowTemplateStagesConfig(TypedDict, total=False):
+class WorkflowTemplateStepsConfig(TypedDict, total=False):
     workspace_path: str
-    stages: Dict[str, StageTemplateConfig]
+    steps: Dict[str, StepsTemplateConfig]

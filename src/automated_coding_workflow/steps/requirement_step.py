@@ -1,13 +1,13 @@
 """
-requirement_stage.py
+requirement_step.py
 
-This module contains the RequirementStage class, derived from the Stage base class.
+This module contains the RequirementStep class, derived from the Step base class.
 """
 
 from typing_extensions import override
-from src.workflow_types.types.base_stage import BaseStage
+from src.workflow_types.types.base_step import BaseStep
 
-class RequirementStage(BaseStage):
+class RequirementStep(BaseStep):
     name = "Refine And Enhance Task Description"
     prompt_template = '''The task name is {}. In this task, you will perform as an expert in refining and enhancing task descriptions. Your task is to analyze the provided task description given in "Task Description" section, improve it based on your domain and knowledge of doing similar task, and ensure the revised description better conveys its purpose while maintaining a professional and explicit writing style.
 
@@ -51,10 +51,10 @@ class RequirementStage(BaseStage):
     @override
     def construct_prompt(self) -> str:
         """
-        Construct the prompt for the requirement stage.
+        Construct the prompt for the requirement step.
 
         Returns:
-            str: The constructed prompt for the requirement stage.
+            str: The constructed prompt for the requirement step.
         """
         prompt = "Please provide the requirements for the project:"
         return prompt
@@ -62,17 +62,17 @@ class RequirementStage(BaseStage):
     @override
     def process_response(self, response: str):
         """
-        Process the response for the Requirement stage.
+        Process the response for the Requirement step.
 
         Args:
             response (str): The response from the LLM API.
         """
-        # Implement the response processing logic specific to the Requirement stage
+        # Implement the response processing logic specific to the Requirement step
 
     def execute(self) -> None:
         """
-        Execute the stage.
+        Execute the step.
 
-        This method should be implemented in derived classes to define the stage's execution logic.
+        This method should be implemented in derived classes to define the step's execution logic.
         """
         print("not doing anything now")

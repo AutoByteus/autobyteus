@@ -7,7 +7,8 @@ import src.proto.grpc_service_pb2 as automated_coding_workflow_pb2
 import src.proto.grpc_service_pb2_grpc as automated_coding_workflow_pb2_grpc
 from src.automated_coding_workflow.config import WORKFLOW_CONFIG
 from src.automated_coding_workflow.automated_coding_workflow import AutomatedCodingWorkflow
-from src.workflow_types.types.workflow_template_config import StageTemplateConfig
+from src.workflow_types.types.workflow_template_config import StepsTemplateConfig
+
 
 class AutomatedCodingWorkflowService(automated_coding_workflow_pb2_grpc.AutomatedCodingWorkflowServiceServicer):
     """
@@ -77,31 +78,30 @@ def _build_workflow_config_protobuf():
     """
     workflow_config = automated_coding_workflow_pb2.GetWorkflowConfigResponse()
 
-    for stage_name, stage_data in WORKFLOW_CONFIG['stages'].items():
-        stage = _build_stage_protobuf(stage_name, stage_data)
-        workflow_config.stages.add().CopyFrom(stage)
+    for step_name, step_data in WORKFLOW_CONFIG['steps'].items():
+        step = _build_step_protobuf(step_name, step_data)
+        workflow_config.steps.add().CopyFrom(step)
 
     return workflow_config
 
-def _build_stage_protobuf(stage_name: str, stage_data: StageTemplateConfig):
+def _build_step_protobuf(step_name: str, step_data: StepsTemplateConfig):
     """
-    A helper function to construct a Stage protobuf message.
+    A helper function to construct a Step protobuf message.
 
     Args:
-        stage_name (str): The name of the stage.
-        stage_data (StageTemplateConfig): The configuration data for the stage.
+        step_name (str): The name of the step.
+        step_data (StepsTemplateConfig): The configuration data for the step.
 
     Returns:
-        A Stage object that represents a stage in the workflow.
+        A Step object that represents a step in the workflow.
     """
-    stage = automated_coding_workflow_pb2.Stage()
-    stage.stage_name = stage_name
+    step = automated_coding_workflow_pb2.Step()
+    step.step_name = step_name
 
-    stage.stage_class = stage_data["stage_class"].__name__
-    if "stages" in stage_data:
-        for substage_name, substage_data in stage_data["stages"].items():
-            substage = _build_stage_protobuf(substage_name, substage_data)
-            stage.stages.add().CopyFrom(substage)
+    step.step_class = step_data["step_class"].__name__
+    if "steps" in step_data:
+        for substep_name, substep_data in step_data["steps"].items():
+            substep = _build_step_protobuf(substep_name, substep_data)
+            step.steps.add().CopyFrom(substep)
 
-    return stage
-
+    return step
