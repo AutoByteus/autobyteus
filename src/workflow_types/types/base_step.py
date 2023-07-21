@@ -26,16 +26,25 @@ class BaseStep(ABC):
     Each step should inherit from this class and implement the required methods.
     """
 
-    step_name = None
+    name = None
+    prompt_template = None
 
     def __init__(self, workflow: BaseWorkflow):
         self.id = UniqueIDGenerator.generate_id()
-        self.prompt = self.construct_prompt()
         self.workflow = workflow
 
-    @classmethod
-    def set_step_name(cls, name: str):
-        cls.step_name = name
+    def to_dict(self) -> dict:
+            """
+            Converts the BaseStep instance to a dictionary representation.
+
+            Returns:
+                dict: Dictionary representation of the BaseStep instance.
+            """
+            return {
+                "id": self.id,
+                "name": self.name,
+                "prompt_template": self.prompt_template
+            }
 
     @abstractmethod
     def construct_prompt(self) -> str:

@@ -2,6 +2,9 @@ from src.workflow_types.types.base_step import BaseStep
 
 
 class ImplementationStep(BaseStep):
+    name = "implementation"
+    prompt_template = ""
+
     """
     ImplementationStep handles the processing of the response from the LLM API
     for the implementation step of the automated coding workflow.

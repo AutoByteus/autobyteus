@@ -7,6 +7,8 @@ This module contains the DesignStep class, which represents the design stage of 
 from src.workflow_types.types.base_step import BaseStep
 
 class DesignStep(BaseStep):
+    name = "design"
+    prompt_template = ""
     """
     DesignStep is the class representing the design step of the automated coding workflow.
     """

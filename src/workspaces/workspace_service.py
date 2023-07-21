@@ -10,7 +10,8 @@ by TreeNode objects is returned.
 """
 
 import logging
-from typing import Optional
+from typing import Dict, Optional
+from src.singleton import SingletonMeta
 
 from src.source_code_tree.file_explorer.directory_traversal import DirectoryTraversal
 from src.source_code_tree.file_explorer.sort_strategy.default_sort_strategy import DefaultSortStrategy
@@ -19,8 +20,11 @@ from src.source_code_tree.file_explorer.traversal_ignore_strategy.specific_folde
 from src.workspaces.workspace_directory_tree import WorkspaceDirectoryTree
 from src.workspaces.workspace_setting import WorkspaceSetting
 from src.source_code_tree.file_explorer.tree_node import TreeNode
+from src.automated_coding_workflow.automated_coding_workflow import AutomatedCodingWorkflow  # Updated import
 
-class WorkspaceService:
+
+logger = logging.getLogger(__name__)
+class WorkspaceService(metaclass=SingletonMeta):
     """
     Service to handle operations related to workspaces.
 
@@ -28,7 +32,8 @@ class WorkspaceService:
         workspace_settings (dict): A dictionary to store workspace settings.
             The keys are the root paths of the workspaces,
             and the values are the corresponding workspace settings.
-        directory_traversal (DirectoryTraversal): An instance of DirectoryTraversal to create directory trees.
+        workflows (Dict[str, AutomatedCodingWorkflow]): A dictionary mapping workspace root paths
+            to their corresponding AutomatedCodingWorkflow.
     """
 
     def __init__(self):
@@ -36,10 +41,12 @@ class WorkspaceService:
         Initialize WorkspaceService.
         """
         self.workspace_settings = {}
+        self.workflows: Dict[str, AutomatedCodingWorkflow] = {}
 
     def add_workspace(self, workspace_root_path: str) -> TreeNode:
         """
-        Adds a workspace setting to the workspace settings and builds the directory tree of the workspace.
+        Adds a workspace setting to the workspace settings, builds the directory tree of the workspace, 
+        and initializes an AutomatedCodingWorkflow for the workspace.
 
         Args:
             workspace_root_path (str): The root path of the workspace.
@@ -50,6 +57,9 @@ class WorkspaceService:
         workspace_setting = self._add_workspace_setting(workspace_root_path)
         directory_tree = self.build_workspace_directory_tree(workspace_root_path)
         workspace_setting.set_directory_tree(WorkspaceDirectoryTree(directory_tree))
+        
+        # Initialize AutomatedCodingWorkflow with the workspace setting
+        self.workflows[workspace_root_path] = AutomatedCodingWorkflow(workspace_setting)
 
         return directory_tree
 

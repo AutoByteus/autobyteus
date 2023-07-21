@@ -1,6 +1,9 @@
 from src.workflow_types.types.base_step import BaseStep
 
 class TestingStep(BaseStep):
+    name="run_test"
+    prompt_template = ""
+
     """
     TestingStep handles the processing of the response from the LLM API
     for the testing step of the automated coding workflow.

@@ -1,3 +1,5 @@
+# src/semantic_code/requirement/requirement_step.py
+
 """
 requirement_step.py
 
@@ -8,55 +10,60 @@ from typing_extensions import override
 from src.workflow_types.types.base_step import BaseStep
 
 class RequirementStep(BaseStep):
-    name = "Refine And Enhance Task Description"
-    prompt_template = '''The task name is {}. In this task, you will perform as an expert in refining and enhancing task descriptions. Your task is to analyze the provided task description given in "Task Description" section, improve it based on your domain and knowledge of doing similar task, and ensure the revised description better conveys its purpose while maintaining a professional and explicit writing style.
+    name = "requirement"
+    
+    # Define the template string
+    prompt_template = """
+    As a senior Python software engineer, address the requriements outlined between the `$start$` and `$end$` tokens in the `[Requirement]` section.
 
-    Adjust the wording, add additional content or requirements as needed, drawing from your knowledge of similar features, and create a logically coherent and semantically organized output without redundancy.
+    [Guidelines]
+    - Use appropriate design patterns where neccessary.
+    - Follow SOLID principles and Python's best coding practices.
+    - Contemplate refactoring where necessary.
+    - Follow python docstring best practices, ensuring each file begins with a file-level docstring.
+    - Include file paths with their complete codes in code block in the output for easy copy paste. Do not use placeholders.
+    - Explain whether to create a new folder or use an existing one for file placement. Use descriptive naming conventions for files and folders that correlate with the requirement's features. For context, the current project's file structure looks like this:
+        - src
+            - ...
+            - semantic_code
+                - embedding
+                    - openai_embedding_creator.py
+        - tests
+            - unit_tests
+                - ...
+                - semantic_code
+                    - embedding
+                        - test_openai_embedding_creator.py
+            - integration_tests
+                - ...
+                - semantic_code
+                    - index
+                        - test_index_service_integration.py
+                        
+    - Always use absolute imports over relative ones.
+    - Update docstrings in line with any code modifications.
 
-    You should incorporate all information, including codes, from the original task description in the output, as it will be stored in a third-party platform for later reference. 
+    Think step by step.
 
-    For instance, if you recognize file paths and codes in the task description, you should extract the codes to the 'Code References' section, and put them under the respective path, description, and code subsections. Identify constraints such as programming languages, frameworks etc from the task description and include them in the 'Constraints' section.
-
-    Use the following format for the output:
-
-    ```Title: [Title of the task]
-
-    Objective:
-    - [Objective of the task]
-
-    Background:
-    - [Background information related to the task]
-
-    Requirements:
-    - [List of requirements for the task]
-
-    Constraints:
-    - [List of constraints or limitations for the task]
-
-    Code References: (if codes exist in the task description)
-    - path
-    - description
-    - code (complete code for the file given in the task description)
-    ```
-
-    Provide the complete output in a copiable preformatted text block.
-
-    Task description:
-
-    ```
-    {}
-    ```
-    '''
+    [Requirement]
+    $start$
+    {requirement}
+    $end$
+    """
     
     @override
-    def construct_prompt(self) -> str:
+    def construct_prompt(self, requirement: str) -> str:
         """
         Construct the prompt for the requirement step.
+
+        Args:
+            requirement (str): The requirement to be filled in the prompt_template.
 
         Returns:
             str: The constructed prompt for the requirement step.
         """
-        prompt = "Please provide the requirements for the project:"
+        # Format the prompt with the provided requirement
+        prompt = self.prompt_template.format(requirement=requirement)
         return prompt
     
     @override
@@ -68,7 +75,8 @@ class RequirementStep(BaseStep):
             response (str): The response from the LLM API.
         """
         # Implement the response processing logic specific to the Requirement step
-
+    
+    @override
     def execute(self) -> None:
         """
         Execute the step.

@@ -10,7 +10,6 @@ from typing import Any
 import numpy as np
 from redis.commands.search.result import Result
 from src.semantic_code.search.search_result import ScoredEntity, SearchResult
-from src.source_code_tree.code_entities.base_entity import CodeEntity
 from src.source_code_tree.code_entities.code_entity_factory import CodeEntityFactory
 
 def convert_redis_result_to_search_result(redis_search_result: Result) -> SearchResult:

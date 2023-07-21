@@ -7,6 +7,9 @@ from src.workflow_types.types.base_step import BaseStep
 
 
 class RequirementRefineStep(BaseStep):
+    name = "requirement_refine"
+    prompt_template = ""
+
     """
     RequirementRefineStep class represents a substep of the Requirement step.
 

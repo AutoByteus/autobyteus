@@ -7,6 +7,41 @@ from src.workflow_types.types.base_step import BaseStep
 
 
 class TestGenerationStep(BaseStep):
+    name = "generate_test"
+    prompt_template = """
+
+    You are a senior Python software engineer. You have been given a Python code file provided in the `[Code]` section. Your task is to create integration for the given Python code file.
+
+    [Criteria]
+    - Ensure that the test cases follow pytest best practices.
+    - Create the test file path to follow the same practice used in the current project's test files structure:
+        src
+            semantic_code
+                    embedding
+                        openai_embedding_creator.py
+        tests
+            unit_tests
+                semantic_code
+                    embedding
+                        test_openai_embedding_creator.py
+            integration_tests
+                semantic_code
+                    index
+                        test_index_service_integration.py
+
+    - Ensure that the tests provide full coverage of the code.
+    - Use behavior-driven naming conventions for the test cases.
+
+    [Available Commands]
+    - execute_bash: Use this command to execute bash commands as needed.
+    - write_file: Use this command to write the test cases to a file.
+
+    Think and reason yourself in high detail to address the task.
+
+
+    [Code]
+    """
+    
     """
     TestGenerationStep handles the processing of the response from the LLM API
     for the test generation step of the automated coding workflow.
