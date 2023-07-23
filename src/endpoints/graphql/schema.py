@@ -1,24 +1,27 @@
-# src/semantic_code/schema.py
 """
 This file contains the GraphQL schema for the project.
 It defines the available queries and mutations that the client can execute
-related to the workflow and workspace management.
+related to the workflow, workspace management, and code entity searching.
 """
 import json
 import logging
 import strawberry
 from strawberry.scalars import JSON
 from src.automated_coding_workflow.automated_coding_workflow import AutomatedCodingWorkflow
+from src.semantic_code.search.search_result import SearchResult
 from src.source_code_tree.file_explorer.tree_node import TreeNode
 from src.workspaces.workspace_service import WorkspaceService
 from src.endpoints.graphql.json.custom_json_encoder import CustomJSONEncoder
 from src.automated_coding_workflow.config import WORKFLOW_CONFIG
+from src.semantic_code.search.search_service import SearchService  # Importing SearchService
 
 
-# Singleton instance of WorkspaceService
+# Singleton instances
 workspace_service = WorkspaceService()
+search_service = SearchService()  # Instantiate SearchService
 
 logger = logging.getLogger(__name__)
+
 
 @strawberry.type
 class Query:
@@ -38,6 +41,25 @@ class Query:
             return json.dumps({"error": "Workspace not found or workflow not initialized"})
 
         return workflow.to_json()
+
+    @strawberry.field
+    def search_code_entities(self, query: str) -> JSON:
+        """
+        Searches for relevant code entities based on the provided query.
+
+        Args:
+            query (str): The search query.
+
+        Returns:
+            JSON: The search results.
+        """
+        try:
+            search_result: SearchResult = search_service.search(query)
+            return search_result.to_json()
+        except Exception as e:
+            error_message = f"Error while searching code entities: {str(e)}"
+            logger.error(error_message)
+            return json.dumps({"error": error_message})
 
 @strawberry.type
 class Mutation:
