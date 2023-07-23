@@ -1,5 +1,5 @@
 """
-src/base_step.py
+src/workflow_types/types/base_step.py
 
 This module contains the BaseStep class, which serves as an abstract base class for all steps in the automated coding
 workflow. Each step in the workflow should inherit from this class and implement the required methods. The BaseStep
@@ -18,7 +18,7 @@ and implement the required abstract methods and the execute method.
 from abc import ABC, abstractmethod
 from src.workflow_types.types.base_workflow import BaseWorkflow
 from src.workflow_types.utils.unique_id_generator import UniqueIDGenerator
-
+from src.workflow_types.types.prompt_template import PromptTemplate
 
 class BaseStep(ABC):
     """
@@ -27,24 +27,24 @@ class BaseStep(ABC):
     """
 
     name = None
-    prompt_template = None
+    prompt_template = None  # Instance of PromptTemplate
 
     def __init__(self, workflow: BaseWorkflow):
         self.id = UniqueIDGenerator.generate_id()
         self.workflow = workflow
 
     def to_dict(self) -> dict:
-            """
-            Converts the BaseStep instance to a dictionary representation.
+        """
+        Converts the BaseStep instance to a dictionary representation.
 
-            Returns:
-                dict: Dictionary representation of the BaseStep instance.
-            """
-            return {
-                "id": self.id,
-                "name": self.name,
-                "prompt_template": self.prompt_template
-            }
+        Returns:
+            dict: Dictionary representation of the BaseStep instance.
+        """
+        return {
+            "id": self.id,
+            "name": self.name,
+            "prompt_template": self.prompt_template.to_dict() if self.prompt_template else None
+        }
 
     @abstractmethod
     def construct_prompt(self) -> str:
