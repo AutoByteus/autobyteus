@@ -16,9 +16,9 @@ and implement the required abstract methods and the execute method.
 """
 
 from abc import ABC, abstractmethod
+from src.prompt.prompt_template import PromptTemplate
 from src.workflow_types.types.base_workflow import BaseWorkflow
 from src.workflow_types.utils.unique_id_generator import UniqueIDGenerator
-from src.workflow_types.types.prompt_template import PromptTemplate
 
 class BaseStep(ABC):
     """
@@ -27,7 +27,7 @@ class BaseStep(ABC):
     """
 
     name = None
-    prompt_template = None  # Instance of PromptTemplate
+    prompt_template: PromptTemplate = None  # Instance of PromptTemplate
 
     def __init__(self, workflow: BaseWorkflow):
         self.id = UniqueIDGenerator.generate_id()

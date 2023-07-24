@@ -1,9 +1,11 @@
+from src.prompt.prompt_template import PromptTemplate
 from src.workflow_types.types.base_step import BaseStep
 
 
 class ImplementationStep(BaseStep):
     name = "implementation"
-    prompt_template = ""
+    prompt_template = PromptTemplate(template="")
+
 
     """
     ImplementationStep handles the processing of the response from the LLM API
