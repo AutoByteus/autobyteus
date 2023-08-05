@@ -60,3 +60,8 @@ python src/app.py --mode graphqlserver --host 127.0.0.1 --port 8000
 ```
 
 
+Enable Voice Recoginition
+
+install libraries
+
+<https://stackoverflow.com/questions/62658071/modulenotfounderror-no-module-named-librosa>

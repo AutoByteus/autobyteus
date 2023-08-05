@@ -34,5 +34,37 @@ predicted_ids = model.generate(input_features)
 transcription = processor.batch_decode(predicted_ids, skip_special_tokens=False)
 
 transcription = processor.batch_decode(predicted_ids, skip_special_tokens=True)
+print(transcription)
+# %%
+import torch
+from transformers import GPT2Tokenizer, GPT2LMHeadModel
+
+def generate_text(prompt, max_length=50):
+    # Load pre-trained GPT-2 model and tokenizer
+    model = GPT2LMHeadModel.from_pretrained("gpt2")
+    tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
+
+    # Tokenize the prompt text
+    input_ids = tokenizer.encode(prompt, return_tensors="pt")
+
+    # Generate text conditioned on the input prompt
+    with torch.no_grad():
+        output = model.generate(
+            input_ids,
+            max_length=max_length,
+            num_return_sequences=1,
+            pad_token_id=tokenizer.eos_token_id,
+            do_sample=True,
+            top_k=50,
+            temperature=0.7,
+        )
+
+    generated_text = tokenizer.decode(output[0], skip_special_tokens=True)
+    return generated_text
+
+# Example usage:
+prompt_text = "Once upon a time"
+generated_text = generate_text(prompt_text, max_length=100)
+print(generated_text)
 
 # %%
