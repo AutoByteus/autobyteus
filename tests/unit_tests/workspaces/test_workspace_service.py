@@ -1,4 +1,3 @@
-# tests/unit_tests/workspaces/test_workspace_service.py
 """
 This module provides tests for the WorkspaceService.
 """
@@ -8,7 +7,7 @@ import tempfile
 from src.source_code_tree.file_explorer.directory_traversal import DirectoryTraversal
 from src.workspaces.workspace_service import WorkspaceService
 from src.source_code_tree.file_explorer.tree_node import TreeNode
-from src.workspaces.workspace_setting import WorkspaceSetting
+from src.workspaces.setting.workspace_setting import WorkspaceSetting
 
 def test_should_add_workspace_successfully():
     """
@@ -17,7 +16,6 @@ def test_should_add_workspace_successfully():
     # Arrange
     temp_dir = tempfile.mkdtemp()
     os.mkdir(os.path.join(temp_dir, 'test_directory'))  # Create a subdirectory in the temporary directory
-
     service = WorkspaceService()
 
     # Act
@@ -27,7 +25,7 @@ def test_should_add_workspace_successfully():
     assert tree.name == os.path.basename(temp_dir)
     assert tree.path == temp_dir
     assert tree.is_file == False
-    assert service.workspace_settings[temp_dir] is not None
+    assert service.get_workspace_setting(temp_dir) is not None
     assert len(tree.children) == 1  # As we have created one subdirectory
     assert tree.children[0].name == 'test_directory'
 

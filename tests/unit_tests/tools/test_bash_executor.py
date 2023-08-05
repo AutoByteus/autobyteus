@@ -1,12 +1,15 @@
 import pytest
 from src.tools.bash_executor import BashExecutor
 
-# Tests for BashExecutor
-@pytest.mark.parametrize('command, expected_output', [
-    ('echo BDD Test', 'BDD Test'),
-])
-def test_bash_executor(command, expected_output):
-    bash_exec = BashExecutor()
-    result = bash_exec.execute(command)
+@pytest.fixture
+def bash_executor():
+    return BashExecutor()
+
+
+def test_should_execute_bash_command_and_return_output(bash_executor):
+    command = "echo BDD Test"
+    expected_output = "BDD Test"
+    result = bash_executor.execute(command)
     assert result == expected_output
+
 

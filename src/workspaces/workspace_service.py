@@ -17,8 +17,9 @@ from src.source_code_tree.file_explorer.directory_traversal import DirectoryTrav
 from src.source_code_tree.file_explorer.sort_strategy.default_sort_strategy import DefaultSortStrategy
 from src.source_code_tree.file_explorer.traversal_ignore_strategy.git_ignore_strategy import GitIgnoreStrategy
 from src.source_code_tree.file_explorer.traversal_ignore_strategy.specific_folder_ignore_strategy import SpecificFolderIgnoreStrategy
+from src.workspaces.setting.workspace_setting_registry import WorkspaceSettingRegistry
 from src.workspaces.workspace_directory_tree import WorkspaceDirectoryTree
-from src.workspaces.workspace_setting import WorkspaceSetting
+from src.workspaces.setting.workspace_setting import WorkspaceSetting
 from src.source_code_tree.file_explorer.tree_node import TreeNode
 from src.automated_coding_workflow.automated_coding_workflow import AutomatedCodingWorkflow  # Updated import
 
@@ -29,9 +30,7 @@ class WorkspaceService(metaclass=SingletonMeta):
     Service to handle operations related to workspaces.
 
     Attributes:
-        workspace_settings (dict): A dictionary to store workspace settings.
-            The keys are the root paths of the workspaces,
-            and the values are the corresponding workspace settings.
+        workspace_settings_registry (WorkspaceSettingRegistry): A registry to store workspace settings.
         workflows (Dict[str, AutomatedCodingWorkflow]): A dictionary mapping workspace root paths
             to their corresponding AutomatedCodingWorkflow.
     """
@@ -40,7 +39,7 @@ class WorkspaceService(metaclass=SingletonMeta):
         """
         Initialize WorkspaceService.
         """
-        self.workspace_settings = {}
+        self.workspace_settings_registry = WorkspaceSettingRegistry()
         self.workflows: Dict[str, AutomatedCodingWorkflow] = {}
 
     def add_workspace(self, workspace_root_path: str) -> TreeNode:
@@ -54,15 +53,17 @@ class WorkspaceService(metaclass=SingletonMeta):
         Returns:
             TreeNode: The root TreeNode of the directory tree.
         """
-        workspace_setting = self._add_workspace_setting(workspace_root_path)
+        workspace_setting = WorkspaceSetting(root_path=workspace_root_path)
         directory_tree = self.build_workspace_directory_tree(workspace_root_path)
         workspace_setting.set_directory_tree(WorkspaceDirectoryTree(directory_tree))
+        
+        # Register the WorkspaceSetting
+        self.workspace_settings_registry.add_setting(workspace_root_path, workspace_setting)
         
         # Initialize AutomatedCodingWorkflow with the workspace setting
         self.workflows[workspace_root_path] = AutomatedCodingWorkflow(workspace_setting)
 
         return directory_tree
-
 
     def build_workspace_directory_tree(self, workspace_root_path: str) -> TreeNode:
         """
@@ -83,11 +84,10 @@ class WorkspaceService(metaclass=SingletonMeta):
 
         directory_tree = self.directory_traversal.build_tree(workspace_root_path)
         return directory_tree
-    
 
     def get_workspace_setting(self, workspace_root_path: str) -> Optional[WorkspaceSetting]:
         """
-        Retrieves a workspace setting from the workspace settings.
+        Retrieves a workspace setting from the workspace settings registry.
 
         Args:
             workspace_root_path (str): The root path of the workspace.
@@ -95,21 +95,4 @@ class WorkspaceService(metaclass=SingletonMeta):
         Returns:
             Optional[WorkspaceSetting]: The workspace setting if it exists, None otherwise.
         """
-        return self.workspace_settings.get(workspace_root_path, None)
-
-    def _add_workspace_setting(self, workspace_root_path: str) -> WorkspaceSetting:
-        """
-        Adds a workspace setting to the workspace settings.
-
-        Args:
-            workspace_root_path (str): The root path of the workspace.
-
-        Returns:
-            WorkspaceSetting: The workspace setting that has been added.
-
-        """
-
-        workspace_setting = WorkspaceSetting(root_path=workspace_root_path)
-        self.workspace_settings[workspace_root_path] = workspace_setting
-        return workspace_setting
-       
+        return self.workspace_settings_registry.get_setting(workspace_root_path)

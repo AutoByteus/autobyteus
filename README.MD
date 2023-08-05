@@ -65,3 +65,13 @@ Enable Voice Recoginition
 install libraries
 
 <https://stackoverflow.com/questions/62658071/modulenotfounderror-no-module-named-librosa>
+
+
+
+Run the following to upgrade libraries
+
+```javascript
+pip install --upgrade vcrpy urllib3
+```
+
+

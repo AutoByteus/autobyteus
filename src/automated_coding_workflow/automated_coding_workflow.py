@@ -11,7 +11,7 @@ from src.llm_integrations.llm_factory import create_llm_integration
 from src.workflow_types.types.base_step import BaseStep
 from src.workflow_types.types.workflow_status import WorkflowStatus
 from src.workflow_types.types.workflow_template_config import StepsTemplateConfig
-from src.workspaces.workspace_setting import WorkspaceSetting  # Import WorkspaceSetting
+from src.workspaces.setting.workspace_setting import WorkspaceSetting  # Import WorkspaceSetting
 
 
 class AutomatedCodingWorkflow:

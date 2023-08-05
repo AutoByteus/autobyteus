@@ -1,6 +1,6 @@
 # tests/unit_tests/workflow_types/types/test_base_step.py
 
-from src.workflow_types.types.base_step import BaseStep, MockStep
+from src.workflow_types.types.base_step import BaseStep
 from src.prompt.prompt_template import PromptTemplate
 from src.prompt.prompt_template_variable import PromptTemplateVariable
 from src.workflow_types.types.base_workflow import BaseWorkflow

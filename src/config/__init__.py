@@ -5,7 +5,7 @@ from typing import Dict
 import yaml
 
 from src.config.config_parser import ConfigParser, TOMLConfigParser
-from src.workspaces.workspace_setting import WorkspaceSetting
+from src.workspaces.setting.workspace_setting import WorkspaceSetting
 from src.singleton import SingletonMeta
 
 
