@@ -10,6 +10,7 @@ from strawberry.scalars import JSON
 from src.automated_coding_workflow.automated_coding_workflow import AutomatedCodingWorkflow
 from src.semantic_code.search.search_result import SearchResult
 from src.source_code_tree.file_explorer.tree_node import TreeNode
+from src.workspaces.errors.workspace_already_exists_error import WorkspaceAlreadyExistsError
 from src.workspaces.workspace_service import WorkspaceService
 from src.endpoints.graphql.json.custom_json_encoder import CustomJSONEncoder
 from src.automated_coding_workflow.config import WORKFLOW_CONFIG
@@ -97,10 +98,13 @@ class Mutation:
         try:
             workspace_tree: TreeNode = workspace_service.add_workspace(workspace_root_path)
             return workspace_tree.to_json()
+        except WorkspaceAlreadyExistsError as e:
+            error_message = str(e)
+            logger.error(error_message)
+            return json.dumps({"error": error_message})
         except Exception as e:
             error_message = f"Error while adding workspace: {str(e)}"
             logger.error(error_message)
             return json.dumps({"error": error_message})
-
 
 schema = strawberry.Schema(query=Query, mutation=Mutation)

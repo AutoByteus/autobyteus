@@ -17,6 +17,8 @@ from src.source_code_tree.file_explorer.directory_traversal import DirectoryTrav
 from src.source_code_tree.file_explorer.sort_strategy.default_sort_strategy import DefaultSortStrategy
 from src.source_code_tree.file_explorer.traversal_ignore_strategy.git_ignore_strategy import GitIgnoreStrategy
 from src.source_code_tree.file_explorer.traversal_ignore_strategy.specific_folder_ignore_strategy import SpecificFolderIgnoreStrategy
+from src.workspaces.errors.workspace_already_exists_error import WorkspaceAlreadyExistsError
+from src.workspaces.setting.project_type_determiner import ProjectTypeDeterminer
 from src.workspaces.setting.workspace_setting_registry import WorkspaceSettingRegistry
 from src.workspaces.workspace_directory_tree import WorkspaceDirectoryTree
 from src.workspaces.setting.workspace_setting import WorkspaceSetting
@@ -25,6 +27,7 @@ from src.automated_coding_workflow.automated_coding_workflow import AutomatedCod
 
 
 logger = logging.getLogger(__name__)
+
 class WorkspaceService(metaclass=SingletonMeta):
     """
     Service to handle operations related to workspaces.
@@ -40,6 +43,7 @@ class WorkspaceService(metaclass=SingletonMeta):
         Initialize WorkspaceService.
         """
         self.workspace_settings_registry = WorkspaceSettingRegistry()
+        self.project_type_determiner = ProjectTypeDeterminer()
         self.workflows: Dict[str, AutomatedCodingWorkflow] = {}
 
     def add_workspace(self, workspace_root_path: str) -> TreeNode:
@@ -52,8 +56,16 @@ class WorkspaceService(metaclass=SingletonMeta):
 
         Returns:
             TreeNode: The root TreeNode of the directory tree.
+
+        Raises:
+            WorkspaceAlreadyExistsError: If the workspace already exists.
         """
-        workspace_setting = WorkspaceSetting(root_path=workspace_root_path)
+        if self.workspace_settings_registry.workspace_exists(workspace_root_path):
+            raise WorkspaceAlreadyExistsError(f"Workspace at {workspace_root_path} already exists")
+
+        # Determine the project type
+        project_type = self.project_type_determiner.determine(workspace_root_path)
+        workspace_setting = WorkspaceSetting(root_path=workspace_root_path, project_type=project_type)
         directory_tree = self.build_workspace_directory_tree(workspace_root_path)
         workspace_setting.set_directory_tree(WorkspaceDirectoryTree(directory_tree))
         
@@ -64,7 +76,6 @@ class WorkspaceService(metaclass=SingletonMeta):
         self.workflows[workspace_root_path] = AutomatedCodingWorkflow(workspace_setting)
 
         return directory_tree
-
     def build_workspace_directory_tree(self, workspace_root_path: str) -> TreeNode:
         """
         Builds and returns the directory tree of a workspace.

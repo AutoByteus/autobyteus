@@ -8,6 +8,7 @@ from typing import Dict, Optional
 from src.automated_coding_workflow.config import WORKFLOW_CONFIG
 from src.llm_integrations.base_llm_integration import BaseLLMIntegration
 from src.llm_integrations.llm_factory import create_llm_integration
+from src.llm_integrations.llm_integration_registry import LLMIntegrationRegistry
 from src.workflow_types.types.base_step import BaseStep
 from src.workflow_types.types.workflow_status import WorkflowStatus
 from src.workflow_types.types.workflow_template_config import StepsTemplateConfig
@@ -38,7 +39,7 @@ class AutomatedCodingWorkflow:
             workspace_setting (WorkspaceSetting): The settings associated with the workspace.
         """
         self.workspace_setting = workspace_setting
-        self.llm_integration = create_llm_integration()
+        self.llm_integration_registry = LLMIntegrationRegistry()
         self.steps: Dict[str, BaseStep] = {}
         self._initialize_steps(AutomatedCodingWorkflow.config['steps'])
     
