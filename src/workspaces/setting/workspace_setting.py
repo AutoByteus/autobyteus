@@ -1,5 +1,8 @@
 # src/workspaces/setting/workspace_setting.py
 
+from src.workspaces.workspace_directory_tree import WorkspaceDirectoryTree
+
+
 class WorkspaceSetting:
     """
     Class to store the parsed workspace structure and other related objects.

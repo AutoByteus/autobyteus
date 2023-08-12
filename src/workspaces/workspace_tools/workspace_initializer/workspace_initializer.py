@@ -1,8 +1,10 @@
 # src/workspaces/workspace_tools/workspace_initializer/workspace_initializer.py
 
-from .python_project_initializer import PythonProjectInitializer
-from .react_project_initializer import ReactProjectInitializer
-from .java_project_initializer import JavaProjectInitializer
+from src.workspaces.workspace_tools.base_workspace_tool import BaseWorkspaceTool
+from src.workspaces.workspace_tools.workspace_initializer.java_project_initializer import JavaProjectInitializer
+from src.workspaces.workspace_tools.workspace_initializer.python_project_initializer import PythonProjectInitializer
+from src.workspaces.workspace_tools.workspace_initializer.react_project_initializer import ReactProjectInitializer
+
 
 class WorkspaceInitializer(BaseWorkspaceTool):
     """

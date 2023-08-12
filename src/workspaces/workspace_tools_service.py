@@ -7,7 +7,7 @@ components such as the WorkspaceSettingRegistry and WorkspaceRefactorer.
 import logging
 from src.workspaces.setting.workspace_setting_registry import WorkspaceSettingRegistry
 from src.workspaces.workspace_tools.base_workspace_tool import BaseWorkspaceTool
-from src.workspaces.workspace_tools.workspace_refactorer import WorkspaceRefactorer
+from src.workspaces.workspace_tools.workspace_refactorer.workspace_refactorer import WorkspaceRefactorer
 from src.automated_coding_workflow.automated_coding_workflow import AutomatedCodingWorkflow
 
 class WorkspaceToolsService:

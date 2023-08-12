@@ -68,6 +68,8 @@ sentence-transformers
 ## voice recoginition conda install -c numba numba, conda install -c conda-forge librosa
 # conda install -c conda-forge pyaudio
 soundfile
-pyaudio
+#pyaudio
 
+## parse the files.
+libcst
 

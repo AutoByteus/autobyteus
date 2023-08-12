@@ -2,7 +2,6 @@ import pytest
 from unittest.mock import patch, Mock
 from src.workspaces.workspace_tools.base_workspace_tool import BaseWorkspaceTool
 from src.workspaces.workspace_tools_service import WorkspaceToolsService
-from src.workspaces.workspace_tools.workspace_refactorer import WorkspaceRefactorer
 from src.workspaces.setting.workspace_setting import WorkspaceSetting
 
 @pytest.fixture

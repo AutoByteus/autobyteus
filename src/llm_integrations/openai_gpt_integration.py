@@ -15,8 +15,7 @@ class OpenAIGPTIntegration(BaseLLMIntegration):
 
     def __init__(self):
         super().__init__()
-        self.api_key = config.get('OPEN_AI_API_KEY')
-        self.model = config.get('OPEN_AI_MODEL', 'gpt-3.5-turbo')  # default model is gpt-3.5-turbo
+        self.model = config.get('OPENAI_MODEL', 'gpt-3.5-turbo')  # default model is gpt-3.5-turbo
 
     async def process_input_messages(self, input_messages):
         """

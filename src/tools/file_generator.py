@@ -28,3 +28,13 @@ class FileGenerator(BaseTool):
         with open(path, 'w') as file:
             file.write(content)
         return f'File created at {path}'
+    
+
+
+
+
+
+
+
+
+

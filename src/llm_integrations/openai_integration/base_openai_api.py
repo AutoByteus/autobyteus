@@ -1,26 +1,39 @@
 # File: src/llm_integrations/openai_integration/base_openai_api.py
 
 """
-base_openai_api.py: Defines the BaseOpenAI_API abstract base class.
-This class provides an interface for interacting with the OpenAI API.
+base_openai_api.py: Provides an abstract base class for OpenAI API implementations.
+This class offers common functionalities and enforces the structure for derived API classes.
 """
 
 from abc import ABC, abstractmethod
-
+import openai
+from src.config import config
 
 class BaseOpenAIApi(ABC):
     """
-    BaseOpenAI_API is an abstract base class that provides an interface for interacting with the OpenAI API.
+    An abstract base class offering common functionalities for OpenAI API implementations.
+    Derived classes should implement the process_input_messages method.
     """
+    _initialized = False
+
+    @classmethod
+    def initialize(cls):
+        """
+        Initialize the OpenAI API with the necessary configurations.
+        This method ensures idempotent initialization.
+        """
+        if not cls._initialized:
+            openai.api_key = config.get('OPENAI_API_KEY')
+            cls._initialized = True
 
     @abstractmethod
-    def process_input_messages(self, input_messages):
+    def process_input_messages(self, messages: list) -> str:
         """
-        Process a list of input messages and return the responses.
+        Abstract method to process a list of message interactions using the specific OpenAI API.
 
-        :param input_messages: List of input messages to be processed.
-        :type input_messages: list
-        :return: List of responses
-        :rtype: list
+        :param messages: A list of message interactions to be processed.
+        :type messages: list
+        :return: Response from the specific OpenAI API.
+        :rtype: str
         """
         pass

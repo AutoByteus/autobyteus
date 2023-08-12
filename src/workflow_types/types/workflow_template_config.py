@@ -9,6 +9,7 @@ from typing import TypedDict, Dict
 
 class StepsTemplateConfig(TypedDict, total=False):
     step_class: type
+    
     steps: Dict[str, 'StepsTemplateConfig']
 
 

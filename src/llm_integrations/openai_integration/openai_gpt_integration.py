@@ -6,7 +6,7 @@ This class integrates the OpenAI GPT models (gpt3.5-turbo, gpt4) with the agent 
 """
 
 from src.config import config
-from .openai_api_factory import OpenAI_API_Factory
+from src.llm_integrations.openai_integration.openai_api_factory import OpenAIApiFactory
 from src.llm_integrations.base_llm_integration import BaseLLMIntegration
 
 
@@ -18,7 +18,7 @@ class OpenAIGPTIntegration(BaseLLMIntegration):
 
     def __init__(self, api_type):
         super().__init__()
-        self.api = OpenAI_API_Factory.create_api(api_type)
+        self.api = OpenAIApiFactory.create_api(api_type)
 
     async def process_input_messages(self, input_messages):
         """
@@ -29,4 +29,8 @@ class OpenAIGPTIntegration(BaseLLMIntegration):
         :return: List of responses from the OpenAI GPT model
         :rtype: list
         """
-        return self.api.process_input_messages(input_messages)
+        responses = []
+        for message in input_messages:
+            response = await self.api.process_input_message(message)  # We're now processing one message at a time
+            responses.append(response)
+        return responses
