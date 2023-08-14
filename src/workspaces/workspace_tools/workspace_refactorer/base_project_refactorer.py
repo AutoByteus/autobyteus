@@ -2,7 +2,10 @@
 
 from abc import ABC, abstractmethod
 
+from src.prompt.prompt_template import PromptTemplate
+
 class BaseProjectRefactorer(ABC):
+    prompt_template: PromptTemplate = None
     """
     Base class for all project refactorers. It provides an interface
     that all concrete project refactorers should implement.

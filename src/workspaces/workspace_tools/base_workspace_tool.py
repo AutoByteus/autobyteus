@@ -1,14 +1,24 @@
+"""
+Module: base_workspace_tool
+
+This module provides the base class for all workspace-specific tools.
+Each tool should inherit from the `BaseWorkspaceTool` class and provide
+necessary implementations.
+"""
 from abc import ABC, abstractmethod
+from src.prompt.prompt_template import PromptTemplate
+from src.workflow_types.utils.unique_id_generator import UniqueIDGenerator
 
 from src.workspaces.setting.workspace_setting import WorkspaceSetting
 
 class BaseWorkspaceTool(ABC):
     """
     BaseWorkspaceTool is the abstract base class for all workspace-specific tools.
-    Each tool should inherit from this class, provide a unique name, and implement the required methods.
+    Each tool should inherit from this class, provide a unique name, and implement
+    the required methods.
     """
-    name = None  # Name of the tool, should be overridden in subclasses
-    _all_tools = []  # List to keep track of all tools
+    name: str = None
+    prompt_template: PromptTemplate = None
 
     def __init__(self, workspace_setting: WorkspaceSetting):
         """
@@ -17,25 +27,22 @@ class BaseWorkspaceTool(ABC):
         Args:
             workspace_setting (WorkspaceSetting): The setting of the workspace.
         """
+        self.id = UniqueIDGenerator.generate_id()
         self.workspace_setting = workspace_setting
 
-    def __init_subclass__(cls, **kwargs):
-        """
-        Automatically called when a subclass is defined. Used to register the tool.
-        """
-        super().__init_subclass__(**kwargs)
-        if cls.name:
-            BaseWorkspaceTool._all_tools.append(cls.name)
 
-    @classmethod
-    def get_all_tools(cls):
-        """
-        Fetch names of all available tools.
+    def to_dict(self) -> dict:
+            """
+            Converts the BaseWorkspaceTool instance to a dictionary representation.
 
-        Returns:
-            list: List containing names of all available workspace tools.
-        """
-        return cls._all_tools
+            Returns:
+                dict: Dictionary representation of the BaseWorkspaceTool instance.
+            """
+            return {
+                "id": self.id,
+                "name": self.name,
+                "prompt_template": self.prompt_template.to_dict() if self.prompt_template else None
+            }
 
     @abstractmethod
     def execute(self):

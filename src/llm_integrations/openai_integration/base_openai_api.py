@@ -4,11 +4,15 @@
 base_openai_api.py: Provides an abstract base class for OpenAI API implementations.
 This class offers common functionalities and enforces the structure for derived API classes.
 """
-
+from enum import Enum, auto
 from abc import ABC, abstractmethod
 import openai
 from src.config import config
 
+
+class ApiType(Enum):
+    CHAT = auto()
+    
 class BaseOpenAIApi(ABC):
     """
     An abstract base class offering common functionalities for OpenAI API implementations.

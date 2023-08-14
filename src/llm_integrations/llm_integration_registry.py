@@ -9,8 +9,8 @@ and the corresponding LLM integration object as the value.
 
 from typing import Dict, Optional
 from src.llm_integrations.base_llm_integration import BaseLLMIntegration
+from src.llm_integrations.openai_integration.openai_gpt_integration import OpenAIGPTIntegration
 from src.singleton import SingletonMeta
-from src.llm_integrations.openai_gpt_integration import OpenAIGPTIntegration
 from src.config import config
 # Import other LLM integrations as needed
 
@@ -31,7 +31,8 @@ class LLMIntegrationRegistry(metaclass=SingletonMeta):
         All supported LLM integrations are created and registered in the constructor.
         """
         self.integrations: Dict[str, BaseLLMIntegration] = {
-            'ChatGPT3.5': OpenAIGPTIntegration(),
+            'GPT3.5': OpenAIGPTIntegration("gpt-3.5-turbo"),
+            'GPT4.0': OpenAIGPTIntegration("gpt-3.5-turbo"),
             # Add other LLM integrations as needed
         }
 

@@ -13,7 +13,7 @@ class BaseLLMIntegration(ABC):
     """
     
     @abstractmethod
-    async def process_input_messages(self, input_messages):
+    def process_input_messages(self, input_messages):
         """
         Process a list of input messages and return the LLM's responses.
 

@@ -17,7 +17,7 @@ class PromptTemplateVariable:
     SOURCE_DYNAMIC = "DYNAMIC"
     SOURCE_USER_INPUT = "USER_INPUT"
 
-    def __init__(self, name: str, source: str, allow_code_context_building: bool = False, allow_llm_refinement: bool = False):
+    def __init__(self, name: str, source: str = SOURCE_DYNAMIC, allow_code_context_building: bool = False, allow_llm_refinement: bool = False):
         self.name = name
         self.source = source
         self.allow_code_context_building = allow_code_context_building

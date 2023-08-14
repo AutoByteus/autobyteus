@@ -1,8 +1,8 @@
-# src/workspaces/workspace_service.py
+# src/workspaces/workspace_manager.py
 """
-This module provides a service for handling operations related to workspaces.
+This module provides a manager for handling operations related to workspaces.
 
-This service is responsible for adding workspaces, building their directory structures, 
+This manager is responsible for adding workspaces, building their directory structures, 
 and maintaining their settings. A workspace is represented by its root path, 
 and its setting is stored in a dictionary, with the root path as the key. 
 Upon successful addition of a workspace, a directory tree structure represented 
@@ -18,7 +18,7 @@ from src.source_code_tree.file_explorer.sort_strategy.default_sort_strategy impo
 from src.source_code_tree.file_explorer.traversal_ignore_strategy.git_ignore_strategy import GitIgnoreStrategy
 from src.source_code_tree.file_explorer.traversal_ignore_strategy.specific_folder_ignore_strategy import SpecificFolderIgnoreStrategy
 from src.workspaces.errors.workspace_already_exists_error import WorkspaceAlreadyExistsError
-from src.workspaces.setting.project_type_determiner import ProjectTypeDeterminer
+from src.workspaces.workspace_tools.project_type_determiner import ProjectTypeDeterminer
 from src.workspaces.setting.workspace_setting_registry import WorkspaceSettingRegistry
 from src.workspaces.workspace_directory_tree import WorkspaceDirectoryTree
 from src.workspaces.setting.workspace_setting import WorkspaceSetting
@@ -28,9 +28,9 @@ from src.automated_coding_workflow.automated_coding_workflow import AutomatedCod
 
 logger = logging.getLogger(__name__)
 
-class WorkspaceService(metaclass=SingletonMeta):
+class WorkspaceManager(metaclass=SingletonMeta):
     """
-    Service to handle operations related to workspaces.
+    Manager to handle operations related to workspaces.
 
     Attributes:
         workspace_settings_registry (WorkspaceSettingRegistry): A registry to store workspace settings.
@@ -40,7 +40,7 @@ class WorkspaceService(metaclass=SingletonMeta):
 
     def __init__(self):
         """
-        Initialize WorkspaceService.
+        Initialize WorkspaceManager.
         """
         self.workspace_settings_registry = WorkspaceSettingRegistry()
         self.project_type_determiner = ProjectTypeDeterminer()
@@ -76,6 +76,7 @@ class WorkspaceService(metaclass=SingletonMeta):
         self.workflows[workspace_root_path] = AutomatedCodingWorkflow(workspace_setting)
 
         return directory_tree
+
     def build_workspace_directory_tree(self, workspace_root_path: str) -> TreeNode:
         """
         Builds and returns the directory tree of a workspace.

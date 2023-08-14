@@ -59,5 +59,3 @@ fastapi
 toml
 python-dotenv
 uvicorn
-
-langchain
