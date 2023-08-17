@@ -1,18 +1,25 @@
 import pytest
 from src.llm_integrations.openai_integration.openai_gpt_integration import OpenAIGPTIntegration
 from src.llm_integrations.openai_integration.openai_api_factory import ApiType
+from src.llm_integrations.openai_integration.openai_models import OpenAIModel
 
-@pytest.fixture
-def openai_gpt_integration()-> OpenAIGPTIntegration:
-    return OpenAIGPTIntegration(api_type=ApiType.CHAT)
 
-# Marking the test to prevent automatic execution
-@pytest.mark.skip(reason="Integration test calling the real OpenAI API")
-def test_should_return_response_for_valid_input_messages(openai_gpt_integration):
-    input_messages = [{"role": "user", "content": "What's the capital of France? Please only return the capital city, no extra words."}]
-    response = openai_gpt_integration.process_input_messages(input_messages)
-    assert response == "Paris"  # Expecting this response for the provided input message
+@pytest.mark.skip(reason="Integration test which may call the real OpenAI API")
+def test_initialization_with_gpt_3_5_turbo_model():
+    """Integration test to ensure correct initialization with GPT_3_5_TURBO model."""
+    integration = OpenAIGPTIntegration(api_type=ApiType.CHAT, model_name=OpenAIModel.GPT_3_5_TURBO)
+    assert integration.openai_api.model_name == OpenAIModel.GPT_3_5_TURBO
 
-def test_should_raise_exception_for_invalid_api_type():
-    with pytest.raises(ValueError):
-        OpenAIGPTIntegration(api_type="INVALID_API_TYPE")
+@pytest.mark.skip(reason="Integration test which may call the real OpenAI API")
+def test_process_input_messages_integration():
+    """Integration test to ensure correct processing of input messages."""
+    integration = OpenAIGPTIntegration(api_type=ApiType.CHAT, model_name=OpenAIModel.GPT_3_5_TURBO)
+
+    questions = [
+        "What is the capital of France? No extra words, only the answer please.",
+    ]
+
+    result = integration.process_input_messages(questions)
+
+    # Let's keep the assertions general since exact phrasing can vary.
+    assert "Paris" in result

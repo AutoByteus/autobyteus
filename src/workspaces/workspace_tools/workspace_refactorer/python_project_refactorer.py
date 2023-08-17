@@ -5,12 +5,20 @@ This module offers the PythonProjectRefactorer class which is tasked with refact
 It provides mechanisms to organize, structure, and refactor Python source code in alignment with 
 best practices and standards specific to Python development.
 """
+import logging
 from src.llm_integrations.llm_integration_registry import LLMIntegrationRegistry
+from src.llm_integrations.openai_integration.openai_models import OpenAIModel
 from src.prompt.prompt_template import PromptTemplate
 from src.prompt.prompt_template_variable import PromptTemplateVariable
 from src.source_code_tree.file_explorer.file_reader import FileReader
+from src.source_code_tree.file_explorer.tree_node import TreeNode
 from src.workspaces.setting.workspace_setting import WorkspaceSetting
+from src.workspaces.workspace_directory_tree import WorkspaceDirectoryTree
 from src.workspaces.workspace_tools.workspace_refactorer.base_project_refactorer import BaseProjectRefactorer
+
+
+# Logger setup
+logger = logging.getLogger(__name__)
 
 class PythonProjectRefactorer(BaseProjectRefactorer):
     """
@@ -51,21 +59,20 @@ class PythonProjectRefactorer(BaseProjectRefactorer):
             workspace_setting (WorkspaceSetting): The setting of the workspace to be refactored.
         """
         self.workspace_setting: WorkspaceSetting = workspace_setting
-        self.llm_integration = LLMIntegrationRegistry().get('GPT4')
+        self.llm_integration = LLMIntegrationRegistry().get(OpenAIModel.GPT_3_5_TURBO)
 
     def refactor(self):
         """
         Refactor the Python project.
 
-        This method iterates over each Python file in the src directory and sends a prompt for refactoring to LLM.
+        This method iterates over each Python file in the src directory and replaces its content 
+        with the refactored code from LLM.
         """
-        directory_tree = self.workspace_setting.directory_tree
+        directory_tree: WorkspaceDirectoryTree = self.workspace_setting.directory_tree
+        root_node = directory_tree.get_tree()
 
-        for node in directory_tree.get_all_nodes():
-            if node.is_file and "src" in node.path and "__init__.py" not in node.path:
-                prompt = self.construct_prompt(node.path)
-                response = self.llm_integration.process_input_messages(prompt)
-                print(f"Refactoring suggestions for {node.path}:\n{response}")
+        for file_node in self._traverse_tree_and_collect_files(root_node):
+            self._apply_refactored_code(file_node)
 
     def construct_prompt(self, file_path: str):
         """
@@ -80,3 +87,34 @@ class PythonProjectRefactorer(BaseProjectRefactorer):
         source_code = FileReader.read_file(file_path)
         prompt = self.prompt_template.fill({"file_path": file_path, "source_code": source_code})
         return prompt
+
+    def _traverse_tree_and_collect_files(self, node: TreeNode) -> list:
+            """
+            Recursively traverse the directory tree and collect all valid python file nodes.
+
+            Args:
+                node (TreeNode): The current node being inspected.
+
+            Returns:
+                list[TreeNode]: List of all valid python file nodes.
+            """
+            valid_files = []
+            if node.is_file and "src" in node.path and "__init__.py" not in node.path:
+                valid_files.append(node)
+            for child in node.children:
+                valid_files.extend(self._traverse_tree_and_collect_files(child))
+            return valid_files
+
+    def _apply_refactored_code(self, file_node: TreeNode):
+        """
+        Send the content of the file to the LLM model for refactoring and replace the file content 
+        with the refactored code.
+
+        Args:
+            file_node (TreeNode): The file node to be refactored.
+        """
+        prompt = self.construct_prompt(file_node.path)
+        refactored_code = self.llm_integration.process_input_messages([prompt])
+        
+        logger.info(refactored_code)
+

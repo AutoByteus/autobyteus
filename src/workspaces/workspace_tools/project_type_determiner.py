@@ -2,11 +2,20 @@
 
 import os
 
+from src.workspaces.setting.project_types import ProjectType
+
 class ProjectTypeDeterminer:
     """
     Class to determine the type of a project.
     """
-    def determine(self, workspace_root_path: str) -> str:
+
+    PROJECT_TYPE_FILES = {
+        "requirements.txt": ProjectType.PYTHON,
+        "build.gradle": ProjectType.JAVA,
+        "package.json": ProjectType.NODEJS
+    }
+
+    def determine(self, workspace_root_path: str) -> ProjectType:
         """
         Determine the type of the project in the workspace.
 
@@ -23,15 +32,11 @@ class ProjectTypeDeterminer:
             workspace_root_path (str): The root path of the workspace.
 
         Returns:
-            str: The type of the project ('python', 'java', 'nodejs', or 'unknown').
+            ProjectType: The type of the project, one of the ProjectType enum values.
         """
         for file_name in os.listdir(workspace_root_path):
-            if file_name == 'requirements.txt':
-                return 'python'
-            elif file_name == 'build.gradle':
-                return 'java'
-            elif file_name == 'package.json':
-                return 'nodejs'
+            if file_name in self.PROJECT_TYPE_FILES:
+                return self.PROJECT_TYPE_FILES[file_name]
 
         # Default to 'unknown' if no specific project type can be determined
-        return 'unknown'
+        return ProjectType.UNKNOWN

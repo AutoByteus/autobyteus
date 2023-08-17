@@ -2,11 +2,14 @@ import pytest
 import os
 import tempfile
 from src.source_code_tree.file_explorer.directory_traversal import DirectoryTraversal
+from src.workspaces.setting.project_types import ProjectType
+from src.workspaces.workspace_directory_tree import WorkspaceDirectoryTree
 from src.workspaces.workspace_tools.workspace_refactorer.python_project_refactorer import PythonProjectRefactorer
 from src.workspaces.setting.workspace_setting import WorkspaceSetting
 
-# Integration tests
-def test_refactor_integration(capsys):
+
+def test_should_print_refactored_code_for_valid_files(capsys):
+    """Ensure that refactored code is printed for valid Python files and not for __init__.py files."""
     with tempfile.TemporaryDirectory() as tmpdirname:
         os.makedirs(os.path.join(tmpdirname, 'src', 'project'))
         
@@ -25,21 +28,23 @@ def test_refactor_integration(capsys):
             f.write("# init file")
         
         dir_traversal = DirectoryTraversal()
-        directory_tree = dir_traversal.build_tree(tmpdirname)
-        workspace_setting = WorkspaceSetting(directory_tree=directory_tree)
+        directory_tree = WorkspaceDirectoryTree(dir_traversal.build_tree(tmpdirname))
+        workspace_setting = WorkspaceSetting(root_path=tmpdirname, project_type=ProjectType.PYTHON, directory_tree=directory_tree)
         
         refactorer = PythonProjectRefactorer(workspace_setting)
         refactorer.refactor()
         
         captured = capsys.readouterr()
         
-        # Checking if the refactoring suggestions are printed for the correct file path
-        assert f"Refactoring suggestions for {file_path_1}" in captured.out
+        # Checking if the refactored code is printed for the correct file path
+        assert f"Refactored code for {file_path_1}" in captured.out
 
         # Making sure it skips the __init__.py file
         assert "__init__.py" not in captured.out
 
-def test_construct_prompt_integration():
+
+def test_should_construct_prompt_with_file_content():
+    """Ensure that the construct_prompt method correctly formats the prompt with file content."""
     with tempfile.TemporaryDirectory() as tmpdirname:
         # Python file with a function without a docstring
         code = """
@@ -59,8 +64,8 @@ def test_construct_prompt_integration():
         
         # Verifying the correct format and content of the constructed prompt
         expected_content = """
-        def subtract(a, b):
-            return a - b
-        """
+                            def subtract(a, b):
+                            return a - b
+                            """
         assert f"Please examine the source code in file {file_path}" in prompt
         assert expected_content in prompt

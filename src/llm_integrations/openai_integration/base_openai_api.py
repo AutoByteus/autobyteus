@@ -8,11 +8,14 @@ from enum import Enum, auto
 from abc import ABC, abstractmethod
 import openai
 from src.config import config
+from src.llm_integrations.openai_integration.openai_message_types import AssistantMessage
 
 
 class ApiType(Enum):
     CHAT = auto()
     
+from abc import ABC, abstractmethod
+
 class BaseOpenAIApi(ABC):
     """
     An abstract base class offering common functionalities for OpenAI API implementations.
@@ -31,13 +34,13 @@ class BaseOpenAIApi(ABC):
             cls._initialized = True
 
     @abstractmethod
-    def process_input_messages(self, messages: list) -> str:
+    def process_input_messages(self, messages: list) -> AssistantMessage:
         """
         Abstract method to process a list of message interactions using the specific OpenAI API.
 
         :param messages: A list of message interactions to be processed.
         :type messages: list
         :return: Response from the specific OpenAI API.
-        :rtype: str
+        :rtype: AssistantMessage
         """
         pass

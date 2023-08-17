@@ -5,6 +5,7 @@ This class is responsible for creating instances of the OpenAI API classes based
 
 from src.llm_integrations.openai_integration.base_openai_api import ApiType, BaseOpenAIApi
 from src.llm_integrations.openai_integration.openai_chat_api import OpenAIChatApi
+from src.llm_integrations.openai_integration.openai_models import OpenAIModel
 
 class OpenAIApiFactory:
     """
@@ -12,14 +13,14 @@ class OpenAIApiFactory:
     """
 
     @staticmethod
-    def create_api(api_type: ApiType = ApiType.CHAT, model_name: str = None) -> BaseOpenAIApi:
+    def create_api(api_type: ApiType = ApiType.CHAT, model_name: OpenAIModel = None) -> BaseOpenAIApi:
         """
         Create an instance of an OpenAI API class based on the provided type and model name.
 
         :param api_type: The type of the OpenAI API class to create an instance of.
         :type api_type: ApiType, optional, default to ApiType.CHAT
         :param model_name: Name of the OpenAI model to be used. If not provided, the default from the OpenAIChatApi class will be used.
-        :type model_name: str, optional
+        :type model_name: OpenAIModel, optional
         :return: An instance of an OpenAI API class.
         :rtype: BaseOpenAIApi
         """
