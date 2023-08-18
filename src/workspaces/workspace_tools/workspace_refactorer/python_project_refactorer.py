@@ -117,4 +117,3 @@ class PythonProjectRefactorer(BaseProjectRefactorer):
         refactored_code = self.llm_integration.process_input_messages([prompt])
         
         logger.info(refactored_code)
-
