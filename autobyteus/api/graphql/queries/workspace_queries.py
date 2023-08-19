@@ -12,7 +12,6 @@ from strawberry.scalars import JSON
 from src.automated_coding_workflow.automated_coding_workflow import AutomatedCodingWorkflow
 from src.semantic_code.search.search_result import SearchResult
 from src.semantic_code.search.search_service import SearchService
-from src.endpoints.graphql.json.custom_json_encoder import CustomJSONEncoder
 from src.workspaces.workspace_manager import WorkspaceManager
 from src.workspaces.workspace_tools_service import WorkspaceToolsService
 

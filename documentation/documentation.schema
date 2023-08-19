@@ -1,0 +1,40 @@
+DocumentationSchema:
+  - Story/Feature Description:
+      - Background: 
+          Description: Detailed background information.
+          Attributes:
+            - Problem it solves
+            - Context
+            - Related strategic goals
+      - User Persona: 
+          Description: Detailed profile of the primary user.
+          Attributes:
+            - Role
+            - Needs
+            - Characteristics
+      - User Journey: 
+          Description: Typical journey of the user with the feature/system.
+  - Requirements:
+      - Functional Requirements:
+          Description: Detailed functional requirements list.
+      - Non-Functional Requirements (Optional):
+          Description: Non-functional requirements like performance, security, etc.
+          Note: Only if relevant at the current stage.
+      - Constraints: 
+          Description: Constraints or limitations to consider.
+  - System Design:
+      - High-Level Design:
+          Description: Overview of system architecture and primary components.
+      - Component Descriptions:
+          Description: Detailed description of each component/module.
+      - Interactions: 
+          Description: Component interactions and data flow.
+      - External Dependencies:
+          Description: External systems or libraries the system relies on.
+  - UML Diagrams:
+      - Component Diagram:
+          Description: High-level components/modules and their interactions.
+      - Class Diagram:
+          Description: OOP parts of the system.
+      - Sequence Diagram:
+          Description: Interactions over time for complex scenarios.

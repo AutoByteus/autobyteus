@@ -25,7 +25,6 @@ class RequirementStep(BaseStep):
     prompt_template = PromptTemplate(
         template="""
         As the best Python software engineer on earth, address the requriements outlined between the `$start$` and `$end$` tokens in the `[Requirement]` section.
-
         [Guidelines]
         - Use appropriate design patterns where neccessary.
         - Follow SOLID principles and Python's best coding practices.

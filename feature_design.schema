@@ -1,0 +1,32 @@
+## Documentation Schema
+
+### Requirements Documentation
+
+#### 1. Story/Feature Description:
+
+1.1. **Background**: Detailed background information on why this feature/system is necessary. This can include the problem it solves, the context, and any related strategic goals.
+1.2. **User Persona**: Who is the primary user of this feature/system? Describe them in detail.
+1.3. **User Journey**: Describe a typical journey of the user with this feature/system.
+
+#### 2. Requirements:
+
+2.1. **Functional Requirements**: List and detail the functional requirements.
+2.2. **Non-Functional Requirements (Optional)**: List and detail non-functional requirements like performance, security, etc. only if they are relevant at this stage.
+2.3. **Constraints**: Any constraints or limitations that need to be considered.
+
+
+### System Design Documentation
+
+#### 1. System Design:
+
+1.1. **High-Level Design**: Overview of the system architecture and its primary components.
+1.2. **Component Descriptions**: Detailed description of each component/module and its responsibility.
+1.3. **Interactions**: How do the components interact? What is the data flow?
+1.4. **External Dependencies**: Any external systems or libraries the system depends on.
+
+#### 2. UML Diagrams:
+
+2.1. **Component Diagram**: High-level components/modules and their interactions.
+2.2. **Class Diagram**: For OOP parts of the system.
+2.3. **Sequence Diagram**: To show interactions over time, especially useful for complex interactions.
+

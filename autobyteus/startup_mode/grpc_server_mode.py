@@ -1,6 +1,5 @@
 from concurrent import futures
 import grpc
-from src.endpoints.grpc.grpc_service import AutomatedCodingWorkflowService
 import src.proto.grpc_service_pb2_grpc as automated_coding_workflow_pb2_grpc
 
 

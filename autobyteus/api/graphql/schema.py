@@ -10,11 +10,11 @@ from src.api.graphql.mutations import workspace_mutations
 from src.api.graphql.queries import workspace_queries
 
 @strawberry.type
-class Query(workspace_queries):
+class Query(workspace_queries.Query):
     pass
 
 @strawberry.type
-class Mutation(workspace_mutations):
+class Mutation(workspace_mutations.Mutation):
     pass
 
 schema = strawberry.Schema(query=Query, mutation=Mutation)
