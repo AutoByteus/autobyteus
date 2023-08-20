@@ -8,9 +8,9 @@ This module contains the RequirementStep class, derived from the Step base class
 
 from abc import abstractmethod
 from typing_extensions import override
-from src.workflow_types.types.base_step import BaseStep
-from src.prompt.prompt_template import PromptTemplate
-from src.prompt.prompt_template_variable import PromptTemplateVariable
+from autobyteus.workflow_types.types.base_step import BaseStep
+from autobyteus.prompt.prompt_template import PromptTemplate
+from autobyteus.prompt.prompt_template_variable import PromptTemplateVariable
 
 class RequirementStep(BaseStep):
     name = "requirement"

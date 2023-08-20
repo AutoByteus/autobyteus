@@ -48,14 +48,12 @@ A user instructs the AI Agent to make modifications. Post-operation, a review pr
    - **Operation Events**: Emit real-time events for every operation executed or undone. 
    - **Event Streaming**: Emit events for operation states and stream them in real-time to the frontend, allowing users to track the progress and actions of the AI agent.
 
----
-
 ### System Design Documentation
 
 #### 1. System Design:
 
 1.1. **High-Level Design**: 
-The design follows the Command Pattern, encapsulating each operation within a command object. This approach simplifies execution and potential reversion. Event production and buffering mechanisms support frontend integration via real-time updates. A relationship between the `JournalManager` and `OperationEventProducer` ensures every significant operation is both journaled for recovery and emitted as an event for real-time feedback.
+The design follows the Command Pattern, encapsulating each operation within a command object. This approach simplifies execution and potential reversion. Event production and buffering mechanisms support frontend integration via real-time updates. A relationship between the `JournalManager` and `OperationEventProducer` ensures every significant operation and transaction event is both journaled for recovery and emitted as an event for real-time feedback.
 
 1.2. **Component Descriptions**:
 
@@ -63,7 +61,7 @@ The design follows the Command Pattern, encapsulating each operation within a co
   
 - **OperationEventProducer**: Emits events for various operation states, which frontend services can consume.
 
-- **JournalManager**: Manages the journaling of operations for recovery purposes. It also interacts with the `OperationEventProducer` to emit real-time events every time an operation is journaled.
+- **JournalManager**: Manages the journaling of operations and transaction lifecycle events for recovery purposes. It also interacts with the `OperationEventProducer` to emit real-time events every time an operation or transaction event is journaled.
 
 - **OperationEventBuffer**: Temporarily stores recent events for frontend services that might have missed real-time updates.
 
@@ -71,18 +69,17 @@ The design follows the Command Pattern, encapsulating each operation within a co
   
 - **Handlers**: Perform the actual operations. For instance, `ShellHandler` for shell commands.
   
-- **OperationLifecycleManager**: Manages the transaction lifecycle, including starting, committing, and rolling back transactions.
-  
+- **OperationLifecycleManager**: Manages the transaction lifecycle, including starting, committing, and rolling back transactions. For commits, it ensures all operations are journaled and emits an event for successful commits. For rollbacks, it interacts with the `OperationExecutor` to revert all operations and uses the `BackupHandler` for file operations, followed by emitting a rollback event.
+
 - **BackupHandler**: Manages backups for file operations, allowing for a rollback feature.
 
 1.3. **Interactions**: 
-The AI Agent creates and initializes operations. These operations are executed by the `OperationExecutor`. As operations progress, events are emitted by the `OperationEventProducer` and captured in the `OperationEventBuffer`. The frontend can then access these events for real-time updates. The `JournalManager` collaborates with the `OperationEventProducer` to ensure that every journaled operation is also emitted as a real-time event.
+The AI Agent creates and initializes operations. These operations are executed by the `OperationExecutor`. As operations progress, events are emitted by the `OperationEventProducer` and captured in the `OperationEventBuffer`. The frontend can then access these events for real-time updates. The `OperationLifecycleManager` now interacts with the `OperationExecutor` for reverting operations during rollbacks. It also coordinates with the `BackupHandler` to restore file operations if necessary. For both commit and rollback events, the manager communicates with the `OperationEventProducer` to provide feedback to the frontend.
 
 1.4. **External Dependencies**: 
 None identified currently.
 
-#### 2. UML Diagrams:
-
+#### 2. Updated UML Diagram:
 
 @startuml
 
@@ -127,6 +124,7 @@ package "Operation Executor Module" {
         + initialize_journal(transaction_id: str)
         + record_operation(operation: Operation)
         + finalize_journal(transaction_id: str, status: str)
+        + log_error(transaction_id: str, error_message: str)
     }
     
     class OperationEventProducer {
@@ -152,10 +150,6 @@ database "Coordinator and Backup" {
         + restore_backup(transaction_id: str, filepath: str)
     }
     
-    class TransactionLogger {
-        + log_transaction_activity(activity: str)
-    }
-    
     class BackupLogger {
         + log_backup_activity(activity: str)
     }
@@ -173,26 +167,17 @@ database "Coordinator and Backup" {
 
 note over AI Agent: User interacts primarily\nwith the AI Agent to\ninitiate operations
 
-OperationExecutor --> JournalManager: Logs and journals operations
+OperationExecutor --> JournalManager: Logs and journals operations and transaction lifecycle events
 OperationExecutor --> OperationEventProducer: Emits events
 
 ShellOperation --> ShellHandler: Executes shell commands
 
-OperationLifecycleManager --> TransactionLogger: Logs transaction activities
+OperationLifecycleManager --> JournalManager: Logs transaction lifecycle events
+OperationLifecycleManager -down-> OperationExecutor: Interacts for commit/rollback
+OperationLifecycleManager --> BackupHandler: Interacts for rollback
+OperationLifecycleManager --> OperationEventProducer: Emits events for commit/rollback
+
 BackupHandler --> BackupLogger: Logs backup activities
 OperationEventProducer --> OperationEventBuffer: Sends events
 
 @enduml
-
-
-
-
-
-
-
-
-
-
-
-
-

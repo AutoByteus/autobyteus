@@ -71,22 +71,26 @@
 
 ### 4. Coordinator and Backup
 
-#### Task 9: Implement the `OperationLifecycleManager` Class
+
+#### Updated Task 9: Implement the `OperationLifecycleManager` Class
 #task start#
-- **Clear Objective**: Create the `OperationLifecycleManager` class to manage the transaction lifecycle, including starting, committing, and rolling back transactions.
+- **Clear Objective**: Create the `OperationLifecycleManager` class to manage the transaction lifecycle. This includes methods to start, commit, and rollback transactions.
 - **File Specification**: `tools/coordinator/operation_lifecycle_manager.py`
 - **Functionality Details**: 
-  - This class should provide methods to start, commit, and rollback transactions.
-  - For commits, it should ensure all operations are journaled and emit an event for successful commits.
-  - For rollbacks, it should interact with the `OperationExecutor` to revert all operations and use the `BackupHandler` for file operations, followed by emitting a rollback event.
+  - The class should provide methods to start, commit, and rollback transactions.
+  - For commits:
+    - Ensure all operations are journaled using the `JournalManager`.
+    - Emit an event for successful commits through the `OperationEventProducer`.
+  - For rollbacks:
+    - Interact with the `OperationExecutor` to revert all operations.
+    - Use the `BackupHandler` to restore file operations, ensuring the system state is as it was before the start of the transaction.
+    - Emit a rollback event through the `OperationEventProducer`.
 - **Integration Points**: 
-  - Interact with the `TransactionLogger` to log transaction activities.
-  - Interact with the `OperationExecutor` for reverting operations during rollbacks.
-  - Coordinate with the `BackupHandler` to restore file operations if necessary during rollbacks.
-  - Communicate with the `JournalManager` to ensure all operations are journaled during commits.
-  - Interact with the `OperationEventProducer` to emit events for both commit and rollback operations.
+  - Interact with the `OperationExecutor` for the execution and potential reversion of operations.
+  - Coordinate with the `BackupHandler` to backup and restore file operations as needed.
+  - Communicate with the `JournalManager` to ensure all operations and transaction lifecycle events are properly journaled.
+  - Engage with the `OperationEventProducer` to emit real-time events, providing feedback to the frontend for both commit and rollback operations.
 #task end#
-
 
 #### Task 10: Implement the `BackupHandler` Class
 #task start#
@@ -104,6 +108,5 @@
 - **Integration Points**: This class will be utilized by the `OperationEventProducer` to add and retrieve events.
 #task end#
 
-These tasks will ensure that the system is built incrementally, meeting the requirements and system design specified in the documentation. Each task focuses on a specific component or feature, making it easier for developers to implement and test.
 
 

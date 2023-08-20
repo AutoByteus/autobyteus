@@ -28,22 +28,27 @@ class JournalManager:
         self.event_producer = event_producer
         os.makedirs(journal_path, exist_ok=True)
 
-    def initialize_journal(self, transaction_id: str) -> None:
+    def initialize_journal(self, transaction_id: str, user: str = None, description: str = None) -> None:
         """
         Prepares the journal for a new transaction.
 
         Args:
             transaction_id (str): The unique identifier for the transaction.
+            user (str): The user who initiated the transaction. Default is None.
+            description (str): Description or purpose of the transaction. Default is None.
         """
         journal_file = os.path.join(self.journal_path, f"{transaction_id}.json")
         with open(journal_file, 'w') as file:
             data = {
                 "transaction_id": transaction_id,
                 "start_time": datetime.now().isoformat(),
+                "user": user,
+                "description": description,
                 "operations": []
             }
             json.dump(data, file)
         self.event_producer.emit_event(f"Journal initialized for transaction {transaction_id}")
+
 
     def record_operation(self, operation: Operation) -> None:
         """
@@ -61,19 +66,42 @@ class JournalManager:
             json.dump(data, file)
         self.event_producer.emit_event(f"Operation {operation} recorded in journal for transaction {transaction_id}")
 
-    def finalize_journal(self, transaction_id: str, status: str) -> None:
+    def finalize_journal(self, transaction_id: str, status: str, error_message: str = None) -> None:
         """
         Marks the transaction as complete in the journal.
 
         Args:
             transaction_id (str): The unique identifier for the transaction.
             status (str): The final status of the transaction (e.g., "committed", "rolled_back").
+            error_message (str): Any error message associated with the transaction's end. Default is None.
         """
         journal_file = os.path.join(self.journal_path, f"{transaction_id}.json")
         with open(journal_file, 'r+') as file:
             data = json.load(file)
             data["end_time"] = datetime.now().isoformat()
             data["status"] = status
+            if error_message:
+                data["error_message"] = error_message
             file.seek(0)
             json.dump(data, file)
         self.event_producer.emit_event(f"Journal finalized with status {status} for transaction {transaction_id}")
+
+
+    def log_error(self, transaction_id: str, error_message: str) -> None:
+        """
+        Logs any errors encountered during the transaction's lifecycle.
+
+        Args:
+            transaction_id (str): The unique identifier for the transaction.
+            error_message (str): The error message to be logged.
+        """
+        journal_file = os.path.join(self.journal_path, f"{transaction_id}.json")
+        with open(journal_file, 'r+') as file:
+            data = json.load(file)
+            data.setdefault("errors", []).append({
+                "error_message": error_message,
+                "timestamp": datetime.now().isoformat()
+            })
+            file.seek(0)
+            json.dump(data, file)
+        self.event_producer.emit_event(f"Error logged for transaction {transaction_id}: {error_message}")
