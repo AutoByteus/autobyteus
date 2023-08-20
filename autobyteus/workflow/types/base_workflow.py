@@ -5,10 +5,11 @@ The BaseWorkflow class offers a foundation for creating custom workflows with un
 """
 
 from enum import Enum
-from src.llm_integrations.base_llm_integration import BaseLLMIntegration
+from autobyteus.llm_integrations.base_llm_integration import BaseLLMIntegration
+from autobyteus.workflow.types.workflow_template_config import WorkflowTemplateStepsConfig
+from autobyteus.workflow.utils.unique_id_generator import UniqueIDGenerator
 
-from src.workflow_types.types.workflow_template_config import WorkflowTemplateStepsConfig
-from src.workflow_types.utils.unique_id_generator import UniqueIDGenerator
+
 
 class WorkflowStatus(Enum):
     """
