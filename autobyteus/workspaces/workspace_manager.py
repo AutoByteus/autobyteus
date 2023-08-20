@@ -11,19 +11,19 @@ by TreeNode objects is returned.
 
 import logging
 from typing import Dict, Optional
-from src.singleton import SingletonMeta
 
-from src.source_code_tree.file_explorer.directory_traversal import DirectoryTraversal
-from src.source_code_tree.file_explorer.sort_strategy.default_sort_strategy import DefaultSortStrategy
-from src.source_code_tree.file_explorer.traversal_ignore_strategy.git_ignore_strategy import GitIgnoreStrategy
-from src.source_code_tree.file_explorer.traversal_ignore_strategy.specific_folder_ignore_strategy import SpecificFolderIgnoreStrategy
-from src.workspaces.errors.workspace_already_exists_error import WorkspaceAlreadyExistsError
-from src.workspaces.workspace_tools.project_type_determiner import ProjectTypeDeterminer
-from src.workspaces.setting.workspace_setting_registry import WorkspaceSettingRegistry
-from src.workspaces.workspace_directory_tree import WorkspaceDirectoryTree
-from src.workspaces.setting.workspace_setting import WorkspaceSetting
-from src.source_code_tree.file_explorer.tree_node import TreeNode
-from src.automated_coding_workflow.automated_coding_workflow import AutomatedCodingWorkflow  # Updated import
+from autobyteus.source_code_tree.file_explorer.directory_traversal import DirectoryTraversal
+from autobyteus.source_code_tree.file_explorer.sort_strategy.default_sort_strategy import DefaultSortStrategy
+from autobyteus.source_code_tree.file_explorer.traversal_ignore_strategy.git_ignore_strategy import GitIgnoreStrategy
+from autobyteus.source_code_tree.file_explorer.traversal_ignore_strategy.specific_folder_ignore_strategy import SpecificFolderIgnoreStrategy
+from autobyteus.utils.singleton import SingletonMeta
+from autobyteus.workspaces.errors.workspace_already_exists_error import WorkspaceAlreadyExistsError
+from autobyteus.workspaces.workspace_tools.project_type_determiner import ProjectTypeDeterminer
+from autobyteus.workspaces.setting.workspace_setting_registry import WorkspaceSettingRegistry
+from autobyteus.workspaces.workspace_directory_tree import WorkspaceDirectoryTree
+from autobyteus.workspaces.setting.workspace_setting import WorkspaceSetting
+from autobyteus.source_code_tree.file_explorer.tree_node import TreeNode
+from autobyteus.workflow.automated_coding_workflow import AutomatedCodingWorkflow  # Updated import
 
 
 logger = logging.getLogger(__name__)

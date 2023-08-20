@@ -6,11 +6,11 @@ of all available workspace tools. Tools can be registered and fetched using this
 """
 
 from typing import List, Type
-from src.singleton import SingletonMeta
-from src.workspaces.workspace_tools.base_workspace_tool import BaseWorkspaceTool
-from src.workspaces.workspace_tools.workspace_indexer.workspace_indexer import WorkspaceIndexer
-from src.workspaces.workspace_tools.workspace_refactorer.workspace_refactorer import WorkspaceRefactorer
-from src.workspaces.workspace_tools.workspace_scaffolder.workspace_scaffolder import WorkspaceScaffolder  # Assuming this is the correct import for BaseWorkspaceTool
+from autobyteus.utils.singleton import SingletonMeta
+from autobyteus.workspaces.workspace_tools.base_workspace_tool import BaseWorkspaceTool
+from autobyteus.workspaces.workspace_tools.workspace_indexer.workspace_indexer import WorkspaceIndexer
+from autobyteus.workspaces.workspace_tools.workspace_refactorer.workspace_refactorer import WorkspaceRefactorer
+from autobyteus.workspaces.workspace_tools.workspace_scaffolder.workspace_scaffolder import WorkspaceScaffolder  # Assuming this is the correct import for BaseWorkspaceTool
 
 class WorkspaceToolsRegistry(metaclass=SingletonMeta):
     """

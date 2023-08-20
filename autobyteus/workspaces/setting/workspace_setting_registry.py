@@ -7,8 +7,8 @@ and the corresponding WorkspaceSetting object as the value.
 """
 
 from typing import Dict, Optional
-from src.singleton import SingletonMeta
-from src.workspaces.setting.workspace_setting import WorkspaceSetting
+from autobyteus.utils.singleton import SingletonMeta
+from autobyteus.workspaces.setting.workspace_setting import WorkspaceSetting
 
 
 class WorkspaceSettingRegistry(metaclass=SingletonMeta):

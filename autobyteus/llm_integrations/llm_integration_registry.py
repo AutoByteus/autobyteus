@@ -8,11 +8,11 @@ and the corresponding LLM integration object as the value.
 """
 
 from typing import Dict, Optional
-from src.llm_integrations.base_llm_integration import BaseLLMIntegration
-from src.llm_integrations.openai_integration.openai_gpt_integration import OpenAIGPTIntegration
-from src.llm_integrations.openai_integration.openai_models import OpenAIModel
-from src.singleton import SingletonMeta
-from src.config import config
+from autobyteus.llm_integrations.base_llm_integration import BaseLLMIntegration
+from autobyteus.llm_integrations.openai_integration.openai_gpt_integration import OpenAIGPTIntegration
+from autobyteus.llm_integrations.openai_integration.openai_models import OpenAIModel
+from autobyteus.config import config
+from autobyteus.utils.singleton import SingletonMeta
 # Import other LLM integrations as needed
 
 

@@ -9,9 +9,8 @@ OpenAI's API to generate embeddings for the input text.
 import openai
 import numpy as np
 import logging
-from src.semantic_code.embedding.base_embedding_creator import BaseEmbeddingCreator
-from src.config import config
-from src.singleton import ABCSingletonMeta
+from autobyteus.semantic_code.embedding.base_embedding_creator import BaseEmbeddingCreator
+from autobyteus.config import config
 
 logger = logging.getLogger(__name__)
 

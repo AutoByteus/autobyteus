@@ -9,11 +9,11 @@ Classes:
     - IndexService: Manages the indexing of code entities.
 """
 
-from src.semantic_code.storage.base_storage import BaseStorage
-from src.singleton import SingletonMeta
-from src.source_code_tree.code_entities.base_entity import CodeEntity
-from src.semantic_code.embedding.embedding_creator_factory import get_embedding_creator
-from src.semantic_code.storage.storage_factory import get_storage
+from autobyteus.semantic_code.storage.base_storage import BaseStorage
+from autobyteus.source_code_tree.code_entities.base_entity import CodeEntity
+from autobyteus.semantic_code.embedding.embedding_creator_factory import get_embedding_creator
+from autobyteus.semantic_code.storage.storage_factory import get_storage
+from autobyteus.utils.singleton import SingletonMeta
 
 
 class IndexService(metaclass=SingletonMeta):
