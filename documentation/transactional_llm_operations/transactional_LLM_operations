@@ -48,9 +48,9 @@ A user instructs the AI Agent to make modifications. Post-operation, a review pr
    - **Operation Events**: Emit real-time events for every operation executed or undone. 
    - **Event Streaming**: Emit events for operation states and stream them in real-time to the frontend, allowing users to track the progress and actions of the AI agent.
 
-### Architecture Design Documentation
+### Feature Code Architecture Design Documentation
 
-#### 1. Architecture Design:
+#### 1. Code Architecture Design:
 
 1.1. **High-Level Design**: 
 The design follows the Command Pattern, encapsulating each operation within a command object. This approach simplifies execution and potential reversion. Event production and buffering mechanisms support frontend integration via real-time updates. A relationship between the `JournalManager` and `OperationEventProducer` ensures every significant operation and transaction event is both journaled for recovery and emitted as an event for real-time feedback.

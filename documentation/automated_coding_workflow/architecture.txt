@@ -1,91 +1,85 @@
-Module Code Design Documentation
-Purpose: This document provides a comprehensive design overview of the AutomatedCodingWorkflow module from a code perspective. The module is designed to offer a well-defined API for other modules and features, ensuring seamless integration and interaction within the broader system. By detailing the internal components, their interactions, and external dependencies, we aim to provide a clear understanding of how this module functions code-wise and interfaces with other system parts.
+### Feature Code Design Documentation:
 
-#### 1. Architecture Design:
+#### 1. Code Architecture Design:
 
 1.1. **High-Level Design**: 
-The `AutomatedCodingWorkflow` class represents a fully automated coding workflow, comprising multiple steps. Each step is an instance of a class derived from `BaseStep`. These steps can further contain sub-steps, leading to a multi-level workflow structure. The steps are initialized based on a configuration, and the entire workflow can be represented as a JSON.
+The code revolves around the `AutomatedCodingWorkflow` class which represents a fully automated coding workflow. This workflow comprises multiple steps, with each step being represented as an instance of a class derived from `BaseStep`. Each step can further have sub-steps, allowing for a potentially multi-level workflow.
 
 1.2. **Component Descriptions**:
-- **AutomatedCodingWorkflow**: The main class representing and managing the automated coding workflow. It holds information about workspace settings, steps, workflow name, configuration, and integration registry.
-- **WorkspaceSetting**: Represents the settings associated with the workspace.
-- **Steps (Derived from BaseStep)**: Represents the different stages in the workflow. They can be executed individually, and they may also have sub-steps.
-- **LLMIntegrationRegistry**: Used for managing integrations within the workflow.
+- **AutomatedCodingWorkflow**: This is the primary class representing the complete automated coding process. It initializes the workflow, manages step executions, and provides functionality to convert the workflow to a JSON format.
+  - Attributes:
+    - `workspace_setting`: Holds the settings related to the workspace.
+    - `steps`: Contains a dictionary of step instances, each keyed by their step IDs.
+    - `name`: Name of the workflow.
+    - `config`: Configuration details loaded from `WORKFLOW_CONFIG`.
+  - Methods:
+    - `_initialize_steps`: A private method to initialize workflow steps from a given configuration. This method also handles the initialization of sub-steps recursively.
+    - `to_json`: Converts the workflow instance to a JSON format.
+    - `execute_step`: Executes a specific step within the workflow.
+    - `start_workflow`: Sets the workflow's status to Started.
+
+- **LLMIntegrationRegistry**: Though not detailed in the provided code, it seems to be a registry for integrations related to LLM.
+
+- **BaseStep**: Represents a base step in the workflow. Specific details are not provided, but it's inferred that derived classes represent specific steps in the coding workflow and have an `execute` method.
+
+- **WorkspaceSetting**: Contains settings associated with the workspace, but specific details are not provided in the code.
 
 1.3. **Interactions**: 
-Users can initialize the `AutomatedCodingWorkflow` with a specific `WorkspaceSetting`. After initialization, users can convert the entire workflow to a JSON representation using the `to_json` method. Additionally, specific steps within the workflow can be executed using the `execute_step` method, provided they supply a valid step ID.
+The `AutomatedCodingWorkflow` initializes using a workspace setting. During initialization, it sets up its steps (and potentially sub-steps) based on the provided `WORKFLOW_CONFIG`. Steps can be executed individually using the `execute_step` method, and the entire workflow can be converted to a JSON representation using the `to_json` method.
 
 1.4. **External Dependencies**: 
-The workflow relies on several modules for its functioning. They include modules for managing integrations, defining base classes for steps, specifying workflow status and configuration, and workspace settings.
+The code utilizes several modules and classes, such as:
+- `json`: For converting the workflow representation to JSON format.
+- `WORKFLOW_CONFIG`: Provides configuration details for the workflow.
+- `LLMIntegrationRegistry`: Likely a registry for integrations related to LLM.
+- `BaseStep`: Represents the base class for steps in the workflow.
+- `WorkflowStatus`: Represents different status values the workflow can be in. Specific details are not provided.
+- `StepsTemplateConfig`: Provides the configuration template for workflow steps. Specific details are not provided.
+- `WorkspaceSetting`: Contains settings for the workspace.
 
 #### 2. UML Diagram:
-Below is the UML representation of the architecture:
-
+```plantuml
 @startuml
 
-package "autobyteus.workflow.config" {
-    class WORKFLOW_CONFIG
-}
-
-package "External Dependencies" {
-    class LLMIntegrationRegistry
-    class WorkspaceSetting
-}
-
 package "autobyteus.workflow_types.types" {
-    class BaseStep
-    class WorkflowStatus
-    class StepsTemplateConfig
+    class BaseStep {
+        + execute(): str
+    }
+}
+
+package "autobyteus.llm_integrations" {
+    class LLMIntegrationRegistry {
+    }
+}
+
+package "autobyteus.workspaces.setting" {
+    class WorkspaceSetting {
+    }
 }
 
 package "src.automated_coding_workflow" {
     class AutomatedCodingWorkflow {
-        +steps: Dict[str, BaseStep]
-        +name: str
-        +config: dict
-        +_initialize_steps(steps_config: Dict[str, StepsTemplateConfig])
-        +to_json(): str
-        +execute_step(step_id: str): Optional[str]
-        +start_workflow()
+        + workspace_setting: WorkspaceSetting
+        + steps: Dict[str, BaseStep]
+        + name: str
+        + config: dict
+        + _initialize_steps(steps_config: Dict[str, StepsTemplateConfig])
+        + to_json(): str
+        + execute_step(step_id: str): Optional[str]
+        + start_workflow()
     }
+    
+    note top of AutomatedCodingWorkflow
+        Represents the main automated coding workflow.
+        It handles initialization, execution of steps, and conversion to JSON.
+    end note
+    
+    AutomatedCodingWorkflow --> BaseStep: Has multiple step instances
+    AutomatedCodingWorkflow --> WorkspaceSetting: Utilizes workspace settings
+    AutomatedCodingWorkflow --> LLMIntegrationRegistry: Maintains a registry instance
 }
-
-AutomatedCodingWorkflow --> BaseStep: Contains multiple
-AutomatedCodingWorkflow --> WORKFLOW_CONFIG: Loads configuration from
-AutomatedCodingWorkflow ..> LLMIntegrationRegistry: Uses
-AutomatedCodingWorkflow ..> WorkspaceSetting: Uses
-
-note right of AutomatedCodingWorkflow
-  This class manages the automated coding workflow. 
-  It initializes and executes steps based on a configuration.
-end note
 
 @enduml
 
 
-
-
-
-
-
-### Module Design Documentation
-
-**Purpose**: This document provides a comprehensive design overview of the `AutomatedCodingWorkflow` module. The module is designed to furnish a well-defined API for other modules and features, enabling seamless integration and interaction within the larger system. By detailing the internal components, their interactions, and external dependencies, we aim to offer a clear understanding of how this module operates and interfaces with other system parts.
-
-#### 1. Module Design:
-
-1.1. **High-Level Design**: 
-The `AutomatedCodingWorkflow` class represents a fully automated coding workflow, comprising multiple steps. Each step is an instance of a class derived from `BaseStep`. These steps can further contain sub-steps, leading to a multi-level workflow structure. The steps are initialized based on a configuration, and the entire workflow can be represented as a JSON.
-
-1.2. **Component Descriptions**:
-- **AutomatedCodingWorkflow**: The primary class representing and managing the automated coding workflow. It contains information about the steps, workflow name, and configuration.
-- **Steps (Derived from BaseStep)**: Represents the different stages in the workflow. They can be executed individually, and they may also contain sub-steps.
-
-1.3. **Interactions**: 
-Users can initialize the `AutomatedCodingWorkflow`. After initialization, users can convert the entire workflow to a JSON representation using the `to_json` method. Specific steps within the workflow can be executed using the `execute_step` method, provided they supply a valid step ID.
-
-1.4. **External Dependencies**: 
-- `LLMIntegrationRegistry`: Used for managing integrations within the workflow.
-- `WorkspaceSetting`: Represents the settings associated with the workspace.
-- The workflow also relies on several other modules for its functioning, including modules for defining base classes for steps, specifying workflow status and configuration.
 

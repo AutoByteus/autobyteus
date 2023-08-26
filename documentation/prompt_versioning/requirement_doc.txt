@@ -2,53 +2,127 @@
 You are a top requirement engineer. You will cooperate with human to create a 
 clear and mature requirement with specified format.
 
+Requirement: 
+Previously, i have created automated coding workflow. Each step in the 
+workflow has a prompt as one attribute. Now i want to move the prompt to database. At 
+the same time enable prompt versioning. 
 
-### Requirements Documentation
+Prompt versioning is that each step is always related to its current prompt. user should be 
+able to update the prompt for the step. After user updated the prompt, then the version 
+is automatically increased. 
 
-#### 1. Story/Feature Description:
+The reason to have prompt versioning is that, i want compare the result returned by LLM
+for different versions of prompt, so that later we can actually rate the score which 
+prompt is better.
 
-1.1. **Background**: 
-In the realm of AI, an AI Agent is developed to modify files based on specific outputs. Given potential inaccuracies and uncertainties associated with these outputs, a safe mechanism for these modifications is vital. Instead of committing changes immediately, the system should allow users to review and then decide whether to accept or reject the changes. If approved, the changes persist; if declined, the system programmatically reverts the files to their original state. This mechanism ensures user confidence and reduces the risk of unintentional alterations. Additionally, with the integration of real-time event monitoring and operation journaling, users can now observe and trust the operations as they are being executed, providing an enhanced layer of transparency and trust.
+Here is one example step in python code 
+```
+# src/semantic_code/requirement/requirement_step.py
 
-1.2. **User Persona**: 
-AI Agent User (Developer, System Administrator) who needs to:
-  - Execute transactional operations.
-  - Review changes made by AI.
-  - Decide to commit or rollback operations.
-  - Receive real-time updates on operations.
-  - Trust in the system's ability to recover from unexpected issues.
+"""
+requirement_step.py
 
-1.3. **User Journey**: 
-A user instructs the AI Agent to make modifications. Post-operation, a review process is initiated, giving the user a summary of changes. As operations are executed, they are journaled, allowing for recovery in case of unexpected issues. The user can trust that the system has a mechanism for accurately capturing every action. Real-time updates are provided, allowing users to monitor the system's actions closely. Post-review, the user either commits the changes if satisfactory or rolls them back if not. The system ensures a rollback reverts all changes, restoring the system to its pre-operation state.
+This module contains the Requirement class, derived from the Step base class.
+"""
 
-#### 2. Requirements:
+from abc import abstractmethod
+from typing_extensions import override
+from autobyteus.prompt.prompt_template import PromptTemplate
+from autobyteus.prompt.prompt_template_variable import PromptTemplateVariable
+from autobyteus.workflow.types.base_step import BaseStep
 
-2.1. **Functional Requirements**:
+class Requirement(BaseStep):
+    name = "requirement"
+    
+    # Define the PromptTemplateVariable
+    requirement_variable = PromptTemplateVariable(name="requirement", 
+                                                  source=PromptTemplateVariable.SOURCE_USER_INPUT, 
+                                                  allow_code_context_building=True, 
+                                                  allow_llm_refinement=True)
 
-- **File Operations**:
-   - Reading from files.
-   - Writing to files.
-   - Appending to files.
-   - Renaming files.
-   - Deleting files.
+    # Define the PromptTemplate
+    prompt_template = PromptTemplate(
+        template="""
+        As the best Python software engineer on earth, address the requriements outlined between the `$start$` and `$end$` tokens in the `[Requirement]` section.
+        [Guidelines]
+        - Use appropriate design patterns where neccessary.
+        - Follow SOLID principles and Python's best coding practices.
+        - Consider refactoring where necessary.
+        - Follow python docstring best practices, ensuring each file begins with a file-level docstring.
+        - Include file paths with their complete codes in code block in the output, so i can easily copy and paste. Do not use placeholders.
+        - Explain whether to create a new folder or use an existing one for file placement. Use descriptive naming conventions for files and folders that correlate with the requirement's features. For context, 
+            the current project's file structure looks like this:
+            - src
+                - ...
+                - semantic_code
+                    - embedding
+                        - openai_embedding_creator.py
+            - tests
+                - unit_tests
+                    - ...
+                    - semantic_code
+                        - embedding
+                            - test_openai_embedding_creator.py
+                - integration_tests
+                    - ...
+                    - semantic_code
+                        - index
+                            - test_index_service_integration.py
+                    
+    - Always use absolute imports over relative ones.
+    - Update docstrings in line with any code modifications.
 
-- **Shell Operations**:
-   - Running shell commands to install or uninstall libraries/packages.
-   - Executing other miscellaneous shell commands.
+    Think step by step, and reason comphrehensively to address the task.
+    [Requirement]
+    $start$
+    {requirement}
+    $end$
+    """,
+        variables=[requirement_variable]
+    )
+    
+    @override
+    def construct_prompt(self, requirement: str) -> str:
+        """
+        Construct the prompt for the requirement step.
 
-- **Journaling**:
-   - Recording every operation in a journal file.
-   - Ability to replay operations from a journal.
-   - Ability to rollback operations using the journal.
-   - Recovery mechanism using uncommitted journals after system restarts.
+        Args:
+            requirement (str): The requirement to be filled in the prompt_template.
 
-- **Transaction Lifecycle**:
-   - **Start Transaction**: Start every transaction with initialization.
-   - **Execute Operations**: Execute the required operations within the transaction and log them.
-   - **User Review**: Allow the user to review the changes.
-   - **Commit or Rollback**: Based on the user's decision, either commit or rollback all executed operations using the journal.
-   - **End Transaction**: Gracefully terminate the transaction.
+        Returns:
+            str: The constructed prompt for the requirement step.
+        """
+        # Use the PromptTemplate's method to fill in the variable
+        prompt = self.prompt_template.fill({"requirement": requirement})
+        return prompt
+    
+    def process_response(self, response: str) -> None:
+        """
+        Process the response from the LLM API for this step.
 
-- **Real-Time Monitoring**: Users can monitor operations in real-time, providing transparency and confidence in the system's actions.
-   - **Operation Events**: Emit real-time events for every operation executed or undone. 
-   - **Event Streaming**: Emit events for operation states and stream them in real-time to the frontend, allowing users to track the progress and actions of the AI agent.
+        Args:
+            response (str): The LLM API response as a string.
+        """
+        raise NotImplementedError("Derived classes must implement the execute method.")
+
+
+    def execute(self) -> None:
+        """
+        Execute the step.
+
+        This method should be implemented in derived classes to define the step's execution logic.
+        """
+        raise NotImplementedError("Derived classes must implement the execute method.")
+```
+It's not completely finished yet.
+
+
+
+
+
+
+
+
+
+
+

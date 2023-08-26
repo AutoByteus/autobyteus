@@ -1,0 +1,89 @@
+[Template]
+### Feature Code Design Documentation:
+
+#### 1. Code Architecture Design:
+
+1.1. **High-Level Design**: 
+- Provide a brief overview of the primary architecture.
+- Are there any design patterns that will be applied?
+
+1.2. **New Components**:
+- **ComponentA (New)**: Describe its purpose, role, and functionality.
+- **ComponentB (New)**: Describe its purpose, role, and functionality.
+... Continue as needed.
+  
+1.3. **Existing Components/Dependencies**:
+- **ComponentX (Existing)**: Briefly describe its role and from which feature/module it originates.
+- **ComponentY (Existing)**: Briefly describe its role and from which feature/module it originates.
+... Continue as needed.
+
+1.4. **Interactions**: 
+- How do the new components interact with each other?
+- How do the new components interact with the existing components?
+
+1.5. **External Dependencies**: 
+- List any third-party libraries, services, or tools that will be used.
+- Are there any specific versions or configurations to be aware of?
+
+#### 2. UML Diagram:
+- Attach the UML diagram.
+- **UML Legend**:
+  - Components marked with `(New)` are to be developed as part of this feature.
+  - Components marked with `(Existing)` are pre-existing and should be treated as dependencies.
+
+#### 2. UML Diagram:
+- Attach the UML diagram.
+- **UML Legend**:
+  - Components marked with `(New)` are to be developed as part of this feature.
+  - Components marked with `(Existing)` are pre-existing and should be treated as dependencies.
+
+@startuml
+... UML content here ...
+@enduml
+
+
+[Example]
+### Feature Code Design Documentation:
+
+#### 1. Code Architecture Design:
+
+1.1. **High-Level Design**: 
+This feature implements the Observer Pattern, allowing numerous subscribers to be notified of certain events. An existing EventDatabase will store all the triggered events.
+
+1.2. **New Components**:
+- **Publisher (New)**: Broadcasts events to all subscribers and logs them to the EventDatabase.
+- **Subscriber (New)**: Monitors and responds to particular events.
+
+1.3. **Existing Components/Dependencies**:
+- **EventDatabase (Existing)**: A database component that stores all triggered events.
+
+1.4. **Interactions**: 
+- Users liaise with the Publisher to initiate events. 
+- The Publisher logs the event to the EventDatabase.
+- Subsequently, the Publisher notifies all Subscribers of this occurrence.
+
+1.5. **External Dependencies**: 
+None.
+
+#### 2. UML Diagram:
+
+@startuml
+
+class "Publisher (New)" {
+    + trigger_event()
+    + add_subscriber(subscriber: Subscriber)
+    + log_event_to_database(event: Event)
+}
+
+class "Subscriber (New)" {
+    + on_event_received()
+}
+
+class "EventDatabase (Existing)" {
+    + save_event(event: Event)
+}
+
+"Publisher (New)" --> "Subscriber (New)": Event notification
+"Publisher (New)" --> "EventDatabase (Existing)": Logs event
+
+@enduml

@@ -8,7 +8,7 @@ This module contains the DesignStep class, which represents the design stage of 
 from autobyteus.workflow.types.base_step import BaseStep
 
 
-class DesignStep(BaseStep):
+class ArchitectureDesignStep(BaseStep):
     name = "design"
     prompt_template = ""
     """
