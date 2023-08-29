@@ -1,4 +1,4 @@
-# src/semantic_code/requirement/requirement_step.py
+# src/workflow/steps/requirement_step.py
 
 """
 requirement_step.py
@@ -8,9 +8,9 @@ This module contains the RequirementStep class, derived from the Step base class
 
 from abc import abstractmethod
 from typing_extensions import override
-from autobyteus.workflow_types.types.base_step import BaseStep
 from autobyteus.prompt.prompt_template import PromptTemplate
 from autobyteus.prompt.prompt_template_variable import PromptTemplateVariable
+from autobyteus.workflow.types.base_step import BaseStep
 
 class RequirementStep(BaseStep):
     name = "requirement"

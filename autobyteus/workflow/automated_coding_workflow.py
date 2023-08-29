@@ -5,13 +5,13 @@ automated_coding_workflow.py: Contains the AutomatedCodingStep class, which repr
 
 import json
 from typing import Dict, Optional
-from src.automated_coding_workflow.config import WORKFLOW_CONFIG
-from src.llm_integrations.llm_integration_registry import LLMIntegrationRegistry
-from src.workflow_types.types.base_step import BaseStep
-from src.workflow_types.types.workflow_status import WorkflowStatus
-from src.workflow_types.types.workflow_template_config import StepsTemplateConfig
-from src.workspaces.setting.workspace_setting import WorkspaceSetting  # Import WorkspaceSetting
+from autobyteus.llm_integrations.llm_integration_registry import LLMIntegrationRegistry
 
+from autobyteus.workflow.config import WORKFLOW_CONFIG
+from autobyteus.workflow.types.base_step import BaseStep
+from autobyteus.workflow.types.base_workflow import WorkflowStatus
+from autobyteus.workflow.types.workflow_template_config import StepsTemplateConfig
+from autobyteus.workspaces.setting.workspace_setting import WorkspaceSetting
 
 class AutomatedCodingWorkflow:
     """

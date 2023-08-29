@@ -12,7 +12,8 @@ class ArchitectureDesignStep(BaseStep):
     name = "design"
     prompt_template = ""
     """
-    DesignStep is the class representing the design step of the automated coding workflow.
+    You are a top python softare architect, you will read the feature requirement
+    given by 
     """
 
     def construct_prompt(self) -> str:

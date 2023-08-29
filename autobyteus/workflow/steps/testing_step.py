@@ -1,5 +1,6 @@
-from src.prompt.prompt_template import PromptTemplate
-from src.workflow_types.types.base_step import BaseStep
+from autobyteus.prompt.prompt_template import PromptTemplate
+from autobyteus.workflow.types.base_step import BaseStep
+
 
 class TestingStep(BaseStep):
     name="run_test"
