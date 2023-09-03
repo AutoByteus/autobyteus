@@ -3,7 +3,9 @@ requirement_refine_step.py
 
 This module contains the RequirementRefineStep class, which represents the requirement refinement step of the automated coding workflow.
 """
-from autobyteus.workflow_types.types.base_step import BaseStep
+
+
+from autobyteus.workflow.types.base_step import BaseStep
 
 
 class RequirementRefineStep(BaseStep):

@@ -38,7 +38,7 @@ def test_system_message_is_always_first(mock_openai_response):
     messages = [UserMessage("Hello, OpenAI!")]  # Convert to UserMessage instance
 
     # Using a mock to capture the arguments passed to openai.ChatCompletion.create
-    with patch("src.llm_integrations.openai_integration.openai_chat_api.openai.ChatCompletion.create", autospec=True) as mock_create:
+    with patch("autobyteus.llm_integrations.openai_integration.openai_chat_api.openai.ChatCompletion.create", autospec=True) as mock_create:
         mock_create.return_value = {
             'choices': [
                 {'message': {'content': 'This is a mock response', 'role': 'assistant'}}

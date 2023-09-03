@@ -5,7 +5,7 @@ This module contains the TestGenerationStep class, which represents the test gen
 """
 from autobyteus.prompt.prompt_template import PromptTemplate
 from autobyteus.prompt.prompt_template_variable import PromptTemplateVariable
-from autobyteus.workflow_types.types.base_step import BaseStep
+from autobyteus.workflow.types.base_step import BaseStep
 
 
 class TestGenerationStep(BaseStep):

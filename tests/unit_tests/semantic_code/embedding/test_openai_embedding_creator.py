@@ -5,17 +5,17 @@ from autobyteus.semantic_code.embedding.openai_embedding_creator import OpenAIEm
 
 @pytest.fixture
 def mock_openai_api():
-    with patch('src.semantic_code.embedding.openai_embedding_creator.openai', autospec=True) as mock_openai:
+    with patch('autobyteus.semantic_code.embedding.openai_embedding_creator.openai', autospec=True) as mock_openai:
         yield mock_openai
 
 @pytest.fixture
 def mock_logger():
-    with patch('src.semantic_code.embedding.openai_embedding_creator.logger', autospec=True) as mock_logger:
+    with patch('autobyteus.semantic_code.embedding.openai_embedding_creator.logger', autospec=True) as mock_logger:
         yield mock_logger
 
 @pytest.fixture
 def mock_config():
-    with patch('src.semantic_code.embedding.openai_embedding_creator.config', autospec=True) as mock_config:
+    with patch('autobyteus.semantic_code.embedding.openai_embedding_creator.config', autospec=True) as mock_config:
         mock_config.get.side_effect = lambda key, default=None: 'dummy_value'
         yield mock_config
 

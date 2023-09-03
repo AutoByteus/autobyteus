@@ -11,7 +11,7 @@ def mock_openai_api(mocker):
 @pytest.fixture
 def mock_create_api(mocker, mock_openai_api):
     """Mock the OpenAIApiFactory.create_api method."""
-    return mocker.patch("src.llm_integrations.openai_integration.openai_gpt_integration.OpenAIApiFactory.create_api", return_value=mock_openai_api)
+    return mocker.patch("autobyteus.llm_integrations.openai_integration.openai_gpt_integration.OpenAIApiFactory.create_api", return_value=mock_openai_api)
 
 def test_initialization_with_defaults(mock_create_api):
     """Should initialize with default ApiType.CHAT when no parameters are provided."""
@@ -31,7 +31,7 @@ def test_process_input_messages(mocker):
     mock_api_instance.process_input_messages.return_value = mock_response
     
     # Mock OpenAIApiFactory.create_api to return the mock API instance
-    mocker.patch("src.llm_integrations.openai_integration.openai_gpt_integration.OpenAIApiFactory.create_api", return_value=mock_api_instance)
+    mocker.patch("autobyteus.llm_integrations.openai_integration.openai_gpt_integration.OpenAIApiFactory.create_api", return_value=mock_api_instance)
     
     integration = OpenAIGPTIntegration(api_type=ApiType.CHAT)
 

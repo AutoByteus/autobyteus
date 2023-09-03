@@ -38,7 +38,7 @@ def test_refactor_workspace_with_setting(service: WorkspaceToolsService, mock_re
     Test refactoring a workspace with an available workspace setting.
     """
     with patch.object(service, "setting_registry", mock_registry_with_setting):
-        with patch("src.workspaces.workspace_tools_service.WorkspaceRefactorer") as MockRefactorer:
+        with patch("autobyteus.workspaces.workspace_tools_service.WorkspaceRefactorer") as MockRefactorer:
             mock_instance = MockRefactorer.return_value
             service.refactor_workspace("/path/to/workspace")
             mock_instance.execute.assert_called_once()

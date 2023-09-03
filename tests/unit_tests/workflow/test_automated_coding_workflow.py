@@ -2,8 +2,8 @@
 
 import pytest
 from unittest.mock import patch, MagicMock
-from src.automated_coding_workflow.automated_coding_workflow import AutomatedCodingWorkflow
-from src.workflow_types.types.base_step import BaseStep
+from autobyteus.automated_coding_workflow.automated_coding_workflow import AutomatedCodingWorkflow
+from autobyteus.workflow_types.types.base_step import BaseStep
 
 @pytest.fixture
 def mock_workspace_setting():
@@ -20,7 +20,7 @@ def test_automated_coding_workflow_initialization(mock_workspace_setting):
     assert workflow.workspace_setting == mock_workspace_setting
     assert workflow.name == "automated_coding_workflow"
 
-@patch("src.automated_coding_workflow.automated_coding_workflow.create_llm_integration")
+@patch("autobyteus.automated_coding_workflow.automated_coding_workflow.create_llm_integration")
 def test_automated_coding_workflow_initialize_steps(mock_create_llm_integration, mock_workspace_setting, mock_step):
     mock_create_llm_integration.return_value = MagicMock()
     step_config = {
