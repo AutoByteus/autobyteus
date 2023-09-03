@@ -7,8 +7,8 @@ This class offers common functionalities and enforces the structure for derived 
 from enum import Enum, auto
 from abc import ABC, abstractmethod
 import openai
-from src.config import config
-from src.llm_integrations.openai_integration.openai_message_types import AssistantMessage
+from autobyteus.config import config
+from autobyteus.llm_integrations.openai_integration.openai_message_types import AssistantMessage
 
 
 class ApiType(Enum):

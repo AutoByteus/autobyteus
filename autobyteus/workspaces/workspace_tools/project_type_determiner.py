@@ -2,7 +2,7 @@
 
 import os
 
-from src.workspaces.setting.project_types import ProjectType
+from autobyteus.workspaces.setting.project_types import ProjectType
 
 class ProjectTypeDeterminer:
     """

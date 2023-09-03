@@ -24,11 +24,11 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.startup_mode.cli_mode import command_line_mode
-from src.startup_mode.grpc_server_mode import grpc_server_mode
-from src.startup_mode.graphql_server_mode import graphql_server_mode
-from src.config import config
-from src.config.logging_config import configure_logger
+from autobyteus.startup_mode.cli_mode import command_line_mode
+from autobyteus.startup_mode.grpc_server_mode import grpc_server_mode
+from autobyteus.startup_mode.graphql_server_mode import graphql_server_mode
+from autobyteus.config import config
+from autobyteus.config.logging_config import configure_logger
 
 def parse_command_line_arguments():
     parser = argparse.ArgumentParser(description='Python app with three modes: command line, gRPC server mode, and GraphQL server mode.')

@@ -1,6 +1,6 @@
 from concurrent import futures
 import grpc
-import src.proto.grpc_service_pb2_grpc as automated_coding_workflow_pb2_grpc
+import autobyteus.proto.grpc_service_pb2_grpc as automated_coding_workflow_pb2_grpc
 
 
 def grpc_server_mode():

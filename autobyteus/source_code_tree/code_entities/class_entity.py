@@ -7,8 +7,8 @@ Classes:
     - ClassEntity: Represents a class in code that can be converted to string representations.
 """
 import json
-from src.source_code_tree.code_entities.base_entity import CodeEntity
-from src.source_code_tree.code_entities.code_entity_type import CodeEntityType
+from autobyteus.source_code_tree.code_entities.base_entity import CodeEntity
+from autobyteus.source_code_tree.code_entities.code_entity_type import CodeEntityType
 
 
 class ClassEntity(CodeEntity):

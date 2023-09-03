@@ -9,7 +9,7 @@ PromptTemplate class features:
 - A method to convert the prompt template to a dictionary representation for frontend communication.
 """
 
-from src.prompt.prompt_template_variable import PromptTemplateVariable
+from autobyteus.prompt.prompt_template_variable import PromptTemplateVariable
 
 
 class PromptTemplate:

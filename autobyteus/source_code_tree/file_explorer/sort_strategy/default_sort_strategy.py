@@ -2,7 +2,7 @@
 
 import os
 from typing import List
-from src.source_code_tree.file_explorer.sort_strategy.sort_strategy import SortStrategy
+from autobyteus.source_code_tree.file_explorer.sort_strategy.sort_strategy import SortStrategy
 
 
 class DefaultSortStrategy(SortStrategy):

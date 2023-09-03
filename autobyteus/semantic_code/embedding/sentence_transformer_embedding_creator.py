@@ -9,8 +9,8 @@ representation (embedding) which can be used by machine learning models.
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
-from src.config import config
-from src.semantic_code.embedding.base_embedding_creator import BaseEmbeddingCreator
+from autobyteus.config import config
+from autobyteus.semantic_code.embedding.base_embedding_creator import BaseEmbeddingCreator
 
 class SentenceTransformerEmbeddingCreator(BaseEmbeddingCreator):
     """

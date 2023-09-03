@@ -11,9 +11,9 @@ Classes:
 """
 
 import ast
-from src.source_code_tree.code_entities.class_entity import ClassEntity
-from src.source_code_tree.code_entities.function_entity import FunctionEntity
-from src.source_code_tree.code_entities.method_entity import MethodEntity
+from autobyteus.source_code_tree.code_entities.class_entity import ClassEntity
+from autobyteus.source_code_tree.code_entities.function_entity import FunctionEntity
+from autobyteus.source_code_tree.code_entities.method_entity import MethodEntity
 
 
 class AstNodeVisitor(ast.NodeVisitor):

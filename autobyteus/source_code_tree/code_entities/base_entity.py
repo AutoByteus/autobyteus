@@ -10,7 +10,7 @@ Classes:
 
 from abc import ABC, abstractmethod
 
-from src.source_code_tree.code_entities.code_entity_type import CodeEntityType
+from autobyteus.source_code_tree.code_entities.code_entity_type import CodeEntityType
 
 
 class CodeEntity(ABC):
