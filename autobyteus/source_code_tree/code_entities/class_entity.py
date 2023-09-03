@@ -1,5 +1,5 @@
 """
-File: src/source_code_tree/code_entities/class_entity.py
+File: autobyteus/source_code_tree/code_entities/class_entity.py
 
 This module defines the ClassEntity class which represents a class in code that can be converted to string representations.
 

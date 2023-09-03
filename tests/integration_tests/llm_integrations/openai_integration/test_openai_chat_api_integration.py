@@ -1,8 +1,8 @@
 from openai import InvalidRequestError
 import pytest
-from src.llm_integrations.openai_integration.openai_chat_api import OpenAIChatApi
-from src.llm_integrations.openai_integration.openai_message_types import UserMessage, SystemMessage, AssistantMessage
-from src.llm_integrations.openai_integration.openai_models import OpenAIModel
+from autobyteus.llm_integrations.openai_integration.openai_chat_api import OpenAIChatApi
+from autobyteus.llm_integrations.openai_integration.openai_message_types import UserMessage, SystemMessage, AssistantMessage
+from autobyteus.llm_integrations.openai_integration.openai_models import OpenAIModel
 
 @pytest.mark.skip(reason="Integration test calling the real OpenAI API")
 def test_process_input_messages_integration():
@@ -73,7 +73,7 @@ Phase 2: Summarized Implementation
 - Detail file management decisions: whether to create a new folder or use an existing one. Ensure the naming of files and folders aligns with the requirement's features.
   
   For reference, the current project file structure is:
-    src
+    autobyteus
         ...
         workspaces
             workspace_service.py
@@ -114,18 +114,18 @@ By following this two-phase methodology, the output should be a blend of compreh
 [Requirement]
 $start$
 Previously we have implemented
-File: src/llm_integrations/openai_integration/openai_gpt_integration.py
+File: autobyteus/llm_integrations/openai_integration/openai_gpt_integration.py
 ```
 ""
 openai_gpt_integration.py: Implements the OpenAIGPTIntegration class which extends the BaseLLMIntegration abstract base class.
 This class integrates the OpenAI GPT models (gpt3.5-turbo, gpt4) with the agent program. It uses the OpenAI API to process a list of input messages and return the model's responses.
 """
 
-from src.config import config
-from src.llm_integrations.openai_integration.base_openai_api import BaseOpenAIApi
-from src.llm_integrations.openai_integration.openai_api_factory import ApiType, OpenAIApiFactory
-from src.llm_integrations.base_llm_integration import BaseLLMIntegration
-from src.llm_integrations.openai_integration.openai_models import OpenAIModel
+from autobyteus.config import config
+from autobyteus.llm_integrations.openai_integration.base_openai_api import BaseOpenAIApi
+from autobyteus.llm_integrations.openai_integration.openai_api_factory import ApiType, OpenAIApiFactory
+from autobyteus.llm_integrations.base_llm_integration import BaseLLMIntegration
+from autobyteus.llm_integrations.openai_integration.openai_models import OpenAIModel
 
 class OpenAIGPTIntegration(BaseLLMIntegration):
     """

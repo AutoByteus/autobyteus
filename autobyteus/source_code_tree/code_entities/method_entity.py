@@ -1,5 +1,5 @@
 """
-File: src/source_code_tree/code_entities/method_entity.py
+File: autobyteus/source_code_tree/code_entities/method_entity.py
 
 This module contains the MethodEntity class, which represents a method within a class in source code.
 MethodEntity holds information such as the method's name, documentation string (docstring), signature,

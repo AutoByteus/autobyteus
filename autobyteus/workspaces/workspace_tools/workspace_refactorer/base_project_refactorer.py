@@ -1,4 +1,4 @@
-# src/workspaces/workspace_tools/workspace_refactorer/project_refactorer.py
+# autobyteus/workspaces/workspace_tools/workspace_refactorer/project_refactorer.py
 
 from abc import ABC, abstractmethod
 

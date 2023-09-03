@@ -1,4 +1,4 @@
-# File path: src/llm_integrations/openai_integration/openai_message_types.py
+# File path: autobyteus/llm_integrations/openai_integration/openai_message_types.py
 
 """
 openai_message_types.py: Contains the data structures to represent and manage OpenAI messages.

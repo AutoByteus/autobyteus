@@ -1,3 +1,17 @@
+
+You are a Python software architect. In the [Documentation] section, you'll find feature requirements and design details between the `$start$` and `$end$` tokens. Your mission is to break these into detailed subtasks, as illustrated in the [SubtaskExample] section.
+
+Follow these criteria for each task:
+- **Clear Objective**: Clearly define the goal, such as creating a class, method, or specific algorithm.
+- **File Specification**: Indicate the precise file path for additions or modifications. Ensure adherence to Python's best practices for folder and file naming. Note: Each class should have its dedicated file.
+- **Functionality Details**: Describe the expected code behavior, return types, or its interactions with other code segments.
+- **Integration Points**: Highlight any code interactions with other parts of the codebase, emphasizing dependencies or interfaces.
+- Each subtask should be framed between `#task start#` and `#task end#` tokens.
+
+Ensure that the subtasks are logically ordered, with dependent tasks listed before those that rely on them.
+
+
+
 #### Task 1: Implement the `BaseStep` Class
 #task start#
 - **Objective**: Create the foundational class for all workflow steps.

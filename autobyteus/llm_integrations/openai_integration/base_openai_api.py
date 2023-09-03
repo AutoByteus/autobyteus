@@ -1,4 +1,4 @@
-# File: src/llm_integrations/openai_integration/base_openai_api.py
+# File: autobyteus/llm_integrations/openai_integration/base_openai_api.py
 
 """
 base_openai_api.py: Provides an abstract base class for OpenAI API implementations.

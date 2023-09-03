@@ -1,5 +1,5 @@
 """
-File Path: src/source_code_tree/code_entities/base_embedding_creator.py
+File Path: autobyteus/source_code_tree/code_entities/base_embedding_creator.py
 
 This module defines the BaseEmbeddingCreator abstract base class which serves
 as the base class for all embedding creators. Embedding creators are classes

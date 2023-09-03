@@ -1,4 +1,4 @@
-# src/workspaces/errors/workspace_already_exists_error.py
+# autobyteus/workspaces/errors/workspace_already_exists_error.py
 """
 This module contains an exception class for handling the case 
 where an attempt is made to add a workspace that already exists.

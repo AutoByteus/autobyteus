@@ -1,4 +1,4 @@
-# src/source_code_tree/file_explorer/sort_strategy/sort_strategy.py
+# autobyteus/source_code_tree/file_explorer/sort_strategy/sort_strategy.py
 
 from abc import ABC, abstractmethod
 from typing import List

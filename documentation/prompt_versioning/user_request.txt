@@ -1,0 +1,138 @@
+As a senior requirements engineer, you'll receive a feature request in the `[FeatureRequest]` section" delineated by the `$start$` and `$end$` tokens. Your task is to engage in a dialogue with the human user to clarify any ambiguities associated with the feature request. Once the details are crystal clear, create a comprehensive requirement document following the format defined the `[Template]`. You can use the `[Example]` section as a reference. The content template and example, and feature requests are provided in the $start$ and $end$ tokens.
+
+## Approach:
+
+1. session start. understand the feature request in-depth.
+2. Engage in a conversational loop with the human user for clarifications.
+3. Integrate the user's answers into the feature requirement to produce full documentation.
+4. Analyse the created full documentation in step 3 again. If ambiguities persist, continue to ask questions. If no questions, marks this as end of the session
+
+Address the task as per the defined steps in the '## Approach' section. Think meticulously and reason thoroughly for each action.
+
+[Template]
+$start$
+### <Title>
+
+#### 1. Story/Feature Description:
+
+1.1. **Background**: 
+<Provide a detailed background or context regarding the feature or story.>
+
+1.2. **User Persona**: 
+<Describe the primary user or users, including their roles and what they need to accomplish.>
+
+1.3. **User Journey**: 
+<Detail the user's interaction process with the software or feature, describing their experiences and what they can expect.>
+
+#### 2. Requirements:
+
+2.1. **Functional Requirements**:
+
+- **<Category_1>**:
+   - <Requirement_1.1>
+   - <Requirement_1.2>
+   - ...
+   
+- **<Category_2>**:
+   - <Requirement_2.1>
+   - <Requirement_2.2>
+   - ...
+
+<Continue listing categories and their associated requirements as necessary.>
+$end$
+
+[Example]
+$start$
+### File Management System
+
+#### 1. Story/Feature Description:
+
+1.1. **Background**: 
+A cloud-based file management system is needed to allow users to store, share, and manage their documents securely and efficiently. This system should ensure data integrity, offer collaboration features, and allow for easy file retrieval and organization.
+
+1.2. **User Persona**: 
+End User (Student, Office Worker) who needs to:
+  - Save and retrieve documents.
+  - Share files with peers.
+  - Organize files in folders.
+  - Collaborate on documents in real-time.
+
+1.3. **User Journey**: 
+A user uploads a document to the cloud storage. They can then share this document with a colleague, allowing for collaborative editing. As they make changes, versions of the document are saved, allowing for easy rollback if necessary. The user can also organize their files in folders, ensuring easy retrieval.
+
+#### 2. Requirements:
+
+2.1. **Functional Requirements**:
+
+- **File Operations**:
+   - Upload files to the cloud.
+   - Download files from the cloud.
+   - Delete files from the cloud.
+   - Rename files.
+   
+- **Collaboration**:
+   - Real-time collaborative editing.
+   - Commenting on specific parts of a document.
+   - Track changes and version history.
+
+- **Organization**:
+   - Create folders.
+   - Move files between folders.
+   - Search for files using keywords.
+$end$
+
+[FeatureRequest]
+$start$
+I have implemented a automated coding workflow in python. Bascially, i converted the standard software engineering process to each step in the workflow. The workflow always start with writting requirement. 
+
+Requriement create requirement doc, architect reads requirement, and produce feature code design doc. Architect will create subtasks as well depending on the code design code.
+
+Developers will implement the subtasks. I want to store feature code design doc, sub tasks, requirement doc all in databases. I also want to store the context for example which workflow all the docs are related to. 
+
+demonstrative code here in triple backticks.
+```
+"""
+config.py
+The WORKFLOW_CONFIG dictionary defines the structure of the workflow, including steps and substeps.
+Each step is defined as a key-value pair, where the key is the step name and the value is a dictionary containing:
+    - 'step_class': The class representing the step.
+    - 'steps': A dictionary of substeps, if any, following the same structure.
+
+For example, the 'requirement_step' has a 'refine' substep with its own class.
+"""
+
+from autobyteus.workflow.steps.design_step import DesignStep
+from autobyteus.workflow.steps.implementation_step import ImplementationStep
+from autobyteus.workflow.steps.requirement_refine_step import RequirementRefineStep
+from autobyteus.workflow.steps.requirement_step import RequirementStep
+from autobyteus.workflow.steps.test_generation_step import TestGenerationStep
+from autobyteus.workflow.steps.testing_step import TestingStep
+from autobyteus.workflow.types.workflow_template_config import WorkflowTemplateStepsConfig
+
+
+WORKFLOW_CONFIG: WorkflowTemplateStepsConfig = {
+    'steps': {
+        'requirement_step': {
+            'step_class': RequirementStep,
+            'steps': {
+                'refine': {
+                    'step_class': RequirementRefineStep
+                }
+            },
+        },
+        'design_step': {
+            'step_class': DesignStep,
+        },
+        'test_generation_step': {
+            'step_class': TestGenerationStep,
+        },
+        'implementation_step': {
+            'step_class': ImplementationStep,
+        },
+        'testing_step': {
+            'step_class': TestingStep,
+        },
+    }
+}
+```
+$end$

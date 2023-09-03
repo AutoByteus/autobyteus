@@ -1,4 +1,4 @@
-# src/source_code_tree/file_explorer/directory_traversal.py
+# autobyteus/source_code_tree/file_explorer/directory_traversal.py
 
 import os
 import pathlib

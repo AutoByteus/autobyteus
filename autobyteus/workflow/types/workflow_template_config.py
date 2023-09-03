@@ -1,5 +1,5 @@
 """
-src/workflow_template_config.py
+autobyteus/workflow_template_config.py
 
 This module contains the type definitions for the workflow configuration templates.
 """

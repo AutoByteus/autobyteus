@@ -1,4 +1,4 @@
-# src/automated_coding_workflow/automated_coding_workflow.py
+# autobyteus/automated_coding_workflow/automated_coding_workflow.py
 """
 automated_coding_workflow.py: Contains the AutomatedCodingStep class, which represents the main entry point for running the automated coding workflow.
 """

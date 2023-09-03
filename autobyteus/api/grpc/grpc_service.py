@@ -1,5 +1,5 @@
 """
-src/services/grpc_service.py: Provides a gRPC service implementation for the AutomatedCodingWorkflow.
+autobyteus/services/grpc_service.py: Provides a gRPC service implementation for the AutomatedCodingWorkflow.
 """
 
 

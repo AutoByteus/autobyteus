@@ -1,5 +1,5 @@
 """
-src/workflow_types/types/base_step.py
+autobyteus/workflow_types/types/base_step.py
 
 This module contains the BaseStep class, which serves as an abstract base class for all steps in the automated coding
 workflow. Each step in the workflow should inherit from this class and implement the required methods. The BaseStep

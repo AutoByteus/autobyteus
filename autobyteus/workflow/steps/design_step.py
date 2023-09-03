@@ -1,5 +1,5 @@
 """
-src/automated_coding_workflow/design_stage.py
+autobyteus/automated_coding_workflow/design_stage.py
 
 This module contains the DesignStep class, which represents the design stage of the automated coding workflow.
 """

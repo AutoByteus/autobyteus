@@ -1,6 +1,6 @@
 import pytest
 
-from src.config import config
+from autobyteus.config import config
 
 @pytest.fixture(autouse=True)
 def setup_and_teardown_redis():

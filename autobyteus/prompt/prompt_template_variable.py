@@ -1,5 +1,5 @@
 """
-src/prompt/prompt_template_variable.py
+autobyteus/prompt/prompt_template_variable.py
 
 This module contains the PromptTemplateVariable class, which represents a variable within a prompt template. 
 Each variable can have a source (e.g., dynamically replaced based on the project or provided by user input) 

@@ -1,4 +1,4 @@
-# src/workspaces/workspace_manager.py
+# autobyteus/workspaces/workspace_manager.py
 """
 This module provides a manager for handling operations related to workspaces.
 

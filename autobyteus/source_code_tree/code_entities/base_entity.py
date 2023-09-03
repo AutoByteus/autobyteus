@@ -1,5 +1,5 @@
 """
-File: src/source_code_tree/code_entities/base_entity.py
+File: autobyteus/source_code_tree/code_entities/base_entity.py
 
 This module contains classes that represent code entities. The main purpose of these classes is to
 convert code entities into a human-readable description format.

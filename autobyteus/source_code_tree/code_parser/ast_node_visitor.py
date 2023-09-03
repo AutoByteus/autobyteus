@@ -1,5 +1,5 @@
 """
-File: src/source_code_tree/code_entities/ast_node_visitor.py
+File: autobyteus/source_code_tree/code_entities/ast_node_visitor.py
 
 This module contains a class that extends the NodeVisitor class from Python's ast module.
 It overrides methods to extract information from function and class definitions and returns

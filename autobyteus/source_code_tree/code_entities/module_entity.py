@@ -1,5 +1,5 @@
 """
-File: src/source_code_tree/code_entities/module_entity.py
+File: autobyteus/source_code_tree/code_entities/module_entity.py
 
 This module defines the ModuleEntity class which represents a module in source code.
 It is used to store and represent information about a module such as its file path, docstring,

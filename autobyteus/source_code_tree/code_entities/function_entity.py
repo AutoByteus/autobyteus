@@ -1,6 +1,6 @@
-# File Path: src/source_code_tree/code_entities/function_entity.py
+# File Path: autobyteus/source_code_tree/code_entities/function_entity.py
 """
-File: src/source_code_tree/code_entities/function_entity.py
+File: autobyteus/source_code_tree/code_entities/function_entity.py
 
 This module defines the FunctionEntity class, which represents a function within a codebase.
 The FunctionEntity holds information about the function such as its name, documentation string,

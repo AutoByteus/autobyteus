@@ -1,4 +1,4 @@
-# src/source_code_tree/file_explorer/sort_strategy/default_sort_strategy.py
+# autobyteus/source_code_tree/file_explorer/sort_strategy/default_sort_strategy.py
 
 import os
 from typing import List

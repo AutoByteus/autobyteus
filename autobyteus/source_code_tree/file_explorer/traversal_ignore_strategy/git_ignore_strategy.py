@@ -1,4 +1,4 @@
-# src/source_code_tree/file_explorer/traversal_ignore_strategy/git_ignore_strategy.py
+# autobyteus/source_code_tree/file_explorer/traversal_ignore_strategy/git_ignore_strategy.py
 
 import os
 import fnmatch

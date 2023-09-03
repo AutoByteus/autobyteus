@@ -1,5 +1,5 @@
 """
-src/prompt/prompt_template.py
+autobyteus/prompt/prompt_template.py
 
 This module contains the PromptTemplate class, which represents a prompt that may contain various template variables.
 
