@@ -1,8 +1,8 @@
 import pytest
 from unittest.mock import patch, Mock
-from src.workspaces.workspace_tools.base_workspace_tool import BaseWorkspaceTool
-from src.workspaces.workspace_tools_service import WorkspaceToolsService
-from src.workspaces.setting.workspace_setting import WorkspaceSetting
+from autobyteus.workspaces.workspace_tools.base_workspace_tool import BaseWorkspaceTool
+from autobyteus.workspaces.workspace_tools_service import WorkspaceToolsService
+from autobyteus.workspaces.setting.workspace_setting import WorkspaceSetting
 
 @pytest.fixture
 def service():

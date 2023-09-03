@@ -1,11 +1,11 @@
 import pytest
 import os
 import tempfile
-from src.source_code_tree.file_explorer.directory_traversal import DirectoryTraversal
-from src.workspaces.setting.project_types import ProjectType
-from src.workspaces.workspace_directory_tree import WorkspaceDirectoryTree
-from src.workspaces.workspace_tools.workspace_refactorer.python_project_refactorer import PythonProjectRefactorer
-from src.workspaces.setting.workspace_setting import WorkspaceSetting
+from autobyteus.source_code_tree.file_explorer.directory_traversal import DirectoryTraversal
+from autobyteus.workspaces.setting.project_types import ProjectType
+from autobyteus.workspaces.workspace_directory_tree import WorkspaceDirectoryTree
+from autobyteus.workspaces.workspace_tools.workspace_refactorer.python_project_refactorer import PythonProjectRefactorer
+from autobyteus.workspaces.setting.workspace_setting import WorkspaceSetting
 
 
 def test_should_print_refactored_code_for_valid_files(capsys):

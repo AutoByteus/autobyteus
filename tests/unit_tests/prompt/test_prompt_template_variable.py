@@ -1,5 +1,5 @@
 import pytest
-from src.prompt.prompt_template_variable import PromptTemplateVariable
+from autobyteus.prompt.prompt_template_variable import PromptTemplateVariable
 
 def test_prompt_template_variable_creation_with_user_input():
     """

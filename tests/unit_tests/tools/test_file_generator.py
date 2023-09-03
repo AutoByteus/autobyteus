@@ -1,6 +1,6 @@
 import pytest
 import os
-from src.tools.file_generator import FileGenerator
+from autobyteus.tools.file_generator import FileGenerator
 
 @pytest.fixture
 def file_gen():

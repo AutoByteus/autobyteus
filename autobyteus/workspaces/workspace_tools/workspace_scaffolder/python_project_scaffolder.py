@@ -6,7 +6,7 @@ It extends the base scaffolder class to provide Python-specific scaffolding capa
 """
 
 
-from src.workspaces.workspace_tools.workspace_scaffolder.base_project_scaffolder import BaseProjectScaffolder
+from autobyteus.workspaces.workspace_tools.workspace_scaffolder.base_project_scaffolder import BaseProjectScaffolder
 
 
 class PythonProjectScaffolder(BaseProjectScaffolder):

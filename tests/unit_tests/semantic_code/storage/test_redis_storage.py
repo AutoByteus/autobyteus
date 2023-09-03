@@ -1,8 +1,8 @@
 # File: tests/unit/src/semantic_code/storage/test_redis_storage.py
 import pytest
 from unittest.mock import MagicMock
-from src.semantic_code.storage.redis_storage import RedisStorage
-from src.source_code_tree.code_entities.base_entity import CodeEntity
+from autobyteus.semantic_code.storage.redis_storage import RedisStorage
+from autobyteus.source_code_tree.code_entities.base_entity import CodeEntity
 
 @pytest.fixture
 def mock_redis_client():

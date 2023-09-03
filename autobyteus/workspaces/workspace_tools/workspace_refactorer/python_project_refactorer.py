@@ -6,15 +6,15 @@ It provides mechanisms to organize, structure, and refactor Python source code i
 best practices and standards specific to Python development.
 """
 import logging
-from src.llm_integrations.llm_integration_registry import LLMIntegrationRegistry
-from src.llm_integrations.openai_integration.openai_models import OpenAIModel
-from src.prompt.prompt_template import PromptTemplate
-from src.prompt.prompt_template_variable import PromptTemplateVariable
-from src.source_code_tree.file_explorer.file_reader import FileReader
-from src.source_code_tree.file_explorer.tree_node import TreeNode
-from src.workspaces.setting.workspace_setting import WorkspaceSetting
-from src.workspaces.workspace_directory_tree import WorkspaceDirectoryTree
-from src.workspaces.workspace_tools.workspace_refactorer.base_project_refactorer import BaseProjectRefactorer
+from autobyteus.llm_integrations.llm_integration_registry import LLMIntegrationRegistry
+from autobyteus.llm_integrations.openai_integration.openai_models import OpenAIModel
+from autobyteus.prompt.prompt_template import PromptTemplate
+from autobyteus.prompt.prompt_template_variable import PromptTemplateVariable
+from autobyteus.source_code_tree.file_explorer.file_reader import FileReader
+from autobyteus.source_code_tree.file_explorer.tree_node import TreeNode
+from autobyteus.workspaces.setting.workspace_setting import WorkspaceSetting
+from autobyteus.workspaces.workspace_directory_tree import WorkspaceDirectoryTree
+from autobyteus.workspaces.workspace_tools.workspace_refactorer.base_project_refactorer import BaseProjectRefactorer
 
 
 # Logger setup

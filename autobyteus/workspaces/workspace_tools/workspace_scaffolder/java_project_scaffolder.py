@@ -6,7 +6,7 @@ It extends the base scaffolder class to provide Java-specific scaffolding capabi
 """
 
 
-from src.workspaces.workspace_tools.workspace_scaffolder.base_project_scaffolder import BaseProjectScaffolder
+from autobyteus.workspaces.workspace_tools.workspace_scaffolder.base_project_scaffolder import BaseProjectScaffolder
 
 
 class JavaProjectScaffolder(BaseProjectScaffolder):

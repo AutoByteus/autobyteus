@@ -8,10 +8,10 @@ of a specific workspace, as provided by the `WorkspaceSetting`.
 """
 
 import os
-from src.semantic_code.index.index_service import IndexService
-from src.source_code_tree.code_parser.source_code_parser import SourceCodeParser
-from src.workspaces.setting.workspace_setting import WorkspaceSetting
-from src.workspaces.workspace_tools.base_workspace_tool import BaseWorkspaceTool
+from autobyteus.semantic_code.index.index_service import IndexService
+from autobyteus.source_code_tree.code_parser.source_code_parser import SourceCodeParser
+from autobyteus.workspaces.setting.workspace_setting import WorkspaceSetting
+from autobyteus.workspaces.workspace_tools.base_workspace_tool import BaseWorkspaceTool
 
 
 class WorkspaceIndexer(BaseWorkspaceTool):

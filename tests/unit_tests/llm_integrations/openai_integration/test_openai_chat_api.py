@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch
-from src.llm_integrations.openai_integration.openai_chat_api import OpenAIChatApi
-from src.llm_integrations.openai_integration.openai_message_types import AssistantMessage, UserMessage, SystemMessage
+from autobyteus.llm_integrations.openai_integration.openai_chat_api import OpenAIChatApi
+from autobyteus.llm_integrations.openai_integration.openai_message_types import AssistantMessage, UserMessage, SystemMessage
 
 @pytest.fixture
 def mock_openai_response(monkeypatch):

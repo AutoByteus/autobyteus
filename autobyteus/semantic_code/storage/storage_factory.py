@@ -5,10 +5,10 @@ such as RedisStorage and WeaviateStorage. Each type of storage class is implemen
 ensuring only one instance of each type can exist.
 """
 
-from src.config import config
-from src.semantic_code.storage.redis_storage import RedisStorage
-from src.semantic_code.storage.weaviate_storage import WeaviateStorage
-from src.semantic_code.embedding.embedding_creator_factory import get_embedding_creator
+from autobyteus.config import config
+from autobyteus.semantic_code.storage.redis_storage import RedisStorage
+from autobyteus.semantic_code.storage.weaviate_storage import WeaviateStorage
+from autobyteus.semantic_code.embedding.embedding_creator_factory import get_embedding_creator
 
 def get_storage():
     """

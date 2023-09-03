@@ -1,7 +1,7 @@
 import pytest
-from src.llm_integrations.openai_integration.openai_gpt_integration import OpenAIGPTIntegration
-from src.llm_integrations.openai_integration.openai_api_factory import ApiType
-from src.llm_integrations.openai_integration.openai_models import OpenAIModel
+from autobyteus.llm_integrations.openai_integration.openai_gpt_integration import OpenAIGPTIntegration
+from autobyteus.llm_integrations.openai_integration.openai_api_factory import ApiType
+from autobyteus.llm_integrations.openai_integration.openai_models import OpenAIModel
 
 
 @pytest.mark.skip(reason="Integration test which may call the real OpenAI API")

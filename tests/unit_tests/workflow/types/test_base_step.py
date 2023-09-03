@@ -1,11 +1,13 @@
 # tests/unit_tests/workflow_types/types/test_base_step.py
 
-from src.workflow_types.types.base_step import BaseStep
-from src.prompt.prompt_template import PromptTemplate
-from src.prompt.prompt_template_variable import PromptTemplateVariable
-from src.workflow_types.types.base_workflow import BaseWorkflow
 
 # Mock class for testing purposes
+from autobyteus.prompt.prompt_template import PromptTemplate
+from autobyteus.prompt.prompt_template_variable import PromptTemplateVariable
+from autobyteus.workflow.types.base_step import BaseStep
+from autobyteus.workflow.types.base_workflow import BaseWorkflow
+
+
 class MockStep(BaseStep):
     name = "mock_step"
     prompt_template = PromptTemplate(

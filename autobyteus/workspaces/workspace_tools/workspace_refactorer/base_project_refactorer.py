@@ -2,7 +2,8 @@
 
 from abc import ABC, abstractmethod
 
-from src.prompt.prompt_template import PromptTemplate
+from autobyteus.prompt.prompt_template import PromptTemplate
+
 
 class BaseProjectRefactorer(ABC):
     prompt_template: PromptTemplate = None

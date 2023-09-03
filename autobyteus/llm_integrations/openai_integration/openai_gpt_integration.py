@@ -4,12 +4,12 @@ This class integrates the OpenAI GPT models (gpt3.5-turbo, gpt4) with the agent 
 """
 
 from typing import List
-from src.config import config
-from src.llm_integrations.openai_integration.base_openai_api import BaseOpenAIApi
-from src.llm_integrations.openai_integration.openai_api_factory import ApiType, OpenAIApiFactory
-from src.llm_integrations.base_llm_integration import BaseLLMIntegration
-from src.llm_integrations.openai_integration.openai_message_types import SystemMessage, UserMessage
-from src.llm_integrations.openai_integration.openai_models import OpenAIModel
+from autobyteus.config import config
+from autobyteus.llm_integrations.openai_integration.base_openai_api import BaseOpenAIApi
+from autobyteus.llm_integrations.openai_integration.openai_api_factory import ApiType, OpenAIApiFactory
+from autobyteus.llm_integrations.base_llm_integration import BaseLLMIntegration
+from autobyteus.llm_integrations.openai_integration.openai_message_types import SystemMessage, UserMessage
+from autobyteus.llm_integrations.openai_integration.openai_models import OpenAIModel
 
 class OpenAIGPTIntegration(BaseLLMIntegration):
     """

@@ -5,10 +5,10 @@ This module provides the scaffolding logic for workspaces based on the type of p
 It determines the type of project and then applies the respective project scaffolder.
 """
 
-from src.workspaces.workspace_tools.base_workspace_tool import BaseWorkspaceTool
-from src.workspaces.workspace_tools.workspace_scaffolder.python_project_scaffolder import PythonProjectScaffolder
-from src.workspaces.workspace_tools.workspace_scaffolder.react_project_scaffolder import ReactProjectScaffolder
-from src.workspaces.workspace_tools.workspace_scaffolder.java_project_scaffolder import JavaProjectScaffolder
+from autobyteus.workspaces.workspace_tools.base_workspace_tool import BaseWorkspaceTool
+from autobyteus.workspaces.workspace_tools.workspace_scaffolder.python_project_scaffolder import PythonProjectScaffolder
+from autobyteus.workspaces.workspace_tools.workspace_scaffolder.react_project_scaffolder import ReactProjectScaffolder
+from autobyteus.workspaces.workspace_tools.workspace_scaffolder.java_project_scaffolder import JavaProjectScaffolder
 
 class WorkspaceScaffolder(BaseWorkspaceTool):
     """

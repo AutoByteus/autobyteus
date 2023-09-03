@@ -3,8 +3,8 @@
 import json
 import pytest
 
-from src.semantic_code.search.search_result import ScoredEntity, SearchResult
-from src.source_code_tree.code_entities.base_entity import CodeEntity
+from autobyteus.semantic_code.search.search_result import ScoredEntity, SearchResult
+from autobyteus.source_code_tree.code_entities.base_entity import CodeEntity
 
 # Corrected Mock class for CodeEntity to test against
 class MockCodeEntity(CodeEntity):

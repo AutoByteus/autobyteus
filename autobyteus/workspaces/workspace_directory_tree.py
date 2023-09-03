@@ -1,5 +1,4 @@
-from src.source_code_tree.file_explorer.tree_node import TreeNode
-
+from autobyteus.source_code_tree.file_explorer.tree_node import TreeNode
 
 class WorkspaceDirectoryTree:
     """

@@ -1,5 +1,5 @@
 import pytest
-from src.tools.bash_executor import BashExecutor
+from autobyteus.tools.bash_executor import BashExecutor
 
 @pytest.fixture
 def bash_executor():

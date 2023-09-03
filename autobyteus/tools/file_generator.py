@@ -6,7 +6,7 @@ Classes:
 """
 
 import os
-from src.tools.base_tool import BaseTool
+from autobyteus.tools.base_tool import BaseTool
 
 class FileGenerator(BaseTool):
     """

@@ -7,9 +7,9 @@ Integration tests for the IndexService class to ensure that it correctly indexes
 
 import tempfile
 import pytest
-from src.semantic_code.index.index_service import IndexService
-from src.source_code_tree.code_entities.function_entity import FunctionEntity
-from src.source_code_tree.code_parser.source_code_parser import SourceCodeParser
+from autobyteus.semantic_code.index.index_service import IndexService
+from autobyteus.source_code_tree.code_entities.function_entity import FunctionEntity
+from autobyteus.source_code_tree.code_parser.source_code_parser import SourceCodeParser
 
 @pytest.fixture
 def valid_function_entity():

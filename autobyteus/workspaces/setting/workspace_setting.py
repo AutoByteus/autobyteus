@@ -1,7 +1,10 @@
 # autobyteus/workspaces/setting/workspace_setting.py
 
-from src.workspaces.setting.project_types import ProjectType
-from src.workspaces.workspace_directory_tree import WorkspaceDirectoryTree
+
+
+from autobyteus.workspaces.setting.project_types import ProjectType
+from autobyteus.workspaces.workspace_directory_tree import WorkspaceDirectoryTree
+
 
 class WorkspaceSetting:
     """

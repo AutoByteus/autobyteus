@@ -3,9 +3,9 @@ openai_api_factory.py: Implements the OpenAIApiFactory class.
 This class is responsible for creating instances of the OpenAI API classes based on the provided type.
 """
 
-from src.llm_integrations.openai_integration.base_openai_api import ApiType, BaseOpenAIApi
-from src.llm_integrations.openai_integration.openai_chat_api import OpenAIChatApi
-from src.llm_integrations.openai_integration.openai_models import OpenAIModel
+from autobyteus.llm_integrations.openai_integration.base_openai_api import ApiType, BaseOpenAIApi
+from autobyteus.llm_integrations.openai_integration.openai_chat_api import OpenAIChatApi
+from autobyteus.llm_integrations.openai_integration.openai_models import OpenAIModel
 
 class OpenAIApiFactory:
     """

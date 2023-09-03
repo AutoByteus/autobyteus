@@ -2,7 +2,7 @@
 
 # File path: tools/operation_executor/operation_event_producer.py
 
-from src.tools.operation_executor.operation_event_buffer import OperationEventBuffer
+from autobyteus.tools.operation_executor.operation_event_buffer import OperationEventBuffer
 
 
 class OperationEventProducer:

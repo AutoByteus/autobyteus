@@ -1,10 +1,10 @@
 from typing import Dict, List
-from src.llm_integrations.openai_integration.openai_message_types import AssistantMessage, BaseMessage, OpenAIMessageRole, SystemMessage, UserMessage, MessageList
-from src.llm_integrations.openai_integration.base_openai_api import BaseOpenAIApi
-from src.config import config
+from autobyteus.llm_integrations.openai_integration.openai_message_types import AssistantMessage, BaseMessage, OpenAIMessageRole, SystemMessage, UserMessage, MessageList
+from autobyteus.llm_integrations.openai_integration.base_openai_api import BaseOpenAIApi
+from autobyteus.config import config
 import openai
 
-from src.llm_integrations.openai_integration.openai_models import OpenAIModel
+from autobyteus.llm_integrations.openai_integration.openai_models import OpenAIModel
 
 class OpenAIChatApi(BaseOpenAIApi):
     """

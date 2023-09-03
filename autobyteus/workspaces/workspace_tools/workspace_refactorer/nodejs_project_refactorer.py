@@ -1,7 +1,9 @@
 # autobyteus/workspaces/workspace_tools/workspace_refactorer/nodejs_project_refactorer.py
 
 
-from src.workspaces.workspace_tools.workspace_refactorer.base_project_refactorer import BaseProjectRefactorer
+
+
+from autobyteus.workspaces.workspace_tools.workspace_refactorer.base_project_refactorer import BaseProjectRefactorer
 
 
 class NodeJSProjectRefactorer(BaseProjectRefactorer):

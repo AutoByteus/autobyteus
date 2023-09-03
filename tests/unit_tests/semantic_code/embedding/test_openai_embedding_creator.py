@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 from unittest.mock import patch, Mock
-from src.semantic_code.embedding.openai_embedding_creator import OpenAIEmbeddingCreator
+from autobyteus.semantic_code.embedding.openai_embedding_creator import OpenAIEmbeddingCreator
 
 @pytest.fixture
 def mock_openai_api():

@@ -3,7 +3,7 @@
 import os
 import pytest
 import tempfile
-from src.source_code_tree.file_explorer.sort_strategy.default_sort_strategy import DefaultSortStrategy
+from autobyteus.source_code_tree.file_explorer.sort_strategy.default_sort_strategy import DefaultSortStrategy
 
 
 @pytest.fixture

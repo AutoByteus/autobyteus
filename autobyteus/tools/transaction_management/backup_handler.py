@@ -13,6 +13,7 @@ import shutil
 
 
 class BackupHandler:
+    
     def _backup_filename(self, transaction_id: str, filepath: str) -> str:
         """Generate a backup filename based on transaction_id and original filename."""
         dir_name, file_name = os.path.split(filepath)
