@@ -1,0 +1,8 @@
+This is a feature based on existing developed feature. The following is one overview of the existing feature.
+
+[Existing Feature Overview]
+The feature orchestrates an automated coding workflow, modularly structured, where each individual step, derived from a `BaseStep`, represents a distinct phase in the workflow. One of the pivotal aspects of the design is that every step employs its own uniquely configured prompt, which is dispatched to a large language model (LLM) for processing. The workflow allows for serialization to JSON, and specific steps can be executed as needed. The design is enhanced with support for multi-layered steps and sub-steps.
+
+Actually we only setup the basic structure for BaseStep. Since LLM integration returns the raw output from LLM for that specific input. The step not only need to store the raw output, but it also needs to store the specific parsed output extracted from the raw output. For example, requirement step is where the final requriement documentation should be stored.
+
+

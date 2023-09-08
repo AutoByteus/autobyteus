@@ -75,3 +75,10 @@ pip install --upgrade vcrpy urllib3
 ```
 
 
+Connecting to local database
+
+
+1. psql -U docker -h localhost -d autobyteus_test -W
+
+
+ \n 

@@ -7,7 +7,7 @@ encapsulates common attributes and behaviors for all derived models.
 """
 
 from sqlalchemy import create_engine, Column, Integer, DateTime, func
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
 

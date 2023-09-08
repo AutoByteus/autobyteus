@@ -2,8 +2,9 @@
 
 import pytest
 from unittest.mock import patch, MagicMock
-from autobyteus.automated_coding_workflow.automated_coding_workflow import AutomatedCodingWorkflow
-from autobyteus.workflow_types.types.base_step import BaseStep
+from autobyteus.workflow.automated_coding_workflow import AutomatedCodingWorkflow
+
+from autobyteus.workflow.types.base_step import BaseStep
 
 @pytest.fixture
 def mock_workspace_setting():

@@ -9,20 +9,6 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import DatabaseError
 from autobyteus.config import config
 
-# Fetching database connection details from the configuration
-DB_USERNAME = config.get('DB_USERNAME', default='postgres')
-DB_PASSWORD = config.get('DB_PASSWORD', default='password')
-DB_HOST = config.get('DB_HOST', default='localhost')
-DB_PORT = config.get('DB_PORT', default='5432')
-DB_NAME = config.get('DB_NAME', default='autobyteus')
-
-# Constructing the database URL
-DATABASE_URL = f"postgresql://{DB_USERNAME}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-engine = create_engine(DATABASE_URL)
-
-# Creating the session factory
-SessionFactory = sessionmaker(bind=engine)
-
 
 class DatabaseSessionManager:
     """
@@ -35,13 +21,35 @@ class DatabaseSessionManager:
         session_factory: Callable factory function to produce new sessions.
     """
 
-    def __init__(self, session_factory: callable = SessionFactory):
+    def __init__(self, session_factory: callable = None):
         """
         Initialize the DatabaseSessionManager with the session factory.
         
+        If no session factory is provided, it creates one dynamically by fetching the latest 
+        database configurations. This ensures that any changes made to the configurations, 
+        such as by test fixtures, are respected.
+        
         Args:
-            session_factory (callable): Factory function to produce new sessions.
+            session_factory (callable, optional): Factory function to produce new sessions. 
+                                                  Defaults to None.
         """
+        # If no session factory is provided, create one dynamically
+        if session_factory is None:
+            # Fetching database connection details from the configuration
+            DB_USERNAME = config.get('DB_USERNAME', default='postgres')
+            DB_PASSWORD = config.get('DB_PASSWORD', default='password')
+            DB_HOST = config.get('DB_HOST', default='localhost')
+            DB_PORT = config.get('DB_PORT', default='5432')
+            DB_NAME = config.get('DB_NAME', default='autobyteus')
+
+            # Constructing the database URL
+            DATABASE_URL = f"postgresql://{DB_USERNAME}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+            engine = create_engine(DATABASE_URL)
+            
+            # Creating the session factory, careful with expire_on_commit
+            session_factory = sessionmaker(bind=engine, expire_on_commit=False)
+        
+        self.engine = engine
         self.session_factory = session_factory
         self.session = None
 
@@ -74,4 +82,3 @@ class DatabaseSessionManager:
 
         # Close the session
         self.session.close()
-

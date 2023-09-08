@@ -59,5 +59,9 @@ fastapi
 toml
 python-dotenv
 uvicorn
+
+## postgres database
 SQLAlchemy
+sqlalchemy-utils
 alembic
+psycopg2-binary

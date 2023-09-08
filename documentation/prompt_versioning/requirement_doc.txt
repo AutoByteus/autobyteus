@@ -1,37 +1,53 @@
-### Automated Coding Workflow Database
+### Prompt Versioning Mechanism for Optimal Communication with Large Language Models
 
 #### 1. Story/Feature Description:
 
 1.1. **Background**: 
-An AI-driven automated coding workflow, powered by Large Language Models like ChatGPT or LLama2, has been designed to emulate the traditional software engineering process. At each workflow step, the AI agent sends a predefined prompt to the LLM. The LLM responds, and the agent parses this response. The parsed results, which form text documents such as feature code design docs, subtasks, and requirement documents, need systematic storage and association with their respective workflow context in a database.
+With the increasing reliance on Large Language Models (LLMs) for tasks ranging from coding to generic queries, there's a growing need for a refined communication mechanism. This feature introduces a versioning mechanism for prompts, designed to cater to any entity or component that communicates with LLMs. The primary motivation is to harness the inherent variability in LLM responses based on prompt nuances, allowing flexibility and comparative analysis between different versions to determine the most effective prompt.
 
 1.2. **User Persona**: 
-AI Coding Agent (Interacting with models like ChatGPT or LLama2):
-  - Sends predefined prompts to the LLM at each workflow step.
-  - Parses the LLM's responses to generate and interpret requirements, produce feature code design documents, and create and manage subtasks.
+Software Developer, AI System, or any LLM user:
+  - Engages with systems, workflows, or interfaces that utilize LLM capabilities.
+  - Aspires to contrast LLM responses across different prompt versions to pinpoint the optimal prompt.
+  - Desires a streamlined interface to manage, select, and compare various prompt versions.
 
 1.3. **User Journey**: 
-For each workflow step, the AI coding agent sends a predefined prompt to the LLM. Upon receiving the response, the agent parses it to produce the desired output, such as a requirement or design document. These parsed documents, and their linkage with specific workflow steps, are then stored in a PostgreSQL database for future retrieval and reference.
+Upon interfacing with any component or entity that uses prompts for LLM communication, users can modify a prompt and save it as a distinct version. They can manually set any version as the current effective prompt. A dropdown facilitates switching between versions, enabling them to fetch LLM responses for each. A comparative analysis follows to discern the most suitable prompt.
 
 #### 2. Requirements:
 
 2.1. **Functional Requirements**:
 
-- **Database Operations**:
-   - Store parsed text documents in the PostgreSQL database.
-   - Retrieve parsed text documents based on workflow context.
-   - Update existing parsed text documents.
-   - Delete parsed text documents.
+- **Entity-Specific Default and Effective Prompts**:
+   - Every entity or component communicating with LLMs has a distinct default prompt, intrinsic to its code.
+   - On the entity's inception, if the database lacks prompts specific to that entity, the default prompt initializes the database. This primary prompt is designated as v1 and is set as the immediate current effective prompt by default.
+   - Users have the autonomy to manually select any archived version as the current effective prompt for an entity.
 
-- **Workflow Association**:
-   - Associate a parsed document with its relevant workflow step (e.g., requirement_step, design_step).
-   - Fetch all parsed documents linked to a specific workflow step.
-   
-- **Document Structure**:
-   - Support for pure text documents, which are parsed results from LLM interactions, without any specific format or nested structures.
+- **Dynamic Initialization of Versioned Prompts**:
+   - At the commencement of any LLM communication, the system retrieves the current effective prompt from the database for the concerned entity.
+   - If the database lacks a version for an entity, it's initialized using the entity's inherent default prompt.
 
-- **Interaction with LLM**:
-   - Store the predefined prompts sent to the LLM for each workflow step.
-   - Store the raw response from the LLM before parsing.
+- **Decoupling Static Prompt Template**:
+   - Dynamically derive the prompt content from the database based on the version, or extract it from the entity's default if it's absent in the database.
 
+- **Prompt Version Management**:
+   - Allow the creation of a new prompt version for an entity when the existing prompt undergoes alterations.
+   - Preserve a maximum of 4 prompt versions for every entity in the database.
+   - Enlist all versions within a dropdown for user-centric selection.
+   - Introducing a new version that surpasses the 4-version threshold leads to the deletion of the oldest version.
 
+- **Comparative Analysis**:
+   - Simplify the transition between diverse prompt versions for execution and procuring LLM feedback.
+   - Consider introducing a side-by-side comparison utility in future endeavors, potentially emphasizing variances between chosen versions.
+
+- **Viewing Past Versions**:
+   - Enable users to view the content of previous prompt versions for reference.
+   - Ensure easy access and navigation to previous versions.
+
+- **Database Management**:
+   - Symbolize versions using elementary incremented numerals (e.g., v1, v2, etc.).
+   - Archive the creation/modification timestamp for every version.
+
+- **User Interface**:
+   - Incorporate a dropdown mechanism within the user interface for prompt version selection.
+   - Ensure clarity in version differentiation and streamline the comparative analysis trajectory.

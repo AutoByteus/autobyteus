@@ -1,5 +1,4 @@
 import pytest
-
 from autobyteus.config import config
 
 @pytest.fixture(autouse=True)
@@ -23,4 +22,3 @@ def setup_and_teardown_redis():
     config.set('REDIS_HOST', old_host)
     config.set('REDIS_PORT', old_port)
     config.set('REDIS_DB', old_db)
-

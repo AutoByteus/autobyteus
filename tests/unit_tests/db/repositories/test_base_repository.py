@@ -27,8 +27,6 @@ def mock_base_repository():
     return BaseRepository(session_manager=MockDatabaseSessionManager())
 
 
-# Test Cases:
-
 # 1. Test for the create method
 def test_should_add_and_commit_object_when_create_is_called(mock_base_repository):
     mock_object = MockModel()
@@ -47,6 +45,7 @@ def test_should_query_and_filter_by_id_when_get_is_called(mock_base_repository):
         mock_base_repository.get(model_class, record_id)
         mock_session.return_value.query.assert_called_once_with(model_class)
         mock_session.return_value.query.return_value.filter_by.assert_called_once_with(id=record_id)
+
 
 # 3. Test for the get_all method
 def test_should_query_all_records_of_model_class_when_get_all_is_called(mock_base_repository):

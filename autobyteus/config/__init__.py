@@ -35,7 +35,7 @@ class Config(metaclass=SingletonMeta):
         return self.config_data.get(key, default)
     
     def set(self, key: str, value: str):
-        self.config_data.get(key, value)
+        self.config_data[key] = value
 
     
     def add_workspace_root_path(self, workspace_name: str, workspace_setting: WorkspaceSetting):
