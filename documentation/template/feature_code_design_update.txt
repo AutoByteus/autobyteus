@@ -1,0 +1,88 @@
+### Feature Code Design Update Documentation Template:
+
+#### 1. Introduction:
+- **Feature Name**: [Name of the feature being updated]
+- **Version**: [Version number of this update, e.g., v1.1]
+
+#### 2. Overview:
+A brief overview of the primary reasons for the update and its objectives.
+
+#### 3. Changes:
+
+##### 3.1. Additions:
+- **Component Name**: [Name of the new component]
+  - **Purpose**: [Brief description of its purpose]
+  - **Attributes/Methods**: [List of its attributes or methods]
+  - **Interactions**: [How it interacts with other components]
+  - **Dependencies**: [Any new external dependencies]
+  
+[Repeat for all new components]
+
+##### 3.2. Modifications:
+- **Original Component Name**: [Name of the original component]
+  - **Modified Component Name**: [Name of the modified component if changed]
+  - **Attributes/Methods Added**: [List of attributes/methods added]
+  - **Attributes/Methods Removed**: [List of attributes/methods removed]
+  - **Attributes/Methods Modified**: [Description of changes]
+  - **Reason for Modification**: [Why it was modified]
+
+[Repeat for all modified components]
+
+##### 3.3. Removals:
+- **Component Name**: [Name of the component being removed]
+  - **Reason for Removal**: [Why it was removed]
+
+[Repeat for all removed components]
+
+#### 4. Updated Interactions:
+Describe any new or modified interactions between components, especially if they result in changes in data flow or logic.
+
+#### 5. External Dependency Changes:
+List and describe any changes to external dependencies, whether additions, removals, or modifications.
+
+
+
+### Feature Code Design Update Documentation Template:
+
+#### 1. Introduction:
+- **Feature Name**: [Name of the feature being updated]
+- **Version**: [Version number of this update, e.g., v1.1]
+
+#### 2. Overview:
+A brief overview of the primary reasons for the update and its objectives.
+
+#### 3. Changes:
+
+##### 3.1. Additions:
+- **Component Name**: [Name of the new component]
+  - **Purpose**: [Brief description of its purpose]
+  - **Attributes/Methods**: [List of its attributes or methods]
+  - **Interactions**: [How it interacts with other components]
+  - **Dependencies**: [Any new external dependencies]
+  
+[Repeat for all new components]
+
+##### 3.2. Modifications:
+- **Original Component Name**: [Name of the original component]
+  - **Modified Component Name**: [Name of the modified component if changed]
+  - **Attributes/Methods Added**: [List of attributes/methods added]
+  - **Attributes/Methods Removed**: [List of attributes/methods removed]
+  - **Attributes/Methods Modified**: [Description of changes]
+  - **Reason for Modification**: [Why it was modified]
+
+[Repeat for all modified components]
+
+##### 3.3. Removals:
+- **Component Name**: [Name of the component being removed]
+  - **Reason for Removal**: [Why it was removed]
+
+[Repeat for all removed components]
+
+#### 4. Updated Interactions:
+Describe any new or modified interactions between components, especially if they result in changes in data flow or logic.
+
+#### 5. External Dependency Changes:
+List and describe any changes to external dependencies, whether additions, removals, or modifications.
+
+
+

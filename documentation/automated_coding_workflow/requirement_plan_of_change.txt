@@ -1,0 +1,50 @@
+## Plan Of Change
+
+### Title: 
+- Integration of Prompt Versioning Mechanism into Automated Coding Workflow System
+
+### Feature Requirement Being Updated:
+
+**Title**: 
+- Automated Coding Workflow System
+
+**Abbreviation**:
+- ACWS
+
+**Version**: 
+- v1.0
+
+**Original Requirement Summary**:
+- The Automated Coding Workflow System offers a modular way to manage and execute a multi-step automated coding workflow. It integrates with the LLM system for optimized software development processes.
+
+### Caused By Feature:
+
+**Title**: 
+- Prompt Versioning Mechanism for Optimal Communication with Large Language Models
+
+**Abbreviation**:
+- PVMOCWLLM
+
+**Version**: 
+- v1.0
+
+**Functionality Provided**:
+- The mechanism introduces versioning for prompts, dynamic prompt initialization, entity-specific default prompts, version management, comparative analysis, and efficient database interaction.
+
+### Integration/Update Details:
+
+**Workflow Management**:
+- Original: Each step in the workflow communicates with LLMs using static prompts.
+- Update: Each step in the workflow now dynamically retrieves the effective prompt from the database (Reference: PVMOCWLLM) for optimized communication with LLMs.
+
+**Step Definition**:
+- Original: The system uses predefined templates to construct prompts for various workflow steps.
+- Update: Each primary and sub-step now has a distinct default prompt, initializing the database for steps without specific prompts (Reference: PVMOCWLLM).
+
+**Requirement Gathering**:
+- Original: Coding requirements are communicated to the user using static prompts.
+- Update: The system now uses the versioning mechanism to ensure the most effective prompt is used during the requirement gathering phase (Reference: PVMOCWLLM).
+
+**Architecture Design Stage**:
+- Original: The design stage's prompt is constructed using a static template.
+- Update: The design stage's prompt now utilizes the versioning mechanism to adaptively select the most effective prompt (Reference: PVMOCWLLM).

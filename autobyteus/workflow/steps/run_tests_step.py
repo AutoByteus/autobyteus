@@ -2,35 +2,34 @@ from autobyteus.prompt.prompt_template import PromptTemplate
 from autobyteus.workflow.types.base_step import BaseStep
 
 
-class ImplementationStep(BaseStep):
-    name = "implementation"
+class RunTestsStep(BaseStep):
+    name="run_test"
     prompt_template = PromptTemplate(template="")
 
-
     """
-    ImplementationStep handles the processing of the response from the LLM API
-    for the implementation step of the automated coding workflow.
+    TestingStep handles the processing of the response from the LLM API
+    for the testing step of the automated coding workflow.
     """
 
     def construct_prompt(self) -> str:
         """
-        Construct the prompt for the implementation step.
+        Construct the prompt for the testing step.
 
         Returns:
-            str: The constructed prompt for the implementation step.
+            str: The constructed prompt for the testing step.
         """
         prompt = "Please provide the requirements for the project:"
         return prompt
     
     def process_response(self, response: str) -> None:
         """
-        Process the response from the LLM API for the implementation step.
+        Process the response from the LLM API for the testing step.
 
         Args:
             response (str): The LLM API response as a string.
         """
-        # Process the response specific to the implementation step.
-        pass  # Add implementation step-specific processing logic here.
+        # Process the response specific to the testing step.
+        pass  # Add testing step-specific processing logic here.
 
     def execute(self) -> None:
         """

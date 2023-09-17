@@ -1,0 +1,33 @@
+### Dynamic Prompt Template Module
+
+#### 1. Story/Feature Description:
+
+1.1. **Background**: 
+In the context of systems that communicate with large language models like ChatGPT, there is a need for dynamic templates that can represent prompts. These templates should be flexible enough to contain variables that can be filled in dynamically and should be easily convertible to a dictionary format for seamless communication with frontend or other subsystems.
+
+1.2. **User Persona**: 
+System Developer or Integration Engineer who needs to:
+  - Create dynamic templates for prompts.
+  - Fill templates with actual values.
+  - Convert templates into dictionary format for communication with other systems, especially large language models.
+
+1.3. **User Journey**: 
+A developer defines a template for a prompt that contains certain variables. These variables can be dynamically determined or based on user input. Once defined, the developer can fill in the template with actual values and also convert it to a dictionary format for further use or communication.
+
+#### 2. Requirements:
+
+2.1. **Functional Requirements**:
+
+- **PromptTemplate Creation**:
+   - Define a raw template string.
+   - Associate variables (of type `PromptTemplateVariable`) with the template.
+   - Convert the template into a dictionary format.
+   - Fill the template with provided variable values.
+
+- **Variable Management**:
+   - Define a variable with a specific name.
+   - Set the source for the variable (either `DYNAMIC` or `USER_INPUT`).
+   - Allow certain capabilities for the variable, like code context building and LLM refinement.
+   - Set and get the value for a variable.
+   - Convert the variable into a dictionary format.
+

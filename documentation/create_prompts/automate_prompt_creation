@@ -1,0 +1,4 @@
+I wanna emphasize why we create two prompts. Actually the basic background is that we want to reverse engineer the documentations as you already know by providing existing code.
+
+Because of the context size of you(ChatGPT).  We have to split the process into two prompts. The initial prompt will create the initial design documentations.  If during analysis, any component which is directly related to the feature but the code is not provided, then it will be placed in the placeholder, as you can see in the template. In the second prompt, perhaps the file is provided, and then the 
+

@@ -1,60 +1,87 @@
+**Table of Contents**
+
+1. **Code Architecture Design**:
+    1.1. High-Level Design
+        - Brief overview of the primary architecture
+        - Design patterns and principles
+    1.2. Components Modifications:
+        1.2.1. New Components:
+            - Component Purpose
+            - Attributes Specification
+            - Methods/APIs Specification
+            - Interactions Specification
+        1.2.2. Updated Components:
+            - Purpose
+            - Updates/Changes
+            - Interactions with Other Components
+    1.3. Dependencies (Unchanged Components):
+        - Dependency Purpose
+        - Interaction with New Components
+    1.4. Interactions Overview
+    1.5. External Dependencies
+        - Libraries, Services, and Tools
+        - Version Specifications
+
+2. **UML Diagram**:
+   2.1. UML Legend
+
+------------------------------------------------------
+
 ### Feature Code Design Documentation Template:
 
 #### 1. Code Architecture Design:
 
-1.1. **High-Level Design**: 
+##### 1.1. High-Level Design
 - Brief overview of the primary architecture.
 - Design patterns, principles, or architectures that will be applied.
 
-1.2. **Components Modifications**:
+##### 1.2. Components Modifications
 
-- **New Components**:
+###### 1.2.1. New Components
 For each component:
-  - **Name (New) [extends/relates OtherComponentName]** (if applicable)
+- **Name (New) [extends/relates OtherComponentName]** (if applicable)
     - **Purpose**: Clear description of the component's role and functionality.
     - **Attributes**:
-      - `attribute_name`: Short description of the attribute and its significance.
-      ... Continue for all attributes.
+        - `attribute_name`: Short description of the attribute and its significance.
+        ... Continue for all attributes.
     - **Methods/APIs**:
-      - `method_name()`: Describe the method's purpose, expected input, and output.
-      ... Continue for all methods.
+        - `method_name()`: Describe the method's purpose, expected input, and output.
+        ... Continue for all methods.
     - **Interactions**: Describe how this component interacts with other components.
 
 ... Continue for all new components.
 
-- **Updated Components**:
+###### 1.2.2. Updated Components
 For each component:
-  - **Name (Existing/Updated) [extends/relates OtherComponentName]** (if applicable)
+- **Name (Existing/Updated) [extends/relates OtherComponentName]** (if applicable)
     - **Purpose**: Clear description of the component's role and functionality.
     - **Updates/Changes**: Any alterations or extensions to the existing component.
     - **Interactions**: Describe how this component interacts with new components or any changes in its interactions with existing components.
 
 ... Continue for all updated components.
 
-- **Dependencies (Unchanged Components)**:
-
+##### 1.3. Dependencies (Unchanged Components)
 For each component:
-  - **Name (Existing)**
+- **Name (Existing)**
     - **Purpose**: Clear description of the component's role and functionality.
     - **Interactions**: Describe its interactions, if necessary.
 
 ... Continue for all dependencies.
 
-1.3. **Interactions Overview**: 
+##### 1.4. Interactions Overview
 - A broader perspective on how new components interact with each other and with existing components.
 - Any sequence of operations or workflows that need to be followed.
 
-1.4. **External Dependencies**: 
+##### 1.5. External Dependencies
 - List any third-party libraries, services, or tools that will be used.
 - Specific versions or configurations to be aware of.
 
-#### 2. UML Diagram:
+#### 2. UML Diagram
 
-- Attach the UML diagram showcasing the relationships and interactions between components.
-- **UML Legend**:
-  - Components marked with `(New)` are to be developed as part of this feature.
-  - Components marked with `(Existing/Updated)` have been modified or extended.
-  - Components marked with `(Existing)` are pre-existing and should be treated as dependencies.
+##### 2.1. UML Legend
+- Components marked with `(New)` are to be developed as part of this feature.
+- Components marked with `(Existing/Updated)` have been modified or extended.
+- Components marked with `(Existing)` are pre-existing and should be treated as dependencies.
 
 @startuml
 ... UML content here ...
@@ -62,47 +89,52 @@ For each component:
 
 ---
 
-### Example:
-
+### Example
 #### 1. Code Architecture Design:
 
-1.1. **High-Level Design**: 
+##### 1.1. High-Level Design
 This feature is designed to implement the Observer Pattern, enabling multiple subscribers to be notified of certain events. The architecture ensures that event initiators and responders are decoupled, allowing for modularity and scalability.
 
-1.2. **Components Modifications**:
+##### 1.2. Components Modifications
 
-- **New Components**:
-  - **Publisher (New)**
+###### 1.2.1. New Components
+
+- **Publisher (New)**
     - **Purpose**: Acts as the broadcaster for events. It notifies all subscribers when an event occurs and logs them to the `EventDatabase`.
     - **Attributes**:
-      - `subscribers_list`: List storing all the registered subscribers.
+        - `subscribers_list`: List storing all the registered subscribers.
     - **Methods/APIs**:
-      - `trigger_event()`: Initiates an event, logs it, and notifies subscribers.
-      - `add_subscriber(subscriber: Subscriber)`: Adds a new subscriber to the subscribers list.
-      - `log_event_to_database(event: Event)`: Logs the event to the `EventDatabase`.
+        - `trigger_event()`: Initiates an event, logs it, and notifies subscribers.
+        - `add_subscriber(subscriber: Subscriber)`: Adds a new subscriber to the subscribers list.
+        - `log_event_to_database(event: Event)`: Logs the event to the `EventDatabase`.
     - **Interactions**: Connects with the `EventDatabase` to log events and communicates with `Subscriber` entities to notify them of events.
 
-  - **Subscriber (New) [relates Publisher]**
+- **Subscriber (New) [relates Publisher]**
     - **Purpose**: Monitors and responds to particular events triggered by the `Publisher`.
     - **Attributes**:
-      - `event_history`: List to store received events.
+        - `event_history`: List to store received events.
     - **Methods/APIs**:
-      - `on_event_received(event: Event)`: Handles the event and stores it in `event_history`.
+        - `on_event_received(event: Event)`: Handles the event and stores it in `event_history`.
     - **Interactions**: Receives event notifications from the `Publisher`.
 
-- **Dependencies (Unchanged Components)**:
-  - **EventDatabase (Existing)**
+###### 1.3. Dependencies (Unchanged Components)
+
+- **EventDatabase (Existing)**
     - **Purpose**: A database component designed to store all triggered events.
 
-1.3. **Interactions Overview**: 
+##### 1.4. Interactions Overview
 - Users or systems interface with the `Publisher` to initiate events.
 - Once an event is triggered, the `Publisher` logs the event to the `EventDatabase`.
 - The `Publisher` then notifies all `Subscriber` entities of this event.
 
-1.4. **External Dependencies**: 
+##### 1.5. External Dependencies
 - None.
 
-#### 2. UML Diagram:
+#### 2. UML Diagram
+
+##### 2.1. UML Legend
+- Components marked with `(New)` are to be developed as part of this feature.
+- Components marked with `(Existing)` are pre-existing and should be treated as dependencies.
 
 @startuml
 

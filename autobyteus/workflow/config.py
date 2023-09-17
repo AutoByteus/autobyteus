@@ -10,10 +10,9 @@ For example, the 'requirement_step' has a 'refine' substep with its own class.
 
 from autobyteus.workflow.steps.requirement_refine_step import RequirementRefineStep
 from autobyteus.workflow.steps.requirement_step import RequirementStep
-from autobyteus.workflow.steps.design_step import DesignStep
-from autobyteus.workflow.steps.test_generation_step import TestGenerationStep
-from autobyteus.workflow.steps.implementation_step import ImplementationStep
-from autobyteus.workflow.steps.testing_step import TestingStep
+from autobyteus.workflow.steps.tests_generation_step import TestsGenerationStep
+from autobyteus.workflow.steps.subtask_implementation_step import SubtaskImplementationStep
+from autobyteus.workflow.steps.run_tests_step import RunTestsStep
 from autobyteus.workflow.types.workflow_template_config import WorkflowTemplateStepsConfig
 
 WORKFLOW_CONFIG: WorkflowTemplateStepsConfig = {
@@ -26,17 +25,14 @@ WORKFLOW_CONFIG: WorkflowTemplateStepsConfig = {
                 }
             },
         },
-        'design_step': {
-            'step_class': DesignStep,
-        },
         'test_generation_step': {
-            'step_class': TestGenerationStep,
+            'step_class': TestsGenerationStep,
         },
         'implementation_step': {
-            'step_class': ImplementationStep,
+            'step_class': SubtaskImplementationStep,
         },
         'testing_step': {
-            'step_class': TestingStep,
+            'step_class': RunTestsStep,
         },
     }
 }

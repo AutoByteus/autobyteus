@@ -1,46 +1,41 @@
-### Automated Coding Workflow
+### Automated Coding Workflow System
 
-#### 1. Story/Feature Description:
+#### 1. Feature Description:
+The Automated Coding Workflow System offers a modular and structured way to manage and execute a multi-step automated coding workflow. The primary users are Software Developers or Team Leads, aiming to streamline the software development process that typically includes tasks like gathering requirements, designing solutions, coding, and testing.
 
-1.1. **Background**: 
-With the advent of advanced AI and large language models (LLMs), there's a growing need to harness their power for automated coding tasks. The Automated Coding Workflow serves as a structured interface to interact with LLMs. This modular, step-by-step approach simplifies and streamlines the process of utilizing the capabilities of LLMs for coding tasks by breaking down the process into distinct phases.
+#### 2. Feature Dependencies:
+- **LLM System**: The Automated Coding Workflow System integrates with an LLM system to manage external dependencies.
 
-1.2. **User Persona**: 
-Software Developer or AI System:
-  - Looking to automate certain coding tasks using LLMs.
-  - Desires a structured approach to interact with LLMs for coding tasks.
-  - Requires flexibility to execute specific steps and serialize the workflow.
+#### 3. Requirements:
 
-1.3. **User Journey**: 
-A developer or system initializes the Automated Coding Workflow. They provide specific inputs at various stages, such as requirements, design, implementation, and testing. The workflow dispatches these inputs as prompts to the LLM. The LLM processes these prompts and returns appropriate outputs, guiding the developer or system through each phase. The user has the flexibility to serialize the workflow, execute specific steps, and monitor the status of the workflow.
-
-#### 2. Requirements:
-
-2.1. **Functional Requirements**:
-
-- **Initialization**:
-   - Initialize the automated coding workflow using specific configurations.
-   - Support for multi-layered steps and sub-steps.
+3.1. **Functional Requirements**:
 
 - **Workflow Management**:
-   - Serialize the entire workflow to JSON format.
-   - Execute specific steps in the workflow as needed.
-   - Track and manage different states of the workflow.
+   - Define and manage a multi-step automated coding workflow.
+   - Each step in the workflow can potentially have sub-steps.
+   - Integrate with an LLM system to manage external dependencies.
+   - Initialize steps of the workflow from a given configuration.
+   - Convert the workflow instance to a JSON representation.
+   - Start the entire workflow process.
+   - Execute specific steps within the workflow using their ID.
+   
+- **Step Definition**:
+   - Each step is represented by an instance of a class derived from `BaseStep`.
+   - Construct a unique ID for each step instance.
+   - Construct a dynamic prompt for each step.
+   - Process the response from the LLM API for each step.
+   - Define the execution logic for each step.
+   
+- **Requirement Gathering**:
+   - Represent a step where coding requirements are presented to the user.
+   - Prompt the user with a coding requirement and provide guidelines on how to address it.
+   - Construct a prompt for this step using a template.
+   - Process the response from the LLM API for this step.
+   
+- **Architecture Design Stage**:
+   - Represent the design stage in the coding workflow.
+   - Use a template for constructing the design stage's prompt.
 
-- **Interaction with LLM**:
-   - Dispatch uniquely configured prompts to the LLM for processing.
-   - Receive and handle responses from the LLM.
+3.2. **Technical Requirements**:
 
-- **Steps in Workflow**:
-   - **RequirementStep**:
-     - Accept and process coding requirements.
-     - Construct a unique prompt for the LLM based on the requirements.
-   - **ArchitectureDesignStep**:
-     - Manage the architectural design phase.
-     - Construct a unique prompt for the LLM based on design needs.
-   - **ImplementationStep**:
-     - Oversee the coding implementation phase.
-     - Construct a unique prompt for the LLM based on implementation details.
-   - **TestGenerationStep**:
-     - Generate tests for Python code.
-     - Construct a unique prompt for the LLM based on the code to generate tests.
+(No technical requirements were provided in the initial document. This section can be populated when such requirements are defined.)

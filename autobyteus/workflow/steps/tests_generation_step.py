@@ -8,8 +8,8 @@ from autobyteus.prompt.prompt_template_variable import PromptTemplateVariable
 from autobyteus.workflow.types.base_step import BaseStep
 
 
-class TestGenerationStep(BaseStep):
-    name = "generate_test"
+class TestsGenerationStep(BaseStep):
+    name = "generate_tests"
    # Define the PromptTemplateVariable
     code_variable = PromptTemplateVariable(name="code", 
                                            source=PromptTemplateVariable.SOURCE_USER_INPUT, 

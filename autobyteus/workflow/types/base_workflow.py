@@ -9,17 +9,6 @@ from autobyteus.llm_integrations.base_llm_integration import BaseLLMIntegration
 from autobyteus.workflow.types.workflow_template_config import WorkflowTemplateStepsConfig
 from autobyteus.workflow.utils.unique_id_generator import UniqueIDGenerator
 
-
-
-class WorkflowStatus(Enum):
-    """
-    Enumeration representing the status of a workflow.
-    """
-    Success = 'Success'
-    Started = 'Started'
-    Failure = 'Failure'
-
-
 class BaseWorkflow:
     """
     A base class for custom workflows with unique IDs, status, and optional configuration. Supports optional LLM integration.

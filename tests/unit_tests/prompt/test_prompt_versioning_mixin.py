@@ -3,10 +3,10 @@
 import pytest
 from unittest.mock import Mock, patch
 
-from autobyteus.prompt.prompt_versioning_mixin import TestPromptVersioningMixin
 from autobyteus.db.models.prompt_version_model import PromptVersionModel
+from autobyteus.prompt.prompt_versioning_mixin import PromptVersioningMixin
 
-class TestPromptVersioningMixin(TestPromptVersioningMixin):
+class TestPromptVersioningMixin(PromptVersioningMixin):
     prompt_name = "TestPromptName"
     default_prompt = "Default Prompt"
 
