@@ -1,0 +1,136 @@
+## Plan Of Change Of Module Specification
+
+### Title: 
+- Description of the update to the module specification
+
+### Module Specification Being Updated:
+
+**Title**: 
+- Name of the module specification being updated
+
+**Abbreviation**:
+- Shorthand abbreviation of the module.
+
+**Version**: 
+- Version of the module specification being updated
+
+**Original Specification Summary**:
+- Main functionalities or aspects of the specification being updated
+
+### Caused By Module:
+
+**Title**: 
+- Name of the driving module or change
+
+**Abbreviation**:
+- Shorthand abbreviation of the module it integrates with or depends upon.
+
+**Version**: 
+- Version of the driving module or change
+
+**Functionality Provided**:
+- Functionalities or changes introduced by the driving module or change
+
+### Integration/Update Details:
+
+#### 4. Specifications:
+
+4.1. **Functional Specifications**:
+
+- **<Category (e.g., File Operations)>**:
+
+  ##### Modifications:
+
+  **Original (e.g., Upload files to the cloud)**:
+  - **Reason/Driven By**: Specific functionality from the driving module that led to the update
+  - **Updated**: Updated functionality or description
+  
+  ##### Additions:
+
+  **New Specification (e.g., Share files via link)**:
+  - **[+]**: Description of the new specification
+  - **Reason/Driven By**: Specific functionality from the driving module that led to the addition
+  
+  ##### Removals:
+
+  **Original (e.g., Rename files)**:
+  - **[−]**: Description of the removed specification
+  - **Reason/Driven By**: Specific reason or functionality from the driving module that led to the removal
+
+  (Continue detailing changes for other specifications within the category and then for other categories within Functional Specifications)
+
+4.2. **Technical Specifications**:
+
+- **<Category>**:
+
+  ... (Structure remains the same as above for Functional Specifications)
+
+  (Continue detailing changes for other categories within Technical Specifications as necessary)
+
+---------------------------------------------------------
+
+
+## Plan Of Change Of Module Specification
+
+### Title: 
+- Enhanced User Authentication Process
+
+### Module Specification Being Updated:
+
+**Title**: 
+- User Login System
+
+**Abbreviation**:
+- ULS
+
+**Version**: 
+- v1.2
+
+**Original Specification Summary**:
+- Allow users to login using email and password. Provide forgot password functionality.
+
+### Caused By Module:
+
+**Title**: 
+- Two-Factor Authentication Integration
+
+**Abbreviation**:
+- 2FA
+
+**Version**: 
+- v1.0
+
+**Functionality Provided**:
+- Offers an additional layer of security by requesting a one-time code sent to the user's mobile device.
+
+### Integration/Update Details:
+
+#### 4. Specifications:
+
+4.1. **Functional Specifications**:
+
+- **Authentication**:
+
+  ##### Modifications:
+
+  **Original (User Login Process)**:
+  - **Reason/Driven By**: Introduction of the Two-Factor Authentication module.
+  - **Updated**: Allow users to login using email, password, and a one-time code sent to their mobile device.
+
+  **Original (Password Retrieval Process)**:
+  - **Reason/Driven By**: Enhancements in security protocols.
+  - **Updated**: Provide forgot password functionality with an additional verification step using a mobile number.
+  
+  ##### Additions:
+
+  **New Specification (Backup Authentication Method)**:
+  - **[+]**: In case the user cannot access the one-time code on their mobile device, offer an alternative method via backup email.
+  - **Reason/Driven By**: Need for an alternative method for Two-Factor Authentication when mobile access is compromised.
+  
+  ##### Removals:
+
+  **Original (Legacy Login Support)**:
+  - **[−]**: Remove support for older login methods that only rely on email and password without any secondary verification.
+  - **Reason/Driven By**: Increased security measures and the introduction of Two-Factor Authentication.
+
+  (Additional changes would be detailed here if necessary)

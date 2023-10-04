@@ -1,41 +1,122 @@
-### Automated Coding Workflow System
+### Automated Coding Workflow Module Specification
 
-#### 1. Feature Description:
-The Automated Coding Workflow System offers a modular and structured way to manage and execute a multi-step automated coding workflow. The primary users are Software Developers or Team Leads, aiming to streamline the software development process that typically includes tasks like gathering requirements, designing solutions, coding, and testing.
+#### 1. Module Description:
+This module facilitates the definition, management, and execution of a multi-step automated coding workflow. It encompasses functionalities to initialize workflow steps from configurations, convert workflow instances to JSON representations, and execute specific steps or the entire workflow.
 
-#### 2. Feature Dependencies:
-- **LLM System**: The Automated Coding Workflow System integrates with an LLM system to manage external dependencies.
+#### 2. Module Dependencies:
+- **LLM Integration Module**: The Automated Coding Workflow Module uses functionalities from the LLM Integration Module to communicate with large language models like ChatGPT and manage external dependencies.
 
-#### 3. Requirements:
+#### 3. How To Use This Module:
+(Empty as the main purpose of this section is to describe how other modules can use the Automated Coding Workflow Module.)
 
-3.1. **Functional Requirements**:
+#### 4. Specifications:
+
+4.1. **Functional Specifications**:
 
 - **Workflow Management**:
    - Define and manage a multi-step automated coding workflow.
    - Each step in the workflow can potentially have sub-steps.
-   - Integrate with an LLM system to manage external dependencies.
+   - Integrate with the LLM Integration Module to manage external dependencies.
    - Initialize steps of the workflow from a given configuration.
    - Convert the workflow instance to a JSON representation.
    - Start the entire workflow process.
    - Execute specific steps within the workflow using their ID.
-   
+
 - **Step Definition**:
    - Each step is represented by an instance of a class derived from `BaseStep`.
    - Construct a unique ID for each step instance.
    - Construct a dynamic prompt for each step.
-   - Process the response from the LLM API for each step.
+   - Process the response from the LLM Integration Module for each step.
    - Define the execution logic for each step.
-   
+
 - **Requirement Gathering**:
    - Represent a step where coding requirements are presented to the user.
    - Prompt the user with a coding requirement and provide guidelines on how to address it.
    - Construct a prompt for this step using a template.
-   - Process the response from the LLM API for this step.
-   
-- **Architecture Design Stage**:
+   - Process the response from the LLM Integration Module for this step.
+
+- **Architecture Design Step**:
    - Represent the design stage in the coding workflow.
    - Use a template for constructing the design stage's prompt.
 
-3.2. **Technical Requirements**:
+4.2. **Technical Specifications**:
+(No technical specifications were provided in the initial document. This section can be populated when such specifications are defined.)
 
-(No technical requirements were provided in the initial document. This section can be populated when such requirements are defined.)
+
+----------------------------------
+
+
+### Automated Coding Workflow System (Version 1.2)
+
+#### 1. Feature Description:
+The Automated Coding Workflow System offers a modular and structured way to manage and execute a multi-step automated coding workflow for Software Developers or Team Leads.
+
+#### 2. Feature Dependencies:
+- **LLM System**: Integrated to manage external dependencies.
+- **Prompt Versioning Mechanism (PVM)**: Integrated to manage versioned prompts for effective communication with Large Language Models.
+
+#### 3. How To Use This Feature:
+Entities or components using ACWS should define their default prompt (mandated by PVM) to ensure efficient communication with LLMs.
+
+#### 4. Requirements:
+
+##### 4.1. Functional Requirements:
+
+- **Workflow Management**:
+   - Define and manage a multi-step automated coding workflow.
+   - Each step in the workflow can have sub-steps.
+   - Integrate with an LLM system and PVM.
+   - During workflow initialization, retrieve the effective prompt for the specific task from PVM (mandated by PVM).
+   - Convert the workflow instance to a JSON representation.
+   - Start the entire workflow process.
+   - Execute specific steps within the workflow using their ID.
+
+- **Step Definition**:
+   - Represented by an instance of a class derived from `BaseStep`.
+   - Construct a unique ID for each step instance.
+   - Retrieve the effective prompt for each step using PVM (mandated by PVM).
+   - Process the response from the LLM API for each step.
+   - Define the execution logic for each step.
+
+- **Requirement Gathering**:
+   - Represent a step where coding requirements are presented.
+   - Prompt users with a coding requirement and guidelines.
+   - Use the effective prompt provided by PVM (mandated by PVM).
+   - Process the LLM API response.
+
+- **Architecture Design Stage**:
+   - Represent the design stage.
+   - Use the effective prompt provided by PVM (mandated by PVM).
+
+##### 4.2. Technical Requirements:
+- **Integration with PVM Database**:
+   - CRUD operations for managing prompt versions.
+   - Retrieve and store versions with unique identifiers, timestamps, and version numbers.
+
+
+The "How To Use This Feature" section for the workflow feature has been made empty as requested.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+In software engineering, each feature comes with its corresponding feature requirement documentation. As development progresses, features may integrate functionalities from others. It's crucial that the documentation of a feature like Feature A remains updated in sync with the codebase, especially if it integrates functionality from Feature B. There's a proposal to introduce a "Feature Update" documentation for capturing such changes. However, detailing the interplay between features can be challenging due to the high-level nature of requirement documents. To ensure clarity, it's proposed that each feature's title be abbreviated by using the first letter of each word, creating a unique short name for easy referencing. This would help in clearly defining the boundaries and dependencies between features in the documentation.
+
+
+I think we should define some terminology. For example
+define default prompt for each step(mandated by PVM)
+fetch the most effective to communicate with LLM(provided by PVM) 
+
+Then we can remain a clear boundary between features.
+
+
+
