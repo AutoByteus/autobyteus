@@ -16,7 +16,7 @@ This module facilitates the definition, management, and execution of a multi-ste
 - **Workflow Management**:
    - Define and manage a multi-step automated coding workflow.
    - Each step in the workflow can potentially have sub-steps.
-   - Integrate with the LLM Integration Module to manage external dependencies.
+   - Integrate with the LLM Integration Module to manage llm communications.
    - Initialize steps of the workflow from a given configuration.
    - Convert the workflow instance to a JSON representation.
    - Start the entire workflow process.

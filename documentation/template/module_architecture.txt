@@ -1,0 +1,37 @@
+### Module Architecture Design Specification:(Trial Phase)
+
+#### 1. High-Level Design:
+This module is designed around the Observer Pattern, promoting decoupling between event initiators (`Publisher`) and responders (`Subscriber`). This design ensures modularity, scalability, and efficient event handling.
+
+#### 2. Component Summaries:
+
+- **Publisher**: Serves as the event broadcaster. It is responsible for notifying subscribers of events and logging them. It maintains a list of registered subscribers and communicates with the `EventDatabase` for event logging.
+  
+- **Subscriber**: Acts as an event responder. It monitors and handles events broadcasted by the `Publisher`. Each subscriber maintains a history of received events.
+
+- **EventDatabase**: A dedicated component for storing logged events. It captures and retains event data triggered by the `Publisher`.
+
+#### 3. Interactions Overview:
+Users or systems initiate events through the `Publisher`. Upon event initiation, the `Publisher` logs it into the `EventDatabase` and subsequently notifies all registered `Subscriber` entities of the event.
+
+#### 4. UML Diagram:
+
+@startuml
+
+class "Publisher" {
+    + Notifies subscribers of events
+    + Logs events to EventDatabase
+}
+
+class "Subscriber" {
+    + Monitors and handles events
+}
+
+class "EventDatabase" {
+    + Stores logged events
+}
+
+"Publisher" --> "Subscriber": Event notification
+"Publisher" --> "EventDatabase": Logs event
+
+@enduml

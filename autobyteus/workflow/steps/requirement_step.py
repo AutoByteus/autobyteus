@@ -97,10 +97,21 @@ class RequirementStep(BaseStep):
 
 
 
+Forward-path reasoning is a logical and coherent way of presenting information where prior context sets the stage for subsequent details. When used in text generation, especially for documentation and structured content, it ensures clarity and improved understanding.
 
+Here's a concise criteria for forward-path reasoning:
 
+**Criteria for Forward-Path Reasoning in Text Generation**:
 
+1. **Establish Context First**: Begin with general context or background information that sets the stage for detailed explanations.
+   
+2. **Progress from General to Specific**: Start with broad concepts or categories before delving into specific details or examples.
 
+3. **Use Logical Transitions**: Ensure that each segment or paragraph logically flows into the next, maintaining a clear and coherent storyline.
+
+4. **Prioritize Clarity over Brevity**: While being concise is important, clarity should never be sacrificed. Ensure each segment provides enough information for the subsequent segments to be understood.
+
+5. **Maintain Consistency**: Use consistent terminology, phrasing, and formatting. This helps in setting clear expectations for the reader.
 
 
 

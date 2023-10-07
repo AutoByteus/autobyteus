@@ -28,7 +28,7 @@ The `AutomatedCodingWorkflow` module provides a structured way to manage and exe
         - `name`: Class attribute representing the step's name.
         - `id`: Unique ID for each instance.
         - `workflow`: Reference to the associated workflow.
-        - `default_prompt`: The constructed prompt for the step using the versioning system.
+        - `default`: The constructed prompt for the step using the versioning system.
     - **Methods/APIs**:
         - `to_dict()`: Converts the `BaseStep` instance to a dictionary representation.
         - `construct_prompt()`: Constructs the prompt for this step using the versioning system.
@@ -241,4 +241,131 @@ class "BaseLLMIntegration (Part-Of)"
 @enduml
 
 
+### Feature Code Design Documentation:
+
+#### 1. Code Architecture Design:
+
+1.1. **High-Level Design**: 
+The enhancement introduces a versioning mechanism for prompts designed for entities or classes that leverage prompts to communicate with Large Language Models (LLMs). By integrating the `PromptVersioningMixin`, entities, such as workflow steps or any other component interfacing with LLMs, can store, manage, and refine versioned prompts in a database. This ensures consistent and optimized interactions with LLMs, capitalizing on the most effective prompt versions. The Repository Pattern from previous features is utilized to facilitate smooth database interactions.
+
+#### 2. Component Modifications:
+
+2.1. **New Components**:
+
+- **PromptVersioningMixin**: 
+  - *Purpose*: A mixin class offering versioning capabilities with integrated database interactions.
+  - *Attributes*: 
+    - `current_prompt: str`: The in-memory cached value of the current effective prompt for the entity. This value is initially fetched from the database, and then it's used for subsequent operations to reduce database accesses. This attribute is updated whenever a new current effective version is set.
+    - `default_prompt: str`: The default prompt intrinsic to the entity's code.
+    - `repository: PromptVersionRepository`: An instance of the repository to handle database operations related to versioning.
+  - *Abstract Properties*:
+    - `prompt_name: str`: An abstract property that mandates implementing classes to provide a unique identifier for their prompts.
+  - *Methods*: 
+    - `add_version(prompt: str)`: Creates and stores a new version of the prompt. If the number of versions surpasses the limit (4), it deletes the oldest version.
+    - `get_version(version_no: int)`: Retrieves the content of a specified prompt version.
+    - `set_current_effective_version(version_no: int)`: Sets a specific version as the current effective prompt. This method updates the `current_prompt` attribute with the content of the specified version and marks this version as the effective one in the database.
+    - `get_current_effective_prompt()`: Fetches the content of the current effective prompt from the database. If no effective prompt exists for the entity, it initializes the database with the entity's intrinsic default prompt, designating it as version 'v1', and then returns this default prompt. The method should handle potential errors gracefully, ensuring that a prompt is always returned.
+    - `load_latest_version()`: Retrieves the content of the latest created prompt version.
+
+- **VersionedPrompt**:
+  - *Purpose*: Represents the state of a prompt at a particular version in-memory.
+  - *Attributes*: 
+    - `version_no: int`: The version number.
+    - `prompt_content: str`: The content of the prompt for that version.
+
+- **PromptVersionModel (extends BaseModel)**:
+  - *Purpose*: Represents the database model for storing versioned prompts.
+  - *Attributes*: 
+    - `prompt_name: String`: Identifier for the prompt.
+    - `version_no: Integer`: Version number.
+    - `prompt_content: Text`: Content of the prompt.
+    - `is_current_effective: Boolean`: Indicates if this version is the current effective prompt.
+    (Note: The attributes `created_at` and `updated_at` are inherited from `BaseModel` and are therefore not explicitly defined here.)
+
+- **PromptVersionRepository (extends BaseRepository)**:
+  - *Purpose*: Offers CRUD operations for `PromptVersionModel` and manages version-specific operations.
+  - *Methods*: 
+    - `create_version(prompt_version: PromptVersionModel)`: Stores a new prompt version.
+    - `get_version(prompt_name: String, version_no: int)`: Fetches a specific version of a prompt.
+    - `get_current_effective_version(prompt_name: String)`: Retrieves the current effective prompt for an entity.
+    - `get_latest_created_version(prompt_name: String)`: Retrieves the most recently created prompt version.
+    - `delete_version(prompt_name: String, version_no: int)`: Deletes a specific version.
+    - `delete_oldest_version(prompt_name: String)`: Deletes the oldest version when the limit is surpassed.
+
+2.2. **Updated Components**:
+
+- **BaseStep**:
+  - *Modification*: Extend from `PromptVersioningMixin`.
+  - *Purpose*: Inherits versioning capabilities with database integration. The static prompt template from `BaseStep` is removed, and prompts are dynamically derived based on the version.
+
+2.3. **Unchanged Components**:
+
+- **BaseModel**: 
+  - *Description*: The foundational model class for database entities.
+  
+- **BaseRepository**: 
+  - *Description*: Provides generic CRUD operations.
+
+#### 3. Interactions:
+
+3.1. **Component Interactions**:
+
+- Entities augmented with `PromptVersioningMixin` will possess versioning capabilities with database operations.
+- `PromptVersioningMixin` will interface with `PromptVersionRepository` for database interactions.
+
+#### 4. External Dependencies: 
+
+- **SQLAlchemy**: ORM tool facilitating database operations.
+- **Alembic**: For database migration and versioning.
+
+#### 5. UML Diagram:
+
+@startuml
+
+package "Versioned Prompts Structure" {
+
+class "PromptVersioningMixin (New)"
+
+ {
+    + add_version(prompt: str)
+    + get_version(version_no: int): str
+    + set_current_effective_version(version_no: int)
+    + get_current_effective_prompt(): str
+    + load_latest_version(): str
+    + current_prompt: str
+    + default_prompt: str
+    + repository: PromptVersionRepository
+    + prompt_name: str (Abstract Property)
+}
+
+class "VersionedPrompt (New)" {
+    + version_no
+    + prompt_content
+}
+
+class "PromptVersionModel (New, extends BaseModel)" {
+    + prompt_name: String
+    + version_no: Integer
+    + prompt_content: Text
+    + is_current_effective: Boolean
+    + created_at: DateTime
+}
+
+class "PromptVersionRepository (New, extends BaseRepository)" {
+    + create_version(prompt_version: PromptVersionModel): PromptVersionModel
+    + get_version(prompt_name: String, version_no: int): PromptVersionModel
+    + get_current_effective_version(prompt_name: String): PromptVersionModel
+    + get_latest_created_version(prompt_name: String): PromptVersionModel
+    + delete_version(prompt_name: String, version_no: int)
+    + delete_oldest_version(prompt_name: String)
+}
+
+"PromptVersioningMixin (New)" o-- "VersionedPrompt (New)"
+"PromptVersioningMixin (New)" o-- "PromptVersionRepository (New)"
+"PromptVersionModel (New)" --|> "BaseModel"
+"PromptVersionRepository (New)" --|> "BaseRepository"
+
+}
+
+@enduml
 

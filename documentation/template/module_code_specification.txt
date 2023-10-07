@@ -1,4 +1,4 @@
-### Module Code Design Documentation Template:
+### Module Code Specification Template:
 
 #### 1. Module Architecture Design:
 
@@ -61,6 +61,8 @@ For each component:
 ---------------------------------------------------------------------
 
 ### Example
+### Module Code Specification Template:
+
 #### 1. Module Architecture Design:
 
 ##### 1.1. High-Level Design
