@@ -1,65 +1,70 @@
-## Plan Of Change Of Module Specification
-
-### Title: 
+**1. Title**: 
 - Description of the update to the module specification
 
-### Module Specification Being Updated:
+**2. Module Specification Being Updated**:
 
-**Title**: 
+**2.1. Title**: 
 - Name of the module specification being updated
 
-**Abbreviation**:
+**2.2. Abbreviation**:
 - Shorthand abbreviation of the module.
 
-**Version**: 
+**2.3. Version**: 
 - Version of the module specification being updated
 
-**Original Specification Summary**:
+**2.4. Original Specification Summary**:
 - Main functionalities or aspects of the specification being updated
 
-### Caused By Module:
+**3. Caused By Module**:
 
-**Title**: 
+**3.1. Title**: 
 - Name of the driving module or change
 
-**Abbreviation**:
+**3.2. Abbreviation**:
 - Shorthand abbreviation of the module it integrates with or depends upon.
 
-**Version**: 
+**3.3. Version**: 
 - Version of the driving module or change
 
-**Functionality Provided**:
+**3.4. Functionality Provided**:
 - Functionalities or changes introduced by the driving module or change
 
-### Integration/Update Details:
+**4. Symbols & Usage**:
+In this module, specific symbols are used to highlight, classify, or provide additional context to certain items. This section explains the significance of each.
 
-#### 4. Specifications:
+- **[⇌ CausedByModule_Abbreviation]**: Denotes functionalities or interactions that directly involve the module indicated by the abbreviation of the "Caused By Module".
 
-4.1. **Functional Specifications**:
+<Add additional symbols or terminologies as they are introduced in the module.>
+
+**5. Integration/Update Details**:
+
+**5.1. Specifications**:
+
+**5.1.1. Functional Specifications**:
 
 - **<Category (e.g., File Operations)>**:
 
-  ##### Modifications:
+  **Modifications**:
 
-  **Original (e.g., Upload files to the cloud)**:
-  - **Reason/Driven By**: Specific functionality from the driving module that led to the update
-  - **Updated**: Updated functionality or description
+  - **Original**: Upload files to the cloud
+    - **Reason/Driven By**: Specific functionality from the driving module that led to the update
+    - **Updated**: [⇌ CausedByModule_Abbreviation] Updated functionality or description
   
-  ##### Additions:
+  **Additions**:
 
-  **New Specification (e.g., Share files via link)**:
-  - **[+]**: Description of the new specification
-  - **Reason/Driven By**: Specific functionality from the driving module that led to the addition
+  - **New Specification**: Share files via link
+    - **[+]**: [⇌ CausedByModule_Abbreviation] Description of the new specification
+    - **Reason/Driven By**: Specific functionality from the driving module that led to the addition
   
-  ##### Removals:
+  **Removals**:
 
-  **Original (e.g., Rename files)**:
-  - **[−]**: Description of the removed specification
-  - **Reason/Driven By**: Specific reason or functionality from the driving module that led to the removal
+  - **Original**: Rename files
+    - **[−]**: [⇌ CausedByModule_Abbreviation] Description of the removed specification
+    - **Reason/Driven By**: Specific reason or functionality from the driving module that led to the removal
 
   (Continue detailing changes for other specifications within the category and then for other categories within Functional Specifications)
 
-4.2. **Technical Specifications**:
+**5.1.2. Technical Specifications**:
 
 - **<Category>**:
 
@@ -71,68 +76,73 @@
 ---------------------------------------------------------
 
 [Example]
+**Plan Of Change Of Module Specification**
 
-## Plan Of Change Of Module Specification
-
-### Title: 
+**1. Title**: 
 - Enhanced User Authentication Process
 
-### Module Specification Being Updated:
+**2. Module Specification Being Updated**:
 
-**Title**: 
+**2.1. Title**: 
 - User Login System
 
-**Abbreviation**:
+**2.2. Abbreviation**:
 - ULS
 
-**Version**: 
+**2.3. Version**: 
 - v1.2
 
-**Original Specification Summary**:
+**2.4. Original Specification Summary**:
 - Allow users to login using email and password. Provide forgot password functionality.
 
-### Caused By Module:
+**3. Caused By Module**:
 
-**Title**: 
+**3.1. Title**: 
 - Two-Factor Authentication Integration
 
-**Abbreviation**:
+**3.2. Abbreviation**:
 - 2FA
 
-**Version**: 
+**3.3. Version**: 
 - v1.0
 
-**Functionality Provided**:
+**3.4. Functionality Provided**:
 - Offers an additional layer of security by requesting a one-time code sent to the user's mobile device.
 
-### Integration/Update Details:
+**4. Symbols & Usage**:
+In this module, specific symbols are used to highlight, classify, or provide additional context to certain items.
 
-#### 4. Specifications:
+- **[⇌ 2FA]**: Denotes functionalities or interactions that directly involve the Two-Factor Authentication Integration.
 
-4.1. **Functional Specifications**:
+**5. Integration/Update Details**:
+
+**5.1. Specifications**:
+
+**5.1.1. Functional Specifications**:
 
 - **Authentication**:
 
-  ##### Modifications:
+  **Modifications**:
 
-  **Original (User Login Process)**:
-  - **Reason/Driven By**: Introduction of the Two-Factor Authentication module.
-  - **Updated**: Allow users to login using email, password, and a one-time code sent to their mobile device.
+  - **Original**: User Login Process
+    - **Reason/Driven By**: Introduction of the Two-Factor Authentication module.
+    - **Updated**: [⇌ 2FA] Allow users to login using email, password, and a one-time code sent to their mobile device.
 
-  **Original (Password Retrieval Process)**:
-  - **Reason/Driven By**: Enhancements in security protocols.
-  - **Updated**: Provide forgot password functionality with an additional verification step using a mobile number.
+  - **Original**: Password Retrieval Process
+    - **Reason/Driven By**: Enhancements in security protocols.
+    - **Updated**: [⇌ 2FA] Provide forgot password functionality with an additional verification step using a mobile number.
   
-  ##### Additions:
+  **Additions**:
 
-  **New Specification (Backup Authentication Method)**:
-  - **[+]**: In case the user cannot access the one-time code on their mobile device, offer an alternative method via backup email.
-  - **Reason/Driven By**: Need for an alternative method for Two-Factor Authentication when mobile access is compromised.
+  - **New Specification**: Backup Authentication Method
+    - **[+]**: [⇌ 2FA] In case the user cannot access the one-time code on their mobile device, offer an alternative method via backup email.
+    - **Reason/Driven By**: Need for an alternative method for Two-Factor Authentication when mobile access is compromised.
   
-  ##### Removals:
+  **Removals**:
 
-  **Original (Legacy Login Support)**:
-  - **[−]**: Remove support for older login methods that only rely on email and password without any secondary verification.
-  - **Reason/Driven By**: Increased security measures and the introduction of Two-Factor Authentication.
+  - **Original**: Legacy Login Support
+    - **[−]**: [⇌ 2FA] Remove support for older login methods that only rely on email and password without any secondary verification.
+    - **Reason/Driven By**: Increased security measures and the introduction of Two-Factor Authentication.
 
   (Additional changes would be detailed here if necessary)
+

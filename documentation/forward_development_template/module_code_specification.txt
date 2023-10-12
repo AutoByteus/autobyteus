@@ -1,14 +1,22 @@
 ### Module Code Specification Template:
 
-#### 1. Module Architecture Design:
+#### 1. Document Context
 
-##### 1.1. High-Level Design
+- **Programming Language**: Specify the language for which this module code specification is tailored. Note any language-specific conventions or structures to be aware of.
+  
+- **Terminology**: 
+  - **Component**: Define and specify the nature of a component in the context of the chosen programming language. (e.g., In Python, a component can either be a **Class** or a **Standalone Function**.)
+  - **Module**: A grouping of related functionalities. This definition remains consistent across languages, distinguishing it from any language-specific interpretations if necessary.
+
+#### 2. Module Architecture Design:
+
+##### 2.1. High-Level Design
 - Overview of the primary module architecture.
 - Design patterns, principles, or architectures that will be applied to this module.
 
-##### 1.2. Module Components
+##### 2.2. Module Components
 
-###### 1.2.1. New Components
+###### 2.2.1. New Components
 For each component:
 - **Name (New) [extends/relates OtherComponentName]** (if applicable)
     - **Purpose**: Clear description of the component's role and functionality within the module.
@@ -22,7 +30,7 @@ For each component:
 
 ... Continue for all new components.
 
-###### 1.2.2. Updated Components (if applicable)
+###### 2.2.2. Updated Components (if applicable)
 For each component:
 - **Name (Existing/Updated) [extends/relates OtherComponentName]** (if applicable)
     - **Purpose**: Clear description of the component's role and functionality within the module.
@@ -31,7 +39,7 @@ For each component:
 
 ... Continue for all updated components.
 
-##### 1.3. Dependencies
+##### 2.3. Dependencies
 For each component:
 - **Name (Existing)**
     - **Purpose**: Clear description of the component's role and functionality within the module.
@@ -39,22 +47,24 @@ For each component:
 
 ... Continue for all dependencies.
 
-##### 1.4. Module Interactions Overview
+##### 2.4. Module Interactions Overview
 - A comprehensive perspective on how the module components interact with each other.
 - Any sequence of operations or workflows that need to be followed within the module.
 
-##### 1.5. External Dependencies
+##### 2.5. External Dependencies
 - List any third-party libraries, services, or tools that the module will use.
 - Specific versions or configurations to be aware of.
 
-#### 2. UML Diagram
+#### 3. Module Diagram
 
-##### 2.1. UML Legend
+##### 3.1. Diagram Terminology
 - Components marked with `(New)` are to be developed as part of this module.
 - Components marked with `(Existing/Updated)` have been modified or extended within this module.
 - Components marked with `(Existing)` are pre-existing and should be treated as dependencies within the module context.
 
-@startuml
+##### 3.2. UML Representation
+
+@uml
 ... UML content here ...
 @enduml
 
@@ -63,16 +73,24 @@ For each component:
 ### Example
 ### Module Code Specification Template:
 
-#### 1. Module Architecture Design:
+#### 1. Document Context
 
-##### 1.1. High-Level Design
+- **Programming Language**: This specification is tailored for **Python**, emphasizing terminologies and structures inherent to Python. Some principles might apply universally, but specific details are Python-centric.
+  
+- **Terminology**: 
+  - **Component**: A primary building block of the module. In Python, this can be a **Class** or a **Standalone Function**.
+  - **Module**: A grouping of related functionalities. Distinct from Python's term, where "module" typically refers to a file.
+
+#### 2. Module Architecture Design:
+
+##### 2.1. High-Level Design
 This module is designed to implement the Observer Pattern, enabling multiple subscribers to be notified of certain events. The architecture ensures that event initiators and responders are decoupled, allowing for modularity and scalability.
 
-##### 1.2. Components Modifications
+##### 2.2. Components Modifications
 
-###### 1.2.1. New Components
+###### 2.2.1. New Components
 
-- **Publisher (New)**
+- **Publisher (New - Class)**
     - **Purpose**: Acts as the broadcaster for events. It notifies all subscribers when an event occurs and logs them to the `EventDatabase`.
     - **Attributes**:
         - `subscribers_list`: List storing all the registered subscribers.
@@ -82,7 +100,7 @@ This module is designed to implement the Observer Pattern, enabling multiple sub
         - `log_event_to_database(event: Event)`: Logs the event to the `EventDatabase`.
     - **Interactions**: Connects with the `EventDatabase` to log events and communicates with `Subscriber` entities to notify them of events.
 
-- **Subscriber (New) [relates Publisher]**
+- **Subscriber (New - Class)**
     - **Purpose**: Monitors and responds to particular events triggered by the `Publisher`.
     - **Attributes**:
         - `event_history`: List to store received events.
@@ -90,24 +108,28 @@ This module is designed to implement the Observer Pattern, enabling multiple sub
         - `on_event_received(event: Event)`: Handles the event and stores it in `event_history`.
     - **Interactions**: Receives event notifications from the `Publisher`.
 
-###### 1.3. Dependencies (Unchanged Components)
+###### 2.3. Dependencies (Unchanged Components)
 
-- **EventDatabase (Existing)**
+- **EventDatabase (Existing - Class)**
     - **Purpose**: A database component designed to store all triggered events.
 
-##### 1.4. Interactions Overview
+##### 2.4. Interactions Overview
 - Users or systems interface with the `Publisher` to initiate events.
 - Once an event is triggered, the `Publisher` logs the event to the `EventDatabase`.
 - The `Publisher` then notifies all `Subscriber` entities of this event.
 
-##### 1.5. External Dependencies
+##### 2.5. External Dependencies
 - None.
 
-#### 2. UML Diagram
+#### 3. Module Diagram
 
-##### 2.1. UML Legend
+##### 3.1. Diagram Terminology
+
 - Components marked with `(New)` are to be developed as part of this module.
 - Components marked with `(Existing)` are pre-existing and should be treated as dependencies.
+- In the diagram, "component" can refer to either a class or a standalone function. Classes are represented traditionally. Standalone functions, for flexibility, are represented as rectangles with a dashed border.
+
+##### 3.2. UML Representation
 
 @startuml
 
@@ -131,6 +153,5 @@ class "EventDatabase (Existing)" {
 "Publisher (New)" --> "EventDatabase (Existing)": Logs event
 
 @enduml
-
 
 
