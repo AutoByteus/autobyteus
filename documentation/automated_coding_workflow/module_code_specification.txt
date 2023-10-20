@@ -1,4 +1,4 @@
-### Feature Code Design Documentation:
+### Module Code Specification:
 
 #### 1. Code Architecture Design:
 
@@ -149,7 +149,7 @@ The `BaseStep` provides foundational methods and attributes required for individ
 #### 2. UML Diagram
 
 - **UML Legend**:
-  - Components marked with `(New)` are to be developed as part of this feature.
+  - Components marked with `(New)` are to be developed as part of this module.
   - Components marked with `(Part-Of)` are identified but not fully defined.
   - Components marked with `(Used-By)` are pre-existing and are treated as dependencies.
 

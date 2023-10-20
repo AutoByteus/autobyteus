@@ -1,26 +1,63 @@
-### Feature Code Design Documentation:
+### Database Repository Module Code Specification
 
-#### 1. Code Architecture Design:
+#### 1. Module Architecture Design:
 
-1.1. **High-Level Design**: 
-The feature implements the Repository Pattern with a context manager, offering an abstraction of the database. The `BaseRepository` class is generic. We will also introduce a `BaseModel` that contains common attributes and behaviors for all derived models. Sessions are managed using the context manager.
+##### 1.1. High-Level Design
+- The feature implements the Repository Pattern with a context manager, offering an abstraction of the database.
+- It applies the Repository Pattern, Context Manager Pattern, and ORM principles.
 
-1.2. **New Components**:
-- **BaseModel (New)**: A foundational model class that encapsulates common attributes and behaviors for all derived models.
-- **BaseRepository (New)**: A generic class providing CRUD operations.
-- **DatabaseSessionManager (New)**: A context manager for managing the database session.
+##### 1.2. New Components Specifications
 
-1.3. **Existing Components/Dependencies**:
+###### 1.2.1. Fully Defined
+
+- **BaseModel (New)**
+  - **Purpose**: A foundational model class that encapsulates common attributes and behaviors for all derived models.
+  - **Attributes**:
+    - `id`: Primary key for every derived model.
+    - `created_at`: Datetime indicating when the record was created.
+    - `updated_at`: Datetime indicating the last update of the record.
+  - **Methods/APIs**: None.
+  - **Interactions**: Serves as the base class for all other models in the system.
+
+- **BaseRepository (New)**
+  - **Purpose**: A generic class providing CRUD operations for any model.
+  - **Attributes**: None.
+  - **Methods/APIs**:
+    - `create(obj: ModelType)`: Creates a new record. Returns the created record.
+    - `get(id: int)`: Retrieves a record by its ID. Returns the record.
+    - `get_all()`: Retrieves all records of a model. Returns a list of records.
+    - `delete(obj: ModelType)`: Deletes a specified record.
+    - `update(obj: ModelType, **kwargs)`: Updates a record with the specified attributes. Returns the updated record.
+  - **Interactions**: Uses the DatabaseSessionManager for session management during CRUD operations.
+
+- **DatabaseSessionManager (New)**
+  - **Purpose**: A context manager for managing the database session.
+  - **Attributes**: None.
+  - **Methods/APIs**:
+    - `__enter__()`: Starts the database session.
+    - `__exit__(exc_type, exc_value, traceback)`: Closes the database session.
+  - **Interactions**: Used by the BaseRepository for CRUD operations.
+
+###### 1.2.2. Part-Of Components (Pending File Provision)
 - None.
 
-1.4. **Interactions**: 
-The AI coding agent will interface with the `BaseRepository`, which employs the `DatabaseSessionManager` for session management during CRUD operations.
+##### 1.3. Used-By Dependencies (Unchanged Components)
+- None.
 
-1.5. **External Dependencies**: 
-- **SQLAlchemy**: ORM tool facilitating database operations.
+##### 1.4. Interactions Overview
+Modules requiring database interactions should extend `BaseRepository`. `BaseRepository` uses `DatabaseSessionManager` for session management and CRUD operations. Models extending `BaseModel` inherit common attributes, promoting consistency.
+
+##### 1.5. External Dependencies
+- **SQLAlchemy**: An ORM tool facilitating database operations.
 - **Alembic**: For database migration and versioning.
 
-#### 2. UML Diagram:
+#### 2. UML Diagram
+
+- A UML diagram showcasing the relationships and interactions between module components.
+- **UML Legend**:
+  - Components marked with `(New)` are to be developed as part of this module.
+  - Components marked with `(Part-Of)` are identified but not fully defined within the module.
+  - Components marked with `(Used-By)` are pre-existing and are treated as dependencies within the module context.
 
 @startuml
 

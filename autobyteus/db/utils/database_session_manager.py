@@ -8,9 +8,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import DatabaseError
 from autobyteus.config import config
+from autobyteus.utils.singleton import SingletonMeta
 
 
-class DatabaseSessionManager:
+class DatabaseSessionManager(metaclass=SingletonMeta):
     """
     Context manager for managing database sessions.
     
