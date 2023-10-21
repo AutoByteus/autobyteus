@@ -14,6 +14,7 @@ This module facilitates the definition, management, and execution of a multi-ste
 
 #### 2. Module Dependencies:
 - **LLM Integration Module**: The Automated Coding Workflow Module uses functionalities from the LLM Integration Module to communicate with large language models like ChatGPT.
+- 
 
 #### 3. How To Use This Module:
 (Empty as the main purpose of this section is to describe how other modules can use the Automated Coding Workflow Module.)
@@ -31,26 +32,22 @@ This module facilitates the definition, management, and execution of a multi-ste
    - Start the entire workflow process.
    - Execute specific steps within the workflow using their ID.
 
-- **Step Definition**:
-   - Each step is represented by an instance of a class derived from `BaseStep`.
+- **Common Step Definition**:
    - Construct a unique ID for each step instance.
-   - Construct a dynamic prompt for each step.
    - Process the response from the LLM Integration Module for each step.
    - Define the execution logic for each step.
+   - Each step has "Prompt Versioning Capabilities". Refer to "Prompt Versioning Module"
+     
 
-- **Requirement Gathering**:
+- **Requirement Clarification Step**:
    - Represent a step where coding requirements are presented to the user.
-   - Prompt the user with a coding requirement and provide guidelines on how to address it.
-   - Construct a prompt for this step using a template.
    - Process the response from the LLM Integration Module for this step.
 
 - **Architecture Design Step**:
    - Represent the design stage in the coding workflow.
-   - Use a template for constructing the design stage's prompt.
 
 4.2. **Technical Specifications**:
 (No technical specifications were provided in the initial document. This section can be populated when such specifications are defined.)
-
 
 --------------------------------------------
 
