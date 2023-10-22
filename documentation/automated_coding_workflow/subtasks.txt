@@ -11,7 +11,6 @@ Follow these criteria for each task:
 Ensure that the subtasks are logically ordered, with dependent tasks listed before those that rely on them.
 
 
-
 #### Task 1: Implement the `BaseStep` Class
 #task start#
 - **Objective**: Create the foundational class for all workflow steps.

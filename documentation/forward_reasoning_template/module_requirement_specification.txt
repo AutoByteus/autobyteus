@@ -33,7 +33,7 @@
 
 ----------------------------------------------------------------------------------------
 
-### <Title> (Title should be closely related to the module, such as xxx Module Requirement Specification)
+### <Title> (Title should be closely related to the module, such as xxx Module Requirements Specification)
 
 #### 1. Module Description:
 Provide a concise description of the module, its purpose, and its technical significance.
@@ -81,8 +81,7 @@ In this module, specific symbols are used to highlight, classify, or provide add
 
 ---------------------------------------------------------------------------
 
-
-### File Management Module Specification
+### File Management Module Requirements Specification
 
 #### 1. Module Description:
 The File Management System is a cloud-based solution designed for secure and efficient storage, sharing, and management of documents. It emphasizes data integrity, seamless collaboration, and user-friendly file organization. Users, ranging from students to office workers, can save, share, and collaboratively edit documents while maintaining structured file organization.
@@ -93,36 +92,27 @@ The File Management System is a cloud-based solution designed for secure and eff
 #### 3. Symbols & Usage:
 - **[⇌ CloudSync Engine]**: Denotes functionalities or interactions that directly involve the CloudSync Engine.
 
-#### 4. How To Use This Module:
-To integrate or utilize the File Management Module:
-- Users initiate by registering and creating an account.
-- Post-registration, users access the main dashboard.
-- Within the dashboard:
-  - [⇌ CloudSync Engine] Upload or download files.
-  - Organize files within directories.
-  - Collaboratively edit documents.
-  - View change logs and document versions.
-- For collaboration, distribute document links to others with specific permissions.
+#### 4. Specifications:
 
-#### 5. Specifications:
-
-5.1. **Functional Specifications**:
+4.1. **Functional Specifications**:
 
 - **File Operations**:
-   - [⇌ CloudSync Engine] Upload files to the cloud.
-   - [⇌ CloudSync Engine] Download files from the cloud.
-   - [⇌ CloudSync Engine] Delete files from the cloud.
+   - [⇌ CloudSync Engine] Use "CloudSync Engine Module" to upload files to the cloud.
+   - [⇌ CloudSync Engine] Use "CloudSync Engine Module" to download files from the cloud.
+   - [⇌ CloudSync Engine] Use "CloudSync Engine Module" to delete files from the cloud.
    - Rename files.
-
+   
 - **Collaboration**:
    - Enable real-time collaborative editing of documents.
    - Allow users to comment on specific parts of a document.
    - Maintain a track of changes and version history for documents.
-
+   
 - **Organization**:
    - Create and manage folders for document organization.
    - Facilitate the movement of files between folders.
    - Implement a search functionality to retrieve files using keywords.
+   
+4.2. **Technical Specifications**:
 
+(Placeholder for specific technical requirements related to system performance, infrastructure, security measures, etc.)
 
-Good job.  Let's continue the refinement. For "Symbols & Usage", I would like something similar to the following. 

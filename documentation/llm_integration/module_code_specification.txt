@@ -1,9 +1,9 @@
-### LLM Integration Framework Module Code Specification
+### LLM Integration Module Code Specification
 
 #### 1. Module Architecture Design:
 
 ##### 1.1. High-Level Design
-The "LLM Integration Framework" module offers a comprehensive interface for integrating various Language Model (LLM) providers. The module encompasses the foundational abstract class (`BaseLLMIntegration`) to ensure consistent message processing across LLM implementations. The `OpenAIApiFactory` aids in the instantiation of various OpenAI API classes based on defined types, while the `OpenAIGPTIntegration` class provides a concrete method to integrate OpenAI GPT models with an agent program. Specialized classes for distinct LLM providers, such as OpenAI, are also incorporated. The `OpenAIChatApi` class provides a concrete implementation for the OpenAI Chat API, ensuring standardized interactions through common functionalities and message types. Additionally, the module provides data structures to represent and manage OpenAI messages through the `openai_message_types` component. The module also introduces a centralized mechanism, `LLMIntegrationRegistry`, for storing and managing various LLM integrations.
+The "LLM Integration" module offers a comprehensive interface for integrating various Language Model (LLM) providers. The module encompasses the foundational abstract class (`BaseLLMIntegration`) to ensure consistent message processing across LLM implementations. The `OpenAIApiFactory` aids in the instantiation of various OpenAI API classes based on defined types, while the `OpenAIGPTIntegration` class provides a concrete method to integrate OpenAI GPT models with an agent program. Specialized classes for distinct LLM providers, such as OpenAI, are also incorporated. The `OpenAIChatApi` class provides a concrete implementation for the OpenAI Chat API, ensuring standardized interactions through common functionalities and message types. Additionally, the module provides data structures to represent and manage OpenAI messages through the `openai_message_types` component. The module also introduces a centralized mechanism, `LLMIntegrationRegistry`, for storing and managing various LLM integrations.
 
 ##### 1.2. New Components Specifications
 

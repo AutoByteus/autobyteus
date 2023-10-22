@@ -1,0 +1,41 @@
+### Automated Coding Workflow Module Requirements Specification
+
+#### 1. Module Description:
+This module facilitates the definition, management, and execution of a multi-step automated coding workflow. It encompasses functionalities to initialize workflow steps from configurations, convert workflow instances to JSON representations, and execute specific steps or the entire workflow.
+
+#### 2. Module Dependencies:
+- **LLM Integration Module**: This module utilizes the "LLM Integration Module" to interface with large language models like ChatGPT and execute coding instructions.
+
+#### 3. Symbols & Usage:
+- **[⇌ LLM Integration Module]**: Denotes functionalities or interactions that are directly tied to the LLM Integration Module.
+
+#### 4. Specifications:
+
+4.1. **Functional Specifications**:
+
+- **Workflow Management**:
+   - Define and manage a multi-step automated coding workflow.
+   - Each step in the workflow can potentially have sub-steps.
+   - [⇌ LLM Integration Module] Integrate with the "LLM Integration Module" to manage LLM communications.
+   - Initialize steps of the workflow from a given configuration.
+   - Convert the workflow instance to a JSON representation.
+   - Start the entire workflow process.
+   - Execute specific steps within the workflow using their ID.
+
+- **Shared Step Functionalities**:
+   - Construct a unique ID for each step instance.
+   - [⇌ LLM Integration Module] Process the response from the "LLM Integration Module" for each step.
+   - Define the execution logic for each step.
+   - Construct a dynamic prompt for each step.
+
+- **Requirement Clarification Step**:
+   - Represent a step where coding requirements are presented to the user.
+   - Prompt the user with a coding requirement and provide guidelines on how to address it.
+   - Construct a prompt for this step using a template.
+
+- **Architecture Design Step**:
+   - Represent the design stage in the coding workflow.
+   - Use a template for constructing the design stage's prompt.
+
+4.2. **Technical Specifications**:
+(No technical specifications were provided in the initial document. This section can be populated when such specifications are defined.)
