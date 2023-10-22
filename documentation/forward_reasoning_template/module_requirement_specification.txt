@@ -31,11 +31,9 @@
 10. **Actionable Guidance**: 
    - Requirements should be actionable, guiding the reader towards clear steps or decisions in the implementation process.
 
-------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------
 
-
-### [Template]
-### <Title> (Title should be closely related to the module, such as xxx Module Specification)
+### <Title> (Title should be closely related to the module, such as xxx Module Requirement Specification)
 
 #### 1. Module Description:
 Provide a concise description of the module, its purpose, and its technical significance.
@@ -56,18 +54,9 @@ In this module, specific symbols are used to highlight, classify, or provide add
 
 <Add additional symbols or terminologies as they are introduced in the module.>
 
-#### 4. How To Use This Module:
-If this module provides functionalities that other modules or entities are expected to utilize or integrate with, detail the steps or guidelines for such integration. Otherwise, this section may be left empty or excluded.
+#### 4. Specifications:
 
-- <Step/Guideline 1>
-- <Step/Guideline 2>
-- ...
-
-<Continue listing steps/guidelines as necessary.>
-
-#### 5. Specifications:
-
-5.1. **Functional Specifications**:
+4.1. **Functional Specifications**:
 
 - **<Category_1>**:
    - <Specification_1.1>
@@ -81,14 +70,13 @@ If this module provides functionalities that other modules or entities are expec
 
 <Continue listing categories and their associated specifications as necessary.>
 
-5.2. **Technical Specifications**:
+4.2. **Technical Specifications**:
 
 - **<Category_1>**:
    - <Specification_1.1>
    - <Specification_1.2>
 
 <Continue listing categories and their associated specifications as necessary.>
-
 
 
 ---------------------------------------------------------------------------
@@ -136,3 +124,5 @@ To integrate or utilize the File Management Module:
    - Facilitate the movement of files between folders.
    - Implement a search functionality to retrieve files using keywords.
 
+
+Good job.  Let's continue the refinement. For "Symbols & Usage", I would like something similar to the following. 
