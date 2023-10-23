@@ -30,12 +30,11 @@ This module facilitates the definition, management, and execution of a multi-ste
 
 - **Requirement Clarification Step**:
    - Represent a step where coding requirements are presented to the user.
-   - Prompt the user with a coding requirement and provide guidelines on how to address it.
-   - Construct a prompt for this step using a template.
+   - Define a default prompt template for this step.
 
 - **Architecture Design Step**:
    - Represent the design stage in the coding workflow.
-   - Use a template for constructing the design stage's prompt.
+   - Define a default prompt template for this step.
 
 4.2. **Technical Specifications**:
 (No technical specifications were provided in the initial document. This section can be populated when such specifications are defined.)
