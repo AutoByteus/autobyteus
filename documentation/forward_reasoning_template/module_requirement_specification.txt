@@ -33,7 +33,7 @@
 
 ----------------------------------------------------------------------------------------
 
-### <Title> (Title should be closely related to the module, such as xxx Module Requirements Specification)
+### <Title> (Title should be closely related to the module, such as xxx Module Requirement Specification)
 
 #### 1. Module Description:
 Provide a concise description of the module, its purpose, and its technical significance.
@@ -81,7 +81,7 @@ In this module, specific symbols are used to highlight, classify, or provide add
 
 ---------------------------------------------------------------------------
 
-### File Management Module Requirements Specification
+### File Management Module Requirement Specification
 
 #### 1. Module Description:
 The File Management System is a cloud-based solution designed for secure and efficient storage, sharing, and management of documents. It emphasizes data integrity, seamless collaboration, and user-friendly file organization. Users, ranging from students to office workers, can save, share, and collaboratively edit documents while maintaining structured file organization.
@@ -115,4 +115,3 @@ The File Management System is a cloud-based solution designed for secure and eff
 4.2. **Technical Specifications**:
 
 (Placeholder for specific technical requirements related to system performance, infrastructure, security measures, etc.)
-

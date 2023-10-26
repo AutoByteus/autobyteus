@@ -1,7 +1,7 @@
 ### LLM Integration Module Requirements Specification
 
 #### 1. Module Description:
-The LLM Integration Module provides a comprehensive interface for integrating with various Language Learning Models (LLM) providers. It emphasizes on a consistent message processing mechanism across different LLM implementations, with a particular focus on OpenAI's models.
+The LLM Integration Module provides a generic interface for integrating with various Language Learning Models (LLM) providers. It emphasizes on a consistent message processing mechanism across different LLM implementations, with a particular focus on OpenAI's models.
 
 #### 2. Module Dependencies:
 - **OpenAI Library**: This external library is essential for enabling interactions with OpenAI's API, which is a primary LLM provider supported by this module.

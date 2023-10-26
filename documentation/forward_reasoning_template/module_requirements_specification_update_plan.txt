@@ -1,19 +1,19 @@
 **1. Title**: 
-- Description of the update to the module specification
+- Description of the update to the module requirements specification
 
-**2. Module Specification Being Updated**:
+**2. Module Requirements Specification Being Updated**:
 
 **2.1. Title**: 
-- Name of the module specification being updated
+- Name of the module requirements specification being updated
 
 **2.2. Abbreviation**:
 - Shorthand abbreviation of the module.
 
 **2.3. Version**: 
-- Version of the module specification being updated
+- Version of the module requirements specification being updated
 
 **2.4. Original Specification Summary**:
-- Main functionalities or aspects of the specification being updated
+- Main functionalities or aspects of the requirements specification being updated
 
 **3. Caused By Module**:
 
@@ -76,7 +76,7 @@ In this module, specific symbols are used to highlight, classify, or provide add
 ---------------------------------------------------------
 
 [Example]
-**Plan Of Change Of Module Specification**
+**Plan Of Change Of Module Requirements Specification**
 
 **1. Title**: 
 - Enhanced User Authentication Process
