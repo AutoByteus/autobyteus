@@ -6,6 +6,7 @@ The BaseWorkflow class offers a foundation for creating custom workflows with un
 
 from enum import Enum
 from autobyteus.llm_integrations.base_llm_integration import BaseLLMIntegration
+from autobyteus.workflow.types.workflow_status import WorkflowStatus
 from autobyteus.workflow.types.workflow_template_config import WorkflowTemplateStepsConfig
 from autobyteus.workflow.utils.unique_id_generator import UniqueIDGenerator
 

@@ -21,7 +21,7 @@ from autobyteus.workflow.types.base_workflow import BaseWorkflow
 from autobyteus.workflow.utils.unique_id_generator import UniqueIDGenerator
 
 
-class BaseStep(ABC):
+class BaseStep(ABC,):
     """
     BaseStep is the abstract base class for all steps in the automated coding workflow.
     Each step should inherit from this class and implement the required methods.

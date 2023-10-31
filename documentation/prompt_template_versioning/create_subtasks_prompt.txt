@@ -114,3 +114,50 @@ Thank you. Now let's move on to creating subtasks based on code design documenta
 
 
 Follow the steps defined in the 'Approach' section. Think meticulously and reason comprehensively for each step in the approach.
+
+
+
+
+
+## Plan For Updating Feature Requirement Documentation
+
+### Title: 
+- Enhancement to User Authentication Mechanism
+
+### Feature Requirement Being Updated:
+
+**Title**: 
+- User Login and Authentication
+
+**Abbreviation**:
+- ULA
+
+**Version**: 
+- 2.3.1
+
+**Original Requirement Summary**:
+- Allow users to log in using a username and password. Supports two-factor authentication via email.
+
+### Driving Feature Details:
+
+**Title**: 
+- Introduction of Biometric Authentication
+
+**Abbreviation**:
+- IBA
+
+**Version**: 
+- 1.0.0
+
+**Functionality Provided**:
+- Enables users to authenticate using facial recognition or fingerprint scanning.
+
+### Integration/Update Details:
+- The new biometric authentication mechanisms will be integrated into the existing User Login and Authentication feature. This will provide users with an additional, more secure option for authentication, while still retaining the original methods.
+
+### Change Details:
+- Caused By (IBA): Introduction of facial recognition authentication. Users can now choose to log in using facial recognition, which will be processed using the device's built-in camera.
+- Caused By (IBA): Addition of fingerprint scanning. Compatible devices can now utilize their fingerprint scanners as a method for user authentication.
+- Caused By (IBA): Two-factor authentication will now support biometric methods as a secondary verification step.
+
+(End of changes)
