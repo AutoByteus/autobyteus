@@ -1,4 +1,4 @@
-### Feature Code Design Documentation:
+### Module Code Design Documentation:
 
 #### 1. Code Architecture Design:
 
@@ -46,7 +46,7 @@ The module is focused on representing a template for prompts. The architecture i
 #### 2. UML Diagram
 
 - **UML Legend**:
-  - Components marked with `(New)` are to be developed as part of this feature.
+  - Components marked with `(New)` are to be developed as part of this module.
   - Components marked with `(Used-By)` are pre-existing and are treated as dependencies.
 
 @startuml

@@ -3,8 +3,9 @@ from bark import SAMPLE_RATE, generate_audio, preload_models
 from IPython.display import Audio
 
 # download and load all models
-preload_models()
+preload_models(text_use_small=True)
 
+# %%
 # generate audio from text
 text_prompt = """
      Hello, my name is Serpy. And, uh — and I like pizza. [laughs] 
@@ -14,6 +15,17 @@ audio_array = generate_audio(text_prompt)
 
 # play text in notebook
 Audio(audio_array, rate=SAMPLE_RATE)
+
+
+# %%
+text_prompt = """
+Ja, das Wort "zerstören" kommt aus dem Deutschen und bedeutet, etwas so zu beschädigen, dass es nicht mehr existiert oder nicht mehr in seinem ursprünglichen Zustand oder seiner ursprünglichen Form verwendet werden kann. Zerstören impliziert eine Handlung, die etwas vollständig kaputt macht, demoliert, vernichtet oder unbrauchbar macht. Dies kann sich auf physische Objekte beziehen, wie Gebäude, Brücken, Fahrzeuge oder Gegenstände, aber auch auf abstrakte Konzepte wie Beziehungen, Pläne oder Hoffnungen. Der Begriff kann in verschiedenen Kontexten verwendet werden, von tatsächlicher physischer Zerstörung bis hin zu metaphorischem Gebrauch, der den Verlust oder das Ende von etwas beschreibt.
+"""
+audio_array = generate_audio(text_prompt, output_full=True)
+Audio(audio_array, rate=SAMPLE_RATE)
+
+ #%%
+
 # %%
 import torch
 
@@ -35,3 +47,4 @@ else:
 
 
 # %%
+

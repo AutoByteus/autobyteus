@@ -1,3 +1,9 @@
+# AutoByteus
+
+AutoByteus is a coding assistant. Our main focus is to build context aware software development workflow. Each step in the workflow is interactive through UI.  
+
+
+
 Enable Voice Speeking
 
 To enabled voice on mac, i have to to manually install some libraries

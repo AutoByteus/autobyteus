@@ -60,6 +60,8 @@ For each component:
 ... UML content here ...
 @enduml
 
+3. Evaluate the API using clean code best practices, if issues are identified, then suggest improvements.
+
 ---------------------------------------------------------------------
 
 ### Example

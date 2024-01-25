@@ -8,8 +8,8 @@ from transformers import WhisperProcessor, WhisperForConditionalGeneration
 start_time = time.time()
 
 # Initialize Whisper model and processor
-processor = WhisperProcessor.from_pretrained("openai/whisper-large-v2")
-model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-large-v2")
+processor = WhisperProcessor.from_pretrained("openai/whisper-medium.en")
+model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-medium.en")
 
 end_time = time.time()
 
