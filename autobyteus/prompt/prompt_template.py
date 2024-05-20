@@ -1,20 +1,17 @@
-"""
-autobyteus/prompt/prompt_template.py
-
-This module contains the PromptTemplate class, which represents a prompt that may contain various template variables.
-
-PromptTemplate class features:
-- The raw template string.
-- A list of associated PromptTemplateVariable instances.
-- A method to convert the prompt template to a dictionary representation for frontend communication.
-"""
+# autobyteus/prompt/prompt_template.py
 
 from autobyteus.prompt.prompt_template_variable import PromptTemplateVariable
 
-
 class PromptTemplate:
-    def __init__(self, template: str, variables: list[PromptTemplateVariable] = None):
-        self.template = template
+    def __init__(self, template: str = None, file: str = None, variables: list[PromptTemplateVariable] = None):
+        if file is not None:
+            with open(file, 'r') as f:
+                self.template = f.read()
+        elif template is not None:
+            self.template = template
+        else:
+            raise ValueError("Either 'template' or 'file' must be provided.")
+
         self.variables = variables if variables is not None else []
 
     def to_dict(self) -> dict:
@@ -28,7 +25,7 @@ class PromptTemplate:
             "template": self.template,
             "variables": [variable.to_dict() for variable in self.variables]
         }
-    
+
     def fill(self, values: dict) -> str:
         """
         Fill the template using the provided values.
@@ -38,7 +35,7 @@ class PromptTemplate:
 
         Returns:
             str: The filled template string.
-        
+
         Raises:
             KeyError: If a required variable is missing from the provided values.
         """
@@ -46,4 +43,3 @@ class PromptTemplate:
             return self.template.format(**values)
         except KeyError as e:
             raise KeyError(f"Missing value for template variable: {e}")
-

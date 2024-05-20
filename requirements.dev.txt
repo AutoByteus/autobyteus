@@ -17,8 +17,6 @@ redis
 weaviate-client
 orjson
 Pillow
-selenium==4.1.4
-webdriver-manager
 jsonschema
 tweepy
 click
@@ -33,7 +31,6 @@ pre-commit
 black
 isort
 gitpython==3.1.31
-auto-gpt-plugin-template
 mkdocs
 
 
@@ -72,4 +69,6 @@ soundfile
 
 ## parse the files.
 libcst
+git+https://github.com/AFE-AI/llm_chatui_provider.git@main
+
 

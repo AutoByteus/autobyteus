@@ -3,25 +3,24 @@ llm_registry.py
 
 This module provides a registry for storing and managing LLM integrations.
 
-LLM integrations are stored in a dictionary, with the name of the LLM model as the key, 
+LLM integrations are stored in a dictionary, with the name of the LLM model as the key,
 and the corresponding LLM integration object as the value.
 """
 
 from typing import Dict, Optional
-from autobyteus.llm_integrations.base_llm_integration import BaseLLMIntegration
-from autobyteus.llm_integrations.openai_integration.openai_gpt_integration import OpenAIGPTIntegration
-from autobyteus.llm_integrations.openai_integration.openai_models import OpenAIModel
+from autobyteus.llm.base_llm import BaseLLM
+from autobyteus.llm.openai.openai_gpt_integration import OpenAIGPTIntegration
+from autobyteus.llm.openai.openai_models import OpenAIModel
 from autobyteus.config import config
 from autobyteus.utils.singleton import SingletonMeta
 # Import other LLM integrations as needed
 
-
-class LLMIntegrationRegistry(metaclass=SingletonMeta):
+class LLMRegistry(metaclass=SingletonMeta):
     """
     A registry to store and manage LLM integrations.
 
     Attributes:
-        integrations (Dict[str, BaseLLMIntegration]): A dictionary mapping LLM model names to 
+        registry (Dict[str, BaseLLM]): A dictionary mapping LLM model names to
             their corresponding LLM integration.
     """
 
@@ -31,23 +30,23 @@ class LLMIntegrationRegistry(metaclass=SingletonMeta):
 
         All supported LLM integrations are created and registered in the constructor.
         """
-        self.integrations: Dict[str, BaseLLMIntegration] = {
+        self.registry: Dict[str, BaseLLM] = {
             OpenAIModel.GPT_3_5_TURBO: OpenAIGPTIntegration(model_name=OpenAIModel.GPT_3_5_TURBO),
             OpenAIModel.GPT_4: OpenAIGPTIntegration(model_name=OpenAIModel.GPT_4),
             # Add other LLM integrations as needed
         }
 
-    def add(self, model_name: str, integration: BaseLLMIntegration) -> None:
+    def add(self, model_name: str, integration: BaseLLM) -> None:
         """
         Adds an LLM integration to the registry.
 
         Args:
             model_name (str): The name of the LLM model.
-            integration (BaseLLMIntegration): The LLM integration to be added.
+            integration (BaseLLM): The LLM integration to be added.
         """
-        self.integrations[model_name] = integration
+        self.registry[model_name] = integration
 
-    def get(self, model_name: str) -> Optional[BaseLLMIntegration]:
+    def get(self, model_name: str) -> Optional[BaseLLM]:
         """
         Retrieves an LLM integration from the registry.
 
@@ -55,9 +54,9 @@ class LLMIntegrationRegistry(metaclass=SingletonMeta):
             model_name (str): The name of the LLM model.
 
         Returns:
-            Optional[BaseLLMIntegration]: The LLM integration if it exists, None otherwise.
+            Optional[BaseLLM]: The LLM integration if it exists, None otherwise.
         """
-        return self.integrations.get(model_name)
+        return self.registry.get(model_name)
 
     def exists(self, model_name: str) -> bool:
         """
@@ -69,4 +68,4 @@ class LLMIntegrationRegistry(metaclass=SingletonMeta):
         Returns:
             bool: True if the LLM integration exists, False otherwise.
         """
-        return model_name in self.integrations
+        return model_name in self.registry
