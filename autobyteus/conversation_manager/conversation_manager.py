@@ -1,17 +1,15 @@
 from typing import List, Optional, Union
 from autobyteus.conversation_manager.conversation import Conversation
-from autobyteus.langchain_integration.chatgpt_llm import ChatGPTLLM
-from autobyteus.langchain_integration.claudechat_llm import ClaudeChatLLM
-
+from autobyteus.llm.base_llm import BaseLLM
 
 class ConversationManager:
-    def __init__(self, llm: Union[ChatGPTLLM, ClaudeChatLLM]):
+    def __init__(self, llm: BaseLLM):
         self._llm = llm
         self.conversations: List[Conversation] = []
         self.current_conversation_index: int = -1 
 
     @property
-    def llm(self) -> Union[ChatGPTLLM, ClaudeChatLLM]:
+    def llm(self) -> BaseLLM:
         """Get the current language model."""
         return self._llm
     

@@ -9,7 +9,7 @@ and the corresponding LLM integration object as the value.
 
 from typing import Dict, Optional
 from autobyteus.llm.base_llm import BaseLLM
-from autobyteus.llm.openai.openai_gpt_integration import OpenAIGPTIntegration
+from autobyteus.llm.openai.openai_llm import OpenAIGPTIntegration
 from autobyteus.llm.openai.openai_models import OpenAIModel
 from autobyteus.config import config
 from autobyteus.utils.singleton import SingletonMeta

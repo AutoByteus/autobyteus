@@ -12,15 +12,19 @@ class BashExecutor(BaseTool):
     """
     A tool that allows for the execution of bash commands and retrieves their output.
     """
-    def execute(self, command):
+    def execute(self, **kwargs):
         """
         Execute a bash command and return its output.
-        
-        Parameters:
-            command (str): The bash command to be executed.
-        
+
+        Args:
+            **kwargs: Keyword arguments containing the bash command to be executed. The command should be specified as 'command'.
+
         Returns:
             str: The output of the executed command.
         """
+        command = kwargs.get('command')
+        if not command:
+            raise ValueError("The 'command' keyword argument must be specified.")
+
         result = subprocess.run(command, capture_output=True, text=True, shell=True)
         return result.stdout.strip()

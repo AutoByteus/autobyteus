@@ -6,8 +6,8 @@ It provides mechanisms to organize, structure, and refactor Python source code i
 best practices and standards specific to Python development.
 """
 import logging
-from autobyteus.llm_integrations.llm_integration_registry import LLMIntegrationRegistry
-from autobyteus.llm_integrations.openai_integration.openai_models import OpenAIModel
+from autobyteus.llm.llm_registry import LLMIntegrationRegistry
+from autobyteus.llm.openai.openai_models import OpenAIModel
 from autobyteus.prompt.prompt_template import PromptTemplate
 from autobyteus.prompt.prompt_template_variable import PromptTemplateVariable
 from autobyteus.source_code_tree.file_explorer.file_reader import FileReader

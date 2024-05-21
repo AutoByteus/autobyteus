@@ -6,7 +6,7 @@ based on the project type. It delegates the actual refactoring logic to specific
 classes, tailored to the unique requirements of each project type like Python, Java, or NodeJS.
 """
 
-from autobyteus.llm_integrations.llm_integration_registry import LLMIntegrationRegistry
+from autobyteus.llm.llm_registry import LLMIntegrationRegistry
 from autobyteus.workspaces.setting.project_types import ProjectType
 from autobyteus.workspaces.setting.workspace_setting import WorkspaceSetting
 from autobyteus.workspaces.workspace_tools.base_workspace_tool import BaseWorkspaceTool

@@ -1,7 +1,7 @@
 # File path: tests/unit_tests/llm_integrations/openai_integration/test_openai_message_types.py
 
 import pytest
-from autobyteus.llm_integrations.openai_integration.openai_message_types import OpenAIMessageRole, BaseMessage, SystemMessage, UserMessage, AssistantMessage, MessageList
+from autobyteus.llm.openai.openai_message_types import OpenAIMessageRole, BaseMessage, SystemMessage, UserMessage, AssistantMessage, MessageList
 
 def test_openai_message_role_contains_expected_roles():
     """Ensure the OpenAIMessageRole enum contains the expected roles."""

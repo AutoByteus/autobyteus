@@ -5,6 +5,7 @@ Classes:
     BaseTool: An abstract class that other tool classes should implement.
 """
 
+
 from abc import ABC, abstractmethod
 
 class BaseTool(ABC):
@@ -13,6 +14,10 @@ class BaseTool(ABC):
     This is the core method all tools should provide.
     """
     @abstractmethod
-    def execute(self):
-        """Execute the tool's main functionality."""
+    def execute(self, **kwargs):
+        """Execute the tool's main functionality.
+
+        Args:
+            **kwargs: Keyword arguments that can be used to customize the tool's execution.
+        """
         pass

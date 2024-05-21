@@ -13,23 +13,26 @@ class FileGenerator(BaseTool):
     A tool that allows for the creation of files. If the specified directory does not exist,
     it will be created.
     """
-    def execute(self, path, content=''):
+    def execute(self, **kwargs):
         """
         Create a file with the given content at the specified path.
-        
-        Parameters:
-            path (str): The path where the file should be created.
-            content (str): The content to write to the file. Default is an empty string.
-        
+
+        Args:
+            **kwargs: Keyword arguments containing the path and content for file creation. The path should be specified as 'path', and the content should be specified as 'content'.
+
         Returns:
             str: A message indicating the file creation status.
         """
+        path = kwargs.get('path')
+        content = kwargs.get('content', '')
+
+        if not path:
+            raise ValueError("The 'path' keyword argument must be specified.")
+
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, 'w') as file:
             file.write(content)
         return f'File created at {path}'
-    
-
 
 
 

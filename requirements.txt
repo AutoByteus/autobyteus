@@ -10,7 +10,6 @@ requests
 tiktoken==0.3.3
 gTTS==2.3.1
 docker
-duckduckgo-search
 google-api-python-client #(https://developers.google.com/custom-search/v1/overview)
 pinecone-client==2.2.1
 redis
@@ -21,8 +20,6 @@ webdriver-manager
 jsonschema
 tweepy
 click
-spacy>=3.0.0,<4.0.0
-en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.5.0/en_core_web_sm-3.5.0-py3-none-any.whl
 
 ##Dev
 coverage
@@ -34,7 +31,8 @@ isort
 gitpython==3.1.31
 auto-gpt-plugin-template
 mkdocs
-
+## huggingface
+sentence-transformers
 
 # OpenAI and Generic plugins import
 openapi-python-client==0.13.4
@@ -51,6 +49,7 @@ pytest-integration
 pytest-mock
 vcrpy
 pytest-vcr
+## git+https://github.com/AFE-AI/llm_chatui_provider.git@main
 
 strawberry-graphql
 grpcio 
@@ -65,3 +64,4 @@ SQLAlchemy
 sqlalchemy-utils
 alembic
 psycopg2-binary
+pytest-playwright

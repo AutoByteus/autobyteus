@@ -1,7 +1,7 @@
 import pytest
-from autobyteus.llm_integrations.openai_integration.openai_gpt_integration import OpenAIGPTIntegration
-from autobyteus.llm_integrations.openai_integration.openai_api_factory import ApiType, OpenAIApiFactory
-from autobyteus.llm_integrations.openai_integration.openai_models import OpenAIModel
+from autobyteus.llm.openai.openai_llm import OpenAIGPTIntegration
+from autobyteus.llm.openai.openai_api_factory import ApiType, OpenAIApiFactory
+from autobyteus.llm.openai.openai_models import OpenAIModel
 
 @pytest.fixture
 def mock_openai_api(mocker):
