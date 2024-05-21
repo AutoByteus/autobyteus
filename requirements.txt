@@ -1,3 +1,11 @@
+## postgres database
+SQLAlchemy
+sqlalchemy-utils
+alembic
+psycopg2-binary
+pytest-playwright
+
+
 beautifulsoup4>=4.12.2
 colorama==0.4.6
 distro==1.8.0
@@ -58,10 +66,3 @@ fastapi
 toml
 python-dotenv
 uvicorn
-
-## postgres database
-SQLAlchemy
-sqlalchemy-utils
-alembic
-psycopg2-binary
-pytest-playwright
