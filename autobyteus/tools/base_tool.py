@@ -1,16 +1,9 @@
-"""
-This module defines the BaseTool interface which serves as a foundational contract for all tools.
-
-Classes:
-    BaseTool: An abstract class that other tool classes should implement.
-"""
-
-
+# file: autobyteus/autobyteus/tools/base_tool.py
 from abc import ABC, abstractmethod
 
 class BaseTool(ABC):
     """
-    An abstract base class that requires the implementation of an execute method.
+    An abstract base class that requires the implementation of an execute method and a description method.
     This is the core method all tools should provide.
     """
     @abstractmethod
@@ -19,5 +12,12 @@ class BaseTool(ABC):
 
         Args:
             **kwargs: Keyword arguments that can be used to customize the tool's execution.
+        """
+        pass
+
+    @abstractmethod
+    def description(self):
+        """
+        Return a string describing the usage of the tool.
         """
         pass

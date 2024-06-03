@@ -1,9 +1,10 @@
+# file: autobyteus/autobyteus/tools/google_search_ui.py
 import re
 from bs4 import BeautifulSoup
 from autobyteus.tools.base_tool import BaseTool
 from llm_ui_integration.ui_integrator import UIIntegrator
 
-from autobyteus.utils.html import clean_html
+from autobyteus.utils.html_cleaner import clean
 
 
 class GoogleSearch(BaseTool, UIIntegrator):
@@ -12,6 +13,12 @@ class GoogleSearch(BaseTool, UIIntegrator):
     """
     def __init__(self):
         self.text_area_selector = 'textarea[title="Suche"]'
+
+    def description(self):
+        """
+        Return a string describing the usage of the GoogleSearch tool.
+        """
+        return "GoogleSearch(query), where 'query' is a string."
 
     async def execute(self, **kwargs):
         """
@@ -31,7 +38,6 @@ class GoogleSearch(BaseTool, UIIntegrator):
         self.initialize()
         await self.page.goto('https://www.google.com/', waitUtil="networkidle")
 
-
         # Find the search box element, type in the search query, and press the Enter key
         textarea = self.page.locator(self.text_area_selector)
         await textarea.click()
@@ -47,7 +53,6 @@ class GoogleSearch(BaseTool, UIIntegrator):
 
         # Get the content of the div
         search_result = await search_result_div.inner_text()
-        cleaned_search_result = clean_html(search_result)
+        cleaned_search_result = clean(search_result)
 
         return cleaned_search_result
-

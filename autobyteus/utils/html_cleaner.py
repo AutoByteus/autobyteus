@@ -1,7 +1,7 @@
 from bs4 import BeautifulSoup, Comment
 import re
 
-def clean_html(html_text):
+def clean(html_text):
     # Create a BeautifulSoup object
     soup = BeautifulSoup(html_text, 'html.parser')
 
