@@ -12,7 +12,7 @@ class Conversation:
         self.llm = llm
         # self.history = []  # Removed
         self.memory_provider = memory_provider  # New attribute
-        self.conversation_name = conversation_id  # New attribute
+        self.conversation_id = conversation_id  # New attribute
 
     async def start(self):
         await self.llm.initialize()

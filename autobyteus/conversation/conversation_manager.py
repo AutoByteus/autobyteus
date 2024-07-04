@@ -1,7 +1,7 @@
 from typing import List, Optional, Type, Union
 from autobyteus.conversation.conversation import Conversation
 from autobyteus.llm.base_llm import BaseLLM
-from autobyteus.conversation.memory import MemoryProvider  # New import
+from autobyteus.conversation.memory.provider import MemoryProvider  # New import
 
 class ConversationManager:
     def __init__(

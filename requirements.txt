@@ -3,6 +3,9 @@ SQLAlchemy
 sqlalchemy-utils
 alembic
 psycopg2-binary
+repository-sqlalchemy
+
+## testing
 pytest-playwright
 
 
@@ -11,7 +14,6 @@ colorama==0.4.6
 distro==1.8.0
 openai==0.27.2
 playsound==1.2.2
-python-dotenv==1.0.0
 pyyaml==6.0
 readability-lxml==0.8.1
 requests
@@ -19,12 +21,14 @@ tiktoken==0.3.3
 gTTS==2.3.1
 docker
 google-api-python-client #(https://developers.google.com/custom-search/v1/overview)
-pinecone-client==2.2.1
+
+## embeding related
 redis
+weaviate-client
+sentence-transformers
+
 orjson
 Pillow
-selenium==4.1.4
-webdriver-manager
 jsonschema
 tweepy
 click
@@ -39,13 +43,6 @@ isort
 gitpython==3.1.31
 auto-gpt-plugin-template
 mkdocs
-## huggingface
-sentence-transformers
-
-# OpenAI and Generic plugins import
-openapi-python-client==0.13.4
-
-# Items below this point will not be included in the Docker Image
 
 # Testing dependencies
 pytest
@@ -59,10 +56,13 @@ vcrpy
 pytest-vcr
 git+https://github.com/AFE-AI/llm_chatui_provider.git@main
 
-strawberry-graphql
 grpcio 
 grpcio-tools
-fastapi
 toml
 python-dotenv
+
+
+## server
 uvicorn
+fastapi 
+strawberry-graphql

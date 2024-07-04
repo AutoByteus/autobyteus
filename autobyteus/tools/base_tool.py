@@ -16,7 +16,7 @@ class BaseTool(ABC):
         pass
 
     @abstractmethod
-    def description(self):
+    def usage(self):
         """
         Return a string describing the usage of the tool.
         """

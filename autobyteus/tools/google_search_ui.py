@@ -12,9 +12,10 @@ class GoogleSearch(BaseTool, UIIntegrator):
     A tool that allows for performing a Google search using Playwright and retrieving the search results.
     """
     def __init__(self):
+        super().__init__()
         self.text_area_selector = 'textarea[title="Suche"]'
 
-    def description(self):
+    def usage(self):
         """
         Return a string describing the usage of the GoogleSearch tool.
         """
@@ -35,13 +36,13 @@ class GoogleSearch(BaseTool, UIIntegrator):
             raise ValueError("The 'query' keyword argument must be specified.")
 
         # Call the initialize method from the UIIntegrator class to set up the Playwright browser
-        self.initialize()
-        await self.page.goto('https://www.google.com/', waitUtil="networkidle")
+        await self.initialize()
+        await self.page.goto('https://www.google.com/', wait_until="networkidle")
 
         # Find the search box element, type in the search query, and press the Enter key
         textarea = self.page.locator(self.text_area_selector)
         await textarea.click()
-        await self.page.type(self.textarea_selector, query)
+        await self.page.type(self.text_area_selector, query)
         await self.page.keyboard.press('Enter')
         await self.page.wait_for_load_state('networkidle')
 

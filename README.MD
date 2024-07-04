@@ -1,90 +1,23 @@
-# AutoByteus
+# Autobyteus
 
-AutoByteus is a coding assistant. Our main focus is to build context aware software development workflow. Each step in the workflow is interactive through UI.  
+Autobyteus is an open-source coding assistance tool designed to enhance the software development workflow by making it context-aware. Each step in the workflow is interactive through a user-friendly interface, incorporating the entire software development lifecycle into each stage.
 
+## Features
 
+- **Context-Aware Workflows**: Each step in the development process interacts with large language models to provide relevant assistance.
+- **Lifecycle Integration**: Supports the entire software development lifecycle, starting from requirement engineering.
+- **Memory Management**: Custom memory management system supporting different memory providers and embeddings.
 
-Enable Voice Speeking
+## Knowledge Base
 
-To enabled voice on mac, i have to to manually install some libraries
+A significant part of Autobytus is our custom-designed knowledge base focused on software and application development. The knowledge base is structured to support the entire development process, with particular emphasis on requirement engineering, which is crucial for successful project outcomes.
 
-<https://github.com/librosa/librosa>
+## Getting Started
 
-<https://github.com/ohmtech-rdi/eurorack-blocks/issues/444>
+1. **Installation**: Instructions on how to install Autobytus.
+2. **Usage**: Basic commands and examples to get you started.
+3. **Contributing**: Guidelines for contributing to the project.
 
+## License
 
-Installing
-
-Linux User: pip install -r requiremets.txt requirements.dev.txt
-
-Mac User: you have to use conda to install grpcio and grpcio-tools <https://anaconda.org/anaconda/grpcio-tools>
-
-
-
-~~generating~~ GRPC server code
-
-
-```javascript
-python -m grpc_tools.protoc -I./src/proto --python_out=./src/proto --grpc_python_out=./src/proto ./src/proto/grpc_service.proto
-```
-
- \n Import generated code in file proto/grpc_service_pb2_grpc.py
-
-```javascript
-import src.proto.grpc_service_pb2 as automated_coding_workflow_pb2
-import src.proto.grpc_service_pb2_grpc as automated_coding_workflow_pb2_grpc
-import src.proto.grpc_service_pb2 as grpc__service__pb2
-```
-
-
-
-For local development, we can install grpccurl
-
-<https://github.com/fullstorydev/grpcurl>
-
-If you already have go, then do the following
-
-```javascript
-go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
-```
-
-```javascript
-grpcurl -d '{}' -proto autobyteus/src/proto/grpc_service.proto -plaintext localhost:50051 automatedcodingworkflow.AutomatedCodingWorkflowService/StartWorkflow
-{
-"result": "Workflow started successfully"
-}
-```
-
-
-
-```javascript
-pytest  tests/source_code_tree/test_source_code_parser.py
-```
-
-```python
-python src/app.py --mode graphqlserver --host 127.0.0.1 --port 8000
-```
-
-
-Enable Voice Recoginition
-
-install libraries
-
-<https://stackoverflow.com/questions/62658071/modulenotfounderror-no-module-named-librosa>
-
-
-
-Run the following to upgrade libraries
-
-```javascript
-pip install --upgrade vcrpy urllib3
-```
-
-
-Connecting to local database
-
-
-1. psql -U docker -h localhost -d autobyteus_test -W
-
-
- \n 
+This project is licensed under the MIT License.
