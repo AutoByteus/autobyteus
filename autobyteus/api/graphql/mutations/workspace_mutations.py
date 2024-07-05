@@ -31,12 +31,6 @@ class Mutation:
         Returns:
             bool: True if the workflow was started successfully, otherwise False.
         """
-        workflow = workspace_manager.workflows.get(workspace_root_path)
-        if not workflow:
-            return False
-
-        workflow.start_workflow()
-        return True
 
     @strawberry.mutation
     def add_workspace(self, workspace_root_path: str) -> JSON:

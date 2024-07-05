@@ -1,27 +1,12 @@
 # tests/integration_tests/db/repositories/test_prompt_version_repository_integration.py
-
 import pytest
-from sqlalchemy import Column, String, Integer, Boolean, DateTime, func
-from autobyteus.db.models.prompt_version_model import PromptVersionModel
-from autobyteus.db.repositories.prompt_version_repository import PromptVersionRepository
-from autobyteus.db.utils.database_session_manager import DatabaseSessionManager
 
+from autobyteus.storage.sql.models.prompt_version_model import PromptVersionModel
+from autobyteus.storage.sql.repositories.prompt_version_repository import PromptVersionRepository
 
-@pytest.fixture
-def prompt_version_repository() -> PromptVersionRepository:
-    """Fixture to provide a PromptVersionRepository instance using the test database configuration."""
-    session_manager = DatabaseSessionManager()  # It will use the test database configuration set by setup_and_teardown_postgres
-    return PromptVersionRepository(session_manager)
-
-
-@pytest.fixture(autouse=True)
-def cleanup_test_data(prompt_version_repository):
-    """Fixture to clean up test data after each test."""
-    yield  # Let the test run
-    # Cleanup code after the test
-    for obj in prompt_version_repository.get_all(PromptVersionModel):
-        prompt_version_repository.delete(obj)
-
+@pytest.fixture()
+def prompt_version_repository():
+    return PromptVersionRepository()
 
 def test_given_prompt_version_when_created_then_saved_in_database(prompt_version_repository: PromptVersionRepository):
     # Given: A sample PromptVersionModel object

@@ -1,15 +1,16 @@
 from typing import Optional
-from autobyteus.db.models.prompt_version_model import PromptVersionModel
-from autobyteus.db.repositories.base_repository import BaseRepository, ModelType
 
+from repository_sqlalchemy import BaseRepository
 
-class PromptVersionRepository(BaseRepository):
+from autobyteus.storage.sql.models.prompt_version_model import PromptVersionModel
+
+class PromptVersionRepository(BaseRepository[PromptVersionModel]):
     """
     A repository class that offers CRUD operations for PromptVersionModel and manages version-specific operations.
     This class interfaces with the database for operations related to prompt versions.
     """
 
-    def create_version(self, prompt_version: PromptVersionModel) -> ModelType:
+    def create_version(self, prompt_version: PromptVersionModel) -> PromptVersionModel:
         """
         Store a new version of the prompt.
 
@@ -32,8 +33,7 @@ class PromptVersionRepository(BaseRepository):
         Returns:
             Optional[PromptVersionModel]: The retrieved version or None if not found.
         """
-        with self.session_manager as session:
-            return session.query(PromptVersionModel).filter_by(prompt_name=prompt_name, version_no=version_no).first()
+        return self.session.query(PromptVersionModel).filter_by(prompt_name=prompt_name, version_no=version_no).first()
 
     def get_current_effective_version(self, prompt_name: str) -> Optional[PromptVersionModel]:
         """
@@ -45,8 +45,7 @@ class PromptVersionRepository(BaseRepository):
         Returns:
             Optional[PromptVersionModel]: The current effective version or None if not found.
         """
-        with self.session_manager as session:
-            return session.query(PromptVersionModel).filter_by(prompt_name=prompt_name, is_current_effective=True).first()
+        return self.session.query(PromptVersionModel).filter_by(prompt_name=prompt_name, is_current_effective=True).first()
 
     def get_latest_created_version(self, prompt_name: str) -> Optional[PromptVersionModel]:
         """
@@ -58,8 +57,7 @@ class PromptVersionRepository(BaseRepository):
         Returns:
             Optional[PromptVersionModel]: The latest created version or None if not found.
         """
-        with self.session_manager as session:
-            return session.query(PromptVersionModel).filter_by(prompt_name=prompt_name).order_by(PromptVersionModel.created_at.desc()).first()
+        return self.session.query(PromptVersionModel).filter_by(prompt_name=prompt_name).order_by(PromptVersionModel.created_at.desc()).first()
 
     def delete_version(self, prompt_name: str, version_no: int) -> None:
         """
@@ -80,7 +78,6 @@ class PromptVersionRepository(BaseRepository):
         Args:
             prompt_name (str): Identifier for the prompt.
         """
-        with self.session_manager as session:
-            oldest_version = session.query(PromptVersionModel).filter_by(prompt_name=prompt_name).order_by(PromptVersionModel.created_at.asc()).first()
-            if oldest_version:
-                self.delete(oldest_version)
+        oldest_version = self.session.query(PromptVersionModel).filter_by(prompt_name=prompt_name).order_by(PromptVersionModel.created_at.asc()).first()
+        if oldest_version:
+            self.delete(oldest_version)

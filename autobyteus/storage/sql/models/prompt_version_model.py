@@ -1,5 +1,5 @@
 """
-Module: autobyteus.db.models.prompt_version_model
+Module: autobyteus.storage.db.models.prompt_version_model
 
 This module defines the PromptVersionModel, which represents the database model
 for storing versioned prompts. Each entry contains the prompt identifier, version 
@@ -7,9 +7,9 @@ number, content of the prompt, whether the version is the current effective prom
 and the creation/modification timestamp.
 """
 
-from sqlalchemy import Column, String, Integer, Text, Boolean, DateTime, func
-from autobyteus.db.models.base_model import BaseModel
+from sqlalchemy import Column, String, Integer, Text, Boolean
 
+from autobyteus.storage.sql.models.base_model import BaseModel
 
 class PromptVersionModel(BaseModel):
     """

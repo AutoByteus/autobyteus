@@ -1,16 +1,5 @@
-"""
-BaseModel Module
-----------------
-
-This module provides a foundational ORM model called BaseModel, which 
-encapsulates common attributes and behaviors for all derived models.
-"""
-
-from sqlalchemy import create_engine, Column, Integer, DateTime, func
-from sqlalchemy.orm import declarative_base
-
-Base = declarative_base()
-
+from repository_sqlalchemy import Base
+from sqlalchemy import Column, DateTime, Integer, func
 class BaseModel(Base):
     """
     BaseModel is a foundational model class that encapsulates common 

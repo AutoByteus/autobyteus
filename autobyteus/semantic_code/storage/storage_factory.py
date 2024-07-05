@@ -23,5 +23,7 @@ def get_storage():
         return RedisStorage(get_embedding_creator().embedding_dim)
     elif storage_backend == 'weaviate':
         return WeaviateStorage(get_embedding_creator().embedding_dim)
+    elif storage_backend == 'FAISS':
+        pass
     else:
         raise ValueError(f"Invalid storage backend: {storage_backend}")
