@@ -1,9 +1,8 @@
 from typing import Optional
 from abc import abstractmethod
-from autobyteus.db.models.prompt_version_model import PromptVersionModel
-from autobyteus.db.repositories.prompt_version_repository import PromptVersionRepository
-from autobyteus.db.utils.database_session_manager import DatabaseSessionManager
 
+from autobyteus.storage.sql.models.prompt_version_model import PromptVersionModel
+from autobyteus.storage.sql.repositories.prompt_version_repository import PromptVersionRepository
 
 class PromptVersioningMixin:
     """
@@ -25,7 +24,7 @@ class PromptVersioningMixin:
 
     def __init__(self):
         self.current_prompt = self.get_current_effective_prompt()  # Initialize current_prompt from the database
-        self.repository: PromptVersionRepository = PromptVersionRepository(DatabaseSessionManager())
+        self.repository: PromptVersionRepository = PromptVersionRepository()
 
     def add_version(self, prompt: str) -> None:
         """

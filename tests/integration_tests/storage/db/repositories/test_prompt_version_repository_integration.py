@@ -25,6 +25,7 @@ def test_given_prompt_version_id_when_retrieved_then_correct_object_returned(pro
     test_version = PromptVersionModel(prompt_name="TestPrompt", version_no=2, prompt_content="Sample Prompt 2")
     saved_version = prompt_version_repository.create_version(test_version)
     
+    
     # When: The object is retrieved by its prompt_name and version_no
     retrieved_version = prompt_version_repository.get_version("TestPrompt", 2)
     
