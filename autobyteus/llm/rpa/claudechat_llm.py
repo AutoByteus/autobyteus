@@ -1,5 +1,5 @@
-from llm_ui_integration.claude_ui_integrator.claude_ui_integrator import ClaudeUIIntegrator
 from autobyteus.llm.base_llm import BaseLLM
+from llm_ui_integration.ui_integrators.claude_ui_integrator.claude_ui_integrator import ClaudeUIIntegrator
 
 class ClaudeChatLLM(BaseLLM):
     def __init__(self):
