@@ -4,8 +4,8 @@ from autobyteus.tools.webpage_screenshot_taker import WebPageScreenshotTaker
 
 @pytest.mark.asyncio
 async def test_webpage_screenshot_taker():
-    url = "https://en.wikipedia.org/wiki/Forrest_Gump"
-    file_path = "test_screenshot.pdf"
+    url = "https://gemini.google.com/app/f851361aa822cfb8"
+    file_path = "gemini.png"
     webpage_screenshot_taker = WebPageScreenshotTaker()
     saved_file_path = await webpage_screenshot_taker.execute(url=url, file_path=file_path)
     
