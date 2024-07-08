@@ -5,7 +5,7 @@ Description: Defines the abstract base class for storage implementations.
 
 from abc import ABC, abstractmethod
 
-from autobyteus.source_code_tree.code_entities.base_entity import CodeEntity
+from autobyteus.codeverse.core.code_entities.base_entity import CodeEntity
 from autobyteus.utils.singleton import ABCSingletonMeta
 
 class BaseStorage(metaclass=ABCSingletonMeta):

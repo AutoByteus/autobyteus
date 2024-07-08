@@ -1,7 +1,7 @@
 import weaviate
-from autobyteus.semantic_code.storage.base_storage import BaseStorage
+from autobyteus.codeverse.core.code_entities.base_entity import CodeEntity
 from autobyteus.config import config
-from autobyteus.source_code_tree.code_entities.base_entity import CodeEntity
+from autobyteus.storage.embedding.storage.base_storage import BaseStorage
 
 class WeaviateStorage(BaseStorage):
     """

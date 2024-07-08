@@ -9,10 +9,10 @@ Classes:
     - SearchService: Manages the searching of code entities.
 """
 
-from autobyteus.semantic_code.embedding.embedding_creator_factory import get_embedding_creator
-from autobyteus.semantic_code.search.result_converter.redis_result_converter import convert_redis_result_to_search_result
-from autobyteus.semantic_code.search.search_result import SearchResult
-from autobyteus.semantic_code.storage.storage_factory import get_storage
+from autobyteus.codeverse.embedding.embedding_creator_factory import get_embedding_creator
+from autobyteus.codeverse.search.result_converter.redis_result_converter import convert_redis_result_to_search_result
+from autobyteus.codeverse.search.search_result import SearchResult
+from autobyteus.codeverse.storage.storage_factory import get_storage
 from autobyteus.utils.singleton import SingletonMeta
 
 

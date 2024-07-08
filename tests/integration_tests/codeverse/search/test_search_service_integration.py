@@ -10,9 +10,9 @@ import tempfile
 import textwrap
 from typing import List
 import pytest
-from autobyteus.semantic_code.search.search_service import SearchService
+from autobyteus.codeverse.search.search_service import SearchService
 from autobyteus.source_code_tree.code_entities.function_entity import FunctionEntity
-from autobyteus.semantic_code.index.index_service import IndexService
+from autobyteus.codeverse.index.index_service import IndexService
 from autobyteus.source_code_tree.code_parser.source_code_parser import SourceCodeParser
 
 

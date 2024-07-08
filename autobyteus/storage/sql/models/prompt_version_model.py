@@ -7,11 +7,10 @@ number, content of the prompt, whether the version is the current effective prom
 and the creation/modification timestamp.
 """
 
+from repository_sqlalchemy import Base
 from sqlalchemy import Column, String, Integer, Text, Boolean
 
-from autobyteus.storage.sql.models.base_model import BaseModel
-
-class PromptVersionModel(BaseModel):
+class PromptVersionModel(Base):
     """
     Represents the database model for storing versioned prompts.
     

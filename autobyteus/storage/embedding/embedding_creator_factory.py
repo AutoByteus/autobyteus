@@ -7,10 +7,10 @@ creators, such as OpenAIEmbeddingCreator and SentenceTransformerEmbeddingCreator
 is implemented as a singleton, ensuring only one instance of each type can exist.
 """
 
-from autobyteus.semantic_code.embedding.base_embedding_creator import BaseEmbeddingCreator
-from autobyteus.semantic_code.embedding.openai_embedding_creator import OpenAIEmbeddingCreator
-from autobyteus.semantic_code.embedding.sentence_transformer_embedding_creator import SentenceTransformerEmbeddingCreator
 from autobyteus.config import config
+from autobyteus.storage.embedding.base_embedding_creator import BaseEmbeddingCreator
+from autobyteus.storage.embedding.openai_embedding_creator import OpenAIEmbeddingCreator
+from autobyteus.storage.embedding.sentence_transformer_embedding_creator import SentenceTransformerEmbeddingCreator
 
 
 def get_embedding_creator() -> BaseEmbeddingCreator:

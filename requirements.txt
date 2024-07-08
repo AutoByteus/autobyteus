@@ -1,9 +1,11 @@
 ## postgres database
+pymongo
 SQLAlchemy
 sqlalchemy-utils
 alembic
 psycopg2-binary
 repository-sqlalchemy
+repository-mongodb
 
 ## testing
 pytest-playwright
@@ -12,7 +14,7 @@ pytest-playwright
 beautifulsoup4>=4.12.2
 colorama==0.4.6
 distro==1.8.0
-openai==0.27.2
+openai
 playsound==1.2.2
 pyyaml==6.0
 readability-lxml==0.8.1
