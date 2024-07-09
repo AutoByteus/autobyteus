@@ -13,8 +13,8 @@ class Conversation:
         self.memory_provider = memory_provider
         self.conversation_id = conversation_id
 
-    async def start(self):
-        await self.llm.initialize()
+    def start(self):
+        self.llm.initialize()
 
     async def send_user_message(self, user_input: str) -> str:
         user_message_index = len(self.memory_provider.get_conversation_history()) + 1

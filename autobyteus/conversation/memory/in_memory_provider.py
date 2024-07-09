@@ -1,4 +1,4 @@
-from autobyteus.conversation.memory import MemoryProvider
+from autobyteus.conversation.memory.provider import MemoryProvider
 
 class InMemoryProvider(MemoryProvider):
     def __init__(self, conversation_id: str):

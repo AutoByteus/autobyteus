@@ -16,7 +16,7 @@ class ConversationManager:
     ) -> Conversation:
         memory_provider = memory_provider_class(conversation_name + '#' + str(len(self.conversations)))
         conversation = Conversation(llm, memory_provider, conversation_name)
-        await conversation.start()
+        conversation.start()
         self.conversations.append(conversation)
         self.current_conversation_index = len(self.conversations) - 1
         return conversation
