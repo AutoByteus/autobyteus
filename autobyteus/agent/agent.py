@@ -1,5 +1,6 @@
 from typing import List
 from autobyteus.conversation.conversation_manager import ConversationManager
+from autobyteus.conversation.memory.in_memory_provider import InMemoryProvider
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.agent.llm_response_parser import LLMResponseParser
