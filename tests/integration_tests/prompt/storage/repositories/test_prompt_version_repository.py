@@ -1,8 +1,8 @@
 # tests/integration_tests/db/repositories/test_prompt_version_repository_integration.py
 import pytest
 
-from autobyteus.storage.sql.models.prompt_version_model import PromptVersionModel
-from autobyteus.storage.sql.repositories.prompt_version_repository import PromptVersionRepository
+from autobyteus.prompt.storage.prompt_version_model import PromptVersionModel
+from autobyteus.prompt.storage.prompt_version_repository import PromptVersionRepository
 
 @pytest.fixture()
 def prompt_version_repository():

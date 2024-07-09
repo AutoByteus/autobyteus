@@ -2,7 +2,7 @@ from typing import Optional
 
 from repository_sqlalchemy import BaseRepository
 
-from autobyteus.storage.sql.models.prompt_version_model import PromptVersionModel
+from autobyteus.prompt.storage.prompt_version_model import PromptVersionModel
 
 class PromptVersionRepository(BaseRepository[PromptVersionModel]):
     """
