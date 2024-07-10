@@ -1,8 +1,7 @@
 import re
 
-class LLMResponse:
-    def __init__(self, text, tool_name=None, tool_args=None):
-        self.text = text
+class ParsedResponse:
+    def __init__(self, tool_name=None, tool_args=None):
         self.tool_name = tool_name
         self.tool_args = tool_args
 
@@ -11,13 +10,18 @@ class LLMResponse:
 
 
 class LLMResponseParser:
-    def parse_response(self, response: str) -> LLMResponse:
-        tool_match = re.search(r"<<<(\w+)\((.*)\)>>>", response)
-        
-        if tool_match:
-            tool_name = tool_match.group(1)
-            tool_args_str = tool_match.group(2)
-            tool_args = eval(f"dict({tool_args_str})")
-            return LLMResponse(response, tool_name, tool_args)
+    def parse_response(self, response):
+        tool_invocation_match = re.search(r"<<<(.+?)\((.+?)\)>>>", response, re.DOTALL)
+        if tool_invocation_match:
+            tool_name = tool_invocation_match.group(1)
+            tool_args_str = tool_invocation_match.group(2)
+            tool_args = self._parse_tool_args(tool_args_str)
+            return ParsedResponse(tool_name=tool_name, tool_args=tool_args)
         else:
-            return LLMResponse(response)
+            return ParsedResponse()
+
+    def _parse_tool_args(self, tool_args_str):
+        args_pattern = re.compile(r'(\w+)="([^"]*)"')
+        matches = args_pattern.findall(tool_args_str)
+        tool_args = {arg[0]: arg[1] for arg in matches}
+        return tool_args
