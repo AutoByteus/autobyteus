@@ -15,11 +15,11 @@ class GoogleSearch(BaseTool, UIIntegrator):
         super().__init__()
         self.text_area_selector = 'textarea[title="Suche"]'
 
-    def usage(self):
+    def tool_usage(self):
         """
         Return a string describing the usage of the GoogleSearch tool.
         """
-        return "GoogleSearch(query), where 'query' is a string."
+        return 'GoogleSearch: Searches the internet for information. Usage: <<<GoogleSearch(query="search query")>>>, where "search query" is a string.'
 
     async def execute(self, **kwargs):
         """

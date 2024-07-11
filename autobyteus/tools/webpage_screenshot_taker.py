@@ -9,11 +9,8 @@ class WebPageScreenshotTaker(BaseTool, UIIntegrator):
     def __init__(self):
         super().__init__()
 
-    def usage(self):
-        """
-        Return a string describing the usage of the WebPageScreenshotTaker tool.
-        """
-        return "WebPageScreenshotTaker(url, file_path), where 'url' is a string containing the webpage URL to take a screenshot of, and 'file_path' is the path where the screenshot will be saved."
+    def tool_usage(self):
+        return "WebPageScreenshotTaker: Takes a screenshot of a given webpage and saves it to the specified file path. Usage: <<<WebPageScreenshotTaker(url='webpage_url', file_path='screenshot_file_path')>>>, where 'webpage_url' is a string containing the URL of the webpage to take a screenshot of, and 'screenshot_file_path' is the path where the screenshot will be saved."
 
     async def execute(self, **kwargs):
         """

@@ -10,11 +10,8 @@ class WebPageSourceExtractor(BaseTool, UIIntegrator):
     def __init__(self):
         super().__init__()
 
-    def usage(self):
-        """
-        Return a string describing the usage of the WebPageSourceExtractor tool.
-        """
-        return "WebPageSourceExtractor(url), where 'url' is a string containing the webpage URL to retrieve the HTML source from."
+    def tool_usage(self):
+        return "WebPageSourceExtractor: Retrieves and cleans the HTML source from a given webpage. Usage: <<<WebPageSourceExtractor(url='webpage_url')>>>, where 'webpage_url' is a string containing the URL of the webpage to retrieve the HTML source from."
 
     async def execute(self, **kwargs):
         """
