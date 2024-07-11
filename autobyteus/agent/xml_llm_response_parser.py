@@ -1,15 +1,16 @@
 import xml.etree.ElementTree as ET
-from .parsed_response import ParsedResponse
+
+from autobyteus.agent.tool_invocation import ToolInvocation
 
 class XMLLLMResponseParser:
     def parse_response(self, response):
         try:
             root = ET.fromstring(response)
             if root.tag == "command":
-                tool_name = root.attrib["name"]
-                tool_args = {arg.attrib["name"]: arg.text for arg in root.findall("arg")}
-                return ParsedResponse(tool_name=tool_name, tool_args=tool_args)
+                name = root.attrib["name"]
+                arguments = {arg.attrib["name"]: arg.text for arg in root.findall("arg")}
+                return ToolInvocation(name=name, arguments=arguments)
             else:
-                return ParsedResponse()
+                return ToolInvocation()
         except ET.ParseError:
-            return ParsedResponse()
+            return ToolInvocation()

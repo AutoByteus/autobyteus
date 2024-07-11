@@ -5,7 +5,7 @@ The BaseWorkflow class offers a foundation for creating custom workflows with un
 """
 
 from enum import Enum
-from autobyteus.llm.base_llm import BaseLLMIntegration
+from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.workflow.types.workflow_status import WorkflowStatus
 from autobyteus.workflow.types.workflow_template_config import WorkflowTemplateStepsConfig
 from autobyteus.workflow.utils.unique_id_generator import UniqueIDGenerator
@@ -18,7 +18,7 @@ class BaseWorkflow:
     name = None
     config = None
 
-    def __init__(self, config: WorkflowTemplateStepsConfig = None, llm_integration: BaseLLMIntegration = None):
+    def __init__(self, config: WorkflowTemplateStepsConfig = None, llm_integration: BaseLLM = None):
         """
         Initialize a BaseWorkflow instance with a unique ID, status, and optional configuration. Optionally accepts an LLM integration.
 

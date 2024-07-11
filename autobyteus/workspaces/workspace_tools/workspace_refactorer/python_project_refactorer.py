@@ -6,8 +6,7 @@ It provides mechanisms to organize, structure, and refactor Python source code i
 best practices and standards specific to Python development.
 """
 import logging
-from autobyteus.llm.llm_registry import LLMIntegrationRegistry
-from autobyteus.llm.openai.openai_models import OpenAIModel
+from autobyteus.llm.api.openai.models import OpenAIModel
 from autobyteus.prompt.prompt_template import PromptTemplate
 from autobyteus.prompt.prompt_template_variable import PromptTemplateVariable
 from autobyteus.codeverse.core.file_explorer.file_reader import FileReader
@@ -59,7 +58,7 @@ class PythonProjectRefactorer(BaseProjectRefactorer):
             workspace_setting (WorkspaceSetting): The setting of the workspace to be refactored.
         """
         self.workspace_setting: WorkspaceSetting = workspace_setting
-        self.llm_integration = LLMIntegrationRegistry().get(OpenAIModel.GPT_3_5_TURBO)
+        #self.llm_integration = LLMIntegrationRegistry().get(OpenAIModel.GPT_3_5_TURBO)
 
     def refactor(self):
         """
