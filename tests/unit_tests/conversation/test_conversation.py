@@ -40,6 +40,6 @@ async def test_send_user_message(conversation, mock_llm, mock_memory_provider):
     response = await conversation.send_user_message(user_input)
 
     assert response == "Assistant's response"
-    mock_llm.send_user_message.assert_called_once_with(user_input, user_message_index=3)
+    mock_llm.send_user_message.assert_called_once_with(user_input, user_message_index=2)
     mock_memory_provider.store_conversation.assert_any_call("user", user_input)
     mock_memory_provider.store_conversation.assert_any_call("assistant", "Assistant's response")

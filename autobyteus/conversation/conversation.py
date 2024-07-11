@@ -19,9 +19,8 @@ class Conversation:
     async def send_user_message(self, user_input: str) -> str:
         conversation_history = self.memory_provider.get_conversation_history()
         user_message_count = sum(1 for role, _ in conversation_history if role == "user")
-        user_message_index = user_message_count + 1
 
-        response = await self.llm.send_user_message(user_input, user_message_index=user_message_index)
+        response = await self.llm.send_user_message(user_input, user_message_index=user_message_count)
         
         self.memory_provider.store_conversation("user", user_input)
         self.memory_provider.store_conversation("assistant", response)
