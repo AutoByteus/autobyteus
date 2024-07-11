@@ -1,11 +1,11 @@
 from autobyteus.llm.base_llm import BaseLLM
+from autobyteus.llm.claude_models import ClaudeModel
 from llm_ui_integration.ui_integrators.claude_ui_integrator.claude_ui_integrator import ClaudeUIIntegrator
-from llm_ui_integration.ui_integrators.claude_ui_integrator.claude_models import ClaudeModel
 
 
 class ClaudeChatLLM(BaseLLM):
     def __init__(self, model: ClaudeModel):
-        self.ui_integrator = ClaudeUIIntegrator(model=model)
+        self.ui_integrator = ClaudeUIIntegrator(model=model.value)
         
 
     async def send_user_message(self, user_message, **kwargs):
