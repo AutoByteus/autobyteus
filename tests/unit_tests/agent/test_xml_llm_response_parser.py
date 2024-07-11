@@ -8,22 +8,25 @@ def parser():
 
 def test_parse_valid_response(parser):
     response = '''
+    I am currently in my reasoning phase, strategizing the best course of action to complete this task.
+    To recommend an encouraging movie for students, I should first find out what movies are popular in this category.
     <command name="SearchTool">
-        <arg name="query">python best practices</arg>
+        <arg name="query">encouraging movies for students</arg>
     </command>
+    I will stop here now and wait for the SearchTool to return the results...
     '''
-    expected_tool_invocation = ToolInvocation(name="SearchTool", arguments={"query": "python best practices"})
+    expected_tool_invocation = ToolInvocation(name="SearchTool", arguments={"query": "encouraging movies for students"})
     
     parsed_response = parser.parse_response(response)
     
     assert parsed_response.name == expected_tool_invocation.name
     assert parsed_response.arguments == expected_tool_invocation.arguments
 
-def test_parse_invalid_xml(parser):
+def test_parse_response_without_command(parser):
     response = '''
-    <command name="SearchTool">
-        <arg name="query>python best practices</arg>
-    </command>
+    I am currently in my reasoning phase, strategizing the best course of action to complete this task.
+    To recommend an encouraging movie for students, I should first find out what movies are popular in this category.
+    I will stop here now and wait for the SearchTool to return the results...
     '''
     
     parsed_response = parser.parse_response(response)
@@ -31,11 +34,14 @@ def test_parse_invalid_xml(parser):
     assert parsed_response.name is None
     assert parsed_response.arguments is None
 
-def test_parse_non_command_xml(parser):
+def test_parse_invalid_xml(parser):
     response = '''
-    <result>
-        <item>Python Best Practices</item>
-    </result>
+    I am currently in my reasoning phase, strategizing the best course of action to complete this task.
+    To recommend an encouraging movie for students, I should first find out what movies are popular in this category.
+    <command name="SearchTool>
+        <arg name="query">encouraging movies for students</arg>
+    </command>
+    I will stop here now and wait for the SearchTool to return the results...
     '''
     
     parsed_response = parser.parse_response(response)
