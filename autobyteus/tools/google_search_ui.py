@@ -21,6 +21,15 @@ class GoogleSearch(BaseTool, UIIntegrator):
         """
         return 'GoogleSearch: Searches the internet for information. Usage: <<<GoogleSearch(query="search query")>>>, where "search query" is a string.'
 
+    def tool_usage_xml(self):
+            return '''
+    GoogleSearch: Searches the internet for information. Usage:
+    <command name="GoogleSearch">
+    <arg name="query">search query</arg>
+    </command>
+    where "search query" is a string.
+    '''
+
     async def execute(self, **kwargs):
         """
         Perform a Google search using Playwright and return the search results.
@@ -55,5 +64,5 @@ class GoogleSearch(BaseTool, UIIntegrator):
         # Get the content of the div
         search_result = await search_result_div.inner_text()
         cleaned_search_result = clean(search_result)
-
+        await self.close()
         return cleaned_search_result

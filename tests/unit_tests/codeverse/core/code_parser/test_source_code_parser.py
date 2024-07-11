@@ -1,8 +1,8 @@
 import pytest
 import tempfile
 import textwrap
-from autobyteus.source_code_tree.code_entities.module_entity import ModuleEntity
-from autobyteus.source_code_tree.code_parser.source_code_parser import SourceCodeParser
+from autobyteus.codeverse.core.code_entities.module_entity import ModuleEntity
+from autobyteus.codeverse.core.code_parser.source_code_parser import SourceCodeParser
 
 def test_parser_handles_file_with_function_and_class():
     # Arrange

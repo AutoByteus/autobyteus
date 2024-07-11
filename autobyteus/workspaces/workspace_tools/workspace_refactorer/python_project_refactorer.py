@@ -10,8 +10,8 @@ from autobyteus.llm.llm_registry import LLMIntegrationRegistry
 from autobyteus.llm.openai.openai_models import OpenAIModel
 from autobyteus.prompt.prompt_template import PromptTemplate
 from autobyteus.prompt.prompt_template_variable import PromptTemplateVariable
-from autobyteus.source_code_tree.file_explorer.file_reader import FileReader
-from autobyteus.source_code_tree.file_explorer.tree_node import TreeNode
+from autobyteus.codeverse.core.file_explorer.file_reader import FileReader
+from autobyteus.codeverse.core.file_explorer.tree_node import TreeNode
 from autobyteus.workspaces.setting.workspace_setting import WorkspaceSetting
 from autobyteus.workspaces.workspace_directory_tree import WorkspaceDirectoryTree
 from autobyteus.workspaces.workspace_tools.workspace_refactorer.base_project_refactorer import BaseProjectRefactorer

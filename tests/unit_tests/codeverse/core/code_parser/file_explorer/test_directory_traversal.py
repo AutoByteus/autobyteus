@@ -3,8 +3,8 @@ import tempfile
 import fnmatch
 
 import pytest
-from autobyteus.source_code_tree.file_explorer.directory_traversal import DirectoryTraversal
-from autobyteus.source_code_tree.file_explorer.traversal_ignore_strategy.git_ignore_strategy import GitIgnoreStrategy
+from autobyteus.codeverse.core.file_explorer.directory_traversal import DirectoryTraversal
+from autobyteus.codeverse.core.file_explorer.traversal_ignore_strategy.git_ignore_strategy import GitIgnoreStrategy
 
 def test_directory_traversal_empty_directory():
     with tempfile.TemporaryDirectory() as tmpdirname:

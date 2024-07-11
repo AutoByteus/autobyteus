@@ -6,7 +6,7 @@ class PromptBuilder:
         self.variable_values = {}
 
     @classmethod
-    def with_template(cls, file_name: str) -> 'PromptBuilder':
+    def from_template(cls, file_name: str) -> 'PromptBuilder':
         """
         Create a PromptBuilder instance with the specified template file.
 
@@ -20,17 +20,18 @@ class PromptBuilder:
         builder.template = PromptTemplate(file=file_name)
         return builder
 
-    def variables(self, **kwargs) -> 'PromptBuilder':
+    def set_variable_value(self, name: str, value: str) -> 'PromptBuilder':
         """
-        Set the variable values for the prompt.
+        Set the value for a specific variable in the prompt.
 
         Args:
-            **kwargs: Keyword arguments representing variable names and their values.
+            name (str): The name of the variable.
+            value (str): The value to set for the variable.
 
         Returns:
             PromptBuilder: The PromptBuilder instance for method chaining.
         """
-        self.variable_values.update(kwargs)
+        self.variable_values[name] = value
         return self
 
     def build(self) -> str:

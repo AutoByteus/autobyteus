@@ -1,7 +1,7 @@
 import pytest
 import os
 import tempfile
-from autobyteus.source_code_tree.file_explorer.directory_traversal import DirectoryTraversal
+from autobyteus.codeverse.core.file_explorer.directory_traversal import DirectoryTraversal
 from autobyteus.workspaces.setting.project_types import ProjectType
 from autobyteus.workspaces.workspace_directory_tree import WorkspaceDirectoryTree
 from autobyteus.workspaces.workspace_tools.workspace_refactorer.python_project_refactorer import PythonProjectRefactorer

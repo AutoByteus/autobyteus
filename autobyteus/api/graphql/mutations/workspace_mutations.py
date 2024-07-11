@@ -8,9 +8,9 @@ import json
 import logging
 import strawberry
 from strawberry.scalars import JSON
+from autobyteus.codeverse.core.file_explorer.tree_node import TreeNode
 from autobyteus.workspaces.workspace_manager import WorkspaceManager
 from autobyteus.workspaces.errors.workspace_already_exists_error import WorkspaceAlreadyExistsError
-from autobyteus.source_code_tree.file_explorer.tree_node import TreeNode
 
 # Singleton instances
 workspace_manager = WorkspaceManager()

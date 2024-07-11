@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 from redis.commands.search.result import Result
 from autobyteus.codeverse.search.search_result import ScoredEntity, SearchResult
-from autobyteus.source_code_tree.code_entities.code_entity_factory import CodeEntityFactory
+from autobyteus.codeverse.core.code_entities.code_entity_factory import CodeEntityFactory
 
 def convert_redis_result_to_search_result(redis_search_result: Result) -> SearchResult:
     """

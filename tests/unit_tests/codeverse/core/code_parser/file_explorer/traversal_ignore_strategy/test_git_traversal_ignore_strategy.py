@@ -2,7 +2,7 @@
 
 import os
 import tempfile
-from autobyteus.source_code_tree.file_explorer.traversal_ignore_strategy.git_ignore_strategy import GitIgnoreStrategy
+from autobyteus.codeverse.core.file_explorer.traversal_ignore_strategy.git_ignore_strategy import GitIgnoreStrategy
 
 def test_git_ignore_strategy_ignore_matched_pattern():
     # Arrange

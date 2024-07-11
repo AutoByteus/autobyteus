@@ -9,8 +9,8 @@ Classes:
     - MethodEntity: Represents a method within a class in source code.
 """
 import json
-from autobyteus.source_code_tree.code_entities.base_entity import CodeEntity
-from autobyteus.source_code_tree.code_entities.code_entity_type import CodeEntityType
+from autobyteus.codeverse.core.code_entities.base_entity import CodeEntity
+from autobyteus.codeverse.core.code_entities.code_entity_type import CodeEntityType
 
 
 class MethodEntity(CodeEntity):

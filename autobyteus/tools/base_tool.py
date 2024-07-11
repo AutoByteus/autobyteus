@@ -21,3 +21,10 @@ class BaseTool(ABC):
         Return a string describing the usage of the tool.
         """
         pass
+
+    @abstractmethod
+    def tool_usage_xml(self):
+        """
+        Return a string describing the usage of the tool in XML format.
+        """
+        pass

@@ -3,7 +3,7 @@
 import json
 from typing import List
 
-from autobyteus.source_code_tree.code_entities.base_entity import CodeEntity
+from autobyteus.codeverse.core.code_entities.base_entity import CodeEntity
 
 class ScoredEntity:
     """

@@ -10,9 +10,9 @@ and ClassEntity objects for each class, which in turn contain MethodEntity objec
 """
 
 import ast
-from autobyteus.source_code_tree.code_entities.module_entity import ModuleEntity
-from autobyteus.source_code_tree.code_parser.ast_node_visitor import AstNodeVisitor
-from autobyteus.source_code_tree.file_explorer.file_reader import FileReader
+from autobyteus.codeverse.core.code_entities.module_entity import ModuleEntity
+from autobyteus.codeverse.core.code_parser.ast_node_visitor import AstNodeVisitor
+from autobyteus.codeverse.core.file_explorer.file_reader import FileReader
 
 class SourceCodeParser:
     """

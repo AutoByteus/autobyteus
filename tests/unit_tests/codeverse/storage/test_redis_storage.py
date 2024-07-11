@@ -2,7 +2,7 @@
 import pytest
 from unittest.mock import MagicMock
 from autobyteus.codeverse.storage.redis_storage import RedisStorage
-from autobyteus.source_code_tree.code_entities.base_entity import CodeEntity
+from autobyteus.codeverse.core.code_entities.base_entity import CodeEntity
 
 @pytest.fixture
 def mock_redis_client():
