@@ -45,5 +45,4 @@ class WebPageScreenshotTaker(BaseTool, UIIntegrator):
         await self.initialize()
         await self.page.goto(url, wait_until="networkidle")
         await self.page.screenshot(path=file_path, full_page=True)
-        await self.close()
         return file_path

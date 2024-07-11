@@ -42,5 +42,4 @@ where "webpage_url" is a string containing the URL of the webpage to read the co
         await self.page.goto(url, wait_until="networkidle")
         page_content = await self.page.content()
         cleaned_content = clean(page_content)
-        await self.close()
         return cleaned_content

@@ -64,5 +64,4 @@ class GoogleSearch(BaseTool, UIIntegrator):
         # Get the content of the div
         search_result = await search_result_div.inner_text()
         cleaned_search_result = clean(search_result)
-        await self.close()
         return cleaned_search_result
