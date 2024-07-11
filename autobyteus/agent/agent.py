@@ -40,5 +40,6 @@ class Agent:
                     print(f"Tool '{tool_name}' not found.")
                     break
             else:
+                response = await conversation.send_user_message("continue please")
                 print(f"Assistant: {response}")
                 break

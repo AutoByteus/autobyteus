@@ -20,7 +20,10 @@ def clean(html_text):
     # Preserve CSS classes and IDs
     for tag in soup.find_all():
         if 'class' in tag.attrs:
-            tag['class'] = re.sub(r'\s+', ' ', tag['class'])
+            if isinstance(tag['class'], str):
+                tag['class'] = re.sub(r'\s+', ' ', tag['class'])
+            elif isinstance(tag['class'], list):
+                tag['class'] = [re.sub(r'\s+', ' ', cls) for cls in tag['class']]
         if 'id' in tag.attrs:
             tag['id'] = re.sub(r'\s+', ' ', tag['id'])
 
