@@ -14,10 +14,10 @@ def mock_llm():
 def mock_memory_provider():
     memory_provider = MagicMock(spec=MemoryProvider)
     memory_provider.get_conversation_history.return_value = [
-        ("user", "User message 1"),
-        ("assistant", "Assistant response 1"),
-        ("user", "User message 2"),
-        ("assistant", "Assistant response 2"),
+        {"user": "User message 1"},
+        {"assistant": "Assistant response 1"},
+        {"user": "User message 2"},
+        {"assistant": "Assistant response 2"},
     ]
     return memory_provider
 
@@ -38,7 +38,6 @@ def test_conversation_start(conversation, mock_llm):
 async def test_send_user_message(conversation, mock_llm, mock_memory_provider):
     user_input = "User message 3"
     response = await conversation.send_user_message(user_input)
-
     assert response == "Assistant's response"
     mock_llm.send_user_message.assert_called_once_with(user_input, user_message_index=2)
     mock_memory_provider.store_conversation.assert_any_call("user", user_input)
