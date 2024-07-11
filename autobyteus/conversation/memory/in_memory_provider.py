@@ -5,7 +5,7 @@ class InMemoryProvider(MemoryProvider):
         self.conversations = []
 
     def store_conversation(self, role, message):
-        self.conversations.append({"role": role, "message": message})
+        self.conversations.append({role: message})
 
     def get_conversation_history(self):
         return self.conversations
