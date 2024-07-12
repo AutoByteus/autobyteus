@@ -50,6 +50,6 @@ class Agent:
 
     def _get_external_tools_section(self):
         external_tools_section = ""
-        for i, tool in enumerate(self.tools, start=1):
-            external_tools_section += f"{i}. {tool.tool_usage_xml()}\n\n"
+        for i, tool in enumerate(self.tools):
+            external_tools_section += f"{i + 1}. {tool.tool_usage_xml()}\n\n"
         return external_tools_section.strip()
