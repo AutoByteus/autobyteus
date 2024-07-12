@@ -9,23 +9,31 @@ def clean(html_text):
     for script in soup(['script', 'style']):
         script.decompose()
 
-    # Remove inline styles
-    for tag in soup.find_all():
-        tag.attrs['style'] = '' if 'style' in tag.attrs else None
-
     # Remove comments
     for comment in soup.find_all(text=lambda text: isinstance(text, Comment)):
         comment.extract()
 
-    # Preserve CSS classes and IDs
-    for tag in soup.find_all():
-        if 'class' in tag.attrs:
-            if isinstance(tag['class'], str):
-                tag['class'] = re.sub(r'\s+', ' ', tag['class'])
-            elif isinstance(tag['class'], list):
-                tag['class'] = [re.sub(r'\s+', ' ', cls) for cls in tag['class']]
-        if 'id' in tag.attrs:
-            tag['id'] = re.sub(r'\s+', ' ', tag['id'])
+    # Remove all style attributes
+    for tag in soup.find_all(True):
+        tag.attrs.pop('style', None)
+
+    # Whitelist of attributes to keep
+    whitelist_attrs = ['href']
+
+    # Remove unnecessary attributes
+    for tag in soup.find_all(True):
+        attrs = dict(tag.attrs)
+        for attr in attrs:
+            if attr not in whitelist_attrs:
+                del tag[attr]
+
+    # Whitelist of tags to keep
+    whitelist_tags = ['a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div', 'span', 'em', 'strong']
+
+    # Remove unwanted tags
+    for tag in soup.find_all(True):
+        if tag.name not in whitelist_tags:
+            tag.unwrap()
 
     # Return the cleaned HTML
     return str(soup)

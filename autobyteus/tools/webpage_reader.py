@@ -14,8 +14,7 @@ class WebPageReader(BaseTool, UIIntegrator):
         return 'WebPageReader: Reads and cleans the HTML content from a given webpage. Usage: <<<WebPageReader(url="webpage_url")>>>, where "webpage_url" is a string containing the URL of the webpage to read the content from.'
 
     def tool_usage_xml(self):
-        return '''
-WebPageReader: Reads and cleans the HTML content from a given webpage. Usage:
+        return '''WebPageReader: Reads the HTML content from a given webpage. Usage:
 <command name="WebPageReader">
   <arg name="url">webpage_url</arg>
 </command>
@@ -42,4 +41,5 @@ where "webpage_url" is a string containing the URL of the webpage to read the co
         await self.page.goto(url, wait_until="networkidle")
         page_content = await self.page.content()
         cleaned_content = clean(page_content)
+        await self.close()
         return cleaned_content

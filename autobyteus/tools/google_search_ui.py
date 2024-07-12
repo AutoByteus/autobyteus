@@ -22,8 +22,7 @@ class GoogleSearch(BaseTool, UIIntegrator):
         return 'GoogleSearch: Searches the internet for information. Usage: <<<GoogleSearch(query="search query")>>>, where "search query" is a string.'
 
     def tool_usage_xml(self):
-            return '''
-    GoogleSearch: Searches the internet for information. Usage:
+            return '''GoogleSearch: Searches the internet for information. Usage:
     <command name="GoogleSearch">
     <arg name="query">search query</arg>
     </command>
@@ -62,6 +61,7 @@ class GoogleSearch(BaseTool, UIIntegrator):
         search_result_div = await self.page.wait_for_selector('#search', state='attached', timeout=10000)
 
         # Get the content of the div
-        search_result = await search_result_div.inner_text()
+        search_result = await search_result_div.inner_html()
         cleaned_search_result = clean(search_result)
+        await self.close()
         return cleaned_search_result
