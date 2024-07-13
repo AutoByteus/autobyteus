@@ -105,7 +105,7 @@ where "image_url" is a string containing either the direct URL of the image or a
             os.makedirs("downloads", exist_ok=True)
             image.save(filepath, format=format)
 
-            return filepath
+            return f"The image is downloaded and stored at: {filepath}"
         except aiohttp.ClientError as e:
             raise ValueError(f"Failed to download image from {url}. Error: {str(e)}")
         except Exception as e:

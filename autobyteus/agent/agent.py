@@ -1,6 +1,7 @@
-from typing import List
+from typing import List, Type, Optional
 from autobyteus.conversation.conversation_manager import ConversationManager
-from autobyteus.conversation.memory.in_memory_provider import InMemoryProvider
+from autobyteus.conversation.persistence.file_based_persistence_provider import FileBasedPersistenceProvider
+from autobyteus.conversation.persistence.provider import PersistenceProvider
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.agent.llm_response_parser import LLMResponseParser
@@ -8,19 +9,22 @@ from autobyteus.agent.xml_llm_response_parser import XMLLLMResponseParser
 from autobyteus.prompt.prompt_builder import PromptBuilder
 
 class Agent:
-    def __init__(self, role: str, prompt_builder: PromptBuilder, llm: BaseLLM, tools: List[BaseTool], use_xml_parser=True):
+    def __init__(self, role: str, prompt_builder: PromptBuilder, llm: BaseLLM, tools: List[BaseTool],
+                 use_xml_parser=True, persistence_provider_class: Optional[Type[PersistenceProvider]] = FileBasedPersistenceProvider):
         self.role = role
         self.prompt_builder = prompt_builder
         self.llm = llm
         self.tools = tools
         self.conversation_manager = ConversationManager()
         self.response_parser = XMLLLMResponseParser() if use_xml_parser else LLMResponseParser()
+        self.persistence_provider_class = persistence_provider_class
 
     async def run(self):
+        conversation_name = self._sanitize_conversation_name(self.role)
         conversation = await self.conversation_manager.start_conversation(
-            conversation_name=self.role,
+            conversation_name=conversation_name,
             llm=self.llm,
-            memory_provider_class=InMemoryProvider
+            persistence_provider_class=self.persistence_provider_class
         )
 
         # Build the prompt using the PromptBuilder
@@ -53,3 +57,7 @@ class Agent:
         for i, tool in enumerate(self.tools):
             external_tools_section += f"{i + 1}. {tool.tool_usage_xml()}\n\n"
         return external_tools_section.strip()
+
+    @staticmethod
+    def _sanitize_conversation_name(name: str) -> str:
+        return ''.join(c if c.isalnum() else '_' for c in name)

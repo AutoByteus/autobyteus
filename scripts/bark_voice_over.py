@@ -1,4 +1,5 @@
 # %%
+## install bark pip install git+https://github.com/suno-ai/bark.git
 from bark import SAMPLE_RATE, generate_audio, preload_models
 from IPython.display import Audio
 

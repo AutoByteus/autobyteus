@@ -1,7 +1,7 @@
 from typing import List, Optional, Type
 from autobyteus.conversation.conversation import Conversation
 from autobyteus.llm.base_llm import BaseLLM
-from autobyteus.conversation.memory.provider import MemoryProvider
+from autobyteus.conversation.persistence.provider import PersistenceProvider
 
 class ConversationManager:
     def __init__(self):
@@ -12,10 +12,10 @@ class ConversationManager:
         self,
         conversation_name: str,
         llm: BaseLLM,
-        memory_provider_class: Type[MemoryProvider],
+        persistence_provider_class: Optional[Type[PersistenceProvider]] = None,
     ) -> Conversation:
-        memory_provider = memory_provider_class(conversation_name + '#' + str(len(self.conversations)))
-        conversation = Conversation(llm, memory_provider, conversation_name)
+        persistence_provider = persistence_provider_class(conversation_name) if persistence_provider_class else None
+        conversation = Conversation(llm, persistence_provider, conversation_name)
         conversation.start()
         self.conversations.append(conversation)
         self.current_conversation_index = len(self.conversations) - 1

@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 
-class MemoryProvider(ABC):
+class PersistenceProvider(ABC):
     @abstractmethod
-    def __init__(self, conversation_id):
+    def __init__(self, conversation_name):
         pass
     
     @abstractmethod
