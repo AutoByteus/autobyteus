@@ -82,6 +82,8 @@ setup(
     ],
     package_data={
         "autobyteus": ["py.typed"],
-        "autobyteus.tools.weibo": ["open_file_button_template.png"],
+        "autobyteus.tools.weibo": 
+            ["open_file_button_template.png",
+             "downloads_folder_button.png"],
     },
 )

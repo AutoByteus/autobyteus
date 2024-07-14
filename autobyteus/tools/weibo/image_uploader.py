@@ -9,7 +9,7 @@ class ImageUploader:
         self.logger = logging.getLogger(__name__)
     
     async def locate_and_click_downloads_folder(self, screenshot):
-        position, _ = locate_word_on_screen("Downloads", screenshot, occurrence=2)
+        position, _ = locate_template_on_screen("downloads_folder_button.png", screenshot, occurrence=1)
         if position:
             x, y = position
             pyautogui.click(x, y)
