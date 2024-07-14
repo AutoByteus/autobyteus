@@ -1,3 +1,4 @@
+
 from typing import List, Type, Optional
 from autobyteus.conversation.conversation_manager import ConversationManager
 from autobyteus.conversation.persistence.file_based_persistence_provider import FileBasedPersistenceProvider
@@ -41,9 +42,14 @@ class Agent:
 
                 tool = next((t for t in self.tools if t.__class__.__name__ == name), None)
                 if tool:
-                    result = await tool.execute(**arguments)
-                    print(f"Tool '{name}' result: {result}")
-                    response = await conversation.send_user_message(result)
+                    try:
+                        result = await tool.execute(**arguments)
+                        print(f"Tool '{name}' result: {result}")
+                        response = await conversation.send_user_message(result)
+                    except Exception as e:
+                        error_message = str(e)
+                        print(f"Tool '{name}' error: {error_message}")
+                        response = await conversation.send_user_message(error_message)
                 else:
                     print(f"Tool '{name}' not found.")
                     break
