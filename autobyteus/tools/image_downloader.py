@@ -7,6 +7,7 @@ from autobyteus.tools.base_tool import BaseTool
 from PIL import Image
 from io import BytesIO
 import re
+import platform
 
 # Ensure PIL has WebP support
 from PIL import features
@@ -15,9 +16,23 @@ if not features.check('webp'):
                       "Please reinstall Pillow with WebP support.")
 
 class ImageDownloader(BaseTool):
-    def __init__(self):
+    def __init__(self, custom_download_folder=None):
         super().__init__()
         self.session = None
+        self.default_download_folder = self.get_default_download_folder()
+        self.download_folder = custom_download_folder or self.default_download_folder
+
+    @staticmethod
+    def get_default_download_folder():
+        system = platform.system()
+        if system == "Windows":
+            return os.path.join(os.path.expanduser("~"), "Downloads")
+        elif system == "Darwin":  # macOS
+            return os.path.join(os.path.expanduser("~"), "Downloads")
+        elif system == "Linux":
+            return os.path.join(os.path.expanduser("~"), "Downloads")
+        else:
+            return os.path.join(os.path.expanduser("~"), "Downloads")  # Fallback
 
     async def __aenter__(self):
         self.session = aiohttp.ClientSession()
@@ -32,11 +47,16 @@ class ImageDownloader(BaseTool):
 
     def tool_usage_xml(self):
         return '''ImageDownloader: Downloads an image from a given URL or base64-encoded string. Usage:
-<command name="ImageDownloader">
-  <arg name="url">image_url</arg>
-</command>
-where "image_url" is a string containing either the direct URL of the image or a base64-encoded image string. Supported image formats: JPEG, JPG, GIF, PNG, WebP.
-'''
+    <command name="ImageDownloader">
+    <arg name="url">image_url</arg>
+    </command>
+    where "image_url" is a string containing either:
+    1. A direct URL to an image file (e.g., https://example.com/image.jpg). The URL should end with a supported image file extension (.jpg, .jpeg, .png, .gif, or .webp).
+    2. A base64-encoded image string.
+
+    Note: The URL must be a direct link to the image file, not a webpage containing the image.
+    Supported image formats: JPEG, JPG, GIF, PNG, WebP.
+    '''
 
     def is_base64_image(self, url):
         """
@@ -51,6 +71,7 @@ where "image_url" is a string containing either the direct URL of the image or a
 
         Args:
             **kwargs: Keyword arguments containing the image URL. The URL should be specified as 'url'.
+                      Optionally, a custom download folder can be specified as 'folder'.
 
         Returns:
             str: The path of the downloaded image file.
@@ -61,6 +82,9 @@ where "image_url" is a string containing either the direct URL of the image or a
         url = kwargs.get('url')
         if not url:
             raise ValueError("The 'url' keyword argument must be specified.")
+
+        custom_folder = kwargs.get('folder')
+        download_folder = custom_folder or self.download_folder
 
         supported_formats = ['.jpeg', '.jpg', '.gif', '.png', '.webp']
 
@@ -99,10 +123,10 @@ where "image_url" is a string containing either the direct URL of the image or a
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             extension = f".{format.lower()}"
             filename = f"downloaded_image_{timestamp}{extension}"
-            filepath = os.path.join("downloads", filename)
+            filepath = os.path.join(download_folder, filename)
 
             # Save the image to a file
-            os.makedirs("downloads", exist_ok=True)
+            os.makedirs(download_folder, exist_ok=True)
             image.save(filepath, format=format)
 
             return f"The image is downloaded and stored at: {filepath}"

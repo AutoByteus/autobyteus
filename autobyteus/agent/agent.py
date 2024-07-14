@@ -48,14 +48,13 @@ class Agent:
                     print(f"Tool '{name}' not found.")
                     break
             else:
-                response = await conversation.send_user_message("continue please")
                 print(f"Assistant: {response}")
                 break
 
     def _get_external_tools_section(self):
         external_tools_section = ""
         for i, tool in enumerate(self.tools):
-            external_tools_section += f"{i + 1}. {tool.tool_usage_xml()}\n\n"
+            external_tools_section += f"  {i + 1} {tool.tool_usage_xml()}\n\n"
         return external_tools_section.strip()
 
     @staticmethod
