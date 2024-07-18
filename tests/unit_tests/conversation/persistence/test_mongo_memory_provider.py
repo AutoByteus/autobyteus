@@ -1,6 +1,6 @@
 import pytest
 from autobyteus.conversation.persistence.mongo_persistence_provider import MongoPersistenceProvider
-from autobyteus.conversation.storage.conversation_message_repository import ConversationMessage
+from autobyteus.conversation.repositories.mongodb.conversation_message_repository import ConversationMessage
 
 @pytest.fixture
 def mongo_persistence_provider(mongo_database):

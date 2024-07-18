@@ -11,7 +11,7 @@ Classes:
 
 from autobyteus.codeverse.search.result_converter.redis_result_converter import convert_redis_result_to_search_result
 from autobyteus.codeverse.search.search_result import SearchResult
-from autobyteus.storage.embedding.embedding_creator_factory import get_embedding_creator
+from autobyteus.embeding.embedding_creator_factory import get_embedding_creator
 from autobyteus.storage.embedding.storage.storage_factory import get_storage
 from autobyteus.utils.singleton import SingletonMeta
 

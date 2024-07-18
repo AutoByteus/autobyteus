@@ -1,5 +1,5 @@
 from autobyteus.conversation.persistence.provider import PersistenceProvider
-from autobyteus.conversation.storage.conversation_message_repository import ConversationMessage, ConversationMessageRepository
+from autobyteus.conversation.repositories.mongodb.conversation_message_repository import ConversationMessage, ConversationMessageRepository
 
 class MongoPersistenceProvider(PersistenceProvider):
     def __init__(self, conversation_name):

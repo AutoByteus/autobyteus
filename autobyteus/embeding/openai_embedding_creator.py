@@ -10,7 +10,7 @@ import openai
 import numpy as np
 import logging
 from autobyteus.config import config
-from autobyteus.storage.embedding.base_embedding_creator import BaseEmbeddingCreator
+from autobyteus.embeding.base_embedding_creator import BaseEmbeddingCreator
 
 logger = logging.getLogger(__name__)
 

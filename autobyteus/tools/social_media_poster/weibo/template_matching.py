@@ -22,7 +22,7 @@ def locate_template_on_screen(template_name, screenshot, threshold=0.8, occurren
         FileNotFoundError: If the template file does not exist.
     """
     # Get the path to the template image file (assuming it's in the same folder as this file)
-    template_path = os.path.join(os.path.dirname(__file__), template_name)
+    template_path = os.path.join(os.path.dirname(__file__)+"/images", template_name)
 
     # Check if the template file exists
     if not os.path.exists(template_path):

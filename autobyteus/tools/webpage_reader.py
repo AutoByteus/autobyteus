@@ -38,7 +38,7 @@ where "webpage_url" is a string containing the URL of the webpage to read the co
             raise ValueError("The 'url' keyword argument must be specified.")
 
         await self.initialize()
-        await self.page.goto(url, wait_until="networkidle")
+        await self.page.goto(url)
         page_content = await self.page.content()
         cleaned_content = clean(page_content, lite=True)
         await self.close()

@@ -10,7 +10,7 @@ representation (embedding) which can be used by machine learning models.
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from autobyteus.config import config
-from autobyteus.storage.embedding.base_embedding_creator import BaseEmbeddingCreator
+from autobyteus.embeding.base_embedding_creator import BaseEmbeddingCreator
 
 class SentenceTransformerEmbeddingCreator(BaseEmbeddingCreator):
     """

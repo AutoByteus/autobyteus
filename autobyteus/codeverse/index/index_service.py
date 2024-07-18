@@ -12,7 +12,7 @@ Classes:
 
 
 from autobyteus.codeverse.core.code_entities.base_entity import CodeEntity
-from autobyteus.storage.embedding.embedding_creator_factory import get_embedding_creator
+from autobyteus.embeding.embedding_creator_factory import get_embedding_creator
 from autobyteus.storage.embedding.storage.base_storage import BaseStorage
 from autobyteus.storage.embedding.storage.storage_factory import get_storage
 from autobyteus.utils.singleton import SingletonMeta

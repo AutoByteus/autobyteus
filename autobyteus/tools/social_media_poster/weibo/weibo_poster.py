@@ -1,8 +1,10 @@
 import asyncio
 import os
+from typing import Optional
 from autobyteus.tools.base_tool import BaseTool
 from llm_ui_integration.ui_integrator import UIIntegrator
 from autobyteus.tools.weibo.image_uploader import ImageUploader
+from autobyteus.tools.weibo.repositories.reviewed_movie_repository import ReviewedMovieModel, ReviewedMovieRepository
 from autobyteus.tools.weibo.screenshot import capture_screenshot, save_screenshot
 from autobyteus.tools.weibo.window_utils import find_window_by_name
 
@@ -27,20 +29,18 @@ class WeiboPoster(BaseTool, UIIntegrator):
         self.weibo_account_name = weibo_account_name
 
 
-    def tool_usage(self):
-        """
-        Return a string describing the usage of the WeiboPoster tool.
-        """
-        return 'WeiboPoster: Publishes a post on Weibo. Usage: <<<WeiboPoster(content="post content", image_path="/full/path/to/image.jpg")>>>, where "post content" is a string and "image_path" is an optional full file path to an image.'
+    def tool_usage(self) -> str:
+        return 'WeiboPoster: Publishes a movie review post on Weibo. Usage: <<<WeiboPoster(movie_title="movie title", content="review content", image_path="/full/path/to/image.jpg")>>>, where "movie_title" is a string representing the title of the movie being reviewed, "review content" is a string containing the review text, and "image_path" is an optional full file path to an image.'
 
-    def tool_usage_xml(self):
-        return '''WeiboPoster: Publishes a post on Weibo. Usage:
-    <command name="WeiboPoster">
-    <arg name="content">post content</arg>
-    <arg name="image_path">/full/path/to/image.jpg</arg>
-    </command>
-    where "post content" is a string and "image_path" is an optional full file path to an image.
-    '''
+    def tool_usage_xml(self) -> str:
+        return '''WeiboPoster: Publishes a movie review post on Weibo. Usage:
+        <command name="WeiboPoster">
+        <arg name="movie_title">movie title</arg>
+        <arg name="content">review content</arg>
+        <arg name="image_path">/full/path/to/image.jpg</arg>
+        </command>
+        where "movie_title" is a string representing the title of the movie being reviewed, "review content" is a string containing the review text which is written in Chinese, and "image_path" is an optional full file path to an image.
+        '''
     
     async def wait_for_image_upload(self):
         await self.page.wait_for_selector(self.uploaded_image_selector, timeout=10000)
@@ -61,29 +61,42 @@ class WeiboPoster(BaseTool, UIIntegrator):
         await self.page.wait_for_selector(f'{feed_body_selector} {account_name_link_selector}', timeout=10000)
         print("published successfully")
 
-    async def execute(self, **kwargs):
+    async def execute(self, **kwargs) -> str:
         """
-        Publish a post on Weibo using Playwright.
+        Publish a movie review post on Weibo using Playwright.
 
-        This method initializes the Playwright browser, navigates to Weibo, creates a post,
-        optionally uploads an image, and submits the post.
+        This method initializes the Playwright browser, navigates to Weibo, creates a post with the given
+        movie title and review content, optionally uploads an image, and submits the post. The reviewed movie
+        is then saved to the database using the ReviewedMovieRepository.
 
         Args:
-            **kwargs: Keyword arguments containing the post content and optional image path.
-                      'content': The text content of the post (required).
-                      'image_path': The full file path to an image to be uploaded (optional).
+            **kwargs: Keyword arguments containing the movie title, review content, and optional image path.
+                    'movie_title': The title of the movie being reviewed (required).
+                    'content': The text content of the review (required).
+                    'image_path': The full file path to an image to be uploaded (optional).
 
         Returns:
             str: A string containing a success message or error information.
 
         Raises:
-            ValueError: If the 'content' keyword argument is not specified or if the image_path is not a full path.
+            ValueError: If the 'movie_title' or 'content' keyword argument is not specified,
+                        or if the 'image_path' is provided but is not a full path or the file does not exist.
         """
-        content = kwargs.get('content')
-        image_path = kwargs.get('image_path')
+        movie_title: str = kwargs.get('movie_title')
+        content: str = kwargs.get('content')
+        image_path: Optional[str] = kwargs.get('image_path')
 
+        if not movie_title:
+            raise ValueError("The 'movie_title' keyword argument must be specified.")
         if not content:
             raise ValueError("The 'content' keyword argument must be specified.")
+
+        if image_path:
+            if not os.path.isabs(image_path):
+                raise ValueError("The 'image_path' must be a full path.")
+            if not os.path.exists(image_path):
+                raise ValueError(f"The image file does not exist at the specified path: {image_path}")
+
 
         if image_path:
             if not os.path.isabs(image_path):
@@ -128,6 +141,12 @@ class WeiboPoster(BaseTool, UIIntegrator):
 
             # Wait for the post to be published
             await self.wait_for_post_submission()
+
+
+            # Save the reviewed movie to the database
+            movie_review_repository = ReviewedMovieRepository()
+            reviewed_movie = ReviewedMovieModel(movie_title=movie_title, content=content)
+            movie_review_repository.create(reviewed_movie)
 
             return "Post created successfully!"
         except Exception as e:
