@@ -1,6 +1,6 @@
 import pytest
-from autobyteus.tools.weibo.repositories.reviewed_movie_repository import ReviewedMovieModel, ReviewedMovieRepository
-from autobyteus.tools.weibo.reviewed_movies_retriever import ReviewedMoviesRetriever
+from autobyteus.tools.social_media_poster.weibo.repositories.reviewed_movie_repository import ReviewedMovieModel, ReviewedMovieRepository
+from autobyteus.tools.social_media_poster.weibo.reviewed_movies_retriever import ReviewedMoviesRetriever
 
 @pytest.fixture
 def reviewed_movie_repository(mongo_database):

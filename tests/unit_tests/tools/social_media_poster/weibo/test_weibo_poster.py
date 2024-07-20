@@ -1,6 +1,6 @@
 import pytest
 import os
-from autobyteus.tools.weibo.weibo_poster import WeiboPoster
+from autobyteus.tools.social_media_poster.weibo.weibo_poster import WeiboPoster
 
 @pytest.mark.asyncio
 async def test_weibo_poster_text_only():

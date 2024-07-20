@@ -3,10 +3,10 @@ import os
 from typing import Optional
 from autobyteus.tools.base_tool import BaseTool
 from llm_ui_integration.ui_integrator import UIIntegrator
-from autobyteus.tools.weibo.image_uploader import ImageUploader
-from autobyteus.tools.weibo.repositories.reviewed_movie_repository import ReviewedMovieModel, ReviewedMovieRepository
-from autobyteus.tools.weibo.screenshot import capture_screenshot, save_screenshot
-from autobyteus.tools.weibo.window_utils import find_window_by_name
+from autobyteus.tools.social_media_poster.weibo.image_uploader import ImageUploader
+from autobyteus.tools.social_media_poster.weibo.repositories.reviewed_movie_repository import ReviewedMovieModel, ReviewedMovieRepository
+from autobyteus.tools.social_media_poster.weibo.screenshot import capture_screenshot, save_screenshot
+from autobyteus.tools.social_media_poster.weibo.window_utils import find_window_by_name
 
 class WeiboPoster(BaseTool, UIIntegrator):
     """
