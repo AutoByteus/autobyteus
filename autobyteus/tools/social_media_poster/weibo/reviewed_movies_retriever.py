@@ -17,4 +17,6 @@ class ReviewedMoviesRetriever(BaseTool):
         movie_review_repository = ReviewedMovieRepository()
         reviewed_movies: List[ReviewedMovieModel] = movie_review_repository.find_all()
         movie_titles = [movie.movie_title for movie in reviewed_movies]
-        return f"The {movie_titles} are already reviewed. Becareful that some titles are in Chinese. You need to translate them to English"
+        return movie_titles
+
+

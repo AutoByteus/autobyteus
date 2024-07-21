@@ -1,8 +1,8 @@
 import os
 import logging
 import pyautogui
-from autobyteus.tools.weibo.ocr import locate_word_on_screen
-from autobyteus.tools.weibo.template_matching import locate_template_on_screen
+from autobyteus.tools.social_media_poster.weibo.ocr import locate_word_on_screen
+from autobyteus.tools.social_media_poster.weibo.template_matching import locate_template_on_screen
 
 class ImageUploader:
     def __init__(self):

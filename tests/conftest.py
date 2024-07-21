@@ -49,7 +49,7 @@ def mongo_config():
     os.environ['MONGO_PORT'] = '27017'
     os.environ['MONGO_USERNAME'] = ''
     os.environ['MONGO_PASSWORD'] = ''
-    os.environ['MONGO_DATABASE'] = 'test_database'
+    #os.environ['MONGO_DATABASE'] = 'test_database'
     return MongoConfig()
 
 @pytest.fixture(scope="session")

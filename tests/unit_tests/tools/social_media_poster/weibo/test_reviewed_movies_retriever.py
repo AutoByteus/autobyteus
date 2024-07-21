@@ -5,7 +5,7 @@ from autobyteus.tools.social_media_poster.weibo.reviewed_movies_retriever import
 @pytest.fixture
 def reviewed_movie_repository(mongo_database):
     yield ReviewedMovieRepository()
-    mongo_database[ReviewedMovieModel.__collection_name__].drop()
+    #mongo_database[ReviewedMovieModel.__collection_name__].drop()
 
 @pytest.mark.asyncio
 async def test_reviewed_movies_retriever(reviewed_movie_repository):
@@ -29,3 +29,13 @@ async def test_reviewed_movies_retriever(reviewed_movie_repository):
     assert "The Matrix" in result
     assert "Inception" in result
     assert "The Shawshank Redemption" in result
+
+
+@pytest.mark.asyncio
+async def test_reviewed_movies_retriever(reviewed_movie_repository):
+    # Create an instance of ReviewedMoviesRetriever
+    retriever = ReviewedMoviesRetriever()
+
+    # Call the execute method to retrieve the reviewed movies
+    result = await retriever.execute()
+    print(result)

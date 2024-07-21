@@ -68,3 +68,8 @@ python-dotenv
 uvicorn
 fastapi 
 strawberry-graphql
+
+#### this section installs libraries for moving the mouse on computer
+opencv-python 
+pytesseract 
+pyautogui

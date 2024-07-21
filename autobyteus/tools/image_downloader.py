@@ -18,7 +18,6 @@ if not features.check('webp'):
 class ImageDownloader(BaseTool):
     def __init__(self, custom_download_folder=None):
         super().__init__()
-        self.session = None
         self.default_download_folder = self.get_default_download_folder()
         self.download_folder = custom_download_folder or self.default_download_folder
 
@@ -35,12 +34,10 @@ class ImageDownloader(BaseTool):
             return os.path.join(os.path.expanduser("~"), "Downloads")  # Fallback
 
     async def __aenter__(self):
-        self.session = aiohttp.ClientSession()
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
-        if self.session:
-            await self.session.close()
+        pass
 
     def tool_usage(self):
         return 'ImageDownloader: Downloads an image from a given URL or base64-encoded string. Usage: <<<ImageDownloader(url="image_url")>>>, where "image_url" is a string containing either the direct URL of the image or a base64-encoded image string. Supported image formats: JPEG, JPG, GIF, PNG, WebP.'
@@ -89,52 +86,47 @@ class ImageDownloader(BaseTool):
         supported_formats = ['.jpeg', '.jpg', '.gif', '.png', '.webp']
 
         try:
-            if self.is_base64_image(url):
-                # Handle base64-encoded image
-                image_format = re.match(r'^data:image/(\w+);base64,', url).group(1)
-                if f'.{image_format}' not in supported_formats:
-                    raise ValueError(f"Unsupported image format. Supported formats: {', '.join(supported_formats)}")
+            async with aiohttp.ClientSession() as session:
+                if self.is_base64_image(url):
+                    # Handle base64-encoded image
+                    image_format = re.match(r'^data:image/(\w+);base64,', url).group(1)
+                    if f'.{image_format}' not in supported_formats:
+                        raise ValueError(f"Unsupported image format. Supported formats: {', '.join(supported_formats)}")
+                    
+                    # Extract base64 data
+                    base64_data = re.sub(r'^data:image/\w+;base64,', '', url)
+                    image_bytes = base64.b64decode(base64_data)
+                else:
+                    # Handle regular URL
+                    async with session.get(url) as response:
+                        response.raise_for_status()
+                        image_bytes = await response.read()
+
+                # Open the image for verification
+                with Image.open(BytesIO(image_bytes)) as img:
+                    img.verify()  # Verify the image integrity
+                    format = img.format
+                    mode = img.mode
+
+                # Reopen the image for processing and saving
+                image = Image.open(BytesIO(image_bytes))
                 
-                # Extract base64 data
-                base64_data = re.sub(r'^data:image/\w+;base64,', '', url)
-                image_bytes = base64.b64decode(base64_data)
-            else:
-                # Handle regular URL
-                if not self.session:
-                    self.session = aiohttp.ClientSession()
-                async with self.session.get(url) as response:
-                    response.raise_for_status()
-                    image_bytes = await response.read()
+                # For WebP images, convert to RGB mode if it's not already
+                if format.lower() == 'webp' and mode not in ('RGB', 'RGBA'):
+                    image = image.convert('RGB')
 
-            # Open the image for verification
-            with Image.open(BytesIO(image_bytes)) as img:
-                img.verify()  # Verify the image integrity
-                format = img.format
-                mode = img.mode
+                # Generate a unique filename based on the current timestamp
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                extension = f".{format.lower()}"
+                filename = f"downloaded_image_{timestamp}{extension}"
+                filepath = os.path.join(download_folder, filename)
 
-            # Reopen the image for processing and saving
-            image = Image.open(BytesIO(image_bytes))
-            
-            # For WebP images, convert to RGB mode if it's not already
-            if format.lower() == 'webp' and mode not in ('RGB', 'RGBA'):
-                image = image.convert('RGB')
+                # Save the image to a file
+                os.makedirs(download_folder, exist_ok=True)
+                image.save(filepath, format=format)
 
-            # Generate a unique filename based on the current timestamp
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            extension = f".{format.lower()}"
-            filename = f"downloaded_image_{timestamp}{extension}"
-            filepath = os.path.join(download_folder, filename)
-
-            # Save the image to a file
-            os.makedirs(download_folder, exist_ok=True)
-            image.save(filepath, format=format)
-
-            return f"The image is downloaded and stored at: {filepath}"
+                return f"The image is downloaded and stored at: {filepath}"
         except aiohttp.ClientError as e:
             raise ValueError(f"Failed to download image from {url}. Error: {str(e)}")
         except Exception as e:
             raise ValueError(f"Error processing image from {url}. Error: {str(e)}")
-
-    async def close(self):
-        if self.session:
-            await self.session.close()

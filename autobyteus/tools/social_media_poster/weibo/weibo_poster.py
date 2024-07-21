@@ -35,7 +35,7 @@ class WeiboPoster(BaseTool, UIIntegrator):
     def tool_usage_xml(self) -> str:
         return '''WeiboPoster: Publishes a movie review post on Weibo. Usage:
         <command name="WeiboPoster">
-        <arg name="movie_title">movie title</arg>
+        <arg name="movie_title"> original movie title (if originally in English, use the English title)</arg>
         <arg name="content">review content</arg>
         <arg name="image_path">/full/path/to/image.jpg</arg>
         </command>
