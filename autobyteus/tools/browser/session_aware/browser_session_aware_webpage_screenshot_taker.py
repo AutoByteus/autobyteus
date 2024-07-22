@@ -24,11 +24,8 @@ where "webpage_url" is a string containing the URL of the webpage to take a scre
         if not file_path:
             raise ValueError("The 'file_path' keyword argument must be specified.")
 
-        shared_session = self.get_shared_browser_session()
-        if not shared_session:
-            self.emit("create_shared_session")
-            shared_session = self.get_shared_browser_session()
+        shared_session = await self.get_or_create_shared_browser_session()
 
-        await shared_session.page.goto(url, wait_until="networkidle")
+        await shared_session.page.goto(url)
         await shared_session.page.screenshot(path=file_path, full_page=True)
         return file_path

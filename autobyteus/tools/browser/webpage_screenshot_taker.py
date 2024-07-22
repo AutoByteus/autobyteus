@@ -42,7 +42,7 @@ class WebPageScreenshotTaker(BaseTool, UIIntegrator):
             raise ValueError("The 'file_path' keyword argument must be specified.")
 
         await self.initialize()
-        await self.page.goto(url, wait_until="networkidle")
+        await self.page.goto(url)
         await self.page.screenshot(path=file_path, full_page=True)
         await self.close()
         return file_path

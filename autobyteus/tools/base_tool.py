@@ -1,7 +1,11 @@
 # file: autobyteus/autobyteus/tools/base_tool.py
 from abc import ABC, abstractmethod
 
-class BaseTool(ABC):
+from autobyteus.events.event_emitter import EventEmitter
+
+class BaseTool(EventEmitter, ABC):
+    def __init__(self):
+        super().__init__()
     """
     An abstract base class that requires the implementation of an execute method and a description method.
     This is the core method all tools should provide.

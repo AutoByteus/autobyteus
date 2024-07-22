@@ -11,7 +11,6 @@ class SharedBrowserSessionManager(metaclass=SingletonMeta):
     async def create_shared_browser_session(self):
         self.shared_browser_session = SharedBrowserSession()
         await self.shared_browser_session.initialize()
-        self.event_emitter.emit("shared_session_created", self.shared_browser_session)
 
     async def close_shared_browser_session(self):
         if self.shared_browser_session:

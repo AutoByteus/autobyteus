@@ -2,11 +2,11 @@ import pytest
 import tempfile
 import textwrap
 from autobyteus.codeverse.core.code_entities.module_entity import ModuleEntity
-from autobyteus.codeverse.core.code_parser.source_code_parser import SourceCodeParser
+from autobyteus.codeverse.core.code_parser.code_file_parser import CodeFileParser
 
 def test_parser_handles_file_with_function_and_class():
     # Arrange
-    parser = SourceCodeParser()
+    parser = CodeFileParser()
     with tempfile.NamedTemporaryFile(suffix=".py") as temp:
         code_string = textwrap.dedent("""
         \"\"\"This is a test Python file\"\"\"
@@ -42,7 +42,7 @@ def test_parser_handles_file_with_function_and_class():
 
 
 def test_parser_handles_standalone_function_with_multiple_arguments():
-    parser = SourceCodeParser()
+    parser = CodeFileParser()
     with tempfile.NamedTemporaryFile(suffix=".py") as temp:
         code_string = textwrap.dedent("""
         def func_with_args(arg1: str, arg2: str):
@@ -58,7 +58,7 @@ def test_parser_handles_standalone_function_with_multiple_arguments():
         assert result.functions["func_with_args"].signature == "(arg1, arg2)"
 
 def test_parser_handles_class_with_multiple_methods():
-    parser = SourceCodeParser()
+    parser = CodeFileParser()
     with tempfile.NamedTemporaryFile(suffix=".py") as temp:
         code_string = textwrap.dedent("""
         class MyClass:

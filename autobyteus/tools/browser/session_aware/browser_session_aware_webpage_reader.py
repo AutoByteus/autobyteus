@@ -21,12 +21,9 @@ where "webpage_url" is a string containing the URL of the webpage to read the co
         if not url:
             raise ValueError("The 'url' keyword argument must be specified.")
 
-        shared_session = self.get_shared_browser_session()
-        if not shared_session:
-            self.emit("create_shared_session")
-            shared_session = self.get_shared_browser_session()
+        shared_session = await self.get_or_create_shared_browser_session()
 
         await shared_session.page.goto(url)
         page_content = await shared_session.page.content()
-        cleaned_content = clean(page_content, lite=True)
+        cleaned_content = clean(page_content)
         return cleaned_content

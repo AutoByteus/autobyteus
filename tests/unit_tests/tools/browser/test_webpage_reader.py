@@ -1,5 +1,5 @@
 import pytest
-from autobyteus.tools.webpage_reader import WebPageReader
+from autobyteus.tools.browser.webpage_reader import WebPageReader
 
 @pytest.mark.asyncio
 async def test_webpage_reader():

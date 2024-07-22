@@ -56,7 +56,7 @@ def clean(html_text, lite=False):
         # Thorough cleaning mode
         # Expanded whitelist of attributes to keep
         whitelist_attrs = [
-            'href', 'src', 'alt', 'title', 'id', 'class', 'name', 'value', 'type', 'placeholder',
+            'alt', 'title', 'class', 'name', 'value', 'type', 'placeholder',
             'checked', 'selected', 'disabled', 'readonly', 'for', 'action', 'method', 'target',
             'width', 'height', 'colspan', 'rowspan', 'lang'
         ]

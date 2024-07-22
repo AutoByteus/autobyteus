@@ -30,13 +30,9 @@ where "element_locator" is a string containing the locator strategy and value to
         if not element_locator:
             raise ValueError("Element locator is required.")
 
-        shared_session = self.get_shared_session()
-        if not shared_session:
-            self.emit("create_shared_session")
-            shared_session = self.get_shared_session()
+        shared_browser_session = await self.get_or_create_shared_browser_session()
 
-        element = await shared_session.page.locator(element_locator)
-
+        element = shared_browser_session.page.locator(element_locator)
         if event_type == "click":
             await element.click()
         elif event_type == "type":
