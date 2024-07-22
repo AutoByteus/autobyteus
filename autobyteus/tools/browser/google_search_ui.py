@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 from autobyteus.tools.base_tool import BaseTool
 from llm_ui_integration.ui_integrator import UIIntegrator
 
-from autobyteus.utils.html_cleaner import clean
+from autobyteus.utils.html_cleaner import clean, CleaningMode
 
 
 class GoogleSearch(BaseTool, UIIntegrator):
@@ -75,6 +75,6 @@ class GoogleSearch(BaseTool, UIIntegrator):
 
         # Get the content of the div
         search_result = await search_result_div.inner_html()
-        cleaned_search_result = clean(search_result)
+        cleaned_search_result = clean(search_result, mode=CleaningMode.THOROUGH)
         await self.close()
         return cleaned_search_result

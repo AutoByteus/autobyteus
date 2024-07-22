@@ -1,17 +1,48 @@
-from bs4 import BeautifulSoup, Comment
-import re
+"""
+This module provides functionality for cleaning HTML content with various levels of intensity.
 
-def clean(html_text, lite=False):
+It uses BeautifulSoup to parse and manipulate HTML, offering different cleaning modes
+to suit various use cases.
+"""
+
+from bs4 import BeautifulSoup, Comment
+from enum import Enum, auto
+
+class CleaningMode(Enum):
+    """
+    Enum representing different HTML cleaning modes.
+
+    THOROUGH: Most comprehensive cleaning (removes 'class' attribute)
+    STANDARD: Moderate cleaning (keeps 'class' attribute)
+    MINIMAL: Least invasive cleaning (preserves most attributes and styles)
+    """
+    THOROUGH = auto()
+    STANDARD = auto()
+    MINIMAL = auto()
+
+def clean(html_text: str, mode: CleaningMode = CleaningMode.STANDARD) -> str:
     """
     Clean HTML text by removing unwanted elements, attributes, and whitespace.
 
+    This function parses the input HTML, removes unnecessary tags and attributes,
+    and returns a cleaned version of the HTML. The level of cleaning is determined
+    by the specified mode.
+
     Args:
         html_text (str): The input HTML text to be cleaned.
-        lite (bool): If True, perform a lite cleaning that preserves attributes and styles.
-                     If False (default), perform a more thorough cleaning.
+        mode (CleaningMode): The cleaning mode to use. Defaults to CleaningMode.STANDARD.
 
     Returns:
         str: The cleaned HTML text.
+
+    Raises:
+        ValueError: If an invalid cleaning mode is provided.
+
+    Example:
+        >>> dirty_html = '<div class="wrapper" style="color: red;">Hello <script>alert("world");</script></div>'
+        >>> clean_html = clean(dirty_html, CleaningMode.STANDARD)
+        >>> print(clean_html)
+        <div class="wrapper">Hello </div>
     """
     # Create a BeautifulSoup object
     soup = BeautifulSoup(html_text, 'html.parser')
@@ -52,14 +83,17 @@ def clean(html_text, lite=False):
         if 'src' in img.attrs and img['src'].startswith('data:image'):
             img.decompose()
 
-    if not lite:
-        # Thorough cleaning mode
+    if mode in [CleaningMode.THOROUGH, CleaningMode.STANDARD]:
         # Expanded whitelist of attributes to keep
         whitelist_attrs = [
-            'alt', 'title', 'class', 'name', 'value', 'type', 'placeholder',
+            'href', 'src', 'alt', 'title', 'id', 'name', 'value', 'type', 'placeholder',
             'checked', 'selected', 'disabled', 'readonly', 'for', 'action', 'method', 'target',
             'width', 'height', 'colspan', 'rowspan', 'lang'
         ]
+
+        # Add 'class' to whitelist_attrs for STANDARD mode
+        if mode == CleaningMode.STANDARD:
+            whitelist_attrs.append('class')
 
         # Remove unnecessary attributes
         for tag in soup.find_all(True):
