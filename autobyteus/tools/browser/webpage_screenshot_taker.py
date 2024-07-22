@@ -7,7 +7,8 @@ class WebPageScreenshotTaker(BaseTool, UIIntegrator):
     A class that takes a screenshot of a given webpage using Playwright.
     """
     def __init__(self):
-        super().__init__()
+        BaseTool.__init__(self)
+        UIIntegrator.__init__(self)
 
     def tool_usage(self):
         return "WebPageScreenshotTaker: Takes a screenshot of a given webpage and saves it to the specified file path. Usage: <<<WebPageScreenshotTaker(url='webpage_url', file_path='screenshot_file_path')>>>, where 'webpage_url' is a string containing the URL of the webpage to take a screenshot of, and 'screenshot_file_path' is the path where the screenshot will be saved."

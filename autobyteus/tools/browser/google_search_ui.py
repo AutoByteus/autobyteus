@@ -17,7 +17,9 @@ class GoogleSearch(BaseTool, UIIntegrator):
     """
 
     def __init__(self):
-        super().__init__()
+        BaseTool.__init__(self)
+        UIIntegrator.__init__(self)
+
         self.text_area_selector = 'textarea[title="Suche"]'
 
     def tool_usage(self):
@@ -69,7 +71,7 @@ class GoogleSearch(BaseTool, UIIntegrator):
         await self.page.wait_for_load_state()
 
         # Wait for the search results to load
-        search_result_div = await self.page.wait_for_selector('#search', state='attached', timeout=10000)
+        search_result_div = await self.page.wait_for_selector('#search', state="visible", timeout=10000)
 
         # Get the content of the div
         search_result = await search_result_div.inner_html()

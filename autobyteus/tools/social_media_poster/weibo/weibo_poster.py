@@ -18,7 +18,9 @@ class WeiboPoster(BaseTool, UIIntegrator):
     """
 
     def __init__(self, weibo_account_name):
-        super().__init__()
+        BaseTool.__init__(self)
+        UIIntegrator.__init__(self)
+        
         self.post_content_selector = 'textarea.Form_input_2gtXx'
         self.image_upload_button_selector = 'div.VPlus_itemin_309nn.VPlus_file_n7Xjc'
         self.file_input_selector = 'input[type="file"].FileUpload_file_27ilM'

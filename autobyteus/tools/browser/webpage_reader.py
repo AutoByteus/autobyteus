@@ -8,7 +8,8 @@ class WebPageReader(BaseTool, UIIntegrator):
     A class that reads and cleans the HTML content from a given webpage using Playwright.
     """
     def __init__(self):
-        super().__init__()
+        BaseTool.__init__(self)
+        UIIntegrator.__init__(self)
 
     def tool_usage(self):
         return 'WebPageReader: Reads and cleans the HTML content from a given webpage. Usage: <<<WebPageReader(url="webpage_url")>>>, where "webpage_url" is a string containing the URL of the webpage to read the content from.'

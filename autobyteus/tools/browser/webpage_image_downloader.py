@@ -8,7 +8,8 @@ class WebPageImageDownloader(BaseTool, UIIntegrator):
     A class that downloads images (excluding SVGs) from a given webpage using Playwright.
     """
     def __init__(self):
-        super().__init__()
+        BaseTool.__init__(self)
+        UIIntegrator.__init__(self)
 
     def tool_usage(self):
         return "WebPageImageDownloader: Downloads images (excluding SVGs) from a given webpage and saves them to the specified directory. Usage: <<<WebPageImageDownloader(url='webpage_url', save_dir='path/to/save/directory')>>>, where 'webpage_url' is a string containing the URL of the webpage to download images from, and 'path/to/save/directory' is the directory where the images will be saved."
