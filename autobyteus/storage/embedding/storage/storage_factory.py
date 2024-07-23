@@ -6,7 +6,7 @@ ensuring only one instance of each type can exist.
 """
 
 from autobyteus.config import config
-from autobyteus.storage.embedding.embedding_creator_factory import get_embedding_creator
+from autobyteus.embeding.embedding_creator_factory import get_embedding_creator
 from autobyteus.storage.embedding.storage.redis_storage import RedisStorage
 from autobyteus.storage.embedding.storage.weaviate_storage import WeaviateStorage
 

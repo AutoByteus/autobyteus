@@ -1,4 +1,4 @@
-# File: autobyteus/tools/google_search_ui.py
+# File: autobyteus/tools/browser/google_search_ui.py
 import re
 from bs4 import BeautifulSoup
 from autobyteus.tools.base_tool import BaseTool

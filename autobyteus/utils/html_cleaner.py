@@ -39,7 +39,7 @@ def clean(html_text: str, mode: CleaningMode = CleaningMode.STANDARD) -> str:
         ValueError: If an invalid cleaning mode is provided.
 
     Example:
-        >>> dirty_html = '<div class="wrapper" style="color: red;">Hello <script>alert("world");</script></div>'
+        >>> dirty_html = '<html><body><div class="wrapper" style="color: red;">Hello <script>alert("world");</script></div></body></html>'
         >>> clean_html = clean(dirty_html, CleaningMode.STANDARD)
         >>> print(clean_html)
         <div class="wrapper">Hello </div>
@@ -47,18 +47,21 @@ def clean(html_text: str, mode: CleaningMode = CleaningMode.STANDARD) -> str:
     # Create a BeautifulSoup object
     soup = BeautifulSoup(html_text, 'html.parser')
 
+    # Focus on the body content if it exists, otherwise use the whole soup
+    content = soup.body or soup
+
     # Remove script and style tags
-    for script in soup(['script', 'style']):
+    for script in content(['script', 'style']):
         script.decompose()
 
     # Remove comments
-    for comment in soup.find_all(text=lambda text: isinstance(text, Comment)):
+    for comment in content.find_all(text=lambda text: isinstance(text, Comment)):
         comment.extract()
 
     # Expanded whitelist of tags to keep
     whitelist_tags = [
         # Structural elements
-        'html', 'body', 'header', 'nav', 'main', 'footer', 'section', 'article', 'aside',
+        'header', 'nav', 'main', 'footer', 'section', 'article', 'aside',
         # Headings and text
         'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'span', 'div', 'em', 'strong', 'i', 'b', 'u', 'sub', 'sup',
         # Links and images
@@ -70,16 +73,16 @@ def clean(html_text: str, mode: CleaningMode = CleaningMode.STANDARD) -> str:
         # Forms and inputs
         'form', 'input', 'textarea', 'select', 'option', 'button', 'label',
         # Other common elements
-        'br', 'hr', 'blockquote', 'pre', 'code', 'figure', 'figcaption', 'iframe'
+        'br', 'hr', 'blockquote', 'pre', 'code', 'figure', 'figcaption',
     ]
 
     # Remove unwanted tags
-    for tag in soup.find_all(True):
+    for tag in content.find_all(True):
         if tag.name not in whitelist_tags:
             tag.unwrap()
 
     # Remove embedded images with src attribute starting with "data:image"
-    for img in soup.find_all('img'):
+    for img in content.find_all('img'):
         if 'src' in img.attrs and img['src'].startswith('data:image'):
             img.decompose()
 
@@ -96,16 +99,16 @@ def clean(html_text: str, mode: CleaningMode = CleaningMode.STANDARD) -> str:
             whitelist_attrs.append('class')
 
         # Remove unnecessary attributes
-        for tag in soup.find_all(True):
+        for tag in content.find_all(True):
             attrs = dict(tag.attrs)
             for attr in attrs:
                 if attr not in whitelist_attrs:
                     del tag[attr]
 
         # Remove all style attributes
-        for tag in soup.find_all(True):
+        for tag in content.find_all(True):
             if 'style' in tag.attrs:
                 del tag['style']
 
     # Return the cleaned HTML
-    return str(soup)
+    return ''.join(str(child) for child in content.children).strip()
