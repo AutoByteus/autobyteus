@@ -9,7 +9,7 @@ import tempfile
 import pytest
 from autobyteus.codeverse.index.index_service import IndexService
 from autobyteus.codeverse.core.code_entities.function_entity import FunctionEntity
-from autobyteus.codeverse.core.code_parser.source_code_parser import SourceCodeParser
+from autobyteus.codeverse.core.code_parser.code_file_parser import CodeFileParser
 
 @pytest.fixture
 def valid_function_entity():

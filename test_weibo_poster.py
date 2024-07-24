@@ -1,8 +1,9 @@
 import asyncio
-from autobyteus.tools.weibo.weibo_poster import WeiboPoster
+
+from autobyteus.tools.social_media_poster.weibo.weibo_poster import WeiboPoster
 
 async def test_weibo_poster_text_with_image():
-    weibo_poster = WeiboPoster(weibo_account_name="humphreyZheng")
+    weibo_poster = WeiboPoster(weibo_account_name="RyanZhengHaliluya")
     
     # Test posting text with an image
     content_with_image = "This is a test post with an image from an automated integration test. Please ignore."
