@@ -35,7 +35,6 @@ class AutomatedCodingWorkflow:
             workspace_setting (WorkspaceSetting): The settings associated with the workspace.
         """
         self.workspace_setting = workspace_setting
-        self.llm_integration_registry = LLMIntegrationRegistry()
         self.steps: Dict[str, BaseStep] = {}
         self._initialize_steps(AutomatedCodingWorkflow.config['steps'])
     

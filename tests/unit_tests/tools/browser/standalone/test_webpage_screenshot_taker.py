@@ -1,6 +1,6 @@
 import pytest
 import os
-from autobyteus.tools.browser.webpage_screenshot_taker import WebPageScreenshotTaker
+from autobyteus.tools.browser.standalone.webpage_screenshot_taker import WebPageScreenshotTaker
 
 @pytest.mark.asyncio
 async def test_webpage_screenshot_taker():

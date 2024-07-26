@@ -1,3 +1,16 @@
+"""
+File: autobyteus/tools/browser/standalone/webpage_reader.py
+
+This module provides a WebPageReader tool for reading and cleaning HTML content from webpages.
+
+The WebPageReader class allows users to retrieve and clean the HTML content of a specified webpage
+using Playwright. It inherits from BaseTool and UIIntegrator, providing a seamless integration
+with web browsers.
+
+Classes:
+    WebPageReader: A tool for reading and cleaning HTML content from webpages.
+"""
+
 from autobyteus.tools.base_tool import BaseTool
 from llm_ui_integration.ui_integrator import UIIntegrator
 from autobyteus.utils.html_cleaner import clean, CleaningMode

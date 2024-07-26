@@ -1,5 +1,5 @@
 import pytest
-from autobyteus.tools.browser.google_search_ui import GoogleSearch
+from autobyteus.tools.browser.standalone.google_search_ui import GoogleSearch
 
 @pytest.mark.asyncio
 async def test_google_search():

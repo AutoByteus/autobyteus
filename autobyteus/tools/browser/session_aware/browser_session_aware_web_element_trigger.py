@@ -1,15 +1,19 @@
+# File: autobyteus/tools/browser/session_aware/browser_session_aware_web_element_interactor.py
+
 from autobyteus.tools.browser.session_aware.browser_session_aware_tool import BrowserSessionAwareTool
+from autobyteus.tools.browser.session_aware.shared_browser_session import SharedBrowserSession
 from autobyteus.tools.browser.session_aware.web_element_action import WebElementAction
 
-class BrowserSessionAwareWebElementInteractor(BrowserSessionAwareTool):
+class BrowserSessionAwareWebElementTrigger(BrowserSessionAwareTool):
     def __init__(self):
         super().__init__()
 
     def tool_usage(self):
-        return """BrowserSessionAwareWebElementInteractor: Interacts with web elements while maintaining browser session awareness.
-Usage: <<<BrowserSessionAwareWebElementInteractor(css_selector='selector', action='action', params={'param': 'value'})>>>
+        return """BrowserSessionAwareWebElementTrigger: Triggers actions on web elements while maintaining browser session awareness.
+Usage: <<<BrowserSessionAwareWebElementTrigger(webpage_url='url', css_selector='selector', action='action', params={'param': 'value'})>>>
 
 Parameters:
+- webpage_url: String. URL of the webpage to interact with.
 - css_selector: String. CSS selector to find the target element.
 - action: String. Type of interaction to perform on the element. Must be one of: 
   {', '.join(str(action) for action in WebElementAction)}
@@ -29,18 +33,19 @@ Common actions and their parameters:
 
 Examples:
 1. Typing in a search box:
-   <<<BrowserSessionAwareWebElementInteractor(css_selector='#search-input', action='type', params={'text': 'Python tutorial'})>>>
+   <<<BrowserSessionAwareWebElementTrigger(webpage_url='https://example.com', css_selector='#search-input', action='type', params={'text': 'Python tutorial'})>>>
 
 2. Selecting an option from a dropdown:
-   <<<BrowserSessionAwareWebElementInteractor(css_selector='#country-select', action='select', params={'value': 'USA'})>>>
+   <<<BrowserSessionAwareWebElementTrigger(webpage_url='https://example.com', css_selector='#country-select', action='select', params={'value': 'USA'})>>>
 
 3. Clicking a button:
-   <<<BrowserSessionAwareWebElementInteractor(css_selector='.submit-button', action='click')>>>
+   <<<BrowserSessionAwareWebElementTrigger(webpage_url='https://example.com', css_selector='.submit-button', action='click')>>>
 """
 
     def tool_usage_xml(self):
-        return f'''BrowserSessionAwareWebElementInteractor: Interacts with web elements.
-<command name="BrowserSessionAwareWebElementInteractor">
+        return f'''BrowserSessionAwareWebElementTrigger: Triggers actions on web elements.
+<command name="BrowserSessionAwareWebElementTrigger">
+  <arg name="webpage_url">url</arg>
   <arg name="css_selector">selector</arg>
   <arg name="action">action</arg>
   <arg name="params">
@@ -52,6 +57,7 @@ Examples:
 </command>
 
 Parameters:
+- webpage_url: String. URL of the webpage to interact with.
 - css_selector: String. CSS selector to find the target element.
 - action: String. Type of interaction to perform on the element. Must be one of: 
   {', '.join(str(action) for action in WebElementAction)}
@@ -71,7 +77,8 @@ Common actions and their parameters:
 
 Examples:
 1. Typing in a search box:
-   <command name="BrowserSessionAwareWebElementInteractor">
+   <command name="BrowserSessionAwareWebElementTrigger">
+     <arg name="webpage_url">https://example.com</arg>
      <arg name="css_selector">#search-input</arg>
      <arg name="action">type</arg>
      <arg name="params">
@@ -83,7 +90,8 @@ Examples:
    </command>
 
 2. Selecting an option from a dropdown:
-   <command name="BrowserSessionAwareWebElementInteractor">
+   <command name="BrowserSessionAwareWebElementTrigger">
+     <arg name="webpage_url">https://example.com</arg>
      <arg name="css_selector">#country-select</arg>
      <arg name="action">select</arg>
      <arg name="params">
@@ -95,13 +103,14 @@ Examples:
    </command>
 
 3. Clicking a button:
-   <command name="BrowserSessionAwareWebElementInteractor">
+   <command name="BrowserSessionAwareWebElementTrigger">
+     <arg name="webpage_url">https://example.com</arg>
      <arg name="css_selector">.submit-button</arg>
      <arg name="action">click</arg>
    </command>
 '''
 
-    async def execute(self, **kwargs):
+    async def perform_action(self, shared_session: SharedBrowserSession, **kwargs):
         css_selector = kwargs.get("css_selector")
         action_str = kwargs.get("action")
         params = kwargs.get("params", {})
@@ -114,9 +123,7 @@ Examples:
         except ValueError as e:
             raise ValueError(f"Invalid action: {action_str}. {str(e)}")
 
-        shared_browser_session = await self.get_or_create_shared_browser_session()
-
-        element = shared_browser_session.page.locator(css_selector)
+        element = shared_session.page.locator(css_selector)
         
         if action == WebElementAction.CLICK:
             await element.click()
@@ -144,3 +151,5 @@ Examples:
             await element.dblclick()
         else:
             raise ValueError(f"Unsupported action: {action}")
+
+        return f"Action '{action}' performed on element with selector '{css_selector}'"

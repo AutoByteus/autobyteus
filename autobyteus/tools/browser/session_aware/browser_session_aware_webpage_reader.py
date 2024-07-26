@@ -1,29 +1,26 @@
+# File: autobyteus/tools/browser/session_aware/browser_session_aware_webpage_reader.py
+
 from autobyteus.tools.browser.session_aware.browser_session_aware_tool import BrowserSessionAwareTool
-from autobyteus.utils.html_cleaner import clean
+from autobyteus.tools.browser.session_aware.shared_browser_session import SharedBrowserSession
+from autobyteus.utils.html_cleaner import clean, CleaningMode
 
 class BrowserSessionAwareWebPageReader(BrowserSessionAwareTool):
-    def __init__(self):
+    def __init__(self, content_cleanup_level=CleaningMode.THOROUGH):
         super().__init__()
+        self.content_cleanup_level = content_cleanup_level
 
     def tool_usage(self):
-        return 'WebPageReader: Reads and cleans the HTML content from a given webpage. Usage: <<<WebPageReader(url="webpage_url")>>>, where "webpage_url" is a string containing the URL of the webpage to read the content from.'
+        return 'WebPageReader: Reads and cleans the HTML content from a given webpage. Usage: <<<WebPageReader(webpage_url="url_to_read")>>>, where "url_to_read" is a string containing the URL of the webpage to read the content from.'
 
     def tool_usage_xml(self):
         return '''WebPageReader: Reads the HTML content from a given webpage. Usage:
 <command name="WebPageReader">
-  <arg name="url">webpage_url</arg>
+  <arg name="webpage_url">url_to_read</arg>
 </command>
-where "webpage_url" is a string containing the URL of the webpage to read the content from.
+where "url_to_read" is a string containing the URL of the webpage to read the content from.
 '''
 
-    async def execute(self, **kwargs):
-        url = kwargs.get('url')
-        if not url:
-            raise ValueError("The 'url' keyword argument must be specified.")
-
-        shared_session = await self.get_or_create_shared_browser_session()
-
-        await shared_session.page.goto(url)
+    async def perform_action(self, shared_session: SharedBrowserSession, **kwargs):
         page_content = await shared_session.page.content()
-        cleaned_content = clean(page_content)
+        cleaned_content = clean(page_content, self.content_cleanup_level)
         return cleaned_content

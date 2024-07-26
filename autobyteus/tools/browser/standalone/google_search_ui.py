@@ -1,4 +1,15 @@
-# File: autobyteus/tools/browser/google_search_ui.py
+"""
+File: autobyteus/tools/browser/google_search_ui.py
+
+This module provides a GoogleSearch tool for performing Google searches using Playwright.
+
+The GoogleSearch class allows users to search Google and retrieve cleaned search results.
+It inherits from BaseTool and UIIntegrator, providing a seamless integration with web browsers.
+
+Classes:
+    GoogleSearch: A tool for performing Google searches and retrieving cleaned results.
+"""
+
 import re
 from bs4 import BeautifulSoup
 from autobyteus.tools.base_tool import BaseTool
@@ -14,13 +25,25 @@ class GoogleSearch(BaseTool, UIIntegrator):
     This class inherits from BaseTool and UIIntegrator. Upon initialization via the UIIntegrator's
     initialize method, self.page becomes available as a Playwright page object for interaction
     with the web browser.
+
+    Attributes:
+        text_area_selector (str): The CSS selector for the Google search text area.
+        cleaning_mode (CleaningMode): The level of cleanup to apply to the HTML content.
     """
 
-    def __init__(self):
+    def __init__(self, cleaning_mode=CleaningMode.THOROUGH):
+        """
+        Initialize the GoogleSearch tool with a specified content cleanup level.
+
+        Args:
+            cleaning_mode (CleaningMode, optional): The level of cleanup to apply to
+                the HTML content. Defaults to CleaningMode.THOROUGH.
+        """
         BaseTool.__init__(self)
         UIIntegrator.__init__(self)
 
         self.text_area_selector = 'textarea[title="Suche"]'
+        self.cleaning_mode = cleaning_mode
 
     def tool_usage(self):
         """
@@ -29,6 +52,9 @@ class GoogleSearch(BaseTool, UIIntegrator):
         return 'GoogleSearch: Searches the internet for information. Usage: <<<GoogleSearch(query="search query")>>>, where "search query" is a string.'
 
     def tool_usage_xml(self):
+        """
+        Return an XML string describing the usage of the GoogleSearch tool.
+        """
         return '''GoogleSearch: Searches the internet for information. Usage:
     <command name="GoogleSearch">
     <arg name="query">search query</arg>
@@ -75,6 +101,6 @@ class GoogleSearch(BaseTool, UIIntegrator):
 
         # Get the content of the div
         search_result = await search_result_div.inner_html()
-        cleaned_search_result = clean(search_result, mode=CleaningMode.THOROUGH)
+        cleaned_search_result = clean(search_result, mode=self.cleaning_mode)
         await self.close()
         return cleaned_search_result

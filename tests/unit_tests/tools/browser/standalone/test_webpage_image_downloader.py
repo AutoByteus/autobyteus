@@ -1,6 +1,6 @@
 import os
 import pytest
-from autobyteus.tools.browser.webpage_image_downloader import WebPageImageDownloader
+from autobyteus.tools.browser.standalone.webpage_image_downloader import WebPageImageDownloader
 
 @pytest.mark.asyncio
 async def test_webpage_image_downloader():
