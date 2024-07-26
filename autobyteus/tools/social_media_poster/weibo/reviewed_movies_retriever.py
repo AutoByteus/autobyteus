@@ -1,6 +1,6 @@
 from typing import List
 from autobyteus.tools.base_tool import BaseTool
-from autobyteus.tools.social_media_poster.weibo.repositories.reviewed_movie_repository import ReviewedMovieModel, ReviewedMovieRepository
+from autobyteus.tools.social_media_poster.weibo.repositories.reviewed_movie_repository import WeiboReviewedMovieModel, WeiboReviewedMovieRepository
 
 class ReviewedMoviesRetriever(BaseTool):
     def tool_usage(self):
@@ -14,8 +14,8 @@ class ReviewedMoviesRetriever(BaseTool):
     '''
 
     async def execute(self, **kwargs):
-        movie_review_repository = ReviewedMovieRepository()
-        reviewed_movies: List[ReviewedMovieModel] = movie_review_repository.find_all()
+        movie_review_repository = WeiboReviewedMovieRepository()
+        reviewed_movies: List[WeiboReviewedMovieModel] = movie_review_repository.find_all()
         movie_titles = [movie.movie_title for movie in reviewed_movies]
         return f"here is the list of movies which are already reviewed {movie_titles}, you have to be look really carefully, since this list is getting longer and longer, pick one which is not on the list. Perhaps you have to do another google search with a different topic name"
 

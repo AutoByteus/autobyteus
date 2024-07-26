@@ -1,17 +1,17 @@
 import pytest
 
-from autobyteus.tools.social_media_poster.weibo.repositories.reviewed_movie_repository import ReviewedMovieModel, ReviewedMovieRepository
+from autobyteus.tools.social_media_poster.weibo.repositories.reviewed_movie_repository import WeiboReviewedMovieModel, WeiboReviewedMovieRepository
 
 @pytest.fixture
 def reviewed_movie_repository(mongo_database):
-    yield ReviewedMovieRepository()
-    mongo_database[ReviewedMovieModel.__collection_name__].drop()
+    yield WeiboReviewedMovieRepository()
+    mongo_database[WeiboReviewedMovieModel.__collection_name__].drop()
 
 def test_create_and_find_reviewed_movie(reviewed_movie_repository):
     movie_title = "The Matrix"
     content = "A groundbreaking sci-fi action film."
 
-    reviewed_movie = ReviewedMovieModel(movie_title=movie_title, content=content)
+    reviewed_movie = WeiboReviewedMovieModel(movie_title=movie_title, content=content)
     reviewed_movie_repository.create(reviewed_movie)
 
     retrieved_movies = reviewed_movie_repository.find_by_attributes({"movie_title": movie_title})
@@ -23,8 +23,8 @@ def test_create_and_find_reviewed_movie(reviewed_movie_repository):
     assert retrieved_movie.timestamp is not None
 
 def test_find_all_reviewed_movies(reviewed_movie_repository):
-    movie1 = ReviewedMovieModel(movie_title="The Matrix", content="A groundbreaking sci-fi action film.")
-    movie2 = ReviewedMovieModel(movie_title="Inception", content="A mind-bending thriller.")
+    movie1 = WeiboReviewedMovieModel(movie_title="The Matrix", content="A groundbreaking sci-fi action film.")
+    movie2 = WeiboReviewedMovieModel(movie_title="Inception", content="A mind-bending thriller.")
 
     reviewed_movie_repository.create(movie1)
     reviewed_movie_repository.create(movie2)
@@ -35,8 +35,8 @@ def test_find_all_reviewed_movies(reviewed_movie_repository):
     assert any(movie.movie_title == "Inception" for movie in reviewed_movies)
 
 def test_find_reviewed_movies_by_attributes(reviewed_movie_repository):
-    movie1 = ReviewedMovieModel(movie_title="The Matrix", content="A groundbreaking sci-fi action film.")
-    movie2 = ReviewedMovieModel(movie_title="The Matrix Reloaded", content="The second installment in The Matrix trilogy.")
+    movie1 = WeiboReviewedMovieModel(movie_title="The Matrix", content="A groundbreaking sci-fi action film.")
+    movie2 = WeiboReviewedMovieModel(movie_title="The Matrix Reloaded", content="The second installment in The Matrix trilogy.")
 
     reviewed_movie_repository.create(movie1)
     reviewed_movie_repository.create(movie2)

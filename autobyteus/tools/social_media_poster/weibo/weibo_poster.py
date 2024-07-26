@@ -4,7 +4,7 @@ from typing import Optional
 from autobyteus.tools.base_tool import BaseTool
 from llm_ui_integration.ui_integrator import UIIntegrator
 from autobyteus.tools.social_media_poster.weibo.image_uploader import ImageUploader
-from autobyteus.tools.social_media_poster.weibo.repositories.reviewed_movie_repository import ReviewedMovieModel, ReviewedMovieRepository
+from autobyteus.tools.social_media_poster.weibo.repositories.reviewed_movie_repository import WeiboReviewedMovieModel, WeiboReviewedMovieRepository
 from autobyteus.tools.social_media_poster.weibo.screenshot import capture_screenshot, save_screenshot
 from autobyteus.tools.social_media_poster.weibo.window_utils import find_window_by_name
 
@@ -146,8 +146,8 @@ class WeiboPoster(BaseTool, UIIntegrator):
 
 
             # Save the reviewed movie to the database
-            movie_review_repository = ReviewedMovieRepository()
-            reviewed_movie = ReviewedMovieModel(movie_title=movie_title, content=content)
+            movie_review_repository = WeiboReviewedMovieRepository()
+            reviewed_movie = WeiboReviewedMovieModel(movie_title=movie_title, content=content)
             movie_review_repository.create(reviewed_movie)
 
             return "Post created successfully!"

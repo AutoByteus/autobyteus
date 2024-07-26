@@ -1,18 +1,18 @@
 import pytest
-from autobyteus.tools.social_media_poster.weibo.repositories.reviewed_movie_repository import ReviewedMovieModel, ReviewedMovieRepository
+from autobyteus.tools.social_media_poster.weibo.repositories.reviewed_movie_repository import WeiboReviewedMovieModel, WeiboReviewedMovieRepository
 from autobyteus.tools.social_media_poster.weibo.reviewed_movies_retriever import ReviewedMoviesRetriever
 
 @pytest.fixture
 def reviewed_movie_repository(mongo_database):
-    yield ReviewedMovieRepository()
-    mongo_database[ReviewedMovieModel.__collection_name__].drop()
+    yield WeiboReviewedMovieRepository()
+    mongo_database[WeiboReviewedMovieModel.__collection_name__].drop()
 
 @pytest.mark.asyncio
 async def test_reviewed_movies_retriever(reviewed_movie_repository):
     # Create some reviewed movies
-    movie1 = ReviewedMovieModel(movie_title="The Matrix", content="A groundbreaking sci-fi action film.")
-    movie2 = ReviewedMovieModel(movie_title="Inception", content="A mind-bending thriller.")
-    movie3 = ReviewedMovieModel(movie_title="The Shawshank Redemption", content="A powerful and uplifting prison drama.")
+    movie1 = WeiboReviewedMovieModel(movie_title="The Matrix", content="A groundbreaking sci-fi action film.")
+    movie2 = WeiboReviewedMovieModel(movie_title="Inception", content="A mind-bending thriller.")
+    movie3 = WeiboReviewedMovieModel(movie_title="The Shawshank Redemption", content="A powerful and uplifting prison drama.")
 
     reviewed_movie_repository.create(movie1)
     reviewed_movie_repository.create(movie2)
