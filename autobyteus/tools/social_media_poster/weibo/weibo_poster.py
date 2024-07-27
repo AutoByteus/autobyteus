@@ -65,7 +65,7 @@ class WeiboPoster(BaseTool, UIIntegrator):
         logger.info("Published successfully")
 
     @publish_event(EventType.WEIBO_POST_COMPLETED)
-    async def execute(self, **kwargs) -> str:
+    async def _execute(self, **kwargs) -> str:
         """
         Publish a movie review post on Weibo using Playwright.
         """

@@ -1,3 +1,5 @@
+# File: autobyteus/tools/social_media_poster/weibo/reviewed_movies_retriever.py
+
 from typing import List
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.social_media_poster.weibo.repositories.reviewed_movie_repository import WeiboReviewedMovieModel, WeiboReviewedMovieRepository
@@ -13,7 +15,7 @@ class ReviewedMoviesRetriever(BaseTool):
     Returns a list of movie titles.
     '''
 
-    async def execute(self, **kwargs):
+    async def _execute(self, **kwargs):
         movie_review_repository = WeiboReviewedMovieRepository()
         reviewed_movies: List[WeiboReviewedMovieModel] = movie_review_repository.find_all()
         movie_titles = [movie.movie_title for movie in reviewed_movies]

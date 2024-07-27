@@ -3,11 +3,11 @@ import pytest
 from bson import ObjectId
 from datetime import datetime
 
-from autobyteus.tools.social_media_poster.xiaohongshu.repositories.book_review_repository import XiaohongshuBookReviewModel, ReviewedBooksRetriever
+from autobyteus.tools.social_media_poster.xiaohongshu.repositories.book_review_repository import XiaohongshuBookReviewModel, ReviewedBooksRepository
 
 @pytest.fixture
 def reviewed_books_retriever(mongo_database):
-    yield ReviewedBooksRetriever()
+    yield ReviewedBooksRepository()
     mongo_database[XiaohongshuBookReviewModel.__collection_name__].drop()
 
 def test_create_and_find_book_review(reviewed_books_retriever):

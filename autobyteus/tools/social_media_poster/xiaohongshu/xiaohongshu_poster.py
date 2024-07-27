@@ -64,7 +64,7 @@ class XiaohongshuPoster(BaseTool, UIIntegrator):
         '''
         return usage
 
-    async def execute(self, **kwargs) -> str:
+    async def _execute(self, **kwargs) -> str:
         book_review = XiaohongshuBookReviewModel(
             title=kwargs.get('title'),
             content=kwargs.get('content')

@@ -44,8 +44,8 @@ class BaseTool(EventEmitter, ABC):
 
     @event_listener(EventType.TOOL_EXECUTION_COMPLETED)
     def on_execution_completed(self, result):
-        logger.info(f"{self.__class__.__name__} execution completed with result: {result}")
+        logger.info(f"{self.__class__.__name__} execution completed")
 
     @event_listener(EventType.TOOL_EXECUTION_FAILED)
     def on_execution_failed(self, error):
-        logger.error(f"{self.__class__.__name__} execution failed with error: {error}")
+        logger.error(f"{self.__class__.__name__} execution failed")

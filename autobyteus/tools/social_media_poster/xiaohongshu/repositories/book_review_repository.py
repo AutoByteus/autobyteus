@@ -11,5 +11,5 @@ class XiaohongshuBookReviewModel(BaseModel):
     content: str
     timestamp: datetime = datetime.utcnow()
 
-class ReviewedBooksRetriever(BaseRepository[XiaohongshuBookReviewModel]):
+class ReviewedBooksRepository(BaseRepository[XiaohongshuBookReviewModel]):
     pass
