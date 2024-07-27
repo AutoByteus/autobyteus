@@ -1,5 +1,8 @@
+# File: autobyteus/tools/social_media_poster/weibo/weibo_poster.py
+
 import asyncio
 import os
+import logging
 from typing import Optional
 from autobyteus.tools.base_tool import BaseTool
 from llm_ui_integration.ui_integrator import UIIntegrator
@@ -7,14 +10,14 @@ from autobyteus.tools.social_media_poster.weibo.image_uploader import ImageUploa
 from autobyteus.tools.social_media_poster.weibo.repositories.reviewed_movie_repository import WeiboReviewedMovieModel, WeiboReviewedMovieRepository
 from autobyteus.tools.social_media_poster.weibo.screenshot import capture_screenshot, save_screenshot
 from autobyteus.tools.social_media_poster.weibo.window_utils import find_window_by_name
+from autobyteus.events.event_types import EventType
+from autobyteus.events.decorators import publish_event
+
+logger = logging.getLogger(__name__)
 
 class WeiboPoster(BaseTool, UIIntegrator):
     """
     A tool that allows for publishing a post on Weibo using Playwright.
-
-    This class inherits from BaseTool and UIIntegrator. Upon initialization via the UIIntegrator's
-    initialize method, self.page becomes available as a Playwright page object for interaction
-    with the web browser.
     """
 
     def __init__(self, weibo_account_name):
@@ -29,7 +32,6 @@ class WeiboPoster(BaseTool, UIIntegrator):
         self.uploaded_image_selector = 'div.Image_focus_23gKL'
 
         self.weibo_account_name = weibo_account_name
-
 
     def tool_usage(self) -> str:
         return 'WeiboPoster: Publishes a movie review post on Weibo. Usage: <<<WeiboPoster(movie_title="movie title", content="review content", image_path="/full/path/to/image.jpg")>>>, where "movie_title" is a string representing the title of the movie being reviewed, "review content" is a string containing the review text, and "image_path" is an optional full file path to an image.'
@@ -47,7 +49,6 @@ class WeiboPoster(BaseTool, UIIntegrator):
     async def wait_for_image_upload(self):
         await self.page.wait_for_selector(self.uploaded_image_selector, timeout=10000)
 
-
     async def wait_for_file_chooser_dialog(self, timeout=10):
         start_time = asyncio.get_event_loop().time()
         while asyncio.get_event_loop().time() - start_time < timeout:
@@ -61,28 +62,12 @@ class WeiboPoster(BaseTool, UIIntegrator):
         feed_body_selector = 'div.Feed_body_3R0rO'
         account_name_link_selector = f'a[aria-label="{self.weibo_account_name}"]'
         await self.page.wait_for_selector(f'{feed_body_selector} {account_name_link_selector}', timeout=10000)
-        print("published successfully")
+        logger.info("Published successfully")
 
+    @publish_event(EventType.WEIBO_POST_COMPLETED)
     async def execute(self, **kwargs) -> str:
         """
         Publish a movie review post on Weibo using Playwright.
-
-        This method initializes the Playwright browser, navigates to Weibo, creates a post with the given
-        movie title and review content, optionally uploads an image, and submits the post. The reviewed movie
-        is then saved to the database using the ReviewedMovieRepository.
-
-        Args:
-            **kwargs: Keyword arguments containing the movie title, review content, and optional image path.
-                    'movie_title': The title of the movie being reviewed (required).
-                    'content': The text content of the review (required).
-                    'image_path': The full file path to an image to be uploaded (optional).
-
-        Returns:
-            str: A string containing a success message or error information.
-
-        Raises:
-            ValueError: If the 'movie_title' or 'content' keyword argument is not specified,
-                        or if the 'image_path' is provided but is not a full path or the file does not exist.
         """
         movie_title: str = kwargs.get('movie_title')
         content: str = kwargs.get('content')
@@ -99,14 +84,6 @@ class WeiboPoster(BaseTool, UIIntegrator):
             if not os.path.exists(image_path):
                 raise ValueError(f"The image file does not exist at the specified path: {image_path}")
 
-
-        if image_path:
-            if not os.path.isabs(image_path):
-                raise ValueError("The 'image_path' must be a full path.")
-            if not os.path.exists(image_path):
-                raise ValueError(f"The image file does not exist at the specified path: {image_path}")
-
-        # Call the initialize method from the UIIntegrator class to set up the Playwright browser
         await self.initialize()
 
         try:
@@ -119,42 +96,42 @@ class WeiboPoster(BaseTool, UIIntegrator):
 
             # Upload image if provided
             if image_path:
-                await self.page.click(self.image_upload_button_selector)
-                # Wait for the file chooser dialog to appear
-                dialog_appeared = await self.wait_for_file_chooser_dialog()
-                if not dialog_appeared:
-                    raise Exception("File chooser dialog did not appear within the timeout.")
+                await self.upload_image(image_path)
 
-                # Capture screenshot
-                screenshot = capture_screenshot()
-                save_screenshot(screenshot, "weibo_screenshot.png")
-
-                image_uploader = ImageUploader()
-                await image_uploader.locate_and_click_downloads_folder(screenshot)
-                await image_uploader.locate_and_upload_image(screenshot)
-
-                # Wait for the file input selector to be visible
-                # await self.page.wait_for_selector(self.uploaded_image_close_icon_selector, state='visible', timeout=10000)
-                # await self.page.wait_for_load_state("networkidle")
-                await self.wait_for_image_upload()
-
+            # Submit the post
             submit_button = await self.page.wait_for_selector(self.submit_button_selector)
             await submit_button.click()
 
             # Wait for the post to be published
             await self.wait_for_post_submission()
 
-
             # Save the reviewed movie to the database
             movie_review_repository = WeiboReviewedMovieRepository()
             reviewed_movie = WeiboReviewedMovieModel(movie_title=movie_title, content=content)
             movie_review_repository.create(reviewed_movie)
 
-            
+            logger.info("Post created successfully!")
             return "Post created successfully!"
+
         except Exception as e:
-            return f"An error occurred while creating the post: {str(e)}"
+            logger.error(f"An error occurred while creating the post: {str(e)}")
+            raise  # Re-raise the exception to be caught by the caller
 
         finally:
             await asyncio.sleep(3)
             await self.close()
+
+    async def upload_image(self, image_path):
+        await self.page.click(self.image_upload_button_selector)
+        dialog_appeared = await self.wait_for_file_chooser_dialog()
+        if not dialog_appeared:
+            raise Exception("File chooser dialog did not appear within the timeout.")
+
+        screenshot = capture_screenshot()
+        save_screenshot(screenshot, "weibo_screenshot.png")
+
+        image_uploader = ImageUploader()
+        await image_uploader.locate_and_click_downloads_folder(screenshot)
+        await image_uploader.locate_and_upload_image(screenshot)
+
+        await self.wait_for_image_upload()

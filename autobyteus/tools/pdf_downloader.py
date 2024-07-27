@@ -31,7 +31,7 @@ class PDFDownloader(BaseTool):
     </command>
     '''
 
-    def execute(self, **kwargs):
+    def _execute(self, **kwargs):
         """
         Download a PDF file from the given URL and save it locally.
 

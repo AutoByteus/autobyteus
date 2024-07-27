@@ -62,7 +62,7 @@ class GoogleSearch(BaseTool, UIIntegrator):
     where "search query" is a string.
     '''
 
-    async def execute(self, **kwargs):
+    async def _execute(self, **kwargs):
         """
         Perform a Google search using Playwright and return the search results.
 

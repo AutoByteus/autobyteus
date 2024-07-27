@@ -32,7 +32,7 @@ class FileWriter(BaseTool):
     where "file_path" is the path to create the file and "file_content" is the content to write to the file.
     '''
 
-    def execute(self, **kwargs):
+    def _execute(self, **kwargs):
         """
         Write the content to a file at the specified path.
 

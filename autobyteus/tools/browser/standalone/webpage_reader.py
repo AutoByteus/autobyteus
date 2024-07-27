@@ -50,7 +50,7 @@ class WebPageReader(BaseTool, UIIntegrator):
 </command>
 where "webpage_url" is a string containing the URL of the webpage to read the content from.
 '''
-    async def execute(self, **kwargs):
+    async def _execute(self, **kwargs):
         """
         Read and clean the HTML content from the webpage at the given URL using Playwright.
 

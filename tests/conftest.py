@@ -1,5 +1,8 @@
-from pymongo import MongoClient
+# File: autobyteus/tests/conftest.py
+
 import pytest
+import logging
+from pymongo import MongoClient
 import os
 from repository_mongodb import MongoConfig
 from sqlalchemy.orm import sessionmaker
@@ -7,6 +10,29 @@ from repository_sqlalchemy.database_config import DatabaseConfig
 from repository_sqlalchemy.session_management import get_engine
 from repository_sqlalchemy import Base, transaction
 from autobyteus.prompt.storage.prompt_version_model import PromptVersionModel
+
+def pytest_configure(config):
+    # Create a custom logger
+    logger = logging.getLogger('autobyteus')
+    logger.setLevel(logging.DEBUG)
+
+    # Create console handler and set level to debug
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+
+    # Create formatter
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    # Add formatter to ch
+    ch.setFormatter(formatter)
+
+    # Add ch to logger
+    logger.addHandler(ch)
+
+@pytest.fixture(scope='session', autouse=True)
+def configure_logging():
+    # This fixture will be automatically used by all tests
+    pass
 
 
 '''

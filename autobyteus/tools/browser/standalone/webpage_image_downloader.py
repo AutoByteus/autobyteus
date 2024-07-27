@@ -24,7 +24,7 @@ class WebPageImageDownloader(BaseTool, UIIntegrator):
     where "webpage_url" is a string containing the URL of the webpage to download images from, and "path/to/save/directory" is the directory where the images will be saved.
     '''
 
-    async def execute(self, **kwargs):
+    async def _execute(self, **kwargs):
         """
         Download images (excluding SVGs) from the webpage at the given URL using Playwright and save them to the specified directory.
 

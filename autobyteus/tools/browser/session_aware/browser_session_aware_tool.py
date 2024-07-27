@@ -8,7 +8,7 @@ class BrowserSessionAwareTool(BaseTool):
         super().__init__()
         self.shared_browser_session_manager = SharedBrowserSessionManager()
 
-    async def execute(self, **kwargs):
+    async def _execute(self, **kwargs):
         webpage_url = kwargs.get('webpage_url')
         if not webpage_url:
             raise ValueError("The 'webpage_url' keyword argument must be specified.")

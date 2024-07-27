@@ -43,7 +43,7 @@ class BashExecutor(BaseTool):
     where "bash command" is a string containing the command to be executed.
     '''
 
-    def execute(self, **kwargs):
+    def _execute(self, **kwargs):
         """
         Execute a bash command and return its output.
 

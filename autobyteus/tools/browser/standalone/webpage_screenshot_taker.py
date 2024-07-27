@@ -22,7 +22,7 @@ class WebPageScreenshotTaker(BaseTool, UIIntegrator):
     where "webpage_url" is a string containing the URL of the webpage to take a screenshot of, and "screenshot_file_path" is the path where the screenshot will be saved.
     '''
 
-    async def execute(self, **kwargs):
+    async def _execute(self, **kwargs):
         """
         Take a screenshot of the webpage at the given URL using Playwright and save it to the specified file path.
 
