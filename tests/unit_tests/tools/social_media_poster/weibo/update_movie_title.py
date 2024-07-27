@@ -1,7 +1,7 @@
 import asyncio
 from typing import Dict
 from bson import ObjectId
-from autobyteus.tools.social_media_poster.weibo.repositories.reviewed_movie_repository import ReviewedMovieRepository, ReviewedMovieModel
+from autobyteus.tools.social_media_poster.weibo.repositories.reviewed_movie_repository import WeiboReviewedMovieRepository, WeiboReviewedMovieModel
 
 # Translation dictionary. We use this script to update the movie title.
 TRANSLATIONS: Dict[str, str] = {
@@ -17,7 +17,7 @@ TRANSLATIONS: Dict[str, str] = {
 }
 
 async def translate_movie_titles():
-    repository = ReviewedMovieRepository()
+    repository = WeiboReviewedMovieRepository()
     movies = repository.find_all()
 
     for movie in movies:

@@ -1,7 +1,8 @@
+# File: autobyteus/tools/social_media_poster/xiaohongshu/xiaohongshu_poster.py
 import asyncio
 from autobyteus.tools.base_tool import BaseTool
 from llm_ui_integration.ui_integrator import UIIntegrator
-from autobyteus.tools.social_media_poster.xiaohongshu.repositories.xiaohongshu_book_review_repository import XiaohongshuBookReviewModel, XiaohongshuBookReviewRepository
+from autobyteus.tools.social_media_poster.xiaohongshu.repositories.book_review_repository import XiaohongshuBookReviewModel, BookReviewRepository
 
 class XiaohongshuPoster(BaseTool, UIIntegrator):
     def __init__(self, xiaohongshu_account_name):
@@ -13,20 +14,55 @@ class XiaohongshuPoster(BaseTool, UIIntegrator):
         self.title_input_selector = '.input.titleInput input'
         self.content_input_selector = '#post-textarea'
         self.publish_button_selector = '.publishBtn'
-        self.image_upload_finished_selector = 'div.btn.edit'
+        self.uploading_indicator = '.img-container .mask.uploading'
         self.xiaohongshu_account_name = xiaohongshu_account_name
 
     def tool_usage(self) -> str:
-        return 'XiaohongshuPoster: Publishes a book review on Xiaohongshu. Usage: <<<XiaohongshuPoster(title="Book Review Title", content="Book review content")>>>'
+        usage = (
+            "XiaohongshuPoster: Publishes a book review on Xiaohongshu (小红书). "
+            "This tool allows you to create engaging book review posts with both original title (in any language) and Chinese translated title. "
+            "Usage: <<<XiaohongshuPoster(original_title=\"Original Title\", translated_title=\"中文标题\", content=\"Book review content in Chinese\")>>>\n\n"
+            "Examples:\n"
+            "1. English book:\n"
+            "<<<XiaohongshuPoster(\n"
+            "    original_title=\"To Live\",\n"
+            "    translated_title=\"活着\",\n"
+            "    content=\"余华的《活着》是一部震撼人心的小说，讲述了一个普通中国家庭在动荡年代的生存故事。...\"\n"
+            ")>>>\n\n"
+            "2. French book:\n"
+            "<<<XiaohongshuPoster(\n"
+            "    original_title=\"Le Petit Prince\",\n"
+            "    translated_title=\"小王子\",\n"
+            "    content=\"《小王子》是一部充满哲理的童话故事，讲述了一个来自外星球的小王子的奇妙冒险...\"\n"
+            ")>>>"
+        )
+        return usage
 
     def tool_usage_xml(self) -> str:
-        return '''XiaohongshuPoster: Publishes a book review on Xiaohongshu. Usage:
+        usage = '''XiaohongshuPoster: Publishes a book review on Xiaohongshu (小红书). This tool creates engaging book review posts with both original title (in any language) and Chinese translated title. Usage:
         <command name="XiaohongshuPoster">
-        <arg name="title">Book Review Title</arg>
-        <arg name="content">Book review content</arg>
+            <arg name="original_title">Original Title (in any language)</arg>
+            <arg name="translated_title">中文标题</arg>
+            <arg name="content">Book review content in Chinese</arg>
         </command>
-        where "title" is the title of the book review and "content" is the main text of the review.
+        where "original_title" is the book's title in its original language, "translated_title" is the Chinese translation of the title, and "content" is the main text of the review in Chinese.
+
+        Examples:
+        1. English book:
+        <command name="XiaohongshuPoster">
+            <arg name="original_title">To Live</arg>
+            <arg name="translated_title">活着</arg>
+            <arg name="content">余华的《活着》是一部震撼人心的小说，讲述了一个普通中国家庭在动荡年代的生存故事。...</arg>
+        </command>
+
+        2. French book:
+        <command name="XiaohongshuPoster">
+            <arg name="original_title">Le Petit Prince</arg>
+            <arg name="translated_title">小王子</arg>
+            <arg name="content">《小王子》是一部充满哲理的童话故事，讲述了一个来自外星球的小王子的奇妙冒险...</arg>
+        </command>
         '''
+        return usage
 
     async def execute(self, **kwargs) -> str:
         book_review = XiaohongshuBookReviewModel(
@@ -69,7 +105,7 @@ class XiaohongshuPoster(BaseTool, UIIntegrator):
             await self.wait_for_post_submission()
 
             # Save the posted book review to the database
-            book_review_repository = XiaohongshuBookReviewRepository()
+            book_review_repository = ReviewedBooksRetriever()
             book_review_repository.create(book_review)
 
             return f"Book review '{book_review.title}' published successfully on Xiaohongshu!"
@@ -82,13 +118,15 @@ class XiaohongshuPoster(BaseTool, UIIntegrator):
 
     async def wait_for_image_upload(self):
         try:
-            # First, wait for the title input selector to appear
-            await self.page.wait_for_selector(self.title_input_selector, state='visible', timeout=300000)  # 5-minute timeout
-            print("Title input detected. Checking for image upload completion.")
+            uploading_indicator = self.page.locator(self.uploading_indicator)
+            # Wait for the uploading indicator to appear (in case it's not immediately present)
+            await uploading_indicator.wait_for(state='attached', timeout=0)
+            
+            # Wait for the uploading indicator to disappear
+            await uploading_indicator.wait_for(state='detached', timeout=0)
+            await asyncio.sleep(1)
+            print("Image upload completed successfully.")
 
-            # Then, wait for the image upload finished indicator to appear
-            await self.page.wait_for_selector(self.image_upload_finished_selector, state='hidden', timeout=30000)  # 30-second timeout
-            print("Image upload detected. Proceeding with book review post creation.")
         except Exception as e:
             raise Exception(f"Error while waiting for image upload: {str(e)}")
 
@@ -108,3 +146,6 @@ class XiaohongshuPoster(BaseTool, UIIntegrator):
                 raise Exception("Unexpected content in success message")
         except Exception as e:
             raise Exception(f"Error while waiting for post submission: {str(e)}")
+        
+
+

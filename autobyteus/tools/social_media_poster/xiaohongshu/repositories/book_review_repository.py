@@ -6,9 +6,10 @@ class XiaohongshuBookReviewModel(BaseModel):
     __collection_name__ = "xiaohongshu_book_reviews"
 
     review_id: ObjectId = ObjectId()
+    original_title: str
     title: str
     content: str
     timestamp: datetime = datetime.utcnow()
 
-class XiaohongshuBookReviewRepository(BaseRepository[XiaohongshuBookReviewModel]):
+class ReviewedBooksRetriever(BaseRepository[XiaohongshuBookReviewModel]):
     pass

@@ -3,13 +3,14 @@ from typing import List, Type, Optional
 from autobyteus.conversation.conversation_manager import ConversationManager
 from autobyteus.conversation.persistence.file_based_persistence_provider import FileBasedPersistenceProvider
 from autobyteus.conversation.persistence.provider import PersistenceProvider
+from autobyteus.events.event_emitter import EventEmitter
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.agent.llm_response_parser import LLMResponseParser
 from autobyteus.agent.xml_llm_response_parser import XMLLLMResponseParser
 from autobyteus.prompt.prompt_builder import PromptBuilder
 
-class Agent:
+class Agent(EventEmitter):
     def __init__(self, role: str, prompt_builder: PromptBuilder, llm: BaseLLM, tools: List[BaseTool],
                  use_xml_parser=True, persistence_provider_class: Optional[Type[PersistenceProvider]] = FileBasedPersistenceProvider):
         self.role = role
@@ -66,3 +67,6 @@ class Agent:
     @staticmethod
     def _sanitize_conversation_name(name: str) -> str:
         return ''.join(c if c.isalnum() else '_' for c in name)
+    
+
+    

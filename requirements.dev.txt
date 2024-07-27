@@ -1,41 +1,4 @@
-## postgres database
-pymongo
-SQLAlchemy
-sqlalchemy-utils
-alembic
-psycopg2-binary
-repository-sqlalchemy
-repository-mongodb
-
-## testing
-pytest-playwright
-
-
-beautifulsoup4>=4.12.2
-colorama==0.4.6
-distro==1.8.0
-openai
-playsound==1.2.2
-pyyaml==6.0
-readability-lxml==0.8.1
-requests
-tiktoken==0.3.3
-gTTS==2.3.1
-docker
-google-api-python-client #(https://developers.google.com/custom-search/v1/overview)
-
-## embeding related
-redis
-weaviate-client
-sentence-transformers
-
-orjson
-Pillow
-jsonschema
-tweepy
-click
-
-##Dev
+-r requirements.txt
 coverage
 flake8
 numpy
@@ -45,8 +8,6 @@ isort
 gitpython==3.1.31
 auto-gpt-plugin-template
 mkdocs
-
-# Testing dependencies
 pytest
 asynctest
 pytest-asyncio
@@ -57,30 +18,3 @@ pytest-mock
 vcrpy
 pytest-vcr
 git+https://github.com/AFE-AI/llm_chatui_provider.git@main
-
-grpcio 
-grpcio-tools
-toml
-python-dotenv
-
-
-## server
-uvicorn
-fastapi 
-strawberry-graphql
-
-#### this section installs libraries for moving the mouse on computer
-opencv-python 
-pytesseract 
-pyautogui
-
-### Make sure you do the following installation as well
-# sudo apt-get install tesseract-ocr
-
-### upgrade pip install --upgrade Pillow
-### sudo apt install gnome-screenshot
-### pip install python-xlib, 
-## pip install ewmh
-##sudo apt-get install python3-dev
-##sudo apt-get install libx11-dev
-##

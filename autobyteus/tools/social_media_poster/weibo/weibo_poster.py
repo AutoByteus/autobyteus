@@ -150,6 +150,7 @@ class WeiboPoster(BaseTool, UIIntegrator):
             reviewed_movie = WeiboReviewedMovieModel(movie_title=movie_title, content=content)
             movie_review_repository.create(reviewed_movie)
 
+            
             return "Post created successfully!"
         except Exception as e:
             return f"An error occurred while creating the post: {str(e)}"

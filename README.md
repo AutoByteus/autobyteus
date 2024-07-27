@@ -14,9 +14,33 @@ A significant part of Autobytus is our custom-designed knowledge base focused on
 
 ## Getting Started
 
-1. **Installation**: Instructions on how to install Autobytus.
-2. **Usage**: Basic commands and examples to get you started.
-3. **Contributing**: Guidelines for contributing to the project.
+### Installation
+
+1. **For users:**
+   To install Autobyteus, run:
+   ```
+   pip install .
+   ```
+
+2. **For developers:**
+   To install Autobyteus with development dependencies, run:
+   ```
+   pip install -r requirements-dev.txt
+   ```
+
+3. **Platform-specific dependencies:**
+   To install platform-specific dependencies, run:
+   ```
+   python setup.py install_platform_deps
+   ```
+
+### Usage
+
+(Add basic commands and examples to get users started)
+
+### Contributing
+
+(Add guidelines for contributing to the project)
 
 ## License
 
