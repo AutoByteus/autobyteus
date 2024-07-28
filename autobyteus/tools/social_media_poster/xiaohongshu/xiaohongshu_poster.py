@@ -1,8 +1,13 @@
 # File: autobyteus/tools/social_media_poster/xiaohongshu/xiaohongshu_poster.py
+
 import asyncio
+import pyperclip
+import sys
 from autobyteus.tools.base_tool import BaseTool
 from llm_ui_integration.ui_integrator import UIIntegrator
-from autobyteus.tools.social_media_poster.xiaohongshu.repositories.book_review_repository import XiaohongshuBookReviewModel, BookReviewRepository
+from autobyteus.tools.social_media_poster.xiaohongshu.repositories.book_review_repository import XiaohongshuBookReviewModel, ReviewedBooksRepository
+from bson import ObjectId
+from datetime import datetime
 
 class XiaohongshuPoster(BaseTool, UIIntegrator):
     def __init__(self, xiaohongshu_account_name):
@@ -21,7 +26,8 @@ class XiaohongshuPoster(BaseTool, UIIntegrator):
         usage = (
             "XiaohongshuPoster: Publishes a book review on Xiaohongshu (小红书). "
             "This tool allows you to create engaging book review posts with both original title (in any language) and Chinese translated title. "
-            "Usage: <<<XiaohongshuPoster(original_title=\"Original Title\", translated_title=\"中文标题\", content=\"Book review content in Chinese\")>>>\n\n"
+            "Note: The translated_title must be within 20 words and will be used as the post title.\n"
+            "Usage: <<<XiaohongshuPoster(original_title=\"Original Title\", translated_title=\"中文标题 (20 words max)\", content=\"Book review content in Chinese\")>>>\n\n"
             "Examples:\n"
             "1. English book:\n"
             "<<<XiaohongshuPoster(\n"
@@ -34,18 +40,27 @@ class XiaohongshuPoster(BaseTool, UIIntegrator):
             "    original_title=\"Le Petit Prince\",\n"
             "    translated_title=\"小王子\",\n"
             "    content=\"《小王子》是一部充满哲理的童话故事，讲述了一个来自外星球的小王子的奇妙冒险...\"\n"
-            ")>>>"
+            ")>>>\n\n"
+            "3. INCORRECT EXAMPLE - DO NOT USE:\n"
+            "<<<XiaohongshuPoster(\n"
+            "    original_title=\"The Catcher in the Rye\",\n"
+            "    translated_title=\"麦田里的守望者：一部探讨青春期叛逆与成长的经典小说，深刻剖析了现代社会中年轻人的困惑与迷茫\",\n"
+            "    content=\"...\"\n"
+            ")>>>\n"
+            "THIS IS ABSOLUTELY WRONG! The translated_title is way over the 20-word limit. "
+            "Such long titles are strictly prohibited and will cause the post to fail. "
+            "Always keep your translated titles concise and within the 20-word limit!"
         )
         return usage
 
     def tool_usage_xml(self) -> str:
-        usage = '''XiaohongshuPoster: Publishes a book review on Xiaohongshu (小红书). This tool creates engaging book review posts with both original title (in any language) and Chinese translated title. Usage:
+        usage = '''XiaohongshuPoster: Publishes a book review on Xiaohongshu (小红书). This tool creates engaging book review posts with both original title (in any language) and Chinese translated title. Note: The translated_title must be within 20 words and will be used as the post title. Usage:
         <command name="XiaohongshuPoster">
             <arg name="original_title">Original Title (in any language)</arg>
-            <arg name="translated_title">中文标题</arg>
+            <arg name="translated_title">中文标题 (20 words max)</arg>
             <arg name="content">Book review content in Chinese</arg>
         </command>
-        where "original_title" is the book's title in its original language, "translated_title" is the Chinese translation of the title, and "content" is the main text of the review in Chinese.
+        where "original_title" is the book's title in its original language, "translated_title" is the Chinese translation of the title (max 20 words) and will be used as the post title, and "content" is the main text of the review in Chinese.
 
         Examples:
         1. English book:
@@ -61,17 +76,37 @@ class XiaohongshuPoster(BaseTool, UIIntegrator):
             <arg name="translated_title">小王子</arg>
             <arg name="content">《小王子》是一部充满哲理的童话故事，讲述了一个来自外星球的小王子的奇妙冒险...</arg>
         </command>
+
+        3. INCORRECT EXAMPLE - DO NOT USE:
+        <command name="XiaohongshuPoster">
+            <arg name="original_title">The Catcher in the Rye</arg>
+            <arg name="translated_title">麦田里的守望者：一部探讨青春期叛逆与成长的经典小说，深刻剖析了现代社会中年轻人的困惑与迷茫</arg>
+            <arg name="content">...</arg>
+        </command>
+        THIS IS ABSOLUTELY WRONG! The translated_title is way over the 20-word limit. 
+        Such long titles are strictly prohibited and will cause the post to fail. 
+        Always keep your translated titles concise and within the 20-word limit!
         '''
         return usage
 
     async def _execute(self, **kwargs) -> str:
-        book_review = XiaohongshuBookReviewModel(
-            title=kwargs.get('title'),
-            content=kwargs.get('content')
-        )
+        original_title = kwargs.get('original_title')
+        translated_title = kwargs.get('translated_title')
+        content = kwargs.get('content')
 
-        if not book_review.title or not book_review.content:
-            raise ValueError("Both 'title' and 'content' are required for the book review.")
+        if not original_title or not translated_title or not content:
+            raise ValueError("'original_title', 'translated_title', and 'content' are all required for the book review.")
+
+        if len(translated_title.split()) > 20:
+            raise ValueError("The translated_title must be within 20 words.")
+
+        book_review = XiaohongshuBookReviewModel(
+            review_id=ObjectId(),
+            original_title=original_title,
+            title=translated_title,  # Use translated_title as the post title
+            content=content,
+            timestamp=datetime.utcnow()
+        )
 
         await self.initialize()
 
@@ -91,11 +126,11 @@ class XiaohongshuPoster(BaseTool, UIIntegrator):
             await self.wait_for_image_upload()
             await asyncio.sleep(1)
 
-            # Input title
-            await self.page.fill(self.title_input_selector, book_review.title)
+            # Input translated title as the post title
+            await self._copy_paste_text(self.title_input_selector, book_review.title)
 
             # Input content
-            await self.page.fill(self.content_input_selector, book_review.content)
+            await self._copy_paste_text(self.content_input_selector, book_review.content)
 
             # Click publish button
             publish_button = await self.page.wait_for_selector(self.publish_button_selector)
@@ -105,7 +140,7 @@ class XiaohongshuPoster(BaseTool, UIIntegrator):
             await self.wait_for_post_submission()
 
             # Save the posted book review to the database
-            book_review_repository = ReviewedBooksRetriever()
+            book_review_repository = ReviewedBooksRepository()
             book_review_repository.create(book_review)
 
             return f"Book review '{book_review.title}' published successfully on Xiaohongshu!"
@@ -115,6 +150,18 @@ class XiaohongshuPoster(BaseTool, UIIntegrator):
             await asyncio.sleep(3)
             await self.close()
 
+    async def _copy_paste_text(self, selector: str, text: str) -> None:
+        """
+        Copy the text to the clipboard and paste it into the specified element.
+        """
+        pyperclip.copy(text)
+        await self.page.focus(selector)
+        
+        # Determine the appropriate paste shortcut based on the operating system
+        paste_shortcut = "Meta+V" if sys.platform == "darwin" else "Control+V"
+        
+        await self.page.keyboard.press(paste_shortcut)  # Paste from clipboard
+        await asyncio.sleep(0.5)  # Short delay to ensure the paste operation completes
 
     async def wait_for_image_upload(self):
         try:
@@ -129,7 +176,6 @@ class XiaohongshuPoster(BaseTool, UIIntegrator):
 
         except Exception as e:
             raise Exception(f"Error while waiting for image upload: {str(e)}")
-
 
     async def wait_for_post_submission(self):
         try:
@@ -146,6 +192,3 @@ class XiaohongshuPoster(BaseTool, UIIntegrator):
                 raise Exception("Unexpected content in success message")
         except Exception as e:
             raise Exception(f"Error while waiting for post submission: {str(e)}")
-        
-
-

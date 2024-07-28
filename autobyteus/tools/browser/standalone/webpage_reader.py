@@ -72,4 +72,8 @@ where "webpage_url" is a string containing the URL of the webpage to read the co
         page_content = await self.page.content()
         cleaned_content = clean(page_content, mode=self.content_cleanup_level)
         await self.close()
-        return cleaned_content
+        return f'''here is the html of the web page 
+                <WebPageContentStart>
+                    {cleaned_content}
+                </WebPageContentEnd>
+                '''

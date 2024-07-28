@@ -4,7 +4,6 @@ import logging
 from abc import ABC, abstractmethod
 from autobyteus.events.event_emitter import EventEmitter
 from autobyteus.events.event_types import EventType
-from autobyteus.events.decorators import publish_event, event_listener
 
 logger = logging.getLogger('autobyteus')
 
@@ -14,12 +13,16 @@ class BaseTool(EventEmitter, ABC):
 
     async def execute(self, **kwargs):
         """Execute the tool's main functionality."""
+        tool_name = self.__class__.__name__
+        logger.info(f"{tool_name} execution started")
         self.emit(EventType.TOOL_EXECUTION_STARTED)
         try:
             result = await self._execute(**kwargs)
+            logger.info(f"{tool_name} execution completed")
             self.emit(EventType.TOOL_EXECUTION_COMPLETED, result)
             return result
         except Exception as e:
+            logger.error(f"{tool_name} execution failed: {str(e)}")
             self.emit(EventType.TOOL_EXECUTION_FAILED, str(e))
             raise
 
@@ -37,15 +40,3 @@ class BaseTool(EventEmitter, ABC):
     def tool_usage_xml(self):
         """Return a string describing the usage of the tool in XML format."""
         pass
-
-    @event_listener(EventType.TOOL_EXECUTION_STARTED)
-    def on_execution_started(self, *args, **kwargs):
-        logger.info(f"{self.__class__.__name__} execution started")
-
-    @event_listener(EventType.TOOL_EXECUTION_COMPLETED)
-    def on_execution_completed(self, result):
-        logger.info(f"{self.__class__.__name__} execution completed")
-
-    @event_listener(EventType.TOOL_EXECUTION_FAILED)
-    def on_execution_failed(self, error):
-        logger.error(f"{self.__class__.__name__} execution failed")

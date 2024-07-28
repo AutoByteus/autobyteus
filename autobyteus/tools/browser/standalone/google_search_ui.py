@@ -10,6 +10,7 @@ Classes:
     GoogleSearch: A tool for performing Google searches and retrieving cleaned results.
 """
 
+import asyncio
 import re
 from bs4 import BeautifulSoup
 from autobyteus.tools.base_tool import BaseTool
@@ -97,10 +98,16 @@ class GoogleSearch(BaseTool, UIIntegrator):
         await self.page.wait_for_load_state()
 
         # Wait for the search results to load
+        # Wait for the search results to load, we didnt use main because main will contain a lot of base64 encoded images. This will consume a lot of tokens.
+        #search_result_div = await self.page.wait_for_selector('div.main', state="visible", timeout=10000)
         search_result_div = await self.page.wait_for_selector('#search', state="visible", timeout=10000)
-
+        await asyncio.sleep(2)
         # Get the content of the div
         search_result = await search_result_div.inner_html()
         cleaned_search_result = clean(search_result, mode=self.cleaning_mode)
         await self.close()
-        return cleaned_search_result
+        return f'''here is the google search result html
+                  <GoogleSearchResultStart>
+                        {cleaned_search_result}
+                  </GoogleSearchResultEnd>
+                '''
