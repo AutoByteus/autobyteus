@@ -1,4 +1,4 @@
-# autobyteus/prompt/prompt_template.py
+# file: autobyteus/prompt/prompt_template.py
 
 from autobyteus.prompt.prompt_template_variable import PromptTemplateVariable
 
