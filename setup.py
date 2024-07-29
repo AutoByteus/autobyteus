@@ -132,6 +132,7 @@ setup(
         "autobyteus.tools.social_media_poster.weibo": 
             ["images/open_file_button_template.png",
              "images/downloads_folder_button.png"],
+        "autobyteus.agent.group": ["coordinator_agent.prompt"],  # Added this line
     },
     cmdclass={
         'install_platform_deps': InstallPlatformDependencies,

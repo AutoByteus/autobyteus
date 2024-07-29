@@ -25,7 +25,7 @@ def agent_group():
     {external_tools}
     """)
     research_tools = [GoogleSearch()]
-    research_agent = GroupAwareAgent("ResearchAgent", research_prompt, research_llm, research_tools)
+    research_agent = GroupAwareAgent("ResearchAgent", research_prompt, research_llm, research_tools, skills="google search")
 
     # Set up SummaryAgent
     summary_llm = GeminiLLM()
@@ -35,7 +35,7 @@ def agent_group():
     Available external tools:
     {external_tools}
     """)
-    summary_agent = GroupAwareAgent("SummaryAgent", summary_prompt, summary_llm, [])
+    summary_agent = GroupAwareAgent("SummaryAgent", summary_prompt, summary_llm, [], skills = "summarization")
 
     # Add agents to the group
     group.add_agent(research_agent)
