@@ -1,6 +1,6 @@
 # File: autobyteus/tools/send_message_to.py
 
-from autobyteus.agent.agent_group import AgentGroup
+from autobyteus.agent.group.agent_group import AgentGroup
 from autobyteus.tools.base_tool import BaseTool
 
 class SendMessageTo(BaseTool):
