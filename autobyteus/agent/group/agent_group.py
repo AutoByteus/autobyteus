@@ -1,5 +1,6 @@
-# File: autobyteus/agent/agent_group.py
+# File: autobyteus/agent/group/agent_group.py
 
+import asyncio
 from typing import Dict, Optional
 from autobyteus.agent.group.group_aware_agent import GroupAwareAgent
 from autobyteus.agent.group.coordinator_agent import CoordinatorAgent
@@ -26,9 +27,8 @@ class AgentGroup:
         """Set the coordinator agent for the group."""
         self.coordinator_agent = coordinator
         self.add_agent(coordinator)
-        self.start_agent = coordinator
 
-    def get_agent(self, role: str) -> GroupAwareAgent:
+    def get_agent(self, role: str) -> Optional[GroupAwareAgent]:
         """Get an agent by its role."""
         return self.agents.get(role)
 
@@ -41,21 +41,33 @@ class AgentGroup:
         target_agent = self.get_agent(to_role)
         if not target_agent:
             return f"Error: Agent with role '{to_role}' not found."
-
         return await target_agent.receive_message(from_role, message)
 
-    async def initialize_agents(self):
-        """Initialize all agents in the group."""
-        for agent in self.agents.values():
-            await agent.initialize()
-
     async def run(self, user_task: str = ""):
-        """Start the agent group workflow by initializing all agents and running the start agent or coordinator."""
-        await self.initialize_agents()
-
-        if self.coordinator_agent:
-            return await self.coordinator_agent.run(user_task)
-        elif self.start_agent:
-            return await self.start_agent.run()
-        else:
+        """Start the agent group workflow by running all agents independently."""
+        if not self.coordinator_agent and not self.start_agent:
             raise ValueError("Neither coordinator agent nor start agent set. Use set_coordinator_agent() or set_start_agent() to set an agent.")
+
+        # Determine which agent will lead the task
+        lead_agent = self.coordinator_agent or self.start_agent
+
+        # Start all agents except the lead agent
+        agent_tasks = [asyncio.create_task(agent.run()) for agent in self.agents.values() if agent != lead_agent]
+
+        # Run the lead agent with the user task
+        if isinstance(lead_agent, CoordinatorAgent):
+            lead_task = asyncio.create_task(lead_agent.run(user_task))
+        else:
+            lead_task = asyncio.create_task(lead_agent.run())
+
+        # Wait for the lead agent to finish
+        result = await lead_task
+
+        # Cancel all other agent tasks
+        for task in agent_tasks:
+            task.cancel()
+
+        # Wait for all tasks to be cancelled
+        await asyncio.gather(*agent_tasks, return_exceptions=True)
+
+        return result

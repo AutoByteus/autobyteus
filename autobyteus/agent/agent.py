@@ -25,10 +25,11 @@ class Agent(EventEmitter):
         self.conversation_manager = ConversationManager()
         self.response_parser = XMLLLMResponseParser() if use_xml_parser else LLMResponseParser()
         self.persistence_provider_class = persistence_provider_class
+        self.conversation = None
 
     async def run(self):
         conversation_name = self._sanitize_conversation_name(self.role)
-        conversation = await self.conversation_manager.start_conversation(
+        self.conversation = await self.conversation_manager.start_conversation(
             conversation_name=conversation_name,
             llm=self.llm,
             persistence_provider_class=self.persistence_provider_class
@@ -37,7 +38,7 @@ class Agent(EventEmitter):
         # Build the prompt using the PromptBuilder
         prompt = self.prompt_builder.set_variable_value("external_tools", self._get_external_tools_section()).build()
 
-        response = await conversation.send_user_message(prompt)
+        response = await self.conversation.send_user_message(prompt)
 
         while True:
             tool_invocation = self.response_parser.parse_response(response)
@@ -51,11 +52,11 @@ class Agent(EventEmitter):
                     try:
                         result = await tool.execute(**arguments)
                         logger.info(f"Tool '{name}' result: {result}")
-                        response = await conversation.send_user_message(result)
+                        response = await self.conversation.send_user_message(result)
                     except Exception as e:
                         error_message = str(e)
                         logger.error(f"Tool '{name}' error: {error_message}")
-                        response = await conversation.send_user_message(error_message)
+                        response = await self.conversation.send_user_message(error_message)
                 else:
                     logger.warning(f"Tool '{name}' not found.")
                     break

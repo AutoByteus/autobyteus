@@ -33,3 +33,6 @@ python-dotenv
 uvicorn
 fastapi 
 strawberry-graphql
+opencv-python 
+pytesseract 
+pyautogui

@@ -1,4 +1,3 @@
-# file: autobyteus/prompt/prompt_builder.py
 from autobyteus.prompt.prompt_template import PromptTemplate
 
 class PromptBuilder:
@@ -7,7 +6,7 @@ class PromptBuilder:
         self.variable_values = {}
 
     @classmethod
-    def from_template(cls, file_name: str) -> 'PromptBuilder':
+    def from_file(cls, file_name: str) -> 'PromptBuilder':
         """
         Create a PromptBuilder instance with the specified template file.
 
@@ -19,6 +18,21 @@ class PromptBuilder:
         """
         builder = cls()
         builder.template = PromptTemplate(file=file_name)
+        return builder
+
+    @classmethod
+    def from_string(cls, template_string: str) -> 'PromptBuilder':
+        """
+        Create a PromptBuilder instance with the specified template string.
+
+        Args:
+            template_string (str): The template string.
+
+        Returns:
+            PromptBuilder: The PromptBuilder instance.
+        """
+        builder = cls()
+        builder.template = PromptTemplate(template=template_string)
         return builder
 
     def set_variable_value(self, name: str, value: str) -> 'PromptBuilder':
@@ -41,6 +55,9 @@ class PromptBuilder:
 
         Returns:
             str: The final prompt.
+
+        Raises:
+            ValueError: If the template is not set.
         """
         if self.template is None:
             raise ValueError("Template is not set")
