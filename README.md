@@ -34,6 +34,34 @@ A significant part of Autobytus is our custom-designed knowledge base focused on
    python setup.py install_platform_deps
    ```
 
+### Building the Library
+
+To build Autobyteus as a distributable package, follow these steps:
+
+1. Ensure you have the latest version of `setuptools` and `wheel` installed:
+   ```
+   pip install --upgrade setuptools wheel
+   ```
+
+2. Build the distribution packages:
+   ```
+   python setup.py sdist bdist_wheel
+   ```
+
+   This will create a `dist` directory containing the built distributions.
+
+3. (Optional) To create a source distribution only:
+   ```
+   python setup.py sdist
+   ```
+
+4. (Optional) To create a wheel distribution only:
+   ```
+   python setup.py bdist_wheel
+   ```
+
+The built packages will be in the `dist` directory and can be installed using pip or distributed as needed.
+
 ### Usage
 
 (Add basic commands and examples to get users started)

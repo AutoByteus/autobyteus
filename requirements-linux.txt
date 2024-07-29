@@ -1,4 +1,1 @@
 python-xlib
-opencv-python 
-pytesseract 
-pyautogui
