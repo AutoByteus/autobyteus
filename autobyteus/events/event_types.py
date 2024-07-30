@@ -10,4 +10,5 @@ class EventType(Enum):
     TOOL_EXECUTION_STARTED = auto()
     TOOL_EXECUTION_COMPLETED = auto()
     TOOL_EXECUTION_FAILED = auto()
-    WEIBO_POST_COMPLETED = auto()  # New event type for Weibo post completion
+    WEIBO_POST_COMPLETED = auto()
+    TASK_COMPLETED = auto()  # New event type for task completion
