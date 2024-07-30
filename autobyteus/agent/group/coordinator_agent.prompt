@@ -19,7 +19,12 @@ CRITICAL RULES:
 7. You MUST NOT use placeholders like "[Insert research results]" in your messages.
 
 Available Resources:
-{external_tools}
+
+1. Specialized AI Agents:
+   {agent_descriptions}
+
+2. External Tools:
+   {external_tools}
 
 WORKFLOW: Follow these steps for EVERY user task:
 
