@@ -1,6 +1,6 @@
 from autobyteus.llm.base_llm import BaseLLM
 from llm_ui_integration.ui_integrators.groq_ui_integrator.groq_ui_integrator import GroqUIIntegrator
-from autobyteus.llm.rpa.models import LLMModel
+from autobyteus.llm.models import LLMModel
 
 class GroqLLM(BaseLLM):
     def __init__(self, model: LLMModel):

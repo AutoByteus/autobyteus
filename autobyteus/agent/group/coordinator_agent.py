@@ -2,7 +2,8 @@
 
 import os
 import logging
-from autobyteus.agent.group.group_aware_agent import GroupAwareAgent
+import asyncio
+from autobyteus.agent.group.group_aware_agent import GroupAwareAgent, AgentStatus
 from autobyteus.prompt.prompt_builder import PromptBuilder
 from autobyteus.llm.base_llm import BaseLLM
 from typing import List
@@ -14,6 +15,7 @@ class CoordinatorAgent(GroupAwareAgent):
     def __init__(self, role: str, llm: BaseLLM, tools: List[BaseTool]):
         prompt_builder = PromptBuilder.from_file(self._get_prompt_template_path())
         super().__init__(role, prompt_builder, llm, tools)
+        self.user_task = None
 
     def _get_prompt_template_path(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -24,39 +26,42 @@ class CoordinatorAgent(GroupAwareAgent):
         self.prompt_builder.set_variable_value("agent_descriptions", agent_descriptions)
         self.prompt_builder.set_variable_value("external_tools", self._get_external_tools_section())
 
-    async def run(self, user_task: str):
+    async def run(self, user_task: str = None):
+        if user_task:
+            self.user_task = user_task
+        
+        try:
+            self.status = AgentStatus.RUNNING
+            await self.initialize_llm_conversation()
+            
+            agent_message_handler = asyncio.create_task(self.handle_agent_messages())
+            tool_result_handler = asyncio.create_task(self.handle_tool_results())
+
+            await asyncio.gather(agent_message_handler, tool_result_handler)
+        except Exception as e:
+            logger.error(f"Error in coordinator agent execution: {str(e)}")
+            self.status = AgentStatus.ERROR
+        else:
+            self.status = AgentStatus.ENDED
+
+    async def initialize_llm_conversation(self):
         conversation_name = self._sanitize_conversation_name(self.role)
-        conversation = await self.conversation_manager.start_conversation(
+        self.conversation = await self.conversation_manager.start_conversation(
             conversation_name=conversation_name,
             llm=self.llm,
             persistence_provider_class=self.persistence_provider_class
         )
 
         self.generate_dynamic_prompt()
-        prompt = self.prompt_builder.build()
+        initial_prompt = self.prompt_builder.build()
         
-        response = await conversation.send_user_message(f"{prompt}\n\nUser task: {user_task}")
+        if self.user_task:
+            initial_prompt += f"\n\nUser task: {self.user_task}"
         
-        while True:
-            tool_invocation = self.response_parser.parse_response(response)
+        initial_llm_response = await self.conversation.send_user_message(initial_prompt)
+        await self.process_llm_response(initial_llm_response)
 
-            if tool_invocation.is_valid():
-                name = tool_invocation.name
-                arguments = tool_invocation.arguments
+    # Note: We've removed process_llm_response and execute_tool methods,
+    # as they will now use the parent class implementations.
 
-                tool = next((t for t in self.tools if t.__class__.__name__ == name), None)
-                if tool:
-                    try:
-                        result = await tool.execute(**arguments)
-                        logger.info(f"Tool '{name}' result: {result}")
-                        response = await conversation.send_user_message(result)
-                    except Exception as e:
-                        error_message = str(e)
-                        logger.error(f"Tool '{name}' error: {error_message}")
-                        response = await conversation.send_user_message(error_message)
-                else:
-                    logger.warning(f"Tool '{name}' not found.")
-                    break
-            else:
-                logger.info(f"Assistant: {response}")
-                return response
+    # Add any coordinator-specific methods here if needed

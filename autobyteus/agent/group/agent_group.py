@@ -41,33 +41,20 @@ class AgentGroup:
         target_agent = self.get_agent(to_role)
         if not target_agent:
             return f"Error: Agent with role '{to_role}' not found."
-        return await target_agent.receive_message(from_role, message)
+        return await target_agent.receive_agent_message(from_role, message)
 
     async def run(self, user_task: str = ""):
-        """Start the agent group workflow by running all agents independently."""
+        """Start the agent group workflow by running only the lead agent."""
         if not self.coordinator_agent and not self.start_agent:
             raise ValueError("Neither coordinator agent nor start agent set. Use set_coordinator_agent() or set_start_agent() to set an agent.")
 
         # Determine which agent will lead the task
         lead_agent = self.coordinator_agent or self.start_agent
 
-        # Start all agents except the lead agent
-        agent_tasks = [asyncio.create_task(agent.run()) for agent in self.agents.values() if agent != lead_agent]
-
         # Run the lead agent with the user task
         if isinstance(lead_agent, CoordinatorAgent):
-            lead_task = asyncio.create_task(lead_agent.run(user_task))
+            result = await lead_agent.run(user_task)
         else:
-            lead_task = asyncio.create_task(lead_agent.run())
-
-        # Wait for the lead agent to finish
-        result = await lead_task
-
-        # Cancel all other agent tasks
-        for task in agent_tasks:
-            task.cancel()
-
-        # Wait for all tasks to be cancelled
-        await asyncio.gather(*agent_tasks, return_exceptions=True)
+            result = await lead_agent.run()
 
         return result
