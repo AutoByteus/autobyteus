@@ -4,6 +4,7 @@ import os
 import logging
 import asyncio
 from autobyteus.agent.group.group_aware_agent import GroupAwareAgent, AgentStatus
+from autobyteus.events.event_types import EventType
 from autobyteus.prompt.prompt_builder import PromptBuilder
 from autobyteus.llm.base_llm import BaseLLM
 from typing import List
@@ -26,6 +27,16 @@ class CoordinatorAgent(GroupAwareAgent):
         self.prompt_builder.set_variable_value("agent_descriptions", agent_descriptions)
         self.prompt_builder.set_variable_value("external_tools", self._get_external_tools_section())
 
+    async def process_llm_response(self, llm_response):
+        tool_invocation = self.response_parser.parse_response(llm_response)
+
+        if tool_invocation.is_valid():
+            await self.execute_tool(tool_invocation)
+        else:
+            logger.info(f"Coordinator Response: {llm_response}")
+            # The coordinator has finished its task
+            self.emit(EventType.TASK_COMPLETED)
+
     async def run(self, user_task: str = None):
         if user_task:
             self.user_task = user_task
@@ -35,7 +46,7 @@ class CoordinatorAgent(GroupAwareAgent):
             await self.initialize_llm_conversation()
             
             agent_message_handler = asyncio.create_task(self.handle_agent_messages())
-            tool_result_handler = asyncio.create_task(self.handle_tool_results())
+            tool_result_handler = asyncio.create_task(self.handle_tool_result_messages())
 
             await asyncio.gather(agent_message_handler, tool_result_handler)
         except Exception as e:
@@ -60,8 +71,3 @@ class CoordinatorAgent(GroupAwareAgent):
         
         initial_llm_response = await self.conversation.send_user_message(initial_prompt)
         await self.process_llm_response(initial_llm_response)
-
-    # Note: We've removed process_llm_response and execute_tool methods,
-    # as they will now use the parent class implementations.
-
-    # Add any coordinator-specific methods here if needed

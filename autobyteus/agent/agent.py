@@ -51,6 +51,7 @@ class StandaloneAgent(EventEmitter):
         # Automatically register for task completion event
         self.register_task_completion_listener()
 
+
     async def run(self):
         """
         The main execution loop for the agent.
@@ -59,43 +60,47 @@ class StandaloneAgent(EventEmitter):
         and then enters a loop where it processes responses from the LLM and executes
         tools as needed. The loop continues until the task_completed event is set.
         """
-        conversation_name = self._sanitize_conversation_name(self.role)
-        self.conversation = await self.conversation_manager.start_conversation(
-            conversation_name=conversation_name,
-            llm=self.llm,
-            persistence_provider_class=self.persistence_provider_class
-        )
+        try:
+            conversation_name = self._sanitize_conversation_name(self.role)
+            self.conversation = await self.conversation_manager.start_conversation(
+                conversation_name=conversation_name,
+                llm=self.llm,
+                persistence_provider_class=self.persistence_provider_class
+            )
 
-        # Build the prompt using the PromptBuilder
-        prompt = self.prompt_builder.set_variable_value("external_tools", self._get_external_tools_section()).build()
+            # Build the prompt using the PromptBuilder
+            prompt = self.prompt_builder.set_variable_value("external_tools", self._get_external_tools_section()).build()
 
-        response = await self.conversation.send_user_message(prompt)
+            response = await self.conversation.send_user_message(prompt)
 
-        while not self.task_completed.is_set():
-            tool_invocation = self.response_parser.parse_response(response)
+            while not self.task_completed.is_set():
+                tool_invocation = self.response_parser.parse_response(response)
 
-            if tool_invocation.is_valid():
-                name = tool_invocation.name
-                arguments = tool_invocation.arguments
+                if tool_invocation.is_valid():
+                    name = tool_invocation.name
+                    arguments = tool_invocation.arguments
 
-                tool = next((t for t in self.tools if t.__class__.__name__ == name), None)
-                if tool:
-                    try:
-                        result = await tool.execute(**arguments)
-                        logger.info(f"Tool '{name}' result: {result}")
-                        response = await self.conversation.send_user_message(result)
-                    except Exception as e:
-                        error_message = str(e)
-                        logger.error(f"Tool '{name}' error: {error_message}")
-                        response = await self.conversation.send_user_message(error_message)
+                    tool = next((t for t in self.tools if t.__class__.__name__ == name), None)
+                    if tool:
+                        try:
+                            result = await tool.execute(**arguments)
+                            logger.info(f"Tool '{name}' result: {result}")
+                            response = await self.conversation.send_user_message(result)
+                        except Exception as e:
+                            error_message = str(e)
+                            logger.error(f"Tool '{name}' error: {error_message}")
+                            response = await self.conversation.send_user_message(error_message)
+                    else:
+                        logger.warning(f"Tool '{name}' not found.")
+                        break
                 else:
-                    logger.warning(f"Tool '{name}' not found.")
-                    break
-            else:
-                logger.info(f"Assistant: {response}")
-                await asyncio.sleep(1)  # Prevent busy-waiting
-        
-        logger.info("Agent finished")
+                    logger.info(f"Assistant: {response}")
+                    await asyncio.sleep(1)  # Prevent busy-waiting
+            
+            logger.info("Agent finished")
+        finally:
+            # Ensure cleanup is performed
+            await self.cleanup()
 
     def _get_external_tools_section(self):
         """Generate a string representation of all available tools."""
@@ -117,3 +122,9 @@ class StandaloneAgent(EventEmitter):
     def register_task_completion_listener(self):
         """Register a listener for the task completion event."""
         self.subscribe(EventType.TASK_COMPLETED, self.on_task_completed)
+
+    async def cleanup(self):
+        """Perform cleanup operations."""
+        logger.info(f"Cleaning up resources for agent: {self.role}")
+        if self.llm:
+            await self.llm.close()

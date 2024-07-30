@@ -68,4 +68,3 @@ async def test_agent_group_setup(agent_group):
     assert agent_group.get_agent("ResearchAgent") is not None
     assert agent_group.get_agent("SummarizationAgent") is not None
 
-# Add more tests as needed

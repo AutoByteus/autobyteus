@@ -21,7 +21,7 @@ class GroupAwareAgent(StandaloneAgent):
         super().__init__(*args, **kwargs)
         self.agent_group = None
         self.incoming_agent_messages = asyncio.Queue()
-        self.tool_execution_results = asyncio.Queue()
+        self.tool_result_messages = asyncio.Queue()
         self.status = AgentStatus.NOT_STARTED
         self._run_task = None
 
@@ -40,19 +40,35 @@ class GroupAwareAgent(StandaloneAgent):
             self._run_task = asyncio.create_task(self.run())
 
     async def run(self):
-        try:
-            self.status = AgentStatus.RUNNING
-            await self.initialize_llm_conversation()
-            
-            agent_message_handler = asyncio.create_task(self.handle_agent_messages())
-            tool_result_handler = asyncio.create_task(self.handle_tool_results())
+            try:
+                self.status = AgentStatus.RUNNING
+                await self.initialize_llm_conversation()
+                
+                agent_message_handler = asyncio.create_task(self.handle_agent_messages())
+                tool_result_handler = asyncio.create_task(self.handle_tool_result_messages())
 
-            await asyncio.gather(agent_message_handler, tool_result_handler)
-        except Exception as e:
-            logger.error(f"Error in agent execution: {str(e)}")
-            self.status = AgentStatus.ERROR
-        else:
-            self.status = AgentStatus.ENDED
+                # Wait for either the tasks to complete or the task_completed event to be set
+                done, pending = await asyncio.wait(
+                    [agent_message_handler, tool_result_handler, self.task_completed.wait()],
+                    return_when=asyncio.FIRST_COMPLETED
+                )
+
+                # Cancel any pending tasks
+                for task in pending:
+                    task.cancel()
+
+                # Wait for the cancelled tasks to finish
+                await asyncio.gather(*pending, return_exceptions=True)
+
+            except Exception as e:
+                logger.error(f"Error in agent execution: {str(e)}")
+                self.status = AgentStatus.ERROR
+            else:
+                self.status = AgentStatus.ENDED
+            finally:
+                # Cleanup resources
+                await self.cleanup()
+
 
     async def initialize_llm_conversation(self):
         conversation_name = self._sanitize_conversation_name(self.role)
@@ -67,7 +83,7 @@ class GroupAwareAgent(StandaloneAgent):
         await self.process_llm_response(initial_llm_response)
 
     async def handle_agent_messages(self):
-        while self.status == AgentStatus.RUNNING:
+        while not self.task_completed.is_set() and self.status == AgentStatus.RUNNING:
             try:
                 sender_role, message = await asyncio.wait_for(self.incoming_agent_messages.get(), timeout=1.0)
                 llm_response = await self.conversation.send_user_message(f"Message from {sender_role}: {message}")
@@ -75,15 +91,15 @@ class GroupAwareAgent(StandaloneAgent):
             except asyncio.TimeoutError:
                 pass
 
-    async def handle_tool_results(self):
-        while self.status == AgentStatus.RUNNING:
+    async def handle_tool_result_messages(self):
+        while not self.task_completed.is_set() and self.status == AgentStatus.RUNNING:
             try:
-                tool_result = await asyncio.wait_for(self.tool_execution_results.get(), timeout=1.0)
+                tool_result = await asyncio.wait_for(self.tool_result_messages.get(), timeout=1.0)
                 llm_response = await self.conversation.send_user_message(f"Tool execution result: {tool_result}")
                 await self.process_llm_response(llm_response)
             except asyncio.TimeoutError:
                 pass
-
+            
     async def process_llm_response(self, llm_response):
         tool_invocation = self.response_parser.parse_response(llm_response)
 
@@ -104,14 +120,14 @@ class GroupAwareAgent(StandaloneAgent):
                     
                     # Check if the tool is SendMessageTo
                     if not isinstance(tool, SendMessageTo):
-                        await self.tool_execution_results.put(tool_result)
+                        await self.tool_result_messages.put(tool_result)
                     else:
                         logger.info(f"SendMessageTo tool executed: {tool_result}")
                 except Exception as e:
                     error_message = f"Error executing tool '{tool_name}': {str(e)}"
                     logger.error(error_message)
                     if not isinstance(tool, SendMessageTo):
-                        await self.tool_execution_results.put(error_message)
+                        await self.tool_result_messages.put(error_message)
             else:
                 logger.warning(f"Tool '{tool_name}' not found in available tools.")
 
