@@ -1,19 +1,14 @@
-from enum import Enum
 from autobyteus.llm.base_llm import BaseLLM
 from llm_ui_integration.ui_integrators.mistralchat_ui_integrator.mistral_ui_integrator import MistralUIIntegrator
-
-class MistralModel(Enum):
-    MISTRAL_SMALL = "mistral-small"
-    MISTRAL_MEDIUM = "mistral-medium"
-    MISTRAL_LARGE = "mistral-large"
+from autobyteus.llm.models import LLMModel
 
 class MistralLLM(BaseLLM):
-    def __init__(self, model: MistralModel):
+    def __init__(self, model: LLMModel):
         """
         Initialize the MistralLLM instance.
 
         :param model: The Mistral model to use.
-        :type model: MistralModel
+        :type model: LLMModel
         """
         self.ui_integrator = MistralUIIntegrator()
         self.model = model
