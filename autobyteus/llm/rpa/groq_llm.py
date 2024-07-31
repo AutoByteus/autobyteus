@@ -37,7 +37,7 @@ class GroqLLM(BaseLLM):
         """
         await self.ui_integrator.start_new_conversation()
 
-    async def close(self):
+    async def cleanup(self):
         """
         Close the UI integrator and clean up resources.
         """

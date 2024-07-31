@@ -47,14 +47,8 @@ class AgentGroup:
         """Start the agent group workflow by running only the lead agent."""
         if not self.coordinator_agent and not self.start_agent:
             raise ValueError("Neither coordinator agent nor start agent set. Use set_coordinator_agent() or set_start_agent() to set an agent.")
-
+        
         # Determine which agent will lead the task
         lead_agent = self.coordinator_agent or self.start_agent
-
-        # Run the lead agent with the user task
-        if isinstance(lead_agent, CoordinatorAgent):
-            result = await lead_agent.run(user_task)
-        else:
-            result = await lead_agent.run()
-
+        result = await lead_agent.run()
         return result

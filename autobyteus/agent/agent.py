@@ -48,9 +48,8 @@ class StandaloneAgent(EventEmitter):
         self.conversation = None
         self.task_completed = asyncio.Event()
         
-        # Automatically register for task completion event
         self.register_task_completion_listener()
-
+        logger.info(f"StandaloneAgent initialized with role: {self.role}")
 
     async def run(self):
         """
@@ -61,17 +60,20 @@ class StandaloneAgent(EventEmitter):
         tools as needed. The loop continues until the task_completed event is set.
         """
         try:
+            logger.info(f"Starting execution for agent: {self.role}")
             conversation_name = self._sanitize_conversation_name(self.role)
             self.conversation = await self.conversation_manager.start_conversation(
                 conversation_name=conversation_name,
                 llm=self.llm,
                 persistence_provider_class=self.persistence_provider_class
             )
+            logger.info(f"Conversation started for agent: {self.role}")
 
-            # Build the prompt using the PromptBuilder
             prompt = self.prompt_builder.set_variable_value("external_tools", self._get_external_tools_section()).build()
+            logger.debug(f"Initial prompt for agent {self.role}: {prompt}")
 
             response = await self.conversation.send_user_message(prompt)
+            logger.info(f"Received initial LLM response for agent {self.role}")
 
             while not self.task_completed.is_set():
                 tool_invocation = self.response_parser.parse_response(response)
@@ -79,27 +81,27 @@ class StandaloneAgent(EventEmitter):
                 if tool_invocation.is_valid():
                     name = tool_invocation.name
                     arguments = tool_invocation.arguments
+                    logger.info(f"Agent {self.role} attempting to execute tool: {name}")
 
                     tool = next((t for t in self.tools if t.__class__.__name__ == name), None)
                     if tool:
                         try:
                             result = await tool.execute(**arguments)
-                            logger.info(f"Tool '{name}' result: {result}")
+                            logger.info(f"Tool '{name}' executed successfully by agent {self.role}. Result: {result}")
                             response = await self.conversation.send_user_message(result)
                         except Exception as e:
                             error_message = str(e)
-                            logger.error(f"Tool '{name}' error: {error_message}")
+                            logger.error(f"Error executing tool '{name}' by agent {self.role}: {error_message}")
                             response = await self.conversation.send_user_message(error_message)
                     else:
-                        logger.warning(f"Tool '{name}' not found.")
+                        logger.warning(f"Tool '{name}' not found for agent {self.role}.")
                         break
                 else:
-                    logger.info(f"Assistant: {response}")
-                    await asyncio.sleep(1)  # Prevent busy-waiting
+                    logger.info(f"Assistant response for agent {self.role}: {response}")
+                    await asyncio.sleep(1)
             
-            logger.info("Agent finished")
+            logger.info(f"Agent {self.role} finished execution")
         finally:
-            # Ensure cleanup is performed
             await self.cleanup()
 
     def _get_external_tools_section(self):
@@ -114,17 +116,20 @@ class StandaloneAgent(EventEmitter):
         """Sanitize the conversation name to ensure it's valid for storage."""
         return ''.join(c if c.isalnum() else '_' for c in name)
 
-    def on_task_completed(self, event_type: EventType, *args, **kwargs):
-        """Event handler for task completion."""
-        if event_type == EventType.TASK_COMPLETED:
-            self.task_completed.set()
-
-    def register_task_completion_listener(self):
-        """Register a listener for the task completion event."""
-        self.subscribe(EventType.TASK_COMPLETED, self.on_task_completed)
-
     async def cleanup(self):
         """Perform cleanup operations."""
         logger.info(f"Cleaning up resources for agent: {self.role}")
         if self.llm:
-            await self.llm.close()
+            await self.llm.cleanup()
+        logger.info(f"Cleanup completed for agent: {self.role}")
+
+    def on_task_completed(self, event_type: EventType, *args, **kwargs):
+        """Event handler for task completion."""
+        if event_type == EventType.TASK_COMPLETED:
+            logger.info(f"Task completed event received for agent: {self.role}")
+            self.task_completed.set()
+
+    def register_task_completion_listener(self):
+        """Register a listener for the task completion event."""
+        logger.info(f"Registering task completion listener for agent: {self.role}")
+        self.subscribe(EventType.TASK_COMPLETED, self.on_task_completed)

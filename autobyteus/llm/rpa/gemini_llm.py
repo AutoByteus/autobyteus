@@ -26,3 +26,9 @@ class GeminiLLM(BaseLLM):
         
         response = await self.ui_integrator.send_user_message(user_message, user_message_index)
         return response
+    
+    async def cleanup(self):
+        """
+        Clean up resources used by the Gemini LLM.
+        """
+        await self.ui_integrator.close()

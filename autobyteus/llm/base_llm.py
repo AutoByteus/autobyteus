@@ -22,3 +22,11 @@ class BaseLLM(ABC):
         :type kwargs: dict
         """
         pass
+
+    @abstractmethod
+    async def cleanup(self):
+        """
+        Clean up resources used by the LLM.
+        This method should be called when the LLM is no longer needed.
+        """
+        pass
