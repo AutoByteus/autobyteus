@@ -2,7 +2,6 @@
 
 import os
 import logging
-import asyncio
 from autobyteus.agent.group.group_aware_agent import GroupAwareAgent, AgentStatus
 from autobyteus.events.event_types import EventType
 from autobyteus.prompt.prompt_builder import PromptBuilder
@@ -13,14 +12,8 @@ from autobyteus.tools.base_tool import BaseTool
 logger = logging.getLogger(__name__)
 
 class CoordinatorAgent(GroupAwareAgent):
-    def __init__(self, role: str, llm: BaseLLM, tools: List[BaseTool]):
-        prompt_builder = PromptBuilder.from_file(self._get_prompt_template_path())
-        super().__init__(role, prompt_builder, llm, tools)
-        self.user_task = None
-
-    def _get_prompt_template_path(self):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        return os.path.join(current_dir, 'coordinator_agent.prompt')
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def generate_dynamic_prompt(self):
         agent_descriptions = "\n".join([f"- {agent.role}: {agent.get_description()}" for agent in self.agent_group.agents.values() if agent != self])
@@ -36,24 +29,6 @@ class CoordinatorAgent(GroupAwareAgent):
             logger.info(f"Coordinator Response: {llm_response}")
             # The coordinator has finished its task
             self.emit(EventType.TASK_COMPLETED)
-
-    async def run(self, user_task: str = None):
-        if user_task:
-            self.user_task = user_task
-        
-        try:
-            self.status = AgentStatus.RUNNING
-            await self.initialize_llm_conversation()
-            
-            agent_message_handler = asyncio.create_task(self.handle_agent_messages())
-            tool_result_handler = asyncio.create_task(self.handle_tool_result_messages())
-
-            await asyncio.gather(agent_message_handler, tool_result_handler)
-        except Exception as e:
-            logger.error(f"Error in coordinator agent execution: {str(e)}")
-            self.status = AgentStatus.ERROR
-        else:
-            self.status = AgentStatus.ENDED
 
     async def initialize_llm_conversation(self):
         conversation_name = self._sanitize_conversation_name(self.role)
