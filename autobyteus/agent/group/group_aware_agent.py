@@ -49,7 +49,7 @@ class GroupAwareAgent(StandaloneAgent):
             try:
                 message = await asyncio.wait_for(self.incoming_agent_messages.get(), timeout=1.0)
                 logger.info(f"Agent {self.role} processing message from {message.sender_agent_id}")
-                llm_response = await self.conversation.send_user_message(f"Message from {message.sender_agent_id}: {message.content}")
+                llm_response = await self.conversation.send_user_message(f"Message from sender_agent_id:{message.sender_agent_id}, content:{message.content}")                
                 await self.process_llm_response(llm_response)
             except asyncio.TimeoutError:
                 pass
