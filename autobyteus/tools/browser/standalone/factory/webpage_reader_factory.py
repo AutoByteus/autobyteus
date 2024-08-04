@@ -3,8 +3,8 @@ from autobyteus.tools.browser.standalone.webpage_reader import WebPageReader
 from autobyteus.utils.html_cleaner import CleaningMode
 
 class WebPageReaderFactory(ToolFactory):
-    def __init__(self, content_cleanup_level: CleaningMode = CleaningMode.THOROUGH):
-        self.content_cleanup_level = content_cleanup_level
+    def __init__(self, cleaning_mode: CleaningMode = CleaningMode.THOROUGH):
+        self.cleaning_mode = cleaning_mode
 
     def create_tool(self) -> WebPageReader:
-        return WebPageReader(content_cleanup_level=self.content_cleanup_level)
+        return WebPageReader(cleaning_mode=self.cleaning_mode)

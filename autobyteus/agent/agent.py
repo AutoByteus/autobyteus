@@ -3,6 +3,7 @@
 import asyncio
 import logging
 from typing import List, Type, Optional
+import uuid
 from autobyteus.agent.llm_response_parser import LLMResponseParser
 from autobyteus.conversation.conversation_manager import ConversationManager
 from autobyteus.conversation.persistence.file_based_persistence_provider import FileBasedPersistenceProvider
@@ -33,10 +34,21 @@ class StandaloneAgent(EventEmitter):
         persistence_provider_class (Type[PersistenceProvider]): Class for persisting conversations.
         conversation: The current conversation instance.
         task_completed (asyncio.Event): Event to signal task completion.
+        agent_id (str): The unique identifier for the agent. If not provided, it's generated as "{role}_001".
+
+    Args:
+        role (str): The role or identifier of the agent.
+        prompt_builder (PromptBuilder): Used to construct prompts for the LLM.
+        llm (BaseLLM): The language model the agent interacts with.
+        tools (List[BaseTool]): The tools available to the agent.
+        use_xml_parser (bool, optional): Whether to use XML parser for LLM responses. Defaults to True.
+        persistence_provider_class (Type[PersistenceProvider], optional): Class for persisting conversations. 
+            Defaults to FileBasedPersistenceProvider.
+        agent_id (str, optional): The unique identifier for the agent. If not provided, a default id is generated.
     """
 
     def __init__(self, role: str, prompt_builder: PromptBuilder, llm: BaseLLM, tools: List[BaseTool],
-                 use_xml_parser=True, persistence_provider_class: Optional[Type[PersistenceProvider]] = FileBasedPersistenceProvider):
+                 use_xml_parser=True, persistence_provider_class: Optional[Type[PersistenceProvider]] = FileBasedPersistenceProvider, agent_id=None):
         super().__init__()
         self.role = role
         self.prompt_builder = prompt_builder
@@ -47,9 +59,24 @@ class StandaloneAgent(EventEmitter):
         self.persistence_provider_class = persistence_provider_class
         self.conversation = None
         self.task_completed = asyncio.Event()
-        
+        # Generate default agent_id if not provided
+        if agent_id is None:
+            self.agent_id = f"{self.role}-001"
+        else:
+            self.agent_id = agent_id
+
+        # Set agent_id on each tool
+        self.set_agent_id_on_tools()
         self.register_task_completion_listener()
-        logger.info(f"StandaloneAgent initialized with role: {self.role}")
+        logger.info(f"StandaloneAgent initialized with role: {self.role} and agent_id: {self.agent_id}")
+
+    def get_agent_id(self) -> str:
+        """Get the unique identifier of the agent."""
+        return self.agent_id
+
+    def set_agent_id_on_tools(self):
+            for tool in self.tools:
+                tool.set_agent_id(self.agent_id)
 
     async def run(self):
         """
@@ -123,13 +150,16 @@ class StandaloneAgent(EventEmitter):
             await self.llm.cleanup()
         logger.info(f"Cleanup completed for agent: {self.role}")
 
-    def on_task_completed(self, event_type: EventType, *args, **kwargs):
+    def on_task_completed(self, *args, **kwargs):
         """Event handler for task completion."""
-        if event_type == EventType.TASK_COMPLETED:
-            logger.info(f"Task completed event received for agent: {self.role}")
-            self.task_completed.set()
+        #event_type = kwargs.get('event_type')
+        #agent_id = kwargs.get('agent_id')
+        
+        #if event_type == EventType.TASK_COMPLETED and agent_id == self.agent_id:
+        logger.info(f"Task completed event received for agent: {self.role}")
+        self.task_completed.set()
 
     def register_task_completion_listener(self):
         """Register a listener for the task completion event."""
         logger.info(f"Registering task completion listener for agent: {self.role}")
-        self.subscribe(EventType.TASK_COMPLETED, self.on_task_completed)
+        self.subscribe(EventType.TASK_COMPLETED, self.on_task_completed, self.agent_id)

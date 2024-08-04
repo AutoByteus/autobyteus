@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from autobyteus.agent.group.agent_group import AgentGroup
+from autobyteus.agent.group.single_replica_agent_orchestrator import SingleReplicaAgentOrchestrator
 from autobyteus.agent.group.group_aware_agent import GroupAwareAgent
 from autobyteus.agent.group.coordinator_agent import CoordinatorAgent
 from autobyteus.llm.base_llm import BaseLLM
@@ -17,12 +17,12 @@ def mock_tool() -> MagicMock:
     return MagicMock(spec=BaseTool)
 
 @pytest.fixture
-def agent_group() -> AgentGroup:
-    return AgentGroup()
+def agent_group() -> SingleReplicaAgentOrchestrator:
+    return SingleReplicaAgentOrchestrator()
 
 @pytest.mark.asyncio
 async def test_agent_group_with_coordinator(
-    agent_group: AgentGroup,
+    agent_group: SingleReplicaAgentOrchestrator,
     mock_llm: MagicMock,
     mock_tool: MagicMock
 ) -> None:
@@ -60,7 +60,7 @@ async def test_agent_group_with_coordinator(
 
 @pytest.mark.asyncio
 async def test_agent_group_with_start_agent(
-    agent_group: AgentGroup,
+    agent_group: SingleReplicaAgentOrchestrator,
     mock_llm: MagicMock,
     mock_tool: MagicMock
 ) -> None:
@@ -91,12 +91,12 @@ async def test_agent_group_with_start_agent(
     assert agent_group.start_agent == mock_start_agent
 
 @pytest.mark.asyncio
-async def test_agent_group_no_lead_agent(agent_group: AgentGroup) -> None:
+async def test_agent_group_no_lead_agent(agent_group: SingleReplicaAgentOrchestrator) -> None:
     with pytest.raises(ValueError, match="Neither coordinator agent nor start agent set"):
         await agent_group.run()
 
 @pytest.mark.asyncio
-async def test_route_message(agent_group: AgentGroup) -> None:
+async def test_route_message(agent_group: SingleReplicaAgentOrchestrator) -> None:
     mock_agent1: AsyncMock = AsyncMock(spec=GroupAwareAgent)
     mock_agent1.role = "Agent1"
     mock_agent1.receive_agent_message = AsyncMock(return_value="Message received")
@@ -109,7 +109,7 @@ async def test_route_message(agent_group: AgentGroup) -> None:
     mock_agent1.receive_agent_message.assert_called_once_with("SenderAgent", "Test message")
 
 @pytest.mark.asyncio
-async def test_route_message_invalid_agent(agent_group: AgentGroup) -> None:
+async def test_route_message_invalid_agent(agent_group: SingleReplicaAgentOrchestrator) -> None:
     result = await agent_group.route_message("SenderAgent", "InvalidAgent", "Test message")
 
     assert result == "Error: Agent with role 'InvalidAgent' not found."

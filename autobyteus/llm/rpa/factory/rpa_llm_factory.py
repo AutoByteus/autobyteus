@@ -1,3 +1,5 @@
+# file: autobyteus/llm/rpa/factory/rpa_llm_factory.py
+from autobyteus.llm import llm_factory
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.rpa.chatgpt_llm import ChatGPTLLM
 from autobyteus.llm.rpa.mistral_llm import MistralLLM
@@ -5,8 +7,7 @@ from autobyteus.llm.rpa.groq_llm import GroqLLM
 from autobyteus.llm.rpa.gemini_llm import GeminiLLM
 from autobyteus.llm.rpa.claudechat_llm import ClaudeChatLLM
 from autobyteus.llm.base_llm import BaseLLM
-
-class RPALLMFactory:
+class RPALLMFactory(llm_factory):
     @staticmethod
     def create_llm(model: LLMModel) -> BaseLLM:
         if model in [LLMModel.GPT_3_5_TURBO, LLMModel.GPT_4]:

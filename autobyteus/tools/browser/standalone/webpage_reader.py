@@ -15,7 +15,6 @@ from autobyteus.tools.base_tool import BaseTool
 from llm_ui_integration.ui_integrator import UIIntegrator
 from autobyteus.utils.html_cleaner import clean, CleaningMode
 
-
 class WebPageReader(BaseTool, UIIntegrator):
     """
     A class that reads and cleans the HTML content from a given webpage using Playwright.
@@ -24,21 +23,21 @@ class WebPageReader(BaseTool, UIIntegrator):
     retrieved HTML content.
 
     Attributes:
-        content_cleanup_level (CleaningMode): The level of cleanup to apply to the HTML content.
+        cleaning_mode (CleaningMode): The level of cleanup to apply to the HTML content.
             Defaults to CleaningMode.THOROUGH.
     """
 
-    def __init__(self, content_cleanup_level=CleaningMode.THOROUGH):
+    def __init__(self, cleaning_mode=CleaningMode.THOROUGH):
         """
         Initialize the WebPageReader with a specified content cleanup level.
 
         Args:
-            content_cleanup_level (CleaningMode, optional): The level of cleanup to apply to
+            cleaning_mode (CleaningMode, optional): The level of cleanup to apply to
                 the HTML content. Defaults to CleaningMode.THOROUGH.
         """
         BaseTool.__init__(self)
         UIIntegrator.__init__(self)
-        self.content_cleanup_level = content_cleanup_level
+        self.cleaning_mode = cleaning_mode
 
     def tool_usage(self):
         return 'WebPageReader: Reads and cleans the HTML content from a given webpage. Usage: <<<WebPageReader(url="webpage_url")>>>, where "webpage_url" is a string containing the URL of the webpage to read the content from.'
@@ -70,9 +69,9 @@ where "webpage_url" is a string containing the URL of the webpage to read the co
         await self.initialize()
         await self.page.goto(url, timeout=0)
         page_content = await self.page.content()
-        cleaned_content = clean(page_content, mode=self.content_cleanup_level)
+        cleaned_content = clean(page_content, mode=self.cleaning_mode)
         await self.close()
-        return f'''here is the html of the web page 
+        return f'''here is the html of the web page
                 <WebPageContentStart>
                     {cleaned_content}
                 </WebPageContentEnd>

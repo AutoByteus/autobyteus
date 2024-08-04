@@ -1,42 +1,58 @@
-# File: autobyteus/agent/group_aware_agent.py
+# File: autobyteus/agent/group/group_aware_agent.py
 
 import asyncio
-from collections import deque
 import logging
 from enum import Enum
 from autobyteus.agent.agent import StandaloneAgent
 from autobyteus.agent.group.send_message_to import SendMessageTo
 from autobyteus.events.event_types import EventType
+from autobyteus.agent.group.message_types import Message, MessageType
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from autobyteus.agent.group.base_agent_orchestrator import BaseAgentOrchestrator
 
 logger = logging.getLogger(__name__)
 
 class AgentStatus(Enum):
     NOT_STARTED = "not_started"
     RUNNING = "running"
+    WAITING_FOR_RESPONSE = "waiting_for_response"
     ENDED = "ended"
     ERROR = "error"
 
 class GroupAwareAgent(StandaloneAgent):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.agent_group = None
+        self.agent_orchestrator: Optional['BaseAgentOrchestrator'] = None
         self.incoming_agent_messages = asyncio.Queue()
         self.tool_result_messages = asyncio.Queue()
         self.status = AgentStatus.NOT_STARTED
         self._run_task = None
         logger.info(f"GroupAwareAgent initialized with role: {self.role}")
 
-    def set_agent_group(self, agent_group):
-        self.agent_group = agent_group
+    def set_agent_orchestrator(self, agent_orchestrator: 'BaseAgentOrchestrator'):
+        self.agent_orchestrator = agent_orchestrator
         if not any(isinstance(tool, SendMessageTo) for tool in self.tools):
-            self.tools.append(SendMessageTo(agent_group))
-        logger.info(f"Agent group set for agent {self.role}")
+            self.tools.append(SendMessageTo(agent_orchestrator))
+        logger.info(f"Agent orchestrator set for agent {self.role}")
 
-    async def receive_agent_message(self, sender_role: str, message: str):
-        logger.info(f"Agent {self.role} received message from {sender_role}")
-        await self.incoming_agent_messages.put((sender_role, message))
+    async def receive_agent_message(self, message: Message):
+        logger.info(f"Agent {self.agent_id} received message from {message.sender_agent_id}")
+        await self.incoming_agent_messages.put(message)
         if self.status == AgentStatus.NOT_STARTED:
             self.start()
+
+    async def handle_agent_messages(self):
+        logger.info(f"Agent {self.role} started handling incoming messages")
+        while not self.task_completed.is_set() and self.status == AgentStatus.RUNNING:
+            try:
+                message = await asyncio.wait_for(self.incoming_agent_messages.get(), timeout=1.0)
+                logger.info(f"Agent {self.role} processing message from {message.sender_agent_id}")
+                llm_response = await self.conversation.send_user_message(f"Message from {message.sender_agent_id}: {message.content}")
+                await self.process_llm_response(llm_response)
+            except asyncio.TimeoutError:
+                pass
 
     def start(self):
         if self.status == AgentStatus.NOT_STARTED:
@@ -84,17 +100,6 @@ class GroupAwareAgent(StandaloneAgent):
         logger.debug(f"Initial prompt for agent {self.role}: {initial_prompt}")
         initial_llm_response = await self.conversation.send_user_message(initial_prompt)
         await self.process_llm_response(initial_llm_response)
-
-    async def handle_agent_messages(self):
-        logger.info(f"Agent {self.role} started handling incoming messages")
-        while not self.task_completed.is_set() and self.status == AgentStatus.RUNNING:
-            try:
-                sender_role, message = await asyncio.wait_for(self.incoming_agent_messages.get(), timeout=1.0)
-                logger.info(f"Agent {self.role} processing message from {sender_role}")
-                llm_response = await self.conversation.send_user_message(f"Message from {sender_role}: {message}")
-                await self.process_llm_response(llm_response)
-            except asyncio.TimeoutError:
-                pass
 
     async def handle_tool_result_messages(self):
         logger.info(f"Agent {self.role} started handling tool result messages")

@@ -1,4 +1,5 @@
 """
+file: autobyteus/utils/html_cleaner.py
 This module provides functionality for cleaning HTML content with various levels of intensity.
 
 It uses BeautifulSoup to parse and manipulate HTML, offering different cleaning modes
