@@ -25,11 +25,29 @@ class GroupAwareAgent(StandaloneAgent):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.agent_orchestrator: Optional['BaseAgentOrchestrator'] = None
-        self.incoming_agent_messages = asyncio.Queue()
-        self.tool_result_messages = asyncio.Queue()
+        self.incoming_agent_messages: Optional[asyncio.Queue] = None
+        self.tool_result_messages: Optional[asyncio.Queue] = None
         self.status = AgentStatus.NOT_STARTED
         self._run_task = None
+        self._queues_initialized = False
         logger.info(f"GroupAwareAgent initialized with role: {self.role}")
+
+    def _initialize_queues(self):
+        if not self._queues_initialized:
+            self.incoming_agent_messages = asyncio.Queue()
+            self.tool_result_messages = asyncio.Queue()
+            self._queues_initialized = True
+            logger.info(f"Queues initialized for agent {self.role}")
+
+    def get_incoming_agent_messages(self):
+        if not self._queues_initialized:
+            raise RuntimeError("Queues accessed before initialization")
+        return self.incoming_agent_messages
+
+    def get_tool_result_messages(self):
+        if not self._queues_initialized:
+            raise RuntimeError("Queues accessed before initialization")
+        return self.tool_result_messages
 
     def set_agent_orchestrator(self, agent_orchestrator: 'BaseAgentOrchestrator'):
         self.agent_orchestrator = agent_orchestrator
@@ -39,6 +57,9 @@ class GroupAwareAgent(StandaloneAgent):
 
     async def receive_agent_message(self, message: Message):
         logger.info(f"Agent {self.agent_id} received message from {message.sender_agent_id}")
+        if not self._queues_initialized:
+            logger.warning(f"Agent {self.agent_id} received message before queues were initialized. Initializing now.")
+            self._initialize_queues()
         await self.incoming_agent_messages.put(message)
         if self.status == AgentStatus.NOT_STARTED:
             self.start()
@@ -47,7 +68,7 @@ class GroupAwareAgent(StandaloneAgent):
         logger.info(f"Agent {self.role} started handling incoming messages")
         while not self.task_completed.is_set() and self.status == AgentStatus.RUNNING:
             try:
-                message = await asyncio.wait_for(self.incoming_agent_messages.get(), timeout=1.0)
+                message = await asyncio.wait_for(self.get_incoming_agent_messages().get(), timeout=1.0)
                 logger.info(f"Agent {self.role} processing message from {message.sender_agent_id}")
                 llm_response = await self.conversation.send_user_message(f"Message from sender_agent_id:{message.sender_agent_id}, content:{message.content}")                
                 await self.process_llm_response(llm_response)
@@ -63,6 +84,9 @@ class GroupAwareAgent(StandaloneAgent):
         try:
             logger.info(f"Agent {self.role} entering running state")
             self.status = AgentStatus.RUNNING
+            # Initialize queues if not already done
+            self._initialize_task_completed()
+            self._initialize_queues()            
             await self.initialize_llm_conversation()
             
             agent_message_handler = asyncio.create_task(self.handle_agent_messages())
@@ -102,6 +126,10 @@ class GroupAwareAgent(StandaloneAgent):
         await self.process_llm_response(initial_llm_response)
 
     async def handle_tool_result_messages(self):
+        if not self._queues_initialized:
+            logger.error(f"Agent {self.role} attempted to handle tool results before run() was called")
+            return
+
         logger.info(f"Agent {self.role} started handling tool result messages")
         while not self.task_completed.is_set() and self.status == AgentStatus.RUNNING:
             try:
@@ -149,3 +177,4 @@ class GroupAwareAgent(StandaloneAgent):
 
     def get_status(self):
         return self.status
+

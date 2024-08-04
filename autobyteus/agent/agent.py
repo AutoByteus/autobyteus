@@ -58,7 +58,8 @@ class StandaloneAgent(EventEmitter):
         self.response_parser = XMLLLMResponseParser() if use_xml_parser else LLMResponseParser()
         self.persistence_provider_class = persistence_provider_class
         self.conversation = None
-        self.task_completed = asyncio.Event()
+        self.task_completed = None
+
         # Generate default agent_id if not provided
         if agent_id is None:
             self.agent_id = f"{self.role}-001"
@@ -69,6 +70,16 @@ class StandaloneAgent(EventEmitter):
         self.set_agent_id_on_tools()
         self.register_task_completion_listener()
         logger.info(f"StandaloneAgent initialized with role: {self.role} and agent_id: {self.agent_id}")
+
+    def _initialize_task_completed(self):
+        if self.task_completed is None:
+            self.task_completed = asyncio.Event()
+            logger.info(f"task_completed Event initialized for agent {self.role}")
+
+    def get_task_completed(self):
+        if self.task_completed is None:
+            raise RuntimeError("task_completed Event accessed before initialization")
+        return self.task_completed
 
     def get_agent_id(self) -> str:
         """Get the unique identifier of the agent."""
@@ -88,6 +99,7 @@ class StandaloneAgent(EventEmitter):
         """
         try:
             logger.info(f"Starting execution for agent: {self.role}")
+            self._initialize_task_completed()
             conversation_name = self._sanitize_conversation_name(self.role)
             self.conversation = await self.conversation_manager.start_conversation(
                 conversation_name=conversation_name,

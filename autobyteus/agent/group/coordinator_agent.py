@@ -38,7 +38,7 @@ class CoordinatorAgent(GroupAwareAgent):
                 if message.message_type == MessageType.TASK_RESULT:
                     self.agent_orchestrator.handle_task_completed(message.sender_agent_id)
                 
-                llm_response = await self.conversation.send_user_message(f"Message from sender_agent_id:{message.sender_agent_id}, content:{message.content}")
+                llm_response = await self.conversation.send_user_message(f"Message from sender_agent_id {message.sender_agent_id}, content {message.content}")
                 await self.process_llm_response(llm_response)
             except asyncio.TimeoutError:
                 pass
