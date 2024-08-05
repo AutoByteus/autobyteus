@@ -160,6 +160,7 @@ class StandaloneAgent(EventEmitter):
         logger.info(f"Cleaning up resources for agent: {self.role}")
         if self.llm:
             await self.llm.cleanup()
+        self.task_completed.clear()  # Reset the task_completed event
         logger.info(f"Cleanup completed for agent: {self.role}")
 
     def on_task_completed(self, *args, **kwargs):

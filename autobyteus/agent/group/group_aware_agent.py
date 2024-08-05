@@ -61,7 +61,7 @@ class GroupAwareAgent(StandaloneAgent):
             logger.warning(f"Agent {self.agent_id} received message before queues were initialized. Initializing now.")
             self._initialize_queues()
         await self.incoming_agent_messages.put(message)
-        if self.status == AgentStatus.NOT_STARTED:
+        if self.status != AgentStatus.RUNNING:
             self.start()
 
     async def handle_agent_messages(self):
@@ -76,7 +76,7 @@ class GroupAwareAgent(StandaloneAgent):
                 pass
 
     def start(self):
-        if self.status == AgentStatus.NOT_STARTED:
+        if self.status != AgentStatus.RUNNING:
             logger.info(f"Starting agent {self.role}")
             self._run_task = asyncio.create_task(self.run())
 
@@ -178,3 +178,14 @@ class GroupAwareAgent(StandaloneAgent):
     def get_status(self):
         return self.status
 
+    async def cleanup(self):
+        """Perform cleanup operations, including clearing queues."""
+        await super().cleanup()  # Call the superclass's cleanup method first
+
+        # Clear the queues
+        while not self.incoming_agent_messages.empty():
+            self.incoming_agent_messages.get_nowait()
+        while not self.tool_result_messages.empty():
+            self.tool_result_messages.get_nowait()
+
+        logger.info(f"Cleanup completed for agent: {self.role}")
