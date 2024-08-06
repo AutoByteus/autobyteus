@@ -1,5 +1,4 @@
 """
-file: autobyteus/utils/html_cleaner.py
 This module provides functionality for cleaning HTML content with various levels of intensity.
 
 It uses BeautifulSoup to parse and manipulate HTML, offering different cleaning modes
@@ -14,14 +13,40 @@ class CleaningMode(Enum):
     Enum representing different HTML cleaning modes.
 
     ULTIMATE: Most aggressive cleaning (removes container tags)
+    CONTENT_FOCUSED: Applies ULTIMATE cleaning and then removes empty tags
     THOROUGH: Comprehensive cleaning (removes 'class' attribute)
     STANDARD: Moderate cleaning (keeps 'class' attribute)
     MINIMAL: Least invasive cleaning (preserves most attributes and styles)
     """
     ULTIMATE = auto()
+    CONTENT_FOCUSED = auto()
     THOROUGH = auto()
     STANDARD = auto()
     MINIMAL = auto()
+
+def remove_empty_tags(element):
+    """
+    Recursively remove empty tags from a BeautifulSoup element.
+
+    Args:
+        element: A BeautifulSoup Tag or NavigableString object.
+
+    Returns:
+        bool: True if the element is empty (should be removed), False otherwise.
+    """
+    if isinstance(element, Comment):
+        return True
+
+    if isinstance(element, str) and not element.strip():
+        return True
+
+    if hasattr(element, 'contents'):
+        children = element.contents[:]
+        for child in children:
+            if remove_empty_tags(child):
+                child.extract()
+
+    return len(element.get_text(strip=True)) == 0 and element.name not in ['br', 'hr', 'img']
 
 def clean(html_text: str, mode: CleaningMode = CleaningMode.STANDARD) -> str:
     """
@@ -42,8 +67,8 @@ def clean(html_text: str, mode: CleaningMode = CleaningMode.STANDARD) -> str:
         ValueError: If an invalid cleaning mode is provided.
 
     Example:
-        >>> dirty_html = '<html><body><div class="wrapper" style="color: red;">Hello <script>alert("world");</script></div></body></html>'
-        >>> clean_html = clean(dirty_html, CleaningMode.ULTIMATE)
+        >>> dirty_html = '<html><body><div class="wrapper" style="color: red;">Hello <script>alert("world");</script><p></p></div></body></html>'
+        >>> clean_html = clean(dirty_html, CleaningMode.CONTENT_FOCUSED)
         >>> print(clean_html)
         Hello
     """
@@ -62,7 +87,7 @@ def clean(html_text: str, mode: CleaningMode = CleaningMode.STANDARD) -> str:
         comment.extract()
 
     # Define whitelist tags based on cleaning mode
-    if mode == CleaningMode.ULTIMATE:
+    if mode in [CleaningMode.ULTIMATE, CleaningMode.CONTENT_FOCUSED]:
         whitelist_tags = [
             'p', 'span', 'em', 'strong', 'i', 'b', 'u', 'sub', 'sup',
             'a', 'img', 'br', 'hr', 'blockquote', 'pre', 'code',
@@ -84,7 +109,7 @@ def clean(html_text: str, mode: CleaningMode = CleaningMode.STANDARD) -> str:
     # Remove unwanted tags
     for tag in content.find_all(True):
         if tag.name not in whitelist_tags:
-            if mode == CleaningMode.ULTIMATE:
+            if mode in [CleaningMode.ULTIMATE, CleaningMode.CONTENT_FOCUSED]:
                 tag.unwrap()  # Keep the content of removed tags
             else:
                 tag.decompose()  # Remove the tag and its content
@@ -94,7 +119,7 @@ def clean(html_text: str, mode: CleaningMode = CleaningMode.STANDARD) -> str:
         if 'src' in img.attrs and img['src'].startswith('data:image'):
             img.decompose()
 
-    if mode in [CleaningMode.ULTIMATE, CleaningMode.THOROUGH, CleaningMode.STANDARD]:
+    if mode in [CleaningMode.ULTIMATE, CleaningMode.CONTENT_FOCUSED, CleaningMode.THOROUGH, CleaningMode.STANDARD]:
         # Expanded whitelist of attributes to keep
         whitelist_attrs = [
             'href', 'src', 'alt', 'title', 'id', 'name', 'value', 'type', 'placeholder',
@@ -117,6 +142,10 @@ def clean(html_text: str, mode: CleaningMode = CleaningMode.STANDARD) -> str:
         for tag in content.find_all(True):
             if 'style' in tag.attrs:
                 del tag['style']
+
+    # Apply CONTENT_FOCUSED mode
+    if mode == CleaningMode.CONTENT_FOCUSED:
+        remove_empty_tags(content)
 
     # Return the cleaned HTML
     return ''.join(str(child) for child in content.children).strip()
