@@ -43,7 +43,7 @@ class GoogleSearch(BaseTool, UIIntegrator):
         BaseTool.__init__(self)
         UIIntegrator.__init__(self)
 
-        self.text_area_selector = 'textarea[title="Suche"]'
+        self.text_area_selector = 'textarea[name="q"]'
         self.cleaning_mode = cleaning_mode
 
     def tool_usage(self):
