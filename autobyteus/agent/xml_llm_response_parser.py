@@ -41,14 +41,13 @@ class XMLLLMResponseParser:
         return ToolInvocation()
 
     def _preprocess_xml(self, xml_content):
-        def escape_content(match):
+        def wrap_content_in_cdata(match):
             full_tag = match.group(1)
             content = match.group(2)
-            escaped_content = escape(content, entities={'"': "&quot;"})
-            return f"{full_tag}{escaped_content}"
+            return f"{full_tag}<![CDATA[{content}]]>"
 
-        # Escape content within tags, but not the tags themselves
-        processed_content = re.sub(r'(<[^>]+>)(.*?)(?=</?)', escape_content, xml_content, flags=re.DOTALL)
+        # Wrap content within tags in CDATA sections
+        processed_content = re.sub(r'(<arg name="content">)(.*?)(?=</arg>)', wrap_content_in_cdata, xml_content, flags=re.DOTALL)
         return processed_content
 
     def _parse_arguments(self, command_element):

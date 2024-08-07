@@ -7,6 +7,9 @@ class BrowserSessionAwareWebPageScreenshotTaker(BrowserSessionAwareTool):
     def __init__(self):
         super().__init__()
 
+    def get_name(self) -> str:
+        return "WebPageScreenshotTaker"
+
     def tool_usage(self):
         return "WebPageScreenshotTaker: Takes a screenshot of a given webpage and saves it to the specified file path. Usage: <<<WebPageScreenshotTaker(webpage_url='url_to_screenshot', file_path='screenshot_file_path')>>>, where 'url_to_screenshot' is a string containing the URL of the webpage to take a screenshot of, and 'screenshot_file_path' is the path where the screenshot will be saved."
 

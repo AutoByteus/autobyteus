@@ -28,6 +28,84 @@ def test_parse_valid_response(parser):
     assert parsed_response.arguments == expected_tool_invocation.arguments
 
 
+def test_parse_web_element_trigger_command(parser):
+    response = '''
+    <command name="SendMessageTo">
+  <arg name="recipient_role_name">CoordinationAgent</arg>
+  <arg name="recipient_agent_id">CoordinationAgent-001</arg>
+  <arg name="content">
+
+**Summary of the Product Details:**
+
+- **Product Name:** Starting a Business in Berlin
+- **Price:** EUR 26.00 for each sole trade, EUR 31.00 for legal entities with one representative, EUR 13.00 for additional representatives of legal entities, and EUR 15.00 for electronic procedures.
+- **Key Features:** Business registration services including trade registration, permit applications, notifications, and tax registrations.
+
+**Detailed Product Specifications:**
+
+1. **Business Registration:**
+   - Required for new independent businesses with a permanent place of business in Berlin.
+   - Costs:
+     - EUR 26.00 per sole trader or partnership member.
+     - EUR 31.00 for legal entities with one representative.
+     - EUR 13.00 for each additional representative of a legal entity.
+     - EUR 15.00 for electronic procedures.
+
+2. **Permit Applications:**
+   - Gastronomic trade permits available.
+   - Insurance industry licensing requirements detailed.
+
+3. **Notifications:**
+   - Displaying itinerant camps requires notification.
+
+4. **Tax Registrations:**
+   - Mandatory even if no business registration is required (e.g., freelancers).
+   - Can be submitted online via ELSTER portal or in writing to local tax offices.
+
+5. **Additional Services:**
+   - Entry in the Register of Crafts and recognition as test engineers available.
+   - Special use permits to use public space necessary for certain activities like operating food trucks/mobile cafes.
+
+**Pricing Information:**
+
+- The costs associated with starting a business include:
+    * Business registration fees ranging from EUR 26 to EUR 31 depending on the type of business entity.
+    * Additional fees such as EUR 15 for electronic procedures.
+
+**Customer Ratings and Reviews Summary:**
+
+- No specific customer ratings or reviews were found on this webpage; however, it provides comprehensive information and links to various services related to starting a business in Berlin.
+
+**Unique Selling Points:**
+
+- The Point of Single Contact Berlin offers streamlined online services for registering trades, applying for permits, submitting notifications, and handling tax registrations efficiently.
+- Detailed FAQs section addressing common questions about business registrations and related processes.
+
+**Compatibility with User Requirements:**
+
+- The webpage caters specifically to entrepreneurs looking to start or manage businesses in Berlin by providing detailed information on necessary steps and costs involved.
+
+**Additional Insights Relevant for Product Recommendations:**
+
+- The website is user-friendly with clear navigation through different sections related to starting up a business in Berlin.
+- It includes links to other relevant resources such as tax offices' websites which can be useful for entrepreneurs needing further assistance beyond initial registration processes.
+
+</content>
+<arg name="message_type">TASK_RESULT</arg>
+<arg name="sender_agent_id">page_reader_agent-001</arg>
+</command>
+    '''
+    expected_tool_invocation = ToolInvocation(
+        name="SearchTool",
+        arguments={"query": "encouraging movies for students"}
+    )
+    
+    parsed_response = parser.parse_response(response)
+    
+    assert parsed_response.name == expected_tool_invocation.name
+    assert parsed_response.arguments == expected_tool_invocation.arguments
+
+
 def test_parse_special_characters_response(parser):
     response = '''
    

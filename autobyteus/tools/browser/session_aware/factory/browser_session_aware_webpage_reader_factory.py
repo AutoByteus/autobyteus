@@ -7,4 +7,4 @@ class BrowserSessionAwareWebPageReaderFactory(ToolFactory):
         self.content_cleanup_level = content_cleanup_level
 
     def create_tool(self) -> BrowserSessionAwareWebPageReader:
-        return BrowserSessionAwareWebPageReader(content_cleanup_level=self.content_cleanup_level)
+        return BrowserSessionAwareWebPageReader(cleaning_mode=self.content_cleanup_level)

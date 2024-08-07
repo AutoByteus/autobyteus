@@ -122,7 +122,7 @@ class StandaloneAgent(EventEmitter):
                     arguments = tool_invocation.arguments
                     logger.info(f"Agent {self.role} attempting to execute tool: {name}")
 
-                    tool = next((t for t in self.tools if t.__class__.__name__ == name), None)
+                    tool = next((t for t in self.tools if t.get_name() == name), None)
                     if tool:
                         try:
                             result = await tool.execute(**arguments)
