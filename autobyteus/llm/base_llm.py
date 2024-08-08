@@ -23,6 +23,19 @@ class BaseLLM(ABC):
         """
         pass
 
+    async def send_file(self, file_path: str, **kwargs) -> str:
+        """
+        Send a file and return the LLM's response.
+
+        :param file_path: The path to the file to be sent.
+        :type file_path: str
+        :param kwargs: Additional keyword arguments.
+        :type kwargs: dict
+        :return: The LLM's response to the file content.
+        :rtype: str
+        """
+        pass
+
     @abstractmethod
     async def cleanup(self):
         """

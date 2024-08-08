@@ -1,5 +1,7 @@
-# File: autobyteus/tools/browser/session_aware/browser_session_aware_web_element_interactor.py
+# File: autobyteus/tools/browser/session_aware/browser_session_aware_web_element_trigger.py
 
+from datetime import datetime
+import os
 import xml.etree.ElementTree as ET
 from autobyteus.tools.browser.session_aware.browser_session_aware_tool import BrowserSessionAwareTool
 from autobyteus.tools.browser.session_aware.shared_browser_session import SharedBrowserSession
@@ -14,7 +16,7 @@ class BrowserSessionAwareWebElementTrigger(BrowserSessionAwareTool):
     
 
     def tool_usage(self):
-        return """WebElementTrigger: Triggers actions on web elements on web pages.
+        return """WebElementTrigger: Triggers actions on web elements on web pages and returns a screenshot.
     Usage: <<<WebElementTrigger(webpage_url='url', css_selector='selector', action='action', params='<param><name>param_name</name><value>param_value</value></param>')>>>
 
     Parameters:
@@ -156,7 +158,13 @@ class BrowserSessionAwareWebElementTrigger(BrowserSessionAwareTool):
         else:
             raise ValueError(f"Unsupported action: {action}")
 
-        return f"Action '{action}' performed on element with selector '{css_selector}'"
+        # Take screenshot after action
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        screenshot_filename = f"screenshot_{action}_{timestamp}.png"
+        screenshot_path = os.path.join(os.getcwd(), screenshot_filename)
+        await shared_session.page.screenshot(path=screenshot_path, full_page=True)
+        absolute_screenshot_path = os.path.abspath(screenshot_path)
+        return absolute_screenshot_path
 
     def _parse_params(self, params_str):
         if not params_str:

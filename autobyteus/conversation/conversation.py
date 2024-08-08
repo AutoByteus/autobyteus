@@ -1,3 +1,4 @@
+# File: autobyteus/conversation/conversation.py
 from typing import Optional, List, Tuple
 from autobyteus.conversation.persistence.provider import PersistenceProvider
 from autobyteus.llm.base_llm import BaseLLM
@@ -27,6 +28,28 @@ class Conversation:
 
         if self.persistence_provider:
             self.persistence_provider.store_conversation("user", user_input)
+            self.persistence_provider.store_conversation("assistant", response)
+
+        return response
+
+    async def send_file(self, file_path: str) -> str:
+        """
+        Send a file to the LLM and return its response.
+
+        :param file_path: The path to the file to be sent.
+        :type file_path: str
+        :return: The LLM's response to the file content.
+        :rtype: str
+        """
+        user_message_index = sum(1 for entry in self.conversation_history if entry[0] == "user")
+
+        response = await self.llm.send_file(file_path, user_message_index=user_message_index)
+        
+        self.conversation_history.append(("user", f"[File sent: {file_path}]"))
+        self.conversation_history.append(("assistant", response))
+
+        if self.persistence_provider:
+            self.persistence_provider.store_conversation("user", f"[File sent: {file_path}]")
             self.persistence_provider.store_conversation("assistant", response)
 
         return response

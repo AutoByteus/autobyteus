@@ -1,5 +1,6 @@
 # File: autobyteus/tools/browser/session_aware/browser_session_aware_webpage_screenshot_taker.py
 
+import os
 from autobyteus.tools.browser.session_aware.browser_session_aware_tool import BrowserSessionAwareTool
 from autobyteus.tools.browser.session_aware.shared_browser_session import SharedBrowserSession
 
@@ -28,4 +29,5 @@ where "url_to_screenshot" is a string containing the URL of the webpage to take 
             raise ValueError("The 'file_path' keyword argument must be specified.")
 
         await shared_session.page.screenshot(path=file_path, full_page=True)
-        return file_path
+        absolute_path = os.path.abspath(file_path)
+        return absolute_path
