@@ -15,7 +15,7 @@ class BaseTool(EventEmitter, ABC):
 
     def get_name(self) -> str:
         """Return the name of the tool. Can be overridden by child classes."""
-        return self._name or self.__class__.__name__
+        return self.__class__.__name__
     
     def set_agent_id(self, agent_id: str):
         self.agent_id = agent_id
