@@ -53,7 +53,7 @@ class AskUserInput(BaseTool):
     </command>
     '''
 
-    def _execute(self, **kwargs):
+    async def _execute(self, **kwargs):
         """
         Present the LLM's request to the user, capture their input, and return it.
 
