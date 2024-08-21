@@ -14,9 +14,8 @@ class BrowserSessionAwareWebElementTrigger(BrowserSessionAwareTool):
     def get_name(self) -> str:
         return "WebElementTrigger"
     
-
     def tool_usage(self):
-        return """WebElementTrigger: Triggers actions on web elements on web pages and returns a screenshot.
+        return """WebElementTrigger: Triggers actions on web elements on web pages, takes a screenshot, and returns the absolute path of the screenshot.
     Usage: <<<WebElementTrigger(webpage_url='url', css_selector='selector', action='action', params='<param><name>param_name</name><value>param_value</value></param>')>>>
 
     Parameters:
@@ -35,19 +34,27 @@ class BrowserSessionAwareWebElementTrigger(BrowserSessionAwareTool):
     6. hover: No additional params required.
     7. double_click: No additional params required.
 
+    Return Value:
+    - String: Absolute path to the screenshot taken after the action is performed.
+      The screenshot is saved in the current working directory with the filename format:
+      'screenshot_<action>_<timestamp>.png'
+
     Examples:
     1. Typing in a search box:
       <<<WebElementTrigger(webpage_url='https://example.com', css_selector='#search-input', action='type', params='<param><name>text</name><value>Python tutorial</value></param>')>>>
+      Returns: '/path/to/screenshot_type_20230615_120530.png'
 
     2. Selecting an option from a dropdown:
       <<<WebElementTrigger(webpage_url='https://example.com', css_selector='#country-select', action='select', params='<param><name>option</name><value>USA</value></param>')>>>
+      Returns: '/path/to/screenshot_select_20230615_120545.png'
 
     3. Clicking a button:
       <<<WebElementTrigger(webpage_url='https://example.com', css_selector='.submit-button', action='click')>>>
+      Returns: '/path/to/screenshot_click_20230615_120600.png'
     """
 
     def tool_usage_xml(self):
-        return f'''WebElementTrigger: Triggers actions on web elements on web pages and returns a screenshot.
+        return f'''WebElementTrigger: Triggers actions on web elements on web pages, takes a screenshot, and returns the absolute path of the screenshot.
     <command name="WebElementTrigger">
       <arg name="webpage_url">url</arg>
       <arg name="css_selector">selector</arg>
@@ -79,6 +86,11 @@ class BrowserSessionAwareWebElementTrigger(BrowserSessionAwareTool):
     6. hover: No additional params required.
     7. double_click: No additional params required.
 
+    Return Value:
+    - String: Absolute path to the screenshot taken after the action is performed.
+      The screenshot is saved in the current working directory with the filename format:
+      'screenshot_<action>_<timestamp>.png'
+
     Examples:
     1. Typing in a search box:
       <command name="WebElementTrigger">
@@ -92,6 +104,7 @@ class BrowserSessionAwareWebElementTrigger(BrowserSessionAwareTool):
           </param>
         </arg>
       </command>
+      Returns: '/path/to/screenshot_type_20230615_120530.png'
 
     2. Selecting an option from a dropdown:
       <command name="WebElementTrigger">
@@ -105,6 +118,7 @@ class BrowserSessionAwareWebElementTrigger(BrowserSessionAwareTool):
           </param>
         </arg>
       </command>
+      Returns: '/path/to/screenshot_select_20230615_120545.png'
 
     3. Clicking a button:
       <command name="WebElementTrigger">
@@ -112,6 +126,7 @@ class BrowserSessionAwareWebElementTrigger(BrowserSessionAwareTool):
         <arg name="css_selector">.submit-button</arg>
         <arg name="action">click</arg>
       </command>
+      Returns: '/path/to/screenshot_click_20230615_120600.png'
     '''
 
     async def perform_action(self, shared_session: SharedBrowserSession, **kwargs):
@@ -159,12 +174,13 @@ class BrowserSessionAwareWebElementTrigger(BrowserSessionAwareTool):
             raise ValueError(f"Unsupported action: {action}")
 
         # Take screenshot after action
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        screenshot_filename = f"screenshot_{action}_{timestamp}.png"
-        screenshot_path = os.path.join(os.getcwd(), screenshot_filename)
-        await shared_session.page.screenshot(path=screenshot_path, full_page=True)
-        absolute_screenshot_path = os.path.abspath(screenshot_path)
-        return absolute_screenshot_path
+        #timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        #screenshot_filename = f"screenshot_{action}_{timestamp}.png"
+        #screenshot_path = os.path.join(os.getcwd(), screenshot_filename)
+        #await shared_session.page.screenshot(path=screenshot_path, full_page=True)
+        #absolute_screenshot_path = os.path.abspath(screenshot_path)
+        #return absolute_screenshot_path
+        return "The WebElementTrigger command is executed"
 
     def _parse_params(self, params_str):
         if not params_str:

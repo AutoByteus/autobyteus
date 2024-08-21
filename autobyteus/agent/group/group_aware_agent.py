@@ -65,12 +65,16 @@ class GroupAwareAgent(StandaloneAgent):
             self.start()
 
     async def handle_agent_messages(self):
-        logger.info(f"Agent {self.role} started handling incoming messages")
+        logger.info(f"{self.role} started handling incoming messages")
         while not self.task_completed.is_set() and self.status == AgentStatus.RUNNING:
             try:
-                message = await asyncio.wait_for(self.get_incoming_agent_messages().get(), timeout=1.0)
-                logger.info(f"Agent {self.role} processing message from {message.sender_agent_id}")
-                llm_response = await self.conversation.send_user_message(f"Message from sender_agent_id:{message.sender_agent_id}, content:{message.content}")                
+                message: Message = await asyncio.wait_for(self.incoming_agent_messages.get(), timeout=1.0)
+                logger.info(f"{self.role} processing message from {message.sender_agent_id}")
+                
+                if message.message_type == MessageType.TASK_RESULT:
+                    self.agent_orchestrator.handle_task_completed(message.sender_agent_id)
+                
+                llm_response = await self.conversation.send_user_message(f"Message from sender_agent_id {message.sender_agent_id}, content {message.content}")
                 await self.process_llm_response(llm_response)
             except asyncio.TimeoutError:
                 pass
@@ -154,7 +158,7 @@ class GroupAwareAgent(StandaloneAgent):
         tool_arguments = tool_invocation.arguments
 
         logger.info(f"Agent {self.role} attempting to execute tool: {tool_name}")
-        tool = next((t for t in self.tools if t.__class__.__name__ == tool_name), None)
+        tool = next((t for t in self.tools if t.get_name() == tool_name), None)
         if tool:
             try:
                 tool_result = await tool.execute(**tool_arguments)

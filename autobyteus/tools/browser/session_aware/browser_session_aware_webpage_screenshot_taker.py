@@ -12,22 +12,23 @@ class BrowserSessionAwareWebPageScreenshotTaker(BrowserSessionAwareTool):
         return "WebPageScreenshotTaker"
 
     def tool_usage(self):
-        return "WebPageScreenshotTaker: Takes a screenshot of a given webpage and saves it to the specified file path. Usage: <<<WebPageScreenshotTaker(webpage_url='url_to_screenshot', file_path='screenshot_file_path')>>>, where 'url_to_screenshot' is a string containing the URL of the webpage to take a screenshot of, and 'screenshot_file_path' is the path where the screenshot will be saved."
+        return "WebPageScreenshotTaker: Takes a screenshot of a given webpage and saves it to the specified file. Usage: <<<WebPageScreenshotTaker(webpage_url='url_to_screenshot', file_name='screenshot_file_name')>>>, where 'url_to_screenshot' is a string containing the URL of the webpage to take a screenshot of, and 'screenshot_file_name' is the name of the file to save the screenshot (including extension, e.g., 'screenshot.png'). Optionally, 'screenshot_file_name' can include a relative path (e.g., 'images/screenshot.png'). Returns the absolute file path of the saved screenshot."
 
     def tool_usage_xml(self):
-        return '''WebPageScreenshotTaker: Takes a screenshot of a given webpage and saves it to the specified file path. Usage:
+        return '''WebPageScreenshotTaker: Takes a screenshot of a given webpage and saves it to the specified file. Usage:
 <command name="WebPageScreenshotTaker">
   <arg name="webpage_url">url_to_screenshot</arg>
-  <arg name="file_path">screenshot_file_path</arg>
+  <arg name="file_name">screenshot_file_name</arg>
 </command>
-where "url_to_screenshot" is a string containing the URL of the webpage to take a screenshot of, and "screenshot_file_path" is the path where the screenshot will be saved.
+where "url_to_screenshot" is a string containing the URL of the webpage to take a screenshot of, and "screenshot_file_name" is the name of the file to save the screenshot (including extension, e.g., 'screenshot.png'). Optionally, "screenshot_file_name" can include a relative path (e.g., 'images/screenshot.png').
+Returns the absolute file path of the saved screenshot.
 '''
 
     async def perform_action(self, shared_session: SharedBrowserSession, **kwargs):
-        file_path = kwargs.get('file_path')
-        if not file_path:
-            raise ValueError("The 'file_path' keyword argument must be specified.")
+        file_name = kwargs.get('file_name')
+        if not file_name:
+            raise ValueError("The 'file_name' keyword argument must be specified.")
 
-        await shared_session.page.screenshot(path=file_path, full_page=True)
-        absolute_path = os.path.abspath(file_path)
+        await shared_session.page.screenshot(path=file_name, full_page=True)
+        absolute_path = os.path.abspath(file_name)
         return absolute_path

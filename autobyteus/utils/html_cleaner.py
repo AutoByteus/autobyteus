@@ -2,7 +2,7 @@
 This module provides functionality for cleaning HTML content with various levels of intensity.
 
 It uses BeautifulSoup to parse and manipulate HTML, offering different cleaning modes
-to suit various use cases.
+to suit various use cases. Empty tags are removed in all cleaning modes.
 """
 
 from bs4 import BeautifulSoup, Comment
@@ -13,13 +13,15 @@ class CleaningMode(Enum):
     Enum representing different HTML cleaning modes.
 
     ULTIMATE: Most aggressive cleaning (removes container tags)
-    CONTENT_FOCUSED: Applies ULTIMATE cleaning and then removes empty tags
+    TEXT_CONTENT_FOCUSED: Focuses on elements providing text content
     THOROUGH: Comprehensive cleaning (removes 'class' attribute)
     STANDARD: Moderate cleaning (keeps 'class' attribute)
     MINIMAL: Least invasive cleaning (preserves most attributes and styles)
+
+    Note: All modes now remove empty tags.
     """
     ULTIMATE = auto()
-    CONTENT_FOCUSED = auto()
+    TEXT_CONTENT_FOCUSED = auto()
     THOROUGH = auto()
     STANDARD = auto()
     MINIMAL = auto()
@@ -50,11 +52,11 @@ def remove_empty_tags(element):
 
 def clean(html_text: str, mode: CleaningMode = CleaningMode.STANDARD) -> str:
     """
-    Clean HTML text by removing unwanted elements, attributes, and whitespace.
+    Clean HTML text by removing unwanted elements, attributes, empty tags, and whitespace.
 
     This function parses the input HTML, removes unnecessary tags and attributes,
-    and returns a cleaned version of the HTML. The level of cleaning is determined
-    by the specified mode.
+    empty tags, and returns a cleaned version of the HTML. The level of cleaning is determined
+    by the specified mode, but empty tags are removed in all modes.
 
     Args:
         html_text (str): The input HTML text to be cleaned.
@@ -68,7 +70,7 @@ def clean(html_text: str, mode: CleaningMode = CleaningMode.STANDARD) -> str:
 
     Example:
         >>> dirty_html = '<html><body><div class="wrapper" style="color: red;">Hello <script>alert("world");</script><p></p></div></body></html>'
-        >>> clean_html = clean(dirty_html, CleaningMode.CONTENT_FOCUSED)
+        >>> clean_html = clean(dirty_html, CleaningMode.TEXT_CONTENT_FOCUSED)
         >>> print(clean_html)
         Hello
     """
@@ -87,13 +89,22 @@ def clean(html_text: str, mode: CleaningMode = CleaningMode.STANDARD) -> str:
         comment.extract()
 
     # Define whitelist tags based on cleaning mode
-    if mode in [CleaningMode.ULTIMATE, CleaningMode.CONTENT_FOCUSED]:
+    if mode == CleaningMode.ULTIMATE:
         whitelist_tags = [
             'p', 'span', 'em', 'strong', 'i', 'b', 'u', 'sub', 'sup',
             'a', 'img', 'br', 'hr', 'blockquote', 'pre', 'code',
             'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
             'ul', 'ol', 'li', 'dl', 'dt', 'dd',
             'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td'
+        ]
+    elif mode == CleaningMode.TEXT_CONTENT_FOCUSED:
+        whitelist_tags = [
+            'p', 'span', 'em', 'strong', 'i', 'b', 'u', 'sub', 'sup',
+            'a', 'blockquote', 'pre', 'code',
+            'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+            'ul', 'ol', 'li', 'dl', 'dt', 'dd',
+            'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
+            'div'  # Included for structural integrity, but will be unwrapped
         ]
     else:
         whitelist_tags = [
@@ -106,20 +117,22 @@ def clean(html_text: str, mode: CleaningMode = CleaningMode.STANDARD) -> str:
             'br', 'hr', 'blockquote', 'pre', 'code', 'figure', 'figcaption',
         ]
 
-    # Remove unwanted tags
+    # Remove or unwrap unwanted tags
     for tag in content.find_all(True):
         if tag.name not in whitelist_tags:
-            if mode in [CleaningMode.ULTIMATE, CleaningMode.CONTENT_FOCUSED]:
+            if mode in [CleaningMode.ULTIMATE, CleaningMode.TEXT_CONTENT_FOCUSED]:
                 tag.unwrap()  # Keep the content of removed tags
             else:
                 tag.decompose()  # Remove the tag and its content
+        elif mode == CleaningMode.TEXT_CONTENT_FOCUSED and tag.name == 'div':
+            tag.unwrap()  # Unwrap div tags in TEXT_CONTENT_FOCUSED mode
 
     # Remove embedded images with src attribute starting with "data:image"
     for img in content.find_all('img'):
         if 'src' in img.attrs and img['src'].startswith('data:image'):
             img.decompose()
 
-    if mode in [CleaningMode.ULTIMATE, CleaningMode.CONTENT_FOCUSED, CleaningMode.THOROUGH, CleaningMode.STANDARD]:
+    if mode in [CleaningMode.ULTIMATE, CleaningMode.TEXT_CONTENT_FOCUSED, CleaningMode.THOROUGH, CleaningMode.STANDARD]:
         # Expanded whitelist of attributes to keep
         whitelist_attrs = [
             'href', 'src', 'alt', 'title', 'id', 'name', 'value', 'type', 'placeholder',
@@ -143,9 +156,8 @@ def clean(html_text: str, mode: CleaningMode = CleaningMode.STANDARD) -> str:
             if 'style' in tag.attrs:
                 del tag['style']
 
-    # Apply CONTENT_FOCUSED mode
-    if mode == CleaningMode.CONTENT_FOCUSED:
-        remove_empty_tags(content)
+    # Remove empty tags for all modes
+    remove_empty_tags(content)
 
     # Return the cleaned HTML
     return ''.join(str(child) for child in content.children).strip()

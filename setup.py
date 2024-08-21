@@ -23,6 +23,7 @@ common_dependencies = [
     "gTTS==2.3.1",
     "docker",
     "google-api-python-client",
+    "google-generativeai",
     "redis",
     "weaviate-client",
     "sentence-transformers",
