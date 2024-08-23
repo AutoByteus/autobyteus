@@ -1,7 +1,7 @@
 import logging
 from typing import Dict, Optional
 from autobyteus.agent.group.group_aware_agent import GroupAwareAgent
-from autobyteus.agent.group.base_agent_orchestrator import BaseAgentOrchestrator
+from autobyteus.agent.orchestrator.base_agent_orchestrator import BaseAgentOrchestrator
 
 logger = logging.getLogger(__name__)
 

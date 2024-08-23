@@ -1,43 +1,45 @@
 import xml.etree.ElementTree as ET
 import re
+import logging
 from xml.sax.saxutils import escape, unescape
 from autobyteus.agent.tool_invocation import ToolInvocation
 
+# Configure logging
+logger = logging.getLogger(__name__)
+
 class XMLLLMResponseParser:
     def parse_response(self, response):
-        print(f"Full response: {response}")
-        
+        logger.debug(f"Full response: {response}")
+
         start_tag = "<command"
         end_tag = "</command>"
         start_index = response.find(start_tag)
         end_index = response.find(end_tag)
-        
-        print(f"Start index: {start_index}, End index: {end_index}")
-        
+
         if start_index != -1 and end_index != -1:
             xml_content = response[start_index : end_index + len(end_tag)]
-            print(f"Extracted XML content: {xml_content}")
-            
+            logger.debug(f"Extracted XML content: {xml_content}")
+
             # Preprocess the XML content
             processed_xml = self._preprocess_xml(xml_content)
-            print(f"Processed XML content: {processed_xml}")
-            
+            logger.debug(f"Processed XML content: {processed_xml}")
+
             try:
                 root = ET.fromstring(processed_xml)
-                print(f"Parsed XML root: {root}")
-                
+                logger.debug(f"Parsed XML root: {root}")
+
                 if root.tag == "command":
                     name = root.attrib.get("name")
-                    print(f"Command name: {name}")
-                    
+                    logger.debug(f"Command name: {name}")
+
                     arguments = self._parse_arguments(root)
-                    print(f"Parsed arguments: {arguments}")
-                    
+                    logger.debug(f"Parsed arguments: {arguments}")
+
                     return ToolInvocation(name=name, arguments=arguments)
             except ET.ParseError as e:
-                print(f"XML parsing error: {e}")
-        
-        print("No valid command found")
+                logger.error(f"XML parsing error: {e}")
+
+        logger.debug("No valid command found")
         return ToolInvocation()
 
     def _preprocess_xml(self, xml_content):

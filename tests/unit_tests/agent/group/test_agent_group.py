@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from autobyteus.agent.group.single_replica_agent_orchestrator import SingleReplicaAgentOrchestrator
+from autobyteus.agent.orchestrator.single_replica_agent_orchestrator import SingleReplicaAgentOrchestrator
 from autobyteus.agent.group.group_aware_agent import GroupAwareAgent
 from autobyteus.agent.group.coordinator_agent import CoordinatorAgent
 from autobyteus.llm.base_llm import BaseLLM

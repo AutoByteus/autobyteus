@@ -1,10 +1,10 @@
 # file: autobyteus/agent/group/send_message_to.py
+from autobyteus.agent.message.message import Message
 from autobyteus.tools.base_tool import BaseTool
-from autobyteus.agent.group.message_types import Message, MessageType
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from autobyteus.agent.group.base_agent_orchestrator import BaseAgentOrchestrator
+    from autobyteus.agent.orchestrator.base_agent_orchestrator import BaseAgentOrchestrator
 
 class SendMessageTo(BaseTool):
     def __init__(self, orchestrator: 'BaseAgentOrchestrator'):
@@ -13,13 +13,11 @@ class SendMessageTo(BaseTool):
 
     async def _execute(self, recipient_role_name: str, recipient_agent_id: str, content: str, message_type: str, sender_agent_id: str) -> Any:
         try:
-            msg_type = MessageType[message_type.upper()]
-        except KeyError:
-            return f"Error: Invalid message type '{message_type}'. Valid types are: {', '.join([t.name for t in MessageType])}"
-
-        message = Message(recipient_role_name, recipient_agent_id, content, msg_type, sender_agent_id)
-        return await self.orchestrator.route_message(message)
-
+            message = Message.create_with_dynamic_message_type(recipient_role_name, recipient_agent_id, content, message_type, sender_agent_id)
+            return await self.orchestrator.route_message(message)
+        except ValueError as e:
+            return f"Error: {str(e)}"
+    
     def tool_usage(self) -> str:
         return self.tool_usage_xml()
 

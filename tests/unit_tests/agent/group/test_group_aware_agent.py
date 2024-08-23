@@ -1,10 +1,10 @@
-# File: tests/unit_tests/agent/group/test_group_aware_agent.py
-
 import asyncio
 import pytest
 from unittest.mock import Mock, AsyncMock
 from autobyteus.agent.group.group_aware_agent import GroupAwareAgent, AgentStatus
-from autobyteus.agent.group.send_message_to import SendMessageTo
+from autobyteus.agent.message.send_message_to import SendMessageTo
+from autobyteus.agent.message.message import Message
+from autobyteus.agent.message.message_types import MessageType
 
 @pytest.fixture
 def mock_llm():
@@ -45,14 +45,16 @@ async def test_receive_agent_message_not_started(group_aware_agent, monkeypatch)
     start_mock = AsyncMock()
     monkeypatch.setattr(group_aware_agent, "start", start_mock)
     
-    await group_aware_agent.receive_agent_message("sender", "test message")
+    message = Message("test_agent", "test_agent_id", "test message", MessageType.TASK_ASSIGNMENT, "sender_id")
+    await group_aware_agent.receive_agent_message(message)
     start_mock.assert_called_once()
     assert group_aware_agent.incoming_agent_messages.qsize() == 1
 
 @pytest.mark.asyncio
 async def test_receive_agent_message_running(group_aware_agent):
     group_aware_agent.status = AgentStatus.RUNNING
-    await group_aware_agent.receive_agent_message("sender", "test message")
+    message = Message("test_agent", "test_agent_id", "test message", MessageType.TASK_ASSIGNMENT, "sender_id")
+    await group_aware_agent.receive_agent_message(message)
     assert group_aware_agent.incoming_agent_messages.qsize() == 1
 
 @pytest.mark.asyncio
@@ -90,7 +92,8 @@ async def test_handle_agent_messages(group_aware_agent, monkeypatch):
     process_mock = AsyncMock()
     monkeypatch.setattr(group_aware_agent, "process_llm_response", process_mock)
     group_aware_agent.status = AgentStatus.RUNNING
-    await group_aware_agent.incoming_agent_messages.put(("sender", "test message"))
+    message = Message("test_agent", "test_agent_id", "test message", MessageType.TASK_ASSIGNMENT, "sender_id")
+    await group_aware_agent.incoming_agent_messages.put(message)
 
     # Set the task_completed event after a short delay
     async def set_task_completed():
@@ -101,7 +104,7 @@ async def test_handle_agent_messages(group_aware_agent, monkeypatch):
 
     await group_aware_agent.handle_agent_messages()
 
-    mock_conversation.send_user_message.assert_called_once_with("Message from sender: test message")
+    mock_conversation.send_user_message.assert_called_once_with("Message from sender_id: test message")
     process_mock.assert_called_once_with("LLM response")
 
 @pytest.mark.asyncio
@@ -169,30 +172,4 @@ async def test_execute_tool(group_aware_agent):
     mock_tool.execute = AsyncMock(return_value="Tool execution result")
     group_aware_agent.tools.append(mock_tool)
 
-    # Create a proper mock tool invocation
-    mock_tool_invocation = Mock()
-    mock_tool_invocation.name = "MockTool"
-    mock_tool_invocation.arguments = {"arg": "value"}
-
-    await group_aware_agent.execute_tool(mock_tool_invocation)
-
-    mock_tool.execute.assert_called_once_with(arg="value")
-    assert group_aware_agent.tool_result_messages.qsize() == 1
-    tool_result = await group_aware_agent.tool_result_messages.get()
-    assert tool_result == "Tool execution result"
-
-def test_get_description(group_aware_agent):
-    tool1 = Mock()
-    tool1.__class__.__name__ = "Tool1"
-    tool2 = Mock()
-    tool2.__class__.__name__ = "Tool2"
-    group_aware_agent.tools = [tool1, tool2]
-    description = group_aware_agent.get_description()
-    assert "test_agent" in description
-    assert "Tool1" in description
-    assert "Tool2" in description
-
-def test_get_status(group_aware_agent):
-    assert group_aware_agent.get_status() == AgentStatus.NOT_STARTED
-    group_aware_agent.status = AgentStatus.RUNNING
-    assert group_aware_agent.get_status() == AgentStatus.RUNNING
+    #

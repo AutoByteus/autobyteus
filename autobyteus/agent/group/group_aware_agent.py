@@ -4,13 +4,14 @@ import asyncio
 import logging
 from enum import Enum
 from autobyteus.agent.agent import StandaloneAgent
-from autobyteus.agent.group.send_message_to import SendMessageTo
+from autobyteus.agent.message.send_message_to import SendMessageTo
 from autobyteus.events.event_types import EventType
-from autobyteus.agent.group.message_types import Message, MessageType
+from autobyteus.agent.message.message_types import  MessageType
+from autobyteus.agent.message.message import Message
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from autobyteus.agent.group.base_agent_orchestrator import BaseAgentOrchestrator
+    from autobyteus.agent.orchestrator.base_agent_orchestrator import BaseAgentOrchestrator
 
 logger = logging.getLogger(__name__)
 

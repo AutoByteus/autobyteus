@@ -4,7 +4,9 @@ import asyncio
 import os
 import logging
 from autobyteus.agent.group.group_aware_agent import GroupAwareAgent, AgentStatus
-from autobyteus.agent.group.message_types import Message, MessageType
+from autobyteus.agent.message.message_types import MessageType
+from autobyteus.agent.message.message import Message
+
 from autobyteus.events.event_types import EventType
 from autobyteus.prompt.prompt_builder import PromptBuilder
 from autobyteus.llm.base_llm import BaseLLM
@@ -27,21 +29,6 @@ class CoordinatorAgent(GroupAwareAgent):
         self.prompt_builder.set_variable_value("agent_descriptions", agent_descriptions)
         self.prompt_builder.set_variable_value("external_tools", self._get_external_tools_section())
         logger.debug(f"Dynamic prompt generated for CoordinatorAgent {self.role}")
-
-    async def handle_agent_messages(self):
-        logger.info(f"CoordinatorAgent {self.role} started handling incoming messages")
-        while not self.task_completed.is_set() and self.status == AgentStatus.RUNNING:
-            try:
-                message: Message = await asyncio.wait_for(self.incoming_agent_messages.get(), timeout=1.0)
-                logger.info(f"CoordinatorAgent {self.role} processing message from {message.sender_agent_id}")
-                
-                if message.message_type == MessageType.TASK_RESULT:
-                    self.agent_orchestrator.handle_task_completed(message.sender_agent_id)
-                
-                llm_response = await self.conversation.send_user_message(f"Message from sender_agent_id {message.sender_agent_id}, content {message.content}")
-                await self.process_llm_response(llm_response)
-            except asyncio.TimeoutError:
-                pass
 
     async def process_llm_response(self, llm_response):
         """

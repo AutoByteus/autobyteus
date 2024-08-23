@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 import logging
 from typing import Dict, Optional
-from autobyteus.agent.group.exceptions import AgentNotFoundException
+from autobyteus.agent.exceptions import AgentNotFoundException
 from autobyteus.agent.group.group_aware_agent import GroupAwareAgent
-from autobyteus.agent.group.message_types import Message
+from autobyteus.agent.message.message import Message
 from autobyteus.events.event_emitter import EventEmitter
 from autobyteus.events.event_types import EventType
 

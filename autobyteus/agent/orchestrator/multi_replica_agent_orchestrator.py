@@ -2,7 +2,7 @@ import logging
 from typing import Dict, List, Optional
 from autobyteus.agent.factory.agent_factory import AgentFactory
 from autobyteus.agent.group.group_aware_agent import GroupAwareAgent
-from autobyteus.agent.group.base_agent_orchestrator import BaseAgentOrchestrator
+from autobyteus.agent.orchestrator.base_agent_orchestrator import BaseAgentOrchestrator
 
 logger = logging.getLogger(__name__)
 
