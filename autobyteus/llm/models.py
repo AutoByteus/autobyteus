@@ -21,7 +21,13 @@ class LLMModel(Enum):
     MIXTRAL_8X7B_32768 = "mixtral-8x7b-32768"
 
     # Gemini models
-    GEMINI = "gemini"
+    GEMINI_1_0_PRO = "gemini-1-0-pro"
+    GEMINI_1_5_PRO = "gemini-1-5-pro"
+    GEMINI_1_5_PRO_EXPERIMENTAL = "gemini-1-5-pro-experimental"
+    GEMINI_1_5_FLASH = "gemini-1-5-flash"
+    GEMMA_2_2B = "gemma-2-2b"
+    GEMMA_2_9B = "gemma-2-9b"
+    GEMMA_2_27B = "gemma-2-27b"
 
     # Claude models
     CLAUDE_3_HAIKU = "Claude3Haiku"
