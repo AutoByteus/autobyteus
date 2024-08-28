@@ -18,6 +18,7 @@ tiktoken==0.3.3
 gTTS==2.3.1
 docker
 google-api-python-client
+google-generativeai
 redis
 weaviate-client
 sentence-transformers
@@ -33,6 +34,3 @@ python-dotenv
 uvicorn
 fastapi 
 strawberry-graphql
-opencv-python 
-pytesseract 
-pyautogui

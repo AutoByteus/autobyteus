@@ -32,7 +32,7 @@ class FileReader(BaseTool):
     where "file_path" is the path to the file to be read.
     '''
 
-    def _execute(self, **kwargs):
+    async def _execute(self, **kwargs):
         """
         Read the content of the file at the specified path.
 
