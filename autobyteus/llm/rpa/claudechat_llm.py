@@ -1,12 +1,14 @@
 from autobyteus.llm.base_llm import BaseLLM
-from llm_ui_integration.ui_integrators.claude_ui_integrator.claude_ui_integrator import ClaudeUIIntegrator
+from autobyteus.llm.utils.llm_config import LLMConfig
 from autobyteus.llm.models import LLMModel
+from llm_ui_integration.ui_integrators.claude_ui_integrator.claude_ui_integrator import ClaudeUIIntegrator
 
 class ClaudeChatLLM(BaseLLM):
-    def __init__(self, model: LLMModel):
+    def __init__(self, model: LLMModel, custom_config: LLMConfig = None):
+        super().__init__(model, custom_config)
         self.ui_integrator = ClaudeUIIntegrator(model=model.value)
-
-    async def send_user_message(self, user_message: str, **kwargs) -> str:
+        
+    async def _send_user_message_to_llm(self, user_message: str, **kwargs) -> str:
         """
         Send a user message and return the LLM's response.
 

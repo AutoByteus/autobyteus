@@ -1,22 +1,15 @@
 # file: autobyteus/llm/rpa/gemini_llm.py
 from autobyteus.llm.base_llm import BaseLLM
+from autobyteus.llm.utils.llm_config import LLMConfig
+from autobyteus.llm.models import LLMModel
 from llm_ui_integration.ui_integrators.gemini_studio_ui_integrator.gemini_studio_ui_integrator import GeminiStudioUIIntegrator
 
-from autobyteus.llm.models import LLMModel
-
 class GeminiLLM(BaseLLM):
-    def __init__(self, model: LLMModel):
-        """
-        Initialize the GeminiLLM instance.
-
-        :param model: The Gemini model to use.
-        :type model: LLMModel
-        """
-        super().__init__()
-        self.model = model
+    def __init__(self, model: LLMModel, custom_config: LLMConfig = None):
+        super().__init__(model, custom_config)
         self.ui_integrator = GeminiStudioUIIntegrator(model.value)
 
-    async def send_user_message(self, user_message: str, **kwargs) -> str:
+    async def _send_user_message_to_llm(self, user_message: str, **kwargs) -> str:
         """
         Send a user message and return the LLM's response.
         

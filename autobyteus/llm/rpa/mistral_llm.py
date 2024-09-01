@@ -1,19 +1,14 @@
 from autobyteus.llm.base_llm import BaseLLM
-from llm_ui_integration.ui_integrators.mistralchat_ui_integrator.mistral_ui_integrator import MistralUIIntegrator
+from autobyteus.llm.utils.llm_config import LLMConfig
 from autobyteus.llm.models import LLMModel
+from llm_ui_integration.ui_integrators.mistralchat_ui_integrator.mistral_ui_integrator import MistralUIIntegrator
 
 class MistralLLM(BaseLLM):
-    def __init__(self, model: LLMModel):
-        """
-        Initialize the MistralLLM instance.
-
-        :param model: The Mistral model to use.
-        :type model: LLMModel
-        """
+    def __init__(self, model: LLMModel, custom_config: LLMConfig = None):
+        super().__init__(model, custom_config)
         self.ui_integrator = MistralUIIntegrator()
-        self.model = model
 
-    async def send_user_message(self, user_message: str, **kwargs):
+    async def _send_user_message_to_llm(self, user_message: str, **kwargs):
         """
         Send a user message and return the LLM's response.
         

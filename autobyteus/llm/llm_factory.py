@@ -1,8 +1,43 @@
-# file: autobyteus/llm/LLMFactory.py
+# file: autobyteus/llm/llm_factory.py
+# file: autobyteus/llm/llm_factory.py
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
+from autobyteus.llm.utils.llm_config import LLMConfig
+
+# Import all LLM implementations
+from autobyteus.llm.rpa.chatgpt_llm import ChatGPTLLM
+from autobyteus.llm.rpa.mistral_llm import MistralLLM
+from autobyteus.llm.rpa.groq_llm import GroqLLM
+from autobyteus.llm.rpa.gemini_llm import GeminiLLM
+from autobyteus.llm.rpa.claudechat_llm import ClaudeChatLLM
+from autobyteus.llm.rpa.perplexity_llm import PerplexityLLM
 
 class LLMFactory:
     @staticmethod
-    def create_llm(model: LLMModel) -> BaseLLM:
-        raise NotImplementedError("This method should be overridden by subclasses.")
+    def create_llm(model: LLMModel, custom_config: LLMConfig = None) -> BaseLLM:
+        if model in [LLMModel.GPT_3_5_TURBO, LLMModel.GPT_4]:
+            return ChatGPTLLM(model, custom_config)
+        
+        elif model in [LLMModel.MISTRAL_SMALL, LLMModel.MISTRAL_MEDIUM, LLMModel.MISTRAL_LARGE]:
+            return MistralLLM(model, custom_config)
+        
+        elif model in [LLMModel.GEMMA_2_9B_IT, LLMModel.GEMMA_7B_IT, LLMModel.LLAMA_3_1_405B_REASONING,
+                       LLMModel.LLAMA_3_1_70B_VERSATILE, LLMModel.LLAMA_3_1_8B_INSTANT, LLMModel.LLAMA3_70B_8192,
+                       LLMModel.LLAMA3_8B_8192, LLMModel.MIXTRAL_8X7B_32768]:
+            return GroqLLM(model, custom_config)
+        
+        elif model in [LLMModel.GEMINI_1_0_PRO, LLMModel.GEMINI_1_5_PRO, LLMModel.GEMINI_1_5_PRO_EXPERIMENTAL,
+                       LLMModel.GEMINI_1_5_FLASH, LLMModel.GEMMA_2_2B, LLMModel.GEMMA_2_9B, LLMModel.GEMMA_2_27B]:
+            return GeminiLLM(model, custom_config)
+        
+        elif model in [LLMModel.CLAUDE_3_HAIKU, LLMModel.CLAUDE_3_OPUS, LLMModel.CLAUDE_3_5_SONNET]:
+            return ClaudeChatLLM(model, custom_config)
+        
+        elif model in [LLMModel.LLAMA_3_1_SONAR_LARGE_128K_ONLINE, LLMModel.LLAMA_3_1_SONAR_SMALL_128K_ONLINE,
+                       LLMModel.LLAMA_3_1_SONAR_LARGE_128K_CHAT, LLMModel.LLAMA_3_1_SONAR_SMALL_128K_CHAT,
+                       LLMModel.LLAMA_3_1_8B_INSTRUCT, LLMModel.LLAMA_3_1_70B_INSTRUCT,
+                       LLMModel.GEMMA_2_27B_IT, LLMModel.NEMOTRON_4_340B_INSTRUCT, LLMModel.MIXTRAL_8X7B_INSTRUCT]:
+            return PerplexityLLM(model, custom_config)
+        
+        else:
+            raise ValueError(f"Unsupported model: {model}")

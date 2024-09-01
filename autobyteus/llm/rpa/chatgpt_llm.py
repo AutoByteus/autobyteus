@@ -1,17 +1,14 @@
 from autobyteus.llm.base_llm import BaseLLM
+from autobyteus.llm.utils.llm_config import LLMConfig
+from autobyteus.llm.models import LLMModel
 from llm_ui_integration.ui_integrators.chatgpt_ui_integrator.chatgpt_ui_integrator import ChatGPTUIIntegrator
 
 class ChatGPTLLM(BaseLLM):
-    def __init__(self, model: str):
-        """
-        Initialize the ChatGPTLLM instance.
+    def __init__(self, model: LLMModel, custom_config: LLMConfig = None):
+        super().__init__(model, custom_config)
+        self.ui_integrator = ChatGPTUIIntegrator(model.value)
 
-        :param model: The model to be used with ChatGPT.
-        :type model: str
-        """
-        self.ui_integrator = ChatGPTUIIntegrator(model)
-
-    async def send_user_message(self, user_message, **kwargs):
+    async def _send_user_message_to_llm(self, user_message, **kwargs):
         """
         Send a user message and return the LLM's response.
 

@@ -15,7 +15,7 @@ class GeminiLLM(BaseLLM):
         self.model = genai.GenerativeModel(model)
         genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 
-    async def send_user_message(self, user_message, **kwargs):
+    async def _send_user_message_to_llm(self, user_message, **kwargs):
         """
         Send a user message and return the LLM's response.
 
