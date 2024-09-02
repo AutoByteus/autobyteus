@@ -4,7 +4,7 @@ from autobyteus.llm.utils.llm_config import LLMConfig
 class TokenCounter:
     def __init__(self, config: LLMConfig):
         self.token_limit = config.token_limit
-        self.model_name = config.model_name
+        self.model_name = None
         if self.token_limit:
             self.encoding = tiktoken.encoding_for_model(self.model_name)
         self.input_tokens = 0
