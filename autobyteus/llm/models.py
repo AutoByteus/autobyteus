@@ -70,7 +70,7 @@ class LLMModel(Enum):
 
             # Gemini models
             self.GEMINI_1_0_PRO: LLMConfig(rate_limit=60, token_limit=30720),
-            self.GEMINI_1_5_PRO: LLMConfig(rate_limit=2, token_limit=30720),
+            self.GEMINI_1_5_PRO: LLMConfig(rate_limit=20, token_limit=30720),
             self.GEMINI_1_5_PRO_EXPERIMENTAL: LLMConfig(rate_limit=30, token_limit=30720),
             self.GEMINI_1_5_FLASH: LLMConfig(rate_limit=60, token_limit=16384),
             self.GEMMA_2_2B: LLMConfig(rate_limit=60, token_limit=8192),
