@@ -1,7 +1,19 @@
+"""
+task.py: Contains the Task class for representing individual tasks within a workflow.
+
+This module defines the Task class, which encapsulates the functionality for a single task,
+including its objective, input and output descriptions, associated tools, LLM integration,
+and execution logic using a dynamically created Agent.
+"""
+
+import asyncio
 from typing import Any, List, Optional
+from autobyteus.persona.persona import Persona
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.llm.base_llm import BaseLLM
-from autobyteus.agent.persona import Persona  # We'll update this import path later
+from autobyteus.agent.agent import StandaloneAgent
+from autobyteus.prompt.prompt_builder import PromptBuilder
+from autobyteus.conversation.persistence.file_based_persistence_provider import FileBasedPersistenceProvider
 
 class Task:
     def __init__(
@@ -40,12 +52,55 @@ class Task:
         return self.result
 
     async def _execute_single_task(self, input_data: Any) -> Any:
-        llm_response = await self.llm.generate(
-            f"Objective: {self.objective}, Input: {input_data}, Persona: {self.persona}"
-        )
-        tool_results = [await tool._execute(input_data) for tool in self.tools]
-        self.result = f"Task result: {llm_response}, Tool results: {tool_results}"
+        agent = self._create_agent()
+        prompt = self._generate_agent_prompt(input_data)
+        
+        # Set the initial prompt for the agent
+        agent.prompt_builder.set_variable_value("initial_prompt", prompt)
+        
+        # Run the agent
+        await agent.run()
+        
+        # Retrieve the result from the agent's conversation
+        self.result = agent.conversation.get_last_assistant_message()
         return self.result
+
+    def _create_agent(self) -> StandaloneAgent:
+        prompt_builder = PromptBuilder()
+        agent_id = f"task_{self.objective[:10]}_{id(self)}"
+        return StandaloneAgent(
+            role=f"Task_{self.objective[:20]}",
+            prompt_builder=prompt_builder,
+            llm=self.llm,
+            tools=self.tools,
+            use_xml_parser=True,
+            persistence_provider_class=FileBasedPersistenceProvider,
+            agent_id=agent_id
+        )
+
+    def _generate_agent_prompt(self, input_data: Any) -> str:
+        prompt = f"""
+        You are an AI agent tasked with executing the following objective:
+        {self.objective}
+
+        Input Description: {self.input_description}
+        Output Description: {self.output_description}
+        Workflow Description: {self.workflow_description}
+
+        Your persona: {self.persona}
+
+        Input Data: {input_data}
+
+        You have access to the following tools:
+        {self._format_tools()}
+
+        Please execute the task step by step, using the tools when necessary.
+        Provide your final output when the task is completed.
+        """
+        return prompt
+
+    def _format_tools(self) -> str:
+        return "\n".join([f"- {tool.get_name()}: {tool.get_description()}" for tool in self.tools])
 
     def get_result(self) -> Any:
         return self.result

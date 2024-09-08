@@ -1,10 +1,11 @@
 import xml.etree.ElementTree as ET
 import re
-import logging
 from xml.sax.saxutils import escape, unescape
+from urllib.parse import unquote
+import xml.parsers.expat
 from autobyteus.agent.tool_invocation import ToolInvocation
+import logging
 
-# Configure logging
 logger = logging.getLogger(__name__)
 
 class XMLLLMResponseParser:
@@ -36,20 +37,36 @@ class XMLLLMResponseParser:
                     logger.debug(f"Parsed arguments: {arguments}")
 
                     return ToolInvocation(name=name, arguments=arguments)
-            except ET.ParseError as e:
-                logger.error(f"XML parsing error: {e}")
+            except (ET.ParseError, xml.parsers.expat.ExpatError) as e:
+                logger.debug(f"XML parsing error: {e}")
+                logger.debug("Attempting to fix malformed XML...")
+                fixed_xml = self._fix_malformed_xml(processed_xml)
+                try:
+                    root = ET.fromstring(fixed_xml)
+                    if root.tag == "command":
+                        name = root.attrib.get("name")
+                        logger.debug(f"Command name: {name}")
+
+                        arguments = self._parse_arguments(root)
+                        logger.debug(f"Parsed arguments: {arguments}")
+
+                        return ToolInvocation(name=name, arguments=arguments)
+                except (ET.ParseError, xml.parsers.expat.ExpatError) as e:
+                    logger.debug(f"Failed to fix XML: {e}")
 
         logger.debug("No valid command found")
         return ToolInvocation()
 
     def _preprocess_xml(self, xml_content):
-        def wrap_content_in_cdata(match):
+        def wrap_arg_in_cdata(match):
             full_tag = match.group(1)
             content = match.group(2)
-            return f"{full_tag}<![CDATA[{content}]]>"
+            # Escape the content, but don't wrap in CDATA to allow for further processing
+            escaped_content = escape(content)
+            return f"{full_tag}{escaped_content}"
 
-        # Wrap content within tags in CDATA sections
-        processed_content = re.sub(r'(<arg name="content">)(.*?)(?=</arg>)', wrap_content_in_cdata, xml_content, flags=re.DOTALL)
+        # Process all <arg> elements
+        processed_content = re.sub(r'(<arg name="[^"]*">)(.*?)(?=</arg>)', wrap_arg_in_cdata, xml_content, flags=re.DOTALL)
         return processed_content
 
     def _parse_arguments(self, command_element):
@@ -60,5 +77,18 @@ class XMLLLMResponseParser:
                 arg_value = ET.tostring(arg, encoding='unicode', method='xml').split('>', 1)[1].rsplit('<', 1)[0].strip()
             else:
                 arg_value = arg.text.strip() if arg.text else ''
-            arguments[arg_name] = unescape(arg_value)
+            
+            # Unescape the value for all arguments
+            arg_value = unescape(arg_value)
+            
+            # Special handling for URL-like arguments
+            if 'url' in arg_name.lower():
+                arg_value = unquote(arg_value)  # Decode URL-encoded characters
+            
+            arguments[arg_name] = arg_value
         return arguments
+
+    def _fix_malformed_xml(self, xml_content):
+        # This is a simple fix attempt. You might need to expand this based on common issues.
+        fixed_content = xml_content.replace('&', '&amp;')
+        return fixed_content

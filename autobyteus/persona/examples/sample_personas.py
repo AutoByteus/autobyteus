@@ -1,6 +1,8 @@
 
-from autobyteus.agent.persona.examples.sample_roles import RESEARCHER_ROLE, WRITER_ROLE
-from autobyteus.agent.persona.persona import Persona
+
+
+from autobyteus.persona.examples.sample_roles import RESEARCHER_ROLE, WRITER_ROLE
+from autobyteus.persona.persona import Persona
 
 
 ANNA = Persona(
