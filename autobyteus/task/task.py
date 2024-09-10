@@ -8,9 +8,9 @@ and execution logic using a dynamically created Agent.
 
 import asyncio
 from typing import Any, List, Optional
-from autobyteus.persona.persona import Persona
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.llm.base_llm import BaseLLM
+from autobyteus.agent.persona import Persona
 from autobyteus.agent.agent import StandaloneAgent
 from autobyteus.prompt.prompt_builder import PromptBuilder
 from autobyteus.conversation.persistence.file_based_persistence_provider import FileBasedPersistenceProvider
@@ -18,18 +18,20 @@ from autobyteus.conversation.persistence.file_based_persistence_provider import 
 class Task:
     def __init__(
         self,
+        description: str,
         objective: str,
         input_description: str,
-        output_description: str,
+        expected_output_description: str,
         workflow_description: Optional[str],
         tools: List[BaseTool],
         llm: BaseLLM,
         persona: Persona,
         subtasks: Optional[List['Task']] = None
     ):
+        self.description = description
         self.objective = objective
         self.input_description = input_description
-        self.output_description = output_description
+        self.expected_output_description = expected_output_description
         self.workflow_description = workflow_description
         self.tools = tools
         self.llm = llm
@@ -80,22 +82,32 @@ class Task:
 
     def _generate_agent_prompt(self, input_data: Any) -> str:
         prompt = f"""
-        You are an AI agent tasked with executing the following objective:
-        {self.objective}
+        You are {self.persona.name}. Your role is {self.persona.role.name}.
 
-        Input Description: {self.input_description}
-        Output Description: {self.output_description}
-        Workflow Description: {self.workflow_description}
+        {self.persona.get_description()}
 
-        Your persona: {self.persona}
+        You are going to perform a task:
 
-        Input Data: {input_data}
+        Description: {self.description}
+        Objective: {self.objective}
+        Input: {self.input_description}
+        Expected Output: {self.expected_output_description}
+
+        Workflow Context: {self.workflow_description}
+
+        Actual Input Data: {input_data}
 
         You have access to the following tools:
         {self._format_tools()}
 
         Please execute the task step by step, using the tools when necessary.
-        Provide your final output when the task is completed.
+        When you have completed the task, provide your final output within the <TaskResult> tags as shown below:
+
+        <TaskResult>
+        Your final output goes here.
+        </TaskResult>
+
+        Ensure that your output matches the expected output description provided earlier.
         """
         return prompt
 
