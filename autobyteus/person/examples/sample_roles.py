@@ -1,4 +1,4 @@
-from autobyteus.persona.role import Role
+from autobyteus.person.role import Role
 
 
 RESEARCHER_ROLE = Role(

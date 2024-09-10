@@ -10,10 +10,10 @@ import asyncio
 from typing import Any, List, Optional
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.llm.base_llm import BaseLLM
-from autobyteus.agent.persona import Persona
 from autobyteus.agent.agent import StandaloneAgent
 from autobyteus.prompt.prompt_builder import PromptBuilder
 from autobyteus.conversation.persistence.file_based_persistence_provider import FileBasedPersistenceProvider
+from autobyteus.person.person import Person
 
 class Task:
     def __init__(
@@ -25,7 +25,7 @@ class Task:
         workflow_description: Optional[str],
         tools: List[BaseTool],
         llm: BaseLLM,
-        persona: Persona,
+        person: Optional[Person] = None,
         subtasks: Optional[List['Task']] = None
     ):
         self.description = description
@@ -35,9 +35,22 @@ class Task:
         self.workflow_description = workflow_description
         self.tools = tools
         self.llm = llm
-        self.persona = persona
+        self.person = None
+        if person:
+            self.assign_to(person)
         self.subtasks = subtasks or []
         self.result = None
+
+    def assign_to(self, person: Person):
+        if self.person:
+            self.person.unassign_task(self)
+        self.person = person
+        person.assign_task(self)
+
+    def unassign(self):
+        if self.person:
+            self.person.unassign_task(self)
+            self.person = None
 
     async def execute(self, input_data: Any) -> Any:
         if self.subtasks:
@@ -81,33 +94,30 @@ class Task:
         )
 
     def _generate_agent_prompt(self, input_data: Any) -> str:
+        if not self.person:
+            raise ValueError("A person must be assigned to the task before generating the agent prompt.")
+
         prompt = f"""
-        You are {self.persona.name}. Your role is {self.persona.role.name}.
+        You are {self.person.name}. Your role is {self.person.role.name}.
 
-        {self.persona.get_description()}
+        {self.person.get_description()}
 
-        You are going to perform a task:
-
-        Description: {self.description}
+        Task Description: {self.description}
         Objective: {self.objective}
-        Input: {self.input_description}
+
+        Input Description: {self.input_description}
         Expected Output: {self.expected_output_description}
 
-        Workflow Context: {self.workflow_description}
+        Workflow:
+        {self.workflow_description}
 
-        Actual Input Data: {input_data}
-
-        You have access to the following tools:
+        Available Tools:
         {self._format_tools()}
 
-        Please execute the task step by step, using the tools when necessary.
-        When you have completed the task, provide your final output within the <TaskResult> tags as shown below:
+        Input Data:
+        {input_data}
 
-        <TaskResult>
-        Your final output goes here.
-        </TaskResult>
-
-        Ensure that your output matches the expected output description provided earlier.
+        Please complete the task based on the given information and using the available tools.
         """
         return prompt
 
