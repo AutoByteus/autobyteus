@@ -6,7 +6,6 @@ including its objective, input and output descriptions, associated tools, LLM in
 and execution logic using a dynamically created Agent.
 """
 
-import asyncio
 from typing import Any, List, Optional
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.llm.base_llm import BaseLLM
@@ -68,10 +67,18 @@ class Task:
 
     async def _execute_single_task(self, input_data: Any) -> Any:
         agent = self._create_agent()
-        prompt = self._generate_agent_prompt(input_data)
         
-        # Set the initial prompt for the agent
-        agent.prompt_builder.set_variable_value("initial_prompt", prompt)
+        # Set the variable values for the prompt
+        agent.prompt_builder.set_variable_value("name", self.person.name)
+        agent.prompt_builder.set_variable_value("role", self.person.role.name)
+        agent.prompt_builder.set_variable_value("person_description", self.person.get_description())
+        agent.prompt_builder.set_variable_value("task_description", self.description)
+        agent.prompt_builder.set_variable_value("objective", self.objective)
+        agent.prompt_builder.set_variable_value("input_description", self.input_description)
+        agent.prompt_builder.set_variable_value("expected_output_description", self.expected_output_description)
+        agent.prompt_builder.set_variable_value("workflow_description", self.workflow_description)
+        agent.prompt_builder.set_variable_value("tools", self._format_tools())
+        agent.prompt_builder.set_variable_value("input_data", str(input_data))
         
         # Run the agent
         await agent.run()
@@ -81,45 +88,56 @@ class Task:
         return self.result
 
     def _create_agent(self) -> StandaloneAgent:
-        prompt_builder = PromptBuilder()
         agent_id = f"task_{self.objective[:10]}_{id(self)}"
+        
+        # Generate the initial prompt
+        initial_prompt = self._generate_initial_prompt()
+        
         return StandaloneAgent(
             role=f"Task_{self.objective[:20]}",
-            prompt_builder=prompt_builder,
             llm=self.llm,
             tools=self.tools,
             use_xml_parser=True,
             persistence_provider_class=FileBasedPersistenceProvider,
-            agent_id=agent_id
+            agent_id=agent_id,
+            initial_prompt=initial_prompt
         )
 
-    def _generate_agent_prompt(self, input_data: Any) -> str:
-        if not self.person:
-            raise ValueError("A person must be assigned to the task before generating the agent prompt.")
+    def _generate_initial_prompt(self) -> str:
+        template = """
+        You are {name}. Your role is {role}.
 
-        prompt = f"""
-        You are {self.person.name}. Your role is {self.person.role.name}.
+        {person_description}
 
-        {self.person.get_description()}
+        Task Description: {task_description}
+        Objective: {objective}
 
-        Task Description: {self.description}
-        Objective: {self.objective}
-
-        Input Description: {self.input_description}
-        Expected Output: {self.expected_output_description}
+        Input Description: {input_description}
+        Expected Output: {expected_output_description}
 
         Workflow:
-        {self.workflow_description}
+        {workflow_description}
 
         Available Tools:
-        {self._format_tools()}
+        {tools}
 
         Input Data:
         {input_data}
 
         Please complete the task based on the given information and using the available tools.
         """
-        return prompt
+        prompt_builder = PromptBuilder.from_string(template)
+        prompt_builder.set_variable_value("name", self.person.name)
+        prompt_builder.set_variable_value("role", self.person.role.name)
+        prompt_builder.set_variable_value("person_description", self.person.get_description())
+        prompt_builder.set_variable_value("task_description", self.description)
+        prompt_builder.set_variable_value("objective", self.objective)
+        prompt_builder.set_variable_value("input_description", self.input_description)
+        prompt_builder.set_variable_value("expected_output_description", self.expected_output_description)
+        prompt_builder.set_variable_value("workflow_description", self.workflow_description)
+        prompt_builder.set_variable_value("tools", self._format_tools())
+        prompt_builder.set_variable_value("input_data", "To be provided during execution")
+        return prompt_builder.build()
 
     def _format_tools(self) -> str:
         return "\n".join([f"- {tool.get_name()}: {tool.get_description()}" for tool in self.tools])

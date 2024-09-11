@@ -1,9 +1,6 @@
-# File: autobyteus/agent/agent.py
-
 import asyncio
 import logging
 from typing import List, Type, Optional
-import uuid
 from autobyteus.agent.llm_response_parser import LLMResponseParser
 from autobyteus.conversation.conversation_manager import ConversationManager
 from autobyteus.conversation.persistence.file_based_persistence_provider import FileBasedPersistenceProvider
@@ -15,61 +12,47 @@ from autobyteus.agent.xml_llm_response_parser import XMLLLMResponseParser
 from autobyteus.prompt.prompt_builder import PromptBuilder
 from autobyteus.events.event_types import EventType
 
+from agent.status import AgentStatus
+
 logger = logging.getLogger(__name__)
 
 class StandaloneAgent(EventEmitter):
-    """
-    A standalone agent capable of interacting with an LLM and executing tools.
-    
-    This agent operates independently, without awareness of other agents. It processes
-    tasks sequentially, interacting with its assigned LLM and executing tools as needed.
-    
-    Attributes:
-        role (str): The role or identifier of the agent.
-        prompt_builder (PromptBuilder): Used to construct prompts for the LLM.
-        llm (BaseLLM): The language model the agent interacts with.
-        tools (List[BaseTool]): The tools available to the agent.
-        conversation_manager (ConversationManager): Manages the agent's conversations.
-        response_parser (XMLLLMResponseParser): Parses responses from the LLM.
-        persistence_provider_class (Type[PersistenceProvider]): Class for persisting conversations.
-        conversation: The current conversation instance.
-        task_completed (asyncio.Event): Event to signal task completion.
-        agent_id (str): The unique identifier for the agent. If not provided, it's generated as "{role}_001".
-
-    Args:
-        role (str): The role or identifier of the agent.
-        prompt_builder (PromptBuilder): Used to construct prompts for the LLM.
-        llm (BaseLLM): The language model the agent interacts with.
-        tools (List[BaseTool]): The tools available to the agent.
-        use_xml_parser (bool, optional): Whether to use XML parser for LLM responses. Defaults to True.
-        persistence_provider_class (Type[PersistenceProvider], optional): Class for persisting conversations. 
-            Defaults to FileBasedPersistenceProvider.
-        agent_id (str, optional): The unique identifier for the agent. If not provided, a default id is generated.
-    """
-
-    def __init__(self, role: str, prompt_builder: PromptBuilder, llm: BaseLLM, tools: List[BaseTool],
-                 use_xml_parser=True, persistence_provider_class: Optional[Type[PersistenceProvider]] = FileBasedPersistenceProvider, agent_id=None):
+    def __init__(self, role: str, llm: BaseLLM, tools: List[BaseTool],
+                 use_xml_parser=True, 
+                 persistence_provider_class: Optional[Type[PersistenceProvider]] = FileBasedPersistenceProvider, 
+                 agent_id=None,
+                 prompt_builder: Optional[PromptBuilder] = None,
+                 initial_prompt: Optional[str] = None):
         super().__init__()
         self.role = role
-        self.prompt_builder = prompt_builder
         self.llm = llm
         self.tools = tools
         self.conversation_manager = ConversationManager()
         self.response_parser = XMLLLMResponseParser() if use_xml_parser else LLMResponseParser()
         self.persistence_provider_class = persistence_provider_class
         self.conversation = None
+        self.agent_id = agent_id or f"{self.role}-001"
+        self.status = AgentStatus.NOT_STARTED
+        self._run_task = None
+        self._queues_initialized = False
         self.task_completed = None
+        self.prompt_builder = prompt_builder
+        self.initial_prompt = initial_prompt
 
-        # Generate default agent_id if not provided
-        if agent_id is None:
-            self.agent_id = f"{self.role}-001"
-        else:
-            self.agent_id = agent_id
+        if not self.prompt_builder and not self.initial_prompt:
+            raise ValueError("Either prompt_builder or initial_prompt must be provided")
 
-        # Set agent_id on each tool
         self.set_agent_id_on_tools()
         self.register_task_completion_listener()
         logger.info(f"StandaloneAgent initialized with role: {self.role} and agent_id: {self.agent_id}")
+
+
+    def _initialize_queues(self):
+        if not self._queues_initialized:
+            self.tool_result_messages = asyncio.Queue()
+            self.user_messages = asyncio.Queue()
+            self._queues_initialized = True
+            logger.info(f"Queues initialized for agent {self.role}")
 
     def _initialize_task_completed(self):
         if self.task_completed is None:
@@ -81,67 +64,129 @@ class StandaloneAgent(EventEmitter):
             raise RuntimeError("task_completed Event accessed before initialization")
         return self.task_completed
 
-    def get_agent_id(self) -> str:
-        """Get the unique identifier of the agent."""
-        return self.agent_id
-
-    def set_agent_id_on_tools(self):
-            for tool in self.tools:
-                tool.set_agent_id(self.agent_id)
-
     async def run(self):
-        """
-        The main execution loop for the agent.
-        
-        This method initializes the conversation, sends the initial prompt to the LLM,
-        and then enters a loop where it processes responses from the LLM and executes
-        tools as needed. The loop continues until the task_completed event is set.
-        """
         try:
             logger.info(f"Starting execution for agent: {self.role}")
+            self._initialize_queues()
             self._initialize_task_completed()
-            conversation_name = self._sanitize_conversation_name(self.role)
-            self.conversation = await self.conversation_manager.start_conversation(
-                conversation_name=conversation_name,
-                llm=self.llm,
-                persistence_provider_class=self.persistence_provider_class
-            )
-            logger.info(f"Conversation started for agent: {self.role}")
-
-            prompt = self.prompt_builder.set_variable_value("external_tools", self._get_external_tools_section()).build()
-            logger.debug(f"Initial prompt for agent {self.role}: {prompt}")
-
-            response = await self.conversation.send_user_message(prompt)
-            logger.info(f"Received initial LLM response for agent {self.role}")
-
-            while not self.task_completed.is_set():
-                tool_invocation = self.response_parser.parse_response(response)
-
-                if tool_invocation.is_valid():
-                    name = tool_invocation.name
-                    arguments = tool_invocation.arguments
-                    logger.info(f"Agent {self.role} attempting to execute tool: {name}")
-
-                    tool = next((t for t in self.tools if t.get_name() == name), None)
-                    if tool:
-                        try:
-                            result = await tool.execute(**arguments)
-                            logger.info(f"Tool '{name}' executed successfully by agent {self.role}. Result: {result}")
-                            response = await self.conversation.send_user_message(result)
-                        except Exception as e:
-                            error_message = str(e)
-                            logger.error(f"Error executing tool '{name}' by agent {self.role}: {error_message}")
-                            response = await self.conversation.send_user_message(error_message)
-                    else:
-                        logger.warning(f"Tool '{name}' not found for agent {self.role}.")
-                        break
-                else:
-                    logger.info(f"Assistant response for agent {self.role}: {response}")
-                    await asyncio.sleep(1)
+            await self.initialize_llm_conversation()
             
-            logger.info(f"Agent {self.role} finished execution")
+            # Send initial prompt as a user message
+            if self.prompt_builder:
+                initial_prompt = self.prompt_builder.set_variable_value("external_tools", self._get_external_tools_section()).build()
+            else:
+                initial_prompt = self.initial_prompt
+
+            await self.user_messages.put(initial_prompt)
+            
+            self.status = AgentStatus.RUNNING
+            
+            user_message_handler = asyncio.create_task(self.handle_user_messages())
+            tool_result_handler = asyncio.create_task(self.handle_tool_result_messages())
+            
+            await asyncio.gather(user_message_handler, tool_result_handler)
+
+        except Exception as e:
+            logger.error(f"Error in agent {self.role} execution: {str(e)}")
+            self.status = AgentStatus.ERROR
         finally:
+            self.status = AgentStatus.ENDED
             await self.cleanup()
+        
+
+    async def handle_user_messages(self):
+        logger.info(f"Agent {self.role} started handling user messages")
+        while not self.task_completed.is_set() and self.status == AgentStatus.RUNNING:
+            try:
+                message = await asyncio.wait_for(self.user_messages.get(), timeout=1.0)
+                logger.info(f"Agent {self.role} handling user message")
+                response = await self.conversation.send_user_message(message)
+                await self.process_llm_response(response)
+            except asyncio.TimeoutError:
+                continue
+            except asyncio.CancelledError:
+                logger.info(f"User message handler for agent {self.role} cancelled")
+                break
+            except Exception as e:
+                logger.error(f"Error handling user message for agent {self.role}: {str(e)}")
+
+    async def handle_tool_result_messages(self):
+        logger.info(f"Agent {self.role} started handling tool result messages")
+        while not self.task_completed.is_set() and self.status == AgentStatus.RUNNING:
+            try:
+                message = await asyncio.wait_for(self.tool_result_messages.get(), timeout=1.0)
+                logger.info(f"Agent {self.role} handling tool result message: {message}")
+                response = await self.conversation.send_user_message(f"Tool execution result: {message}")
+                await self.process_llm_response(response)
+            except asyncio.TimeoutError:
+                continue
+            except asyncio.CancelledError:
+                logger.info(f"Tool result handler for agent {self.role} cancelled")
+                break
+            except Exception as e:
+                logger.error(f"Error handling tool result for agent {self.role}: {str(e)}")
+
+    async def initialize_llm_conversation(self):
+        logger.info(f"Initializing LLM conversation for agent {self.role}")
+        conversation_name = self._sanitize_conversation_name(self.role)
+        self.conversation = await self.conversation_manager.start_conversation(
+            conversation_name=conversation_name,
+            llm=self.llm,
+            persistence_provider_class=self.persistence_provider_class
+        )
+        logger.info(f"Conversation started for agent: {self.role}")
+
+    async def process_llm_response(self, response):
+        tool_invocation = self.response_parser.parse_response(response)
+        if tool_invocation.is_valid():
+            await self.execute_tool(tool_invocation)
+        else:
+            logger.info(f"Assistant response for agent {self.role}: {response}")
+
+    async def execute_tool(self, tool_invocation):
+        name = tool_invocation.name
+        arguments = tool_invocation.arguments
+        logger.info(f"Agent {self.role} attempting to execute tool: {name}")
+
+        tool = next((t for t in self.tools if t.get_name() == name), None)
+        if tool:
+            try:
+                result = await tool.execute(**arguments)
+                logger.info(f"Tool '{name}' executed successfully by agent {self.role}. Result: {result}")
+                await self.tool_result_messages.put(result)
+            except Exception as e:
+                error_message = str(e)
+                logger.error(f"Error executing tool '{name}' by agent {self.role}: {error_message}")
+                await self.tool_result_messages.put(f"Error: {error_message}")
+        else:
+            logger.warning(f"Tool '{name}' not found for agent {self.role}.")
+
+    async def receive_user_message(self, message: str):
+        logger.info(f"Agent {self.agent_id} received user message")
+        await self.user_messages.put(message)
+        if self.status != AgentStatus.RUNNING:
+            self.start()
+
+    def start(self):
+        if self.status == AgentStatus.NOT_STARTED or self.status == AgentStatus.ENDED:
+            logger.info(f"Starting agent {self.role}")
+            self._run_task = asyncio.create_task(self.run())
+
+    def stop(self):
+        if self._run_task and not self._run_task.done():
+            self._run_task.cancel()
+
+    async def cleanup(self):
+        while not self.tool_result_messages.empty():
+            self.tool_result_messages.get_nowait()
+        while not self.user_messages.empty():
+            self.user_messages.get_nowait()
+        await self.llm.cleanup()
+        logger.info(f"Cleanup completed for agent: {self.role}")
+
+    def set_agent_id_on_tools(self):
+        for tool in self.tools:
+            tool.set_agent_id(self.agent_id)
 
     def _get_external_tools_section(self):
         """Generate a string representation of all available tools."""
@@ -154,14 +199,6 @@ class StandaloneAgent(EventEmitter):
     def _sanitize_conversation_name(name: str) -> str:
         """Sanitize the conversation name to ensure it's valid for storage."""
         return ''.join(c if c.isalnum() else '_' for c in name)
-
-    async def cleanup(self):
-        """Perform cleanup operations."""
-        logger.info(f"Cleaning up resources for agent: {self.role}")
-        if self.llm:
-            await self.llm.cleanup()
-        self.task_completed.clear()  # Reset the task_completed event
-        logger.info(f"Cleanup completed for agent: {self.role}")
 
     def on_task_completed(self, *args, **kwargs):
         """Event handler for task completion."""
