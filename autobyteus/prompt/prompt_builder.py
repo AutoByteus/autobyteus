@@ -6,18 +6,18 @@ class PromptBuilder:
         self.variable_values = {}
 
     @classmethod
-    def from_file(cls, file_name: str) -> 'PromptBuilder':
+    def from_file(cls, file_path: str) -> 'PromptBuilder':
         """
         Create a PromptBuilder instance with the specified template file.
 
         Args:
-            file_name (str): The path to the template file.
+            file_path (str): The path to the template file.
 
         Returns:
             PromptBuilder: The PromptBuilder instance.
         """
         builder = cls()
-        builder.template = PromptTemplate(file=file_name)
+        builder.template = PromptTemplate(file=file_path)
         return builder
 
     @classmethod

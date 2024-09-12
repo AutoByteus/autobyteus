@@ -7,7 +7,7 @@ creators, such as OpenAIEmbeddingCreator and SentenceTransformerEmbeddingCreator
 is implemented as a singleton, ensuring only one instance of each type can exist.
 """
 
-from autobyteus.config import config
+import os
 from autobyteus.embeding.base_embedding_creator import BaseEmbeddingCreator
 from autobyteus.embeding.openai_embedding_creator import OpenAIEmbeddingCreator
 from autobyteus.embeding.sentence_transformer_embedding_creator import SentenceTransformerEmbeddingCreator
@@ -15,13 +15,13 @@ from autobyteus.embeding.sentence_transformer_embedding_creator import SentenceT
 
 def get_embedding_creator() -> BaseEmbeddingCreator:
     """
-    Gets an instance of an embedding creator class based on the configuration. 
+    Gets an instance of an embedding creator class based on the environment variable. 
     If the instance does not exist, it is created due to the singleton nature of the classes. 
 
     Returns:
     An instance of an embedding creator class.
     """
-    embedding_type = config.get('DEFAULT_EMBEDDING_TYPE', 'sentence_transformer')
+    embedding_type = os.environ.get('DEFAULT_EMBEDDING_TYPE', 'sentence_transformer')
     if embedding_type == 'openai':
         return OpenAIEmbeddingCreator()
     elif embedding_type == 'sentence_transformer':

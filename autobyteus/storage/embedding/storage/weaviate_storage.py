@@ -1,6 +1,5 @@
+import os
 import weaviate
-from autobyteus.codeverse.core.code_entities.base_entity import CodeEntity
-from autobyteus.config import config
 from autobyteus.storage.embedding.storage.base_storage import BaseStorage
 
 class WeaviateStorage(BaseStorage):
@@ -16,8 +15,8 @@ class WeaviateStorage(BaseStorage):
         :param embedding_dim: The dimensionality of the embeddings.
         :type embedding_dim: int
         """
-        # Read configurations
-        url = config.get('WEAVIATE_URL', default='http://localhost:8080')
+        # Read configuration from environment variable
+        url = os.environ.get('WEAVIATE_URL', 'http://localhost:8080')
         
         # Initialize Weaviate client
         self.client = weaviate.Client(url)
@@ -25,7 +24,7 @@ class WeaviateStorage(BaseStorage):
         
         # TODO: Initialize schema for Weaviate if needed
 
-    def store(self, key: str, entity: CodeEntity, embedding):
+    def store(self, key: str, entity: any, embedding):
         # TODO: Store a CodeEntity and its embedding vector in Weaviate
         raise NotImplementedError()
 

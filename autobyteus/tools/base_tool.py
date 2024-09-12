@@ -24,11 +24,9 @@ class BaseTool(EventEmitter, ABC):
         """Execute the tool's main functionality."""
         tool_name = self.__class__.__name__
         logger.info(f"{tool_name} execution started")
-        self.emit(EventType.TOOL_EXECUTION_STARTED)
         try:
             result = await self._execute(**kwargs)
             logger.info(f"{tool_name} execution completed")
-            self.emit(EventType.TOOL_EXECUTION_COMPLETED, result)
             return result
         except Exception as e:
             logger.error(f"{tool_name} execution failed: {str(e)}")

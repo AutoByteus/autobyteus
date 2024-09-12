@@ -1,11 +1,10 @@
+import os
 import logging
 import numpy as np
 import redis
 from redis.commands.search.query import Query
 from redis.commands.search.field import VectorField, TextField
 from redis.commands.search.indexDefinition import IndexDefinition, IndexType
-from autobyteus.codeverse.core.code_entities.base_entity import CodeEntity
-from autobyteus.config import config
 from autobyteus.storage.embedding.storage.base_storage import BaseStorage
 
 logger = logging.getLogger(__name__)
@@ -22,10 +21,10 @@ class RedisStorage(BaseStorage):
         :param embedding_dim: The dimensionality of the embeddings.
         :type embedding_dim: int
         """
-        # Read configurations
-        host = config.get('REDIS_HOST', default='localhost')
-        port = config.get('REDIS_PORT', default=6379)
-        db = config.get('REDIS_DB', default=0)
+        # Read configurations from environment variables
+        host = os.environ.get('REDIS_HOST', 'localhost')
+        port = int(os.environ.get('REDIS_PORT', 6379))
+        db = int(os.environ.get('REDIS_DB', 0))
 
         # Initialize Redis connection
         self.redis_client = redis.Redis(host=host, port=port, db=db, encoding='utf-8', decode_responses=True)
@@ -50,7 +49,7 @@ class RedisStorage(BaseStorage):
         except Exception as e:
             logger.info("Index already exists")
 
-    def store(self, key: str, entity: CodeEntity, embedding):
+    def store(self, key: str, entity: any, embedding):
         """
         Store a CodeEntity with its embedding vector associated with a key in Redis.
 

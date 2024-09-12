@@ -7,9 +7,9 @@ the `create_embedding` method. The class uses a specific SentenceTransformer mod
 representation (embedding) which can be used by machine learning models.
 """
 
+import os
 import numpy as np
 from sentence_transformers import SentenceTransformer
-from autobyteus.config import config
 from autobyteus.embeding.base_embedding_creator import BaseEmbeddingCreator
 
 class SentenceTransformerEmbeddingCreator(BaseEmbeddingCreator):
@@ -20,9 +20,10 @@ class SentenceTransformerEmbeddingCreator(BaseEmbeddingCreator):
 
     def __init__(self):
         """
-        Initialize the SentenceTransformerEmbeddingCreator class by setting the model name.
+        Initialize the SentenceTransformerEmbeddingCreator class by setting the model name
+        from an environment variable.
         """
-        self.model_name = config.get('DEFAULT_SENTENCE_TRANSFORMER_MODEL', default='sentence-transformers/all-mpnet-base-v2')
+        self.model_name = os.environ.get('DEFAULT_SENTENCE_TRANSFORMER_MODEL', 'sentence-transformers/all-mpnet-base-v2')
         self.model = SentenceTransformer(self.model_name)
 
     @property
@@ -30,7 +31,7 @@ class SentenceTransformerEmbeddingCreator(BaseEmbeddingCreator):
         """
         This property returns the dimension of the embedding produced by SentenceTransformerEmbeddingCreator.
         """
-        return config.get('DEFAULT_SENTENCE_TRANSFORMER_MODEL.EMBEDDING_DIM', default=768)  # for instance
+        return int(os.environ.get('DEFAULT_SENTENCE_TRANSFORMER_MODEL_DIM', '768'))
     
     def create_embedding(self, text: str) -> np.ndarray:
         """
@@ -40,6 +41,6 @@ class SentenceTransformerEmbeddingCreator(BaseEmbeddingCreator):
         text (str): The input text to be converted into an embedding.
         
         Returns:
-        This method returns an embedding, usually in the form of a numerical array or tensor.
+        np.ndarray: An embedding in the form of a numerical array.
         """
         return self.model.encode(text)

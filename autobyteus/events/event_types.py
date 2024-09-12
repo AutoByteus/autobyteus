@@ -13,3 +13,4 @@ class EventType(Enum):
     WEIBO_POST_COMPLETED = auto()
     TASK_COMPLETED = auto()  # New event type for task completion
     TIMER_UPDATE = auto()
+    ASSISTANT_RESPONSE = auto()

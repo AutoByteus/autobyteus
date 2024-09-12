@@ -6,10 +6,10 @@ using OpenAI's API. It reads the API key and model name from a configuration fil
 OpenAI's API to generate embeddings for the input text.
 """
 
+import os
 import openai
 import numpy as np
 import logging
-from autobyteus.config import config
 from autobyteus.embeding.base_embedding_creator import BaseEmbeddingCreator
 
 logger = logging.getLogger(__name__)
@@ -23,10 +23,10 @@ class OpenAIEmbeddingCreator(BaseEmbeddingCreator):
     def __init__(self):
         """
         Initialize the OpenAIEmbeddingCreator class by reading the API key and model name
-        from the configuration file.
+        from environment variables.
         """
-        self.api_key = config.get('OPEN_AI_API_KEY')
-        self.model_name = config.get('OPEN_AI_EMBEDDING_MODEL', default="text-embedding-ada-002")
+        self.api_key = os.environ.get('OPEN_AI_API_KEY')
+        self.model_name = os.environ.get('OPEN_AI_EMBEDDING_MODEL', 'text-embedding-ada-002')
         logger.info("OpenAIEmbeddingCreator using embedding model %s", self.model_name)
 
     @property
@@ -34,7 +34,7 @@ class OpenAIEmbeddingCreator(BaseEmbeddingCreator):
         """
         This property returns the dimension of the embedding produced by OpenAIEmbeddingCreator.
         """
-        return config.get('OPEN_AI_EMBEDDING_MODEL.EMBEDDING_DIM', default=1536)  # for instance
+        return int(os.environ.get('OPEN_AI_EMBEDDING_MODEL_DIM', '1536'))
     
     def create_embedding(self, text: str):
         """

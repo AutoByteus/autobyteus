@@ -11,8 +11,7 @@ from autobyteus.tools.base_tool import BaseTool
 from autobyteus.agent.xml_llm_response_parser import XMLLLMResponseParser
 from autobyteus.prompt.prompt_builder import PromptBuilder
 from autobyteus.events.event_types import EventType
-
-from agent.status import AgentStatus
+from autobyteus.agent.status import AgentStatus
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +100,7 @@ class StandaloneAgent(EventEmitter):
                 message = await asyncio.wait_for(self.user_messages.get(), timeout=1.0)
                 logger.info(f"Agent {self.role} handling user message")
                 response = await self.conversation.send_user_message(message)
+                self.emit(EventType.ASSISTANT_RESPONSE, agent_id=self.agent_id, response=response)
                 await self.process_llm_response(response)
             except asyncio.TimeoutError:
                 continue

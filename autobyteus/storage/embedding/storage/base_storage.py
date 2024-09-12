@@ -5,7 +5,6 @@ Description: Defines the abstract base class for storage implementations.
 
 from abc import ABC, abstractmethod
 
-from autobyteus.codeverse.core.code_entities.base_entity import CodeEntity
 from autobyteus.utils.singleton import ABCSingletonMeta
 
 class BaseStorage(metaclass=ABCSingletonMeta):
@@ -21,7 +20,7 @@ class BaseStorage(metaclass=ABCSingletonMeta):
     """
 
     @abstractmethod
-    def store(self, key: str, entity: CodeEntity, embedding):
+    def store(self, key: str, entity: any, embedding):
         """
         Stores the embedding with the given key.
 
