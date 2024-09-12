@@ -54,7 +54,15 @@ class GroupAwareAgent(StandaloneAgent):
             tool_result_handler = asyncio.create_task(self.handle_tool_result_messages())
             agent_message_handler = asyncio.create_task(self.handle_agent_messages())
             
-            await asyncio.gather(user_message_handler, tool_result_handler, agent_message_handler)
+            done, pending = await asyncio.wait(
+                [agent_message_handler, tool_result_handler, user_message_handler, self.task_completed.wait()],
+                return_when=asyncio.FIRST_COMPLETED
+            )
+
+            for task in pending:
+                task.cancel()
+
+            await asyncio.gather(*pending, return_exceptions=True)
 
         except Exception as e:
             logger.error(f"Error in agent {self.role} execution: {str(e)}")
