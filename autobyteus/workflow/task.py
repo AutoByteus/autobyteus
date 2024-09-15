@@ -115,9 +115,6 @@ class Task:
         Input Description: {input_description}
         Expected Output: {expected_output_description}
 
-        Workflow:
-        {workflow_description}
-
         Available Tools:
         {tools}
 

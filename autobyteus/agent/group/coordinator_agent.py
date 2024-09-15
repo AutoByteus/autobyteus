@@ -25,8 +25,6 @@ class CoordinatorAgent(GroupAwareAgent):
         Generate a dynamic prompt for the CoordinatorAgent.
         """
         logger.info(f"Generating dynamic prompt for CoordinatorAgent {self.role}")
-        agent_descriptions = "\n".join([f"- {agent.role}: {agent.get_description()}" for agent in self.agent_orchestrator.agents.values() if agent != self])
-        self.prompt_builder.set_variable_value("agent_descriptions", agent_descriptions)
         self.prompt_builder.set_variable_value("external_tools", self._get_external_tools_section())
         logger.debug(f"Dynamic prompt generated for CoordinatorAgent {self.role}")
 

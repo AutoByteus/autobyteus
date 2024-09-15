@@ -20,10 +20,12 @@ class GroupAwareAgent(StandaloneAgent):
         logger.info(f"GroupAwareAgent initialized with role: {self.role}")
 
     def _initialize_queues(self):
-        super()._initialize_queues()
-        if not hasattr(self, 'incoming_agent_messages'):
+        if not self._queues_initialized:
+            self.tool_result_messages = asyncio.Queue()
+            self.user_messages = asyncio.Queue()
+            self._queues_initialized = True
             self.incoming_agent_messages = asyncio.Queue()
-        logger.info(f"Queues initialized for agent {self.role}")
+            logger.info(f"Queues initialized for agent {self.role}")
 
     def set_agent_orchestrator(self, agent_orchestrator: 'BaseAgentOrchestrator'):
         self.agent_orchestrator = agent_orchestrator
@@ -33,6 +35,9 @@ class GroupAwareAgent(StandaloneAgent):
 
     async def receive_agent_message(self, message: Message):
         logger.info(f"Agent {self.agent_id} received message from {message.sender_agent_id}")
+        if not self._queues_initialized:
+            logger.warning(f"Agent {self.agent_id} received message before queues were initialized. Initializing now.")
+            self._initialize_queues()
         await self.incoming_agent_messages.put(message)
         if self.status != AgentStatus.RUNNING:
             self.start()
