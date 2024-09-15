@@ -48,11 +48,7 @@ class GroupAwareAgent(StandaloneAgent):
             self._initialize_queues()
             self._initialize_task_completed()
             await self.initialize_llm_conversation()
-            
-            # Send initial prompt as a user message
-            initial_prompt = self.prompt_builder.set_variable_value("external_tools", self._get_external_tools_section()).build()
-            await self.user_messages.put(initial_prompt)
-            
+        
             self.status = AgentStatus.RUNNING
             
             user_message_handler = asyncio.create_task(self.handle_user_messages())

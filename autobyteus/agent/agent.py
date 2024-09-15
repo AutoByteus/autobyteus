@@ -70,14 +70,6 @@ class StandaloneAgent(EventEmitter):
             self._initialize_task_completed()
             await self.initialize_llm_conversation()
             
-            # Send initial prompt as a user message
-            if self.prompt_builder:
-                initial_prompt = self.prompt_builder.set_variable_value("external_tools", self._get_external_tools_section()).build()
-            else:
-                initial_prompt = self.initial_prompt
-
-            await self.user_messages.put(initial_prompt)
-            
             self.status = AgentStatus.RUNNING
             
             user_message_handler = asyncio.create_task(self.handle_user_messages())
@@ -134,7 +126,11 @@ class StandaloneAgent(EventEmitter):
             llm=self.llm,
             persistence_provider_class=self.persistence_provider_class
         )
-        logger.info(f"Conversation started for agent: {self.role}")
+
+        initial_prompt = self.prompt_builder.set_variable_value("external_tools", self._get_external_tools_section()).build()
+        logger.debug(f"Initial prompt for agent {self.role}: {initial_prompt}")
+        initial_llm_response = await self.conversation.send_user_message(initial_prompt)
+        await self.process_llm_response(initial_llm_response)
 
     async def process_llm_response(self, response):
         tool_invocation = self.response_parser.parse_response(response)
