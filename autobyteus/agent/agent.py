@@ -127,7 +127,11 @@ class StandaloneAgent(EventEmitter):
             persistence_provider_class=self.persistence_provider_class
         )
 
-        initial_prompt = self.prompt_builder.set_variable_value("external_tools", self._get_external_tools_section()).build()
+        if self.initial_prompt:
+            initial_prompt = self.initial_prompt
+        else:
+            initial_prompt = self.prompt_builder.set_variable_value("external_tools", self._get_external_tools_section()).build()
+
         logger.debug(f"Initial prompt for agent {self.role}: {initial_prompt}")
         initial_llm_response = await self.conversation.send_user_message(initial_prompt)
         await self.process_llm_response(initial_llm_response)
