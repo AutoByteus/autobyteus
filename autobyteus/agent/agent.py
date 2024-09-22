@@ -92,7 +92,6 @@ class StandaloneAgent(EventEmitter):
                 message = await asyncio.wait_for(self.user_messages.get(), timeout=1.0)
                 logger.info(f"Agent {self.role} handling user message")
                 response = await self.conversation.send_user_message(message)
-                self.emit(EventType.ASSISTANT_RESPONSE, agent_id=self.agent_id, response=response)
                 await self.process_llm_response(response)
             except asyncio.TimeoutError:
                 continue
@@ -137,6 +136,7 @@ class StandaloneAgent(EventEmitter):
         await self.process_llm_response(initial_llm_response)
 
     async def process_llm_response(self, response):
+        self.emit(EventType.ASSISTANT_RESPONSE, agent_id=self.agent_id, response=response)
         tool_invocation = self.response_parser.parse_response(response)
         if tool_invocation.is_valid():
             await self.execute_tool(tool_invocation)
