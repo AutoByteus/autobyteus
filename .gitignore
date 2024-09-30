@@ -149,11 +149,10 @@ vicuna-*
 # mac
 .DS_Store
 
-openai/
-
 # news
 CURRENT_BULLETIN.md
 
 **/custom_workflow
 
 config.toml
+note
