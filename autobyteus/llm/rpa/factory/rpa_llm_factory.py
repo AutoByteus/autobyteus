@@ -10,7 +10,7 @@ from autobyteus.llm.base_llm import BaseLLM
 class RPALLMFactory(llm_factory):
     @staticmethod
     def create_llm(model: LLMModel) -> BaseLLM:
-        if model in [LLMModel.GPT_3_5_TURBO, LLMModel.GPT_4]:
+        if model in [LLMModel.GPT_4o, LLMModel.o1_MINI, LLMModel.o1_PREVIEW]:
             return ChatGPTLLM(model.value)
         elif model in [LLMModel.MISTRAL_SMALL, LLMModel.MISTRAL_MEDIUM, LLMModel.MISTRAL_LARGE]:
             return MistralLLM(model)
@@ -18,7 +18,7 @@ class RPALLMFactory(llm_factory):
                        LLMModel.LLAMA_3_1_70B_VERSATILE, LLMModel.LLAMA_3_1_8B_INSTANT, LLMModel.LLAMA3_70B_8192,
                        LLMModel.LLAMA3_8B_8192, LLMModel.MIXTRAL_8X7B_32768]:
             return GroqLLM(model)
-        elif model == LLMModel.GEMINI:
+        elif model == LLMModel.GEMINI_1_0_PRO:
             return GeminiLLM()
         elif model in [LLMModel.CLAUDE_3_HAIKU, LLMModel.CLAUDE_3_OPUS, LLMModel.CLAUDE_3_5_SONNET]:
             return ClaudeChatLLM(model)

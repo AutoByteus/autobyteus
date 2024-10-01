@@ -21,7 +21,7 @@ class LLMFactory:
 
     @staticmethod
     def _create_rpa_llm(model: LLMModel, custom_config: LLMConfig = None) -> BaseLLM:
-        if model in [LLMModel.GPT_3_5_TURBO, LLMModel.GPT_4]:
+        if model in [LLMModel.GPT_4o, LLMModel.o1_MINI, LLMModel.o1_PREVIEW]:
             return ChatGPTLLM(model, custom_config)
         elif model in [LLMModel.MISTRAL_SMALL, LLMModel.MISTRAL_MEDIUM, LLMModel.MISTRAL_LARGE]:
             return MistralLLM(model, custom_config)

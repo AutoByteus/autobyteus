@@ -85,10 +85,12 @@ class LLMModel(Enum):
     def default_config(self) -> LLMConfig:
         configs = {
             # ChatGPT models
-            self.GPT_3_5_TURBO: LLMConfig(rate_limit=60, token_limit=4096),
-            self.GPT_4: LLMConfig(rate_limit=40, token_limit=8192),
-            self.GPT_3_5_TURBO_API: LLMConfig(rate_limit=60, token_limit=4096),
-            self.GPT_4_API: LLMConfig(rate_limit=40, token_limit=8192),
+            self.GPT_4o: LLMConfig(rate_limit=40, token_limit=8192),
+            self.o1_PREVIEW: LLMConfig(rate_limit=50, token_limit=16384),  # Adjust these values
+            self.o1_MINI: LLMConfig(rate_limit=60, token_limit=4096),  # Adjust these values
+            self.GPT_4o_API: LLMConfig(rate_limit=40, token_limit=8192),
+            self.o1_PREVIEW_API: LLMConfig(rate_limit=50, token_limit=16384),  # Adjust these values
+            self.o1_MINI_API: LLMConfig(rate_limit=60, token_limit=4096),  # Adjust these values
 
             # Mistral models
             self.MISTRAL_SMALL: LLMConfig(rate_limit=100, token_limit=32768),
