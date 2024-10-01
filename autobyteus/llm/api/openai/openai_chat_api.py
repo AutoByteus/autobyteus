@@ -16,7 +16,7 @@ class OpenAIChatApi(BaseOpenAIApi):
     :type model_name: OpenAIModel
     """
 
-    def __init__(self, model_name: OpenAIModel = None):
+    def __init__(self, model_name: OpenAIModel = None, system_message: str = None):
         self.initialize()  # Ensure OpenAI is initialized
         
         # Use provided model name or default from the config
@@ -25,6 +25,7 @@ class OpenAIChatApi(BaseOpenAIApi):
         else:
             model_str = config.get('OPEN_AI_MODEL', OpenAIModel.GPT_3_5_TURBO.value)
             self.model = OpenAIModel(model_str).value
+        self.system_message = system_message
 
     def send_messages(self, messages: List[BaseMessage]) -> AssistantMessage:
         """
@@ -36,16 +37,17 @@ class OpenAIChatApi(BaseOpenAIApi):
         :rtype: AssistantMessage
         """
         message_list = MessageList()
+        if self.system_message:
+            message_list.add_system_message(self.system_message)
         for message in messages:
             if isinstance(message, SystemMessage):
                 message_list.add_system_message(message.content)
             elif isinstance(message, UserMessage):
                 message_list.add_user_message(message.content)
-        
+            elif isinstance(message, AssistantMessage):
+                message_list.add_assistant_message(message.content)
         constructed_messages = message_list.get_messages()
-        
-        response = openai.ChatCompletion.create(model=self.model, messages=constructed_messages)
-        
+        response = openai.chat.completions.create(model=self.model, messages=constructed_messages)
         # Use the _extract_response_message method to obtain the AssistantMessage instance
         return self._extract_response_message(response)
 

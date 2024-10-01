@@ -5,6 +5,9 @@ class LLMModel(Enum):
     # ChatGPT models
     GPT_3_5_TURBO = "gpt-3.5-turbo"
     GPT_4 = "gpt-4"
+    GPT_3_5_TURBO_API = "gpt-3.5-turbo-api"
+    GPT_4_API = "gpt-4-api"
+    GPT_4_0613_API = "gpt-4-0613-api"
 
     # Mistral models
     MISTRAL_SMALL = "mistral-small"

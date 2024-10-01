@@ -16,7 +16,6 @@ common_dependencies = [
     "distro==1.8.0",
     "openai",
     "playsound==1.2.2",
-    "pyyaml==6.0",
     "readability-lxml==0.8.1",
     "requests",
     "tiktoken==0.3.3",

@@ -5,6 +5,7 @@ from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.llm_config import LLMConfig
 
 # Import all LLM implementations
+from autobyteus.llm.api.openai.openai_llm import OpenAI
 from autobyteus.llm.rpa.chatgpt_llm import ChatGPTLLM
 from autobyteus.llm.rpa.mistral_llm import MistralLLM
 from autobyteus.llm.rpa.groq_llm import GroqLLM
@@ -17,7 +18,8 @@ class LLMFactory:
     def create_llm(model: LLMModel, custom_config: LLMConfig = None) -> BaseLLM:
         if model in [LLMModel.GPT_3_5_TURBO, LLMModel.GPT_4]:
             return ChatGPTLLM(model, custom_config)
-        
+        elif model in [LLMModel.GPT_3_5_TURBO_API, LLMModel.GPT_4_API, LLMModel.GPT_4_0613_API]:
+            return OpenAI(model, custom_config)
         elif model in [LLMModel.MISTRAL_SMALL, LLMModel.MISTRAL_MEDIUM, LLMModel.MISTRAL_LARGE]:
             return MistralLLM(model, custom_config)
         
