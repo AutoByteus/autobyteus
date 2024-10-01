@@ -9,8 +9,9 @@ class TokenPricing:
 class TokenPricingRegistry:
     _prices = {
         # ChatGPT models
-        LLMModel.GPT_3_5_TURBO: TokenPricing(0.0015, 0.002),
-        LLMModel.GPT_4: TokenPricing(0.03, 0.06),
+        LLMModel.GPT_4o: TokenPricing(0.0015, 0.002),
+        LLMModel.o1_MINI: TokenPricing(0.03, 0.06),
+        LLMModel.o1_PREVIEW: TokenPricing(0.0015, 0.002),
 
         # Mistral models
         LLMModel.MISTRAL_SMALL: TokenPricing(0.0015, 0.0015),  # Example price, adjust as needed
