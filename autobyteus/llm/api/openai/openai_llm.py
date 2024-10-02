@@ -53,3 +53,6 @@ class OpenAI(BaseLLM):
         self.history_messages.append[user_message]
         self.history_messages.append[assistant_message]
         return assistant_message.content
+
+    async def cleanup(self):
+        raise NotImplementedError

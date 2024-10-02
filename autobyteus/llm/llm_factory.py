@@ -24,8 +24,7 @@ class LLMFactory:
     def _create_rpa_llm(model: LLMModel, custom_config: LLMConfig = None) -> BaseLLM:
         if model in [LLMModel.GPT_4o, LLMModel.o1_MINI, LLMModel.o1_PREVIEW]:
             return ChatGPTLLM(model, custom_config)
-        elif model in [LLMModel.GPT_3_5_TURBO_API, LLMModel.GPT_4_API, LLMModel.GPT_4_0613_API]:
-            return OpenAI(model, custom_config)
+        
         elif model in [LLMModel.MISTRAL_SMALL, LLMModel.MISTRAL_MEDIUM, LLMModel.MISTRAL_LARGE]:
             return MistralLLM(model, custom_config)
         elif model in [LLMModel.GEMMA_2_9B_IT, LLMModel.GEMMA_7B_IT, LLMModel.LLAMA_3_1_405B_REASONING,
@@ -47,4 +46,7 @@ class LLMFactory:
 
     @staticmethod
     def _create_api_llm(model: LLMModel, custom_config: LLMConfig = None) -> BaseLLM:
-        pass
+        if model in [LLMModel.GPT_3_5_TURBO_API, LLMModel.GPT_4_API, LLMModel.GPT_4_0613_API]:
+            return OpenAI(model_name=model, config=custom_config)
+        else:
+            raise ValueError(f"Unsupported API model: {model}")
