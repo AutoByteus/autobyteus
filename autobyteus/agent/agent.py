@@ -13,6 +13,8 @@ from autobyteus.prompt.prompt_builder import PromptBuilder
 from autobyteus.events.event_types import EventType
 from autobyteus.agent.status import AgentStatus
 
+from autobyteus.conversation.user_message import UserMessage
+
 logger = logging.getLogger(__name__)
 
 class StandaloneAgent(EventEmitter):
@@ -21,7 +23,7 @@ class StandaloneAgent(EventEmitter):
                  persistence_provider_class: Optional[Type[PersistenceProvider]] = FileBasedPersistenceProvider, 
                  agent_id=None,
                  prompt_builder: Optional[PromptBuilder] = None,
-                 initial_prompt: Optional[str] = None):
+                 initial_user_message: Optional[UserMessage] = None):
         super().__init__()
         self.role = role
         self.llm = llm
@@ -36,10 +38,10 @@ class StandaloneAgent(EventEmitter):
         self._queues_initialized = False
         self.task_completed = None
         self.prompt_builder = prompt_builder
-        self.initial_prompt = initial_prompt
+        self.initial_user_message = initial_user_message
 
-        if not self.prompt_builder and not self.initial_prompt:
-            raise ValueError("Either prompt_builder or initial_prompt must be provided")
+        if not self.prompt_builder and not self.initial_user_message:
+            raise ValueError("Either prompt_builder or initial_user_message must be provided")
 
         self.set_agent_id_on_tools()
         self.register_task_completion_listener()
@@ -126,13 +128,14 @@ class StandaloneAgent(EventEmitter):
             persistence_provider_class=self.persistence_provider_class
         )
 
-        if self.initial_prompt:
-            initial_prompt = self.initial_prompt
+        if self.initial_user_message:
+            initial_message = self.initial_user_message
         else:
-            initial_prompt = self.prompt_builder.set_variable_value("external_tools", self._get_external_tools_section()).build()
+            prompt_content = self.prompt_builder.set_variable_value("external_tools", self._get_external_tools_section()).build()
+            initial_message = UserMessage(content=prompt_content)
 
-        logger.debug(f"Initial prompt for agent {self.role}: {initial_prompt}")
-        initial_llm_response = await self.conversation.send_user_message(initial_prompt)
+        logger.debug(f"Initial user message for agent {self.role}: {initial_message}")
+        initial_llm_response = await self.conversation.send_user_message(initial_message.content, initial_message.file_paths)
         await self.process_llm_response(initial_llm_response)
 
     async def process_llm_response(self, response):
@@ -213,3 +216,4 @@ class StandaloneAgent(EventEmitter):
         """Register a listener for the task completion event."""
         logger.info(f"Registering task completion listener for agent: {self.role}")
         self.subscribe(EventType.TASK_COMPLETED, self.on_task_completed, self.agent_id)
+
