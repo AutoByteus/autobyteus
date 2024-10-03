@@ -1,5 +1,6 @@
 # file: autobyteus/llm/base_llm.py
 from abc import ABC, abstractmethod
+from typing import List, Optional
 from autobyteus.llm.utils.cost_calculator import CostCalculator
 from autobyteus.llm.utils.llm_config import LLMConfig
 from autobyteus.llm.utils.rate_limiter import RateLimiter
@@ -14,31 +15,20 @@ class BaseLLM(ABC):
         #self.token_counter = TokenCounter(self.)
         #self.cost_calculator = CostCalculator(self.config, self.token_counter)
 
-    async def send_user_message(self, user_message: str, **kwargs):
+    async def send_user_message(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs):
         await self.rate_limiter.wait_if_needed()
         
         #self.token_counter.add_input_tokens(user_message)
 
-        response = await self._send_user_message_to_llm(user_message, **kwargs)
+        response = await self._send_user_message_to_llm(user_message, file_paths, **kwargs)
 
         #self.token_counter.add_output_tokens(response)
 
         return response
     
-    """
-    BaseLLM is an abstract base class that defines the common interface for all LLM integrations.
-    """
-
-    def initialize(self):
-        """
-        Initialize the BaseLLM object.
-        """
-        pass
-
     @abstractmethod
-    async def _send_user_message_to_llm(self, user_message: str, **kwargs) -> str:
+    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> str:
         pass
-
 
     @abstractmethod
     async def cleanup(self):
@@ -46,7 +36,3 @@ class BaseLLM(ABC):
 
     def get_token_limit(self) -> int:
         return self.token_counter.token_limit if self.token_counter.token_limit else float('inf')
-
-    async def send_file(self, file_path: str, **kwargs) -> str:
-        # Implement file sending logic here
-        pass

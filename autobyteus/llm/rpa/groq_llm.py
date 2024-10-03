@@ -1,3 +1,4 @@
+from typing import List, Optional
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.llm_config import LLMConfig
 from autobyteus.llm.models import LLMModel
@@ -8,12 +9,14 @@ class GroqLLM(BaseLLM):
         super().__init__(model, custom_config)
         self.ui_integrator = GroqUIIntegrator(model.value)
 
-    async def _send_user_message_to_llm(self, user_message: str, **kwargs):
+    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs):
         """
         Send a user message and return the LLM's response.
         
         :param user_message: The user message to be processed.
         :type user_message: str
+        :param file_paths: Optional list of file paths to be sent with the message.
+        :type file_paths: Optional[List[str]]
         :param kwargs: Additional keyword arguments.
         :type kwargs: dict
         :return: The LLM's response to the user message.
@@ -24,14 +27,8 @@ class GroqLLM(BaseLLM):
         if user_message_index is None:
             raise ValueError("user_message_index is required in kwargs")
         
-        response = await self.ui_integrator.send_user_message(user_message, user_message_index)
+        response = await self.ui_integrator.send_user_message(user_message, file_paths, user_message_index)
         return response
-
-    async def start_new_conversation(self):
-        """
-        Start a new conversation with the Groq model.
-        """
-        await self.ui_integrator.start_new_conversation()
 
     async def cleanup(self):
         """
