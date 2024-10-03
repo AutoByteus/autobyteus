@@ -15,9 +15,6 @@ class Conversation:
         self.conversation_name = conversation_name
         self.conversation_history: List[Tuple[str, str]] = []
 
-    def start(self):
-        self.llm.initialize()
-
     async def send_user_message(self, user_input: str, file_paths: Optional[List[str]] = None) -> str:
         user_message_index = len([entry for entry in self.conversation_history if entry[0] == "user"])
 

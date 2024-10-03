@@ -16,7 +16,6 @@ class ConversationManager:
     ) -> Conversation:
         persistence_provider = persistence_provider_class(conversation_name) if persistence_provider_class else None
         conversation = Conversation(llm, persistence_provider, conversation_name)
-        conversation.start()
         self.conversations.append(conversation)
         self.current_conversation_index = len(self.conversations) - 1
         return conversation
