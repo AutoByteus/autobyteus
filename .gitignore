@@ -11,7 +11,7 @@ logs
 *.log
 *.mp3
 mem.sqlite3
-
+config.ini
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

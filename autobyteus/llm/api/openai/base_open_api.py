@@ -7,8 +7,10 @@ This class offers common functionalities and enforces the structure for derived 
 from enum import Enum, auto
 from abc import ABC, abstractmethod
 import openai
-from autobyteus.config import config
+from dotenv import load_dotenv
+import os
 from autobyteus.llm.api.openai.message_types import AssistantMessage
+load_dotenv(verbose=True)
 
 
 class ApiType(Enum):
@@ -31,7 +33,7 @@ class BaseOpenAIApi(ABC):
         This method ensures idempotent initialization.
         """
         if not cls._initialized:
-            openai.api_key = config.get('OPENAI_API_KEY')
+            openai.api_key = os.getenv("OPENAI_API_KEY")
             cls._initialized = True
 
     @abstractmethod

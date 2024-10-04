@@ -17,15 +17,15 @@ class OpenAIChatApi(BaseOpenAIApi):
     """
 
     def __init__(self, model_name: OpenAIModel = None, system_message: str = None):
-        self.initialize()  # Ensure OpenAI is initialized
-        
-        # Use provided model name or default from the config
-        if model_name:
-            self.model = model_name.value
-        else:
-            model_str = config.get('OPEN_AI_MODEL', OpenAIModel.GPT_3_5_TURBO.value)
-            self.model = OpenAIModel(model_str).value
+        self.initialize()
+        self.model = (model_name.value if model_name 
+                     else OpenAIModel(config.OPENAI_MODEL).value)
         self.system_message = system_message
+        self.message_list = MessageList(system_message if system_message else None)
+
+    @classmethod
+    def initialize(cls):
+        openai.api_key = config.OPENAI_API_KEY
 
     def send_messages(self, messages: List[BaseMessage]) -> AssistantMessage:
         """
@@ -41,13 +41,16 @@ class OpenAIChatApi(BaseOpenAIApi):
             message_list.add_system_message(self.system_message)
         for message in messages:
             if isinstance(message, SystemMessage):
-                message_list.add_system_message(message.content)
+                self.message_list.add_system_message(message.content)
             elif isinstance(message, UserMessage):
-                message_list.add_user_message(message.content)
+                self.message_list.add_user_message(message.content)
             elif isinstance(message, AssistantMessage):
-                message_list.add_assistant_message(message.content)
-        constructed_messages = message_list.get_messages()
-        response = openai.chat.completions.create(model=self.model, messages=constructed_messages)
+                self.message_list.add_assistant_message(message.content)
+
+        response = openai.chat.completions.create(
+            model=self.model,
+            messages=self.message_list.get_messages()
+        )
         # Use the _extract_response_message method to obtain the AssistantMessage instance
         return self._extract_response_message(response)
 
@@ -62,13 +65,9 @@ class OpenAIChatApi(BaseOpenAIApi):
         :rtype: AssistantMessage
         """
         try:
-            content = response['choices'][0]['message']['content']
-            role = response['choices'][0]['message']['role']
-            
-            # Validate that the role is indeed "assistant"
-            if role != OpenAIMessageRole.ASSISTANT.value:
-                raise ValueError(f"Unexpected role in OpenAI API response: {role}")
-            
-            return AssistantMessage(content)
-        except (KeyError, IndexError):
-            raise ValueError("Unexpected structure in OpenAI API response.")
+            message = response.choices[0].message
+            if message.role != OpenAIMessageRole.ASSISTANT.value:
+                raise ValueError(f"Unexpected role in OpenAI API response: {message.role}")
+            return AssistantMessage(message.content)
+        except (AttributeError, IndexError) as e:
+            raise ValueError(f"Unexpected structure in OpenAI API response: {str(e)}")
