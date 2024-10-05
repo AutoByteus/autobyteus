@@ -19,13 +19,13 @@ class OpenAIChatApi(BaseOpenAIApi):
     def __init__(self, model_name: OpenAIModel = None, system_message: str = None):
         self.initialize()
         self.model = (model_name.value if model_name 
-                     else OpenAIModel(config.OPENAI_MODEL).value)
+                     else OpenAIModel(config.config.OPENAI_MODEL).value)
         self.system_message = system_message
         self.message_list = MessageList(system_message if system_message else None)
 
     @classmethod
     def initialize(cls):
-        openai.api_key = config.OPENAI_API_KEY
+        openai.api_key = config.config.OPENAI_API_KEY
 
     def send_messages(self, messages: List[BaseMessage]) -> AssistantMessage:
         """
