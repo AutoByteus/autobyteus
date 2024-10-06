@@ -86,14 +86,13 @@ class StandaloneAgent(EventEmitter):
             self.status = AgentStatus.ENDED
             await self.cleanup()
         
-
     async def handle_user_messages(self):
         logger.info(f"Agent {self.role} started handling user messages")
         while not self.task_completed.is_set() and self.status == AgentStatus.RUNNING:
             try:
-                message = await asyncio.wait_for(self.user_messages.get(), timeout=1.0)
+                user_message: UserMessage = await asyncio.wait_for(self.user_messages.get(), timeout=1.0)
                 logger.info(f"Agent {self.role} handling user message")
-                response = await self.conversation.send_user_message(message)
+                response = await self.conversation.send_user_message(user_message.content, user_message.file_paths)
                 await self.process_llm_response(response)
             except asyncio.TimeoutError:
                 continue
@@ -102,6 +101,12 @@ class StandaloneAgent(EventEmitter):
                 break
             except Exception as e:
                 logger.error(f"Error handling user message for agent {self.role}: {str(e)}")
+
+    async def receive_user_message(self, message: UserMessage):
+        logger.info(f"Agent {self.agent_id} received user message")
+        await self.user_messages.put(message)
+        if self.status != AgentStatus.RUNNING:
+            self.start()
 
     async def handle_tool_result_messages(self):
         logger.info(f"Agent {self.role} started handling tool result messages")
@@ -164,11 +169,7 @@ class StandaloneAgent(EventEmitter):
         else:
             logger.warning(f"Tool '{name}' not found for agent {self.role}.")
 
-    async def receive_user_message(self, message: str):
-        logger.info(f"Agent {self.agent_id} received user message")
-        await self.user_messages.put(message)
-        if self.status != AgentStatus.RUNNING:
-            self.start()
+
 
     def start(self):
         if self.status == AgentStatus.NOT_STARTED or self.status == AgentStatus.ENDED:
