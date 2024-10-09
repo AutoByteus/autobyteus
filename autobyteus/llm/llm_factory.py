@@ -22,25 +22,31 @@ class LLMFactory:
 
     @staticmethod
     def _create_rpa_llm(model: LLMModel, custom_config: LLMConfig = None) -> BaseLLM:
-        if model in [LLMModel.OpenAIRpaModels.GPT_4o, LLMModel.OpenAIRpaModels.o1_MINI, LLMModel.OpenAIRpaModels.o1_PREVIEW]:    
+        if model in [LLMModel.GPT_4o, LLMModel.o1_MINI, LLMModel.o1_PREVIEW]:
             return ChatGPTLLM(model, custom_config)
         
-        elif model in [LLMModel.MistralRpaModels.MISTRAL_SMALL, LLMModel.MistralRpaModels.MISTRAL_MEDIUM, LLMModel.MistralRpaModels.MISTRAL_LARGE]:
+        elif model in [LLMModel.MISTRAL_SMALL, LLMModel.MISTRAL_MEDIUM, LLMModel.MISTRAL_LARGE]:
             return MistralLLM(model, custom_config)
-        elif model in [LLMModel.GroqRpaModels.GROQ_SMALL, LLMModel.GroqRpaModels.GROQ_MEDIUM, LLMModel.GroqRpaModels.GROQ_LARGE]:
+        elif model in [LLMModel.GEMMA_2_9B_IT, LLMModel.GEMMA_7B_IT, LLMModel.LLAMA_3_1_405B_REASONING,
+                       LLMModel.LLAMA_3_1_70B_VERSATILE, LLMModel.LLAMA_3_1_8B_INSTANT, LLMModel.LLAMA3_70B_8192,
+                       LLMModel.LLAMA3_8B_8192, LLMModel.MIXTRAL_8X7B_32768]:
             return GroqLLM(model, custom_config)
-        elif model in [LLMModel.GeminiRpaModels.GEMINI_1_0_PRO, LLMModel.GeminiRpaModels.GEMINI_1_5_PRO, LLMModel.GeminiRpaModels.GEMINI_1_5_PRO_EXPERIMENTAL]:
+        elif model in [LLMModel.GEMINI_1_0_PRO, LLMModel.GEMINI_1_5_PRO, LLMModel.GEMINI_1_5_PRO_EXPERIMENTAL,
+                       LLMModel.GEMINI_1_5_FLASH, LLMModel.GEMMA_2_2B, LLMModel.GEMMA_2_9B, LLMModel.GEMMA_2_27B]:
             return GeminiLLM(model, custom_config)
-        elif model in [LLMModel.ClaudeRpaModels.CLAUDE_3_HAIKU, LLMModel.ClaudeRpaModels.CLAUDE_3_OPUS, LLMModel.ClaudeRpaModels.CLAUDE_3_5_SONNET]:
+        elif model in [LLMModel.CLAUDE_3_HAIKU, LLMModel.CLAUDE_3_OPUS, LLMModel.CLAUDE_3_5_SONNET]:
             return ClaudeChatLLM(model, custom_config)
-        elif model in [LLMModel.PerplexityRpaModels.PERPLEXITY_SMALL, LLMModel.PerplexityRpaModels.PERPLEXITY_MEDIUM, LLMModel.PerplexityRpaModels.PERPLEXITY_LARGE]:
+        elif model in [LLMModel.LLAMA_3_1_SONAR_LARGE_128K_ONLINE, LLMModel.LLAMA_3_1_SONAR_SMALL_128K_ONLINE,
+                       LLMModel.LLAMA_3_1_SONAR_LARGE_128K_CHAT, LLMModel.LLAMA_3_1_SONAR_SMALL_128K_CHAT,
+                       LLMModel.LLAMA_3_1_8B_INSTRUCT, LLMModel.LLAMA_3_1_70B_INSTRUCT,
+                       LLMModel.GEMMA_2_27B_IT, LLMModel.NEMOTRON_4_340B_INSTRUCT, LLMModel.MIXTRAL_8X7B_INSTRUCT]:
             return PerplexityLLM(model, custom_config)
         else:
             raise ValueError(f"Unsupported RPA model: {model}")
 
     @staticmethod
-    def _create_api_llm(model: LLMModel.OpenaiApiModels, custom_config: LLMConfig = None) -> BaseLLM:
-        if model in [LLMModel.OpenaiApiModels.GPT_3_5_TURBO_API, LLMModel.OpenaiApiModels.GPT_4_API, LLMModel.OpenaiApiModels.GPT_4_0613_API, LLMModel.OpenaiApiModels.GPT_4o_API]:
+    def _create_api_llm(model: LLMModel, custom_config: LLMConfig = None) -> BaseLLM:
+        if model in [LLMModel.GPT_3_5_TURBO_API, LLMModel.GPT_4_API, LLMModel.GPT_4_0613_API]:
             return OpenAI(model_name=model, config=custom_config)
         else:
             raise ValueError(f"Unsupported API model: {model}")
