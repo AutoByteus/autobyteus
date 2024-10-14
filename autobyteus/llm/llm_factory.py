@@ -1,3 +1,4 @@
+from autobyteus.llm.api.claude.claude_chat_api import ClaudeChat
 from autobyteus.llm.api.openai.openai_chat_api import OpenAIChat
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
@@ -48,5 +49,7 @@ class LLMFactory:
     def _create_api_llm(model: LLMModel, custom_config: LLMConfig = None) -> BaseLLM:
         if model in [LLMModel.GPT_4o_API, LLMModel.o1_PREVIEW_API, LLMModel.o1_MINI_API, LLMModel.CHATGPT_4O_LATEST_API]:
             return OpenAIChat(model_name=model, system_message="you are a helpful assistant")
+        elif model in [LLMModel.CLAUDE_3_HAIKU_API, LLMModel.CLAUDE_3_OPUS_API, LLMModel.CLAUDE_3_5_SONNET_API, LLMModel.CLAUDE_3_5_SONNET_LATEST_API]:
+            return ClaudeChat(model_name=model, system_message="you are a helpful assistant")
         else:
             raise ValueError(f"Unsupported API model: {model}")

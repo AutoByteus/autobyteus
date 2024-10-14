@@ -1,4 +1,3 @@
-# File: /Users/aswin/data/autobyteus/autobyteus/llm/api/openai/openai_chat_api.py
 from typing import Dict, Optional, List
 import openai
 import os
