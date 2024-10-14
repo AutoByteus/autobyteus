@@ -7,9 +7,10 @@ class LLMModel(Enum):
     o1_PREVIEW = "o1-preview"
     o1_MINI = "o1-mini"
 
-    GPT_4o_API = "GPT-4o-api"
-    o1_PREVIEW_API = "o1-preview-api"
-    o1_MINI_API = "o1-mini-api"
+    GPT_4o_API = "gpt-4o"
+    o1_PREVIEW_API = "o1-preview"
+    o1_MINI_API = "o1-mini"
+    CHATGPT_4O_LATEST_API = "chatgpt-4o-latest"
 
     # Mistral models
     MISTRAL_SMALL = "mistral-small"
@@ -91,6 +92,7 @@ class LLMModel(Enum):
             self.GPT_4o_API: LLMConfig(rate_limit=40, token_limit=8192),
             self.o1_PREVIEW_API: LLMConfig(rate_limit=50, token_limit=16384),  # Adjust these values
             self.o1_MINI_API: LLMConfig(rate_limit=60, token_limit=4096),  # Adjust these values
+            self.CHATGPT_4O_LATEST_API: LLMConfig(rate_limit=40, token_limit=8192),
 
             # Mistral models
             self.MISTRAL_SMALL: LLMConfig(rate_limit=100, token_limit=32768),
@@ -163,7 +165,6 @@ class LLMModel(Enum):
             self.MIXTRAL_8X7B_INSTRUCT_API: LLMConfig(rate_limit=60, token_limit=32768),
         }
         return configs.get(self, LLMConfig())
-
     @property
     def is_api(self) -> bool:
-        return self.value.endswith('-api')
+        return self.name.endswith('_API')

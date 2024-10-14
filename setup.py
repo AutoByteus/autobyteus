@@ -1,4 +1,3 @@
-import sys
 from setuptools import setup, find_packages
 
 # Common dependencies
@@ -7,7 +6,6 @@ common_dependencies = [
     "SQLAlchemy",
     "sqlalchemy-utils",
     "alembic",
-    "psycopg2-binary",
     "repository-sqlalchemy",
     "repository-mongodb",
     "pytest-playwright",
@@ -25,7 +23,6 @@ common_dependencies = [
     "google-generativeai",
     "redis",
     "weaviate-client",
-    "sentence-transformers",
     "orjson",
     "Pillow",
     "jsonschema",
