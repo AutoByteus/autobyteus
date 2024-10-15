@@ -18,7 +18,7 @@ class LLMModel(Enum):
     MISTRAL_LARGE = "mistral-large"
     MISTRAL_SMALL_API = "mistral-small-api"
     MISTRAL_MEDIUM_API = "mistral-medium-api"
-    MISTRAL_LARGE_API = "mistral-large-api"
+    MISTRAL_LARGE_API = "mistral-large-latest"
 
     # Groq models
     GEMMA_2_9B_IT = "gemma2-9b-it"

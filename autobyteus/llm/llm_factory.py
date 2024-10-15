@@ -1,4 +1,5 @@
 from autobyteus.llm.api.claude.claude_chat_api import ClaudeChat
+from autobyteus.llm.api.mistral.mistral_chat_api import MistralChat
 from autobyteus.llm.api.openai.openai_chat_api import OpenAIChat
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
@@ -51,5 +52,7 @@ class LLMFactory:
             return OpenAIChat(model_name=model, system_message="you are a helpful assistant")
         elif model in [LLMModel.CLAUDE_3_HAIKU_API, LLMModel.CLAUDE_3_OPUS_API, LLMModel.CLAUDE_3_5_SONNET_API, LLMModel.CLAUDE_3_5_SONNET_LATEST_API]:
             return ClaudeChat(model_name=model, system_message="you are a helpful assistant")
+        elif model in [LLMModel.MISTRAL_LARGE_API, LLMModel.MISTRAL_MEDIUM_API, LLMModel.MISTRAL_SMALL_API]:
+            return MistralChat(model_name=model, system_message="you are a helpful assistant")
         else:
             raise ValueError(f"Unsupported API model: {model}")
