@@ -53,6 +53,6 @@ class LLMFactory:
         elif model in [LLMModel.CLAUDE_3_HAIKU_API, LLMModel.CLAUDE_3_OPUS_API, LLMModel.CLAUDE_3_5_SONNET_API, LLMModel.CLAUDE_3_5_SONNET_LATEST_API]:
             return ClaudeChat(model_name=model, system_message="you are a helpful assistant")
         elif model in [LLMModel.MISTRAL_LARGE_API, LLMModel.MISTRAL_MEDIUM_API, LLMModel.MISTRAL_SMALL_API]:
-            return MistralChat(model_name=model, system_message="you are a helpful assistant")
+            return MistralChat(model_name=model)
         else:
             raise ValueError(f"Unsupported API model: {model}")
