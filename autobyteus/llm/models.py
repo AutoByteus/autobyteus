@@ -49,7 +49,7 @@ class LLMModel(Enum):
     GEMINI_1_0_PRO_API = "gemini-1-0-pro-api"
     GEMINI_1_5_PRO_API = "gemini-1-5-pro-api"
     GEMINI_1_5_PRO_EXPERIMENTAL_API = "gemini-1-5-pro-experimental-api"
-    GEMINI_1_5_FLASH_API = "gemini-1-5-flash-api"
+    GEMINI_1_5_FLASH_API = "gemini-1.5-flash"
     GEMMA_2_2B_API = "gemma-2-2b-api"
     GEMMA_2_9B_API = "gemma-2-9b-api"
     GEMMA_2_27B_API = "gemma-2-27b-api"

@@ -1,5 +1,6 @@
 from autobyteus.llm.api.bedrock.bedrock_chat_api import BedrockChat
 from autobyteus.llm.api.claude.claude_chat_api import ClaudeChat
+from autobyteus.llm.api.google.gemini_chat_api import GeminiChat
 from autobyteus.llm.api.mistral.mistral_chat_api import MistralChat
 from autobyteus.llm.api.openai.openai_chat_api import OpenAIChat
 from autobyteus.llm.models import LLMModel
@@ -57,5 +58,7 @@ class LLMFactory:
             return MistralChat(model_name=model)
         elif model in [LLMModel.BEDROCK_CLAUDE_3_5_SONNET_API]:
             return BedrockChat(model_name=model)
+        elif model in [LLMModel.GEMINI_1_5_FLASH_API, LLMModel.GEMINI_1_5_PRO_API, LLMModel.GEMINI_1_0_PRO_API]:
+            return GeminiChat(model_name=model)
         else:
             raise ValueError(f"Unsupported API model: {model}")
