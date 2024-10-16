@@ -23,3 +23,6 @@ uvicorn
 fastapi 
 strawberry-graphql
 anthropic
+mistralai
+boto3
+botocore

@@ -62,6 +62,7 @@ class LLMModel(Enum):
     CLAUDE_3_OPUS_API = "Claude3Opus-api"
     CLAUDE_3_5_SONNET_API = "Claude35Sonnet-api"
     CLAUDE_3_5_SONNET_LATEST_API = "claude-3-5-sonnet-20240620"
+    BEDROCK_CLAUDE_3_5_SONNET_API = "anthropic.claude-3-5-sonnet-20240620-v1:0"
 
     # Perplexity models
     LLAMA_3_1_SONAR_LARGE_128K_ONLINE = "llama-3-1-sonar-large-128k-online"
@@ -145,6 +146,7 @@ class LLMModel(Enum):
             self.CLAUDE_3_OPUS_API: LLMConfig(rate_limit=40, token_limit=200000),
             self.CLAUDE_3_5_SONNET_API: LLMConfig(rate_limit=50, token_limit=200000),
             self.CLAUDE_3_5_SONNET_LATEST_API: LLMConfig(rate_limit=50, token_limit=200000),
+            self.BEDROCK_CLAUDE_3_5_SONNET_API: LLMConfig(rate_limit=50, token_limit=200000),
 
             # Perplexity models
             self.LLAMA_3_1_SONAR_LARGE_128K_ONLINE: LLMConfig(rate_limit=60, token_limit=128000),

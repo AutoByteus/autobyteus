@@ -23,7 +23,7 @@ class Message:
 class ClaudeChat(BaseLLM):
     def __init__(self, model_name: LLMModel = None, system_message: str = None):
         self.client = self.initialize()
-        self.model = model_name.value if model_name else "claude-3-sonnet-20240229"
+        self.model = model_name.value if model_name else "claude-3-5-sonnet-20240620"
         self.system_message = system_message
         self.messages = []
         super().__init__(model=self.model)
