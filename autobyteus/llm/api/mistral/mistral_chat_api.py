@@ -1,6 +1,5 @@
 from typing import Dict, Optional, List
 from mistralai.client import MistralClient
-from mistralai.models.chat_completion import ChatMessage
 import os
 from enum import Enum
 from autobyteus.llm.models import LLMModel
@@ -49,7 +48,7 @@ class MistralChat(BaseLLM):
         try:
             chat_response = self.client.chat.complete(
                 model=self.model,
-                messages=[ChatMessage(role=msg.role.value, content=msg.content) for msg in self.messages]
+                messages=[msg.to_dict() for msg in self.messages]
             )
             assistant_message = chat_response.choices[0].message.content
             self.messages.append(Message(MessageRole.ASSISTANT, assistant_message))
