@@ -2,6 +2,7 @@ from enum import Enum
 from autobyteus.llm.utils.llm_config import LLMConfig
 
 class LLMModel(Enum):
+    NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT_API = "nvidia/llama-3.1-nemotron-70b-instruct"
     # ChatGPT models
     GPT_4o = "GPT-4o"
     o1_PREVIEW = "o1-preview"
@@ -87,6 +88,7 @@ class LLMModel(Enum):
     @property
     def default_config(self) -> LLMConfig:
         configs = {
+            self.NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT: LLMConfig(rate_limit=60, token_limit=32768),
             # ChatGPT models
             self.GPT_4o: LLMConfig(rate_limit=40, token_limit=8192),
             self.o1_PREVIEW: LLMConfig(rate_limit=50, token_limit=16384),  # Adjust these values
