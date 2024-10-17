@@ -2,14 +2,16 @@ from enum import Enum
 from autobyteus.llm.utils.llm_config import LLMConfig
 
 class LLMModel(Enum):
+    NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT_API = "nvidia/llama-3.1-nemotron-70b-instruct"
     # ChatGPT models
     GPT_4o = "GPT-4o"
     o1_PREVIEW = "o1-preview"
     o1_MINI = "o1-mini"
 
-    GPT_4o_API = "GPT-4o-api"
-    o1_PREVIEW_API = "o1-preview-api"
-    o1_MINI_API = "o1-mini-api"
+    GPT_4o_API = "gpt-4o"
+    o1_PREVIEW_API = "o1-preview"
+    o1_MINI_API = "o1-mini"
+    CHATGPT_4O_LATEST_API = "chatgpt-4o-latest"
 
     # Mistral models
     MISTRAL_SMALL = "mistral-small"
@@ -17,7 +19,7 @@ class LLMModel(Enum):
     MISTRAL_LARGE = "mistral-large"
     MISTRAL_SMALL_API = "mistral-small-api"
     MISTRAL_MEDIUM_API = "mistral-medium-api"
-    MISTRAL_LARGE_API = "mistral-large-api"
+    MISTRAL_LARGE_API = "mistral-large-latest"
 
     # Groq models
     GEMMA_2_9B_IT = "gemma2-9b-it"
@@ -48,7 +50,7 @@ class LLMModel(Enum):
     GEMINI_1_0_PRO_API = "gemini-1-0-pro-api"
     GEMINI_1_5_PRO_API = "gemini-1-5-pro-api"
     GEMINI_1_5_PRO_EXPERIMENTAL_API = "gemini-1-5-pro-experimental-api"
-    GEMINI_1_5_FLASH_API = "gemini-1-5-flash-api"
+    GEMINI_1_5_FLASH_API = "gemini-1.5-flash"
     GEMMA_2_2B_API = "gemma-2-2b-api"
     GEMMA_2_9B_API = "gemma-2-9b-api"
     GEMMA_2_27B_API = "gemma-2-27b-api"
@@ -60,6 +62,8 @@ class LLMModel(Enum):
     CLAUDE_3_HAIKU_API = "Claude3Haiku-api"
     CLAUDE_3_OPUS_API = "Claude3Opus-api"
     CLAUDE_3_5_SONNET_API = "Claude35Sonnet-api"
+    CLAUDE_3_5_SONNET_LATEST_API = "claude-3-5-sonnet-20240620"
+    BEDROCK_CLAUDE_3_5_SONNET_API = "anthropic.claude-3-5-sonnet-20240620-v1:0"
 
     # Perplexity models
     LLAMA_3_1_SONAR_LARGE_128K_ONLINE = "llama-3-1-sonar-large-128k-online"
@@ -84,6 +88,7 @@ class LLMModel(Enum):
     @property
     def default_config(self) -> LLMConfig:
         configs = {
+            self.NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT: LLMConfig(rate_limit=60, token_limit=32768),
             # ChatGPT models
             self.GPT_4o: LLMConfig(rate_limit=40, token_limit=8192),
             self.o1_PREVIEW: LLMConfig(rate_limit=50, token_limit=16384),  # Adjust these values
@@ -91,6 +96,7 @@ class LLMModel(Enum):
             self.GPT_4o_API: LLMConfig(rate_limit=40, token_limit=8192),
             self.o1_PREVIEW_API: LLMConfig(rate_limit=50, token_limit=16384),  # Adjust these values
             self.o1_MINI_API: LLMConfig(rate_limit=60, token_limit=4096),  # Adjust these values
+            self.CHATGPT_4O_LATEST_API: LLMConfig(rate_limit=40, token_limit=8192),
 
             # Mistral models
             self.MISTRAL_SMALL: LLMConfig(rate_limit=100, token_limit=32768),
@@ -141,6 +147,8 @@ class LLMModel(Enum):
             self.CLAUDE_3_HAIKU_API: LLMConfig(rate_limit=60, token_limit=200000),
             self.CLAUDE_3_OPUS_API: LLMConfig(rate_limit=40, token_limit=200000),
             self.CLAUDE_3_5_SONNET_API: LLMConfig(rate_limit=50, token_limit=200000),
+            self.CLAUDE_3_5_SONNET_LATEST_API: LLMConfig(rate_limit=50, token_limit=200000),
+            self.BEDROCK_CLAUDE_3_5_SONNET_API: LLMConfig(rate_limit=50, token_limit=200000),
 
             # Perplexity models
             self.LLAMA_3_1_SONAR_LARGE_128K_ONLINE: LLMConfig(rate_limit=60, token_limit=128000),
@@ -163,7 +171,6 @@ class LLMModel(Enum):
             self.MIXTRAL_8X7B_INSTRUCT_API: LLMConfig(rate_limit=60, token_limit=32768),
         }
         return configs.get(self, LLMConfig())
-
     @property
     def is_api(self) -> bool:
-        return self.value.endswith('-api')
+        return self.name.endswith('_API')

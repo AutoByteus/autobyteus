@@ -1,3 +1,9 @@
+from autobyteus.llm.api.bedrock.bedrock_chat_api import BedrockChat
+from autobyteus.llm.api.claude.claude_chat_api import ClaudeChat
+from autobyteus.llm.api.google.gemini_chat_api import GeminiChat
+from autobyteus.llm.api.mistral.mistral_chat_api import MistralChat
+from autobyteus.llm.api.nvidia.nvidia_chat_api import NvidiaChat
+from autobyteus.llm.api.openai.openai_chat_api import OpenAIChat
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.llm_config import LLMConfig
@@ -23,6 +29,7 @@ class LLMFactory:
     def _create_rpa_llm(model: LLMModel, custom_config: LLMConfig = None) -> BaseLLM:
         if model in [LLMModel.GPT_4o, LLMModel.o1_MINI, LLMModel.o1_PREVIEW]:
             return ChatGPTLLM(model, custom_config)
+        
         elif model in [LLMModel.MISTRAL_SMALL, LLMModel.MISTRAL_MEDIUM, LLMModel.MISTRAL_LARGE]:
             return MistralLLM(model, custom_config)
         elif model in [LLMModel.GEMMA_2_9B_IT, LLMModel.GEMMA_7B_IT, LLMModel.LLAMA_3_1_405B_REASONING,
@@ -44,4 +51,17 @@ class LLMFactory:
 
     @staticmethod
     def _create_api_llm(model: LLMModel, custom_config: LLMConfig = None) -> BaseLLM:
-        pass
+        if model in [LLMModel.GPT_4o_API, LLMModel.o1_PREVIEW_API, LLMModel.o1_MINI_API, LLMModel.CHATGPT_4O_LATEST_API]:
+            return OpenAIChat(model_name=model, system_message="you are a helpful assistant")
+        elif model in [LLMModel.CLAUDE_3_HAIKU_API, LLMModel.CLAUDE_3_OPUS_API, LLMModel.CLAUDE_3_5_SONNET_API, LLMModel.CLAUDE_3_5_SONNET_LATEST_API]:
+            return ClaudeChat(model_name=model, system_message="you are a helpful assistant")
+        elif model in [LLMModel.MISTRAL_LARGE_API, LLMModel.MISTRAL_MEDIUM_API, LLMModel.MISTRAL_SMALL_API]:
+            return MistralChat(model_name=model)
+        elif model in [LLMModel.BEDROCK_CLAUDE_3_5_SONNET_API]:
+            return BedrockChat(model_name=model)
+        elif model in [LLMModel.GEMINI_1_5_FLASH_API, LLMModel.GEMINI_1_5_PRO_API, LLMModel.GEMINI_1_0_PRO_API]:
+            return GeminiChat(model_name=model)
+        elif model in [LLMModel.NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT_API]:
+            return NvidiaChat(model_name=model)
+        else:
+            raise ValueError(f"Unsupported API model: {model}")
