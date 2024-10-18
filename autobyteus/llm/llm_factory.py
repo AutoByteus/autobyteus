@@ -8,85 +8,75 @@ from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.llm_config import LLMConfig
 
-# Import all LLM implementations
-from autobyteus.llm.rpa.chatgpt_llm import ChatGPTLLM
-from autobyteus.llm.rpa.mistralchat_llm import MistralChatLLM
-from autobyteus.llm.rpa.groqchat_llm import GroqChatLLM
-from autobyteus.llm.rpa.geminichat_llm import GeminiChatLLM
-from autobyteus.llm.rpa.claudechat_llm import ClaudeChatLLM
-from autobyteus.llm.rpa.perplexitychat_llm import PerplexityChatLLM
+import pkg_resources
+from autobyteus.llm.models import LLMModel as OriginalLLMModel
+from autobyteus.llm.base_llm import BaseLLM
+from autobyteus.llm.utils.llm_config import LLMConfig
 
-# Import API LLM implementations
 class LLMFactory:
-    @staticmethod
-    def create_llm(model: LLMModel, custom_config: LLMConfig = None) -> BaseLLM:
-        if model.is_api:
-            return LLMFactory._create_api_llm(model, custom_config)
-        else:
-            return LLMFactory._create_rpa_llm(model, custom_config)
+    _registry = {}
 
     @staticmethod
-    def _create_rpa_llm(model: LLMModel, custom_config: LLMConfig = None) -> BaseLLM:
-        if model in [LLMModel.GPT_4o, LLMModel.o1_MINI, LLMModel.o1_PREVIEW]:
-            return ChatGPTLLM(model, custom_config)
-        
-        elif model in [LLMModel.MISTRAL_SMALL, LLMModel.MISTRAL_MEDIUM, LLMModel.MISTRAL_LARGE]:
-            return MistralChatLLM(model, custom_config)
-        
-        elif model in [
-            LLMModel.GEMMA_2_9B_IT, LLMModel.GEMMA_7B_IT, LLMModel.LLAMA_3_1_405B_REASONING,
-            LLMModel.LLAMA_3_1_70B_VERSATILE, LLMModel.LLAMA_3_1_8B_INSTANT, LLMModel.LLAMA3_70B_8192,
-            LLMModel.LLAMA3_8B_8192, LLMModel.MIXTRAL_8X7B_32768
-        ]:
-            return GroqChatLLM(model, custom_config)
-        
-        elif model in [
-            LLMModel.GEMINI_1_0_PRO, LLMModel.GEMINI_1_5_PRO, LLMModel.GEMINI_1_5_PRO_EXPERIMENTAL,
-            LLMModel.GEMINI_1_5_FLASH, LLMModel.GEMMA_2_2B, LLMModel.GEMMA_2_9B, LLMModel.GEMMA_2_27B
-        ]:
-            return GeminiChatLLM(model, custom_config)
-        
-        elif model in [LLMModel.CLAUDE_3_HAIKU, LLMModel.CLAUDE_3_OPUS, LLMModel.CLAUDE_3_5_SONNET]:
-            return ClaudeChatLLM(model, custom_config)
-        
-        elif model in [
-            LLMModel.LLAMA_3_1_SONAR_LARGE_128K_ONLINE, LLMModel.LLAMA_3_1_SONAR_SMALL_128K_ONLINE,
-            LLMModel.LLAMA_3_1_SONAR_LARGE_128K_CHAT, LLMModel.LLAMA_3_1_SONAR_SMALL_128K_CHAT,
-            LLMModel.LLAMA_3_1_8B_INSTRUCT, LLMModel.LLAMA_3_1_70B_INSTRUCT,
-            LLMModel.GEMMA_2_27B_IT, LLMModel.NEMOTRON_4_340B_INSTRUCT, LLMModel.MIXTRAL_8X7B_INSTRUCT
-        ]:
-            return PerplexityChatLLM(model, custom_config)
-        
-        else:
-            raise ValueError(f"Unsupported RPA model: {model}")
+    def _register_llm(model: OriginalLLMModel, llm_class):
+        LLMFactory._registry[model] = llm_class
+
+    def _initialize_registry():
+        # Register API LLMs
+        LLMFactory._register_llm(OriginalLLMModel.GPT_4o, OpenAILLM)
+        LLMFactory._register_llm(OriginalLLMModel.o1_MINI, OpenAILLM)
+        LLMFactory._register_llm(OriginalLLMModel.o1_PREVIEW, OpenAILLM)
+        LLMFactory._register_llm(OriginalLLMModel.MISTRAL_SMALL, MistralLLM)
+        LLMFactory._register_llm(OriginalLLMModel.MISTRAL_MEDIUM, MistralLLM)
+        LLMFactory._register_llm(OriginalLLMModel.MISTRAL_LARGE, MistralLLM)
+        LLMFactory._register_llm(OriginalLLMModel.GEMMA_2_9B_IT, BedrockLLM)
+        LLMFactory._register_llm(OriginalLLMModel.GEMMA_7B_IT, BedrockLLM)
+        LLMFactory._register_llm(OriginalLLMModel.LLAMA_3_1_405B_REASONING, BedrockLLM)
+        LLMFactory._register_llm(OriginalLLMModel.LLAMA_3_1_70B_VERSATILE, BedrockLLM)
+        LLMFactory._register_llm(OriginalLLMModel.LLAMA_3_1_8B_INSTANT, BedrockLLM)
+        LLMFactory._register_llm(OriginalLLMModel.LLAMA3_70B_8192, BedrockLLM)
+        LLMFactory._register_llm(OriginalLLMModel.LLAMA3_8B_8192, BedrockLLM)
+        LLMFactory._register_llm(OriginalLLMModel.MIXTRAL_8X7B_32768, BedrockLLM)
+        LLMFactory._register_llm(OriginalLLMModel.GEMINI_1_0_PRO, GeminiLLM)
+        LLMFactory._register_llm(OriginalLLMModel.GEMINI_1_5_PRO, GeminiLLM)
+        LLMFactory._register_llm(OriginalLLMModel.GEMINI_1_5_PRO_EXPERIMENTAL, GeminiLLM)
+        LLMFactory._register_llm(OriginalLLMModel.GEMINI_1_5_FLASH, GeminiLLM)
+        LLMFactory._register_llm(OriginalLLMModel.GEMMA_2_2B, GeminiLLM)
+        LLMFactory._register_llm(OriginalLLMModel.GEMMA_2_9B, GeminiLLM)
+        LLMFactory._register_llm(OriginalLLMModel.GEMMA_2_27B, GeminiLLM)
+        LLMFactory._register_llm(OriginalLLMModel.CLAUDE_3_HAIKU, ClaudeLLM)
+        LLMFactory._register_llm(OriginalLLMModel.CLAUDE_3_OPUS, ClaudeLLM)
+        LLMFactory._register_llm(OriginalLLMModel.CLAUDE_3_5_SONNET, ClaudeLLM)
+        LLMFactory._register_llm(OriginalLLMModel.LLAMA_3_1_SONAR_LARGE_128K_ONLINE, NvidiaLLM)
+        LLMFactory._register_llm(OriginalLLMModel.LLAMA_3_1_SONAR_SMALL_128K_ONLINE, NvidiaLLM)
+        LLMFactory._register_llm(OriginalLLMModel.LLAMA_3_1_SONAR_LARGE_128K_CHAT, NvidiaLLM)
+        LLMFactory._register_llm(OriginalLLMModel.LLAMA_3_1_SONAR_SMALL_128K_CHAT, NvidiaLLM)
+        LLMFactory._register_llm(OriginalLLMModel.LLAMA_3_1_8B_INSTRUCT, NvidiaLLM)
+        LLMFactory._register_llm(OriginalLLMModel.LLAMA_3_1_70B_INSTRUCT, NvidiaLLM)
+        LLMFactory._register_llm(OriginalLLMModel.GEMMA_2_27B_IT, NvidiaLLM)
+        LLMFactory._register_llm(OriginalLLMModel.NEMOTRON_4_340B_INSTRUCT, NvidiaLLM)
+        LLMFactory._register_llm(OriginalLLMModel.MIXTRAL_8X7B_INSTRUCT, NvidiaLLM)
+
+        # Discover and register plugins
+        LLMFactory._discover_plugins()
 
     @staticmethod
-    def _create_api_llm(model: LLMModel, custom_config: LLMConfig = None) -> BaseLLM:
-        if model in [
-            LLMModel.GPT_4o_API, LLMModel.o1_PREVIEW_API, LLMModel.o1_MINI_API,
-            LLMModel.CHATGPT_4O_LATEST_API, LLMModel.GPT_3_5_TURBO_API
-        ]:
-            return OpenAILLM(model_name=model, system_message="You are a helpful assistant.")
-        
-        elif model in [
-            LLMModel.CLAUDE_3_HAIKU_API, LLMModel.CLAUDE_3_OPUS_API, 
-            LLMModel.CLAUDE_3_5_SONNET_API, LLMModel.CLAUDE_3_HAIKU_API
-        ]:
-            return ClaudeLLM(model_name=model, system_message="You are a helpful assistant.")
-        
-        elif model in [LLMModel.MISTRAL_LARGE_API, LLMModel.MISTRAL_MEDIUM_API, LLMModel.MISTRAL_SMALL_API]:
-            return MistralLLM(model_name=model)
-        
-        elif model in [LLMModel.BEDROCK_CLAUDE_3_5_SONNET_API]:
-            return BedrockLLM(model_name=model)
-        
-        elif model in [
-            LLMModel.GEMINI_1_5_FLASH_API, LLMModel.GEMINI_1_5_PRO_API, LLMModel.GEMINI_1_0_PRO_API
-        ]:
-            return GeminiLLM(model_name=model)
-        
-        elif model in [LLMModel.NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT_API]:
-            return NvidiaLLM(model_name=model)
-        
+    def _discover_plugins():
+        # Iterate over entry points in the 'autobyteus.plugins' group
+        for entry_point in pkg_resources.iter_entry_points(group='autobyteus.plugins'):
+            try:
+                plugin_factory = entry_point.load()
+                # Each plugin must have a 'register' method
+                plugin_factory.register(LLMFactory._registry)
+            except Exception as e:
+                print(f"Failed to load plugin {entry_point.name}: {e}")
+
+    @staticmethod
+    def create_llm(model: OriginalLLMModel, custom_config: LLMConfig = None) -> BaseLLM:
+        if model in LLMFactory._registry:
+            llm_class = LLMFactory._registry[model]
+            return llm_class(model, custom_config)
         else:
-            raise ValueError(f"Unsupported API model: {model}")
+            raise ValueError(f"Unsupported model: {model}")
+
+# Initialize the registry upon module import
+LLMFactory._initialize_registry()
