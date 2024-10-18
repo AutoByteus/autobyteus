@@ -11,9 +11,11 @@ class LLMModel(Enum):
 
     GPT_4o_API = "gpt-4o"
     o1_PREVIEW_API = "o1-preview"
-    o1_MINI_API = "o1-mini"
-    CHATGPT_4O_LATEST_API = "chatgpt-4o-latest"
-    OPENROUTE_O1_MINI_API = "openai/o1-mini-2024-09-12"
+    o1_MINI_API = "o1-mini-api"
+    CHATGPT_4O_LATEST_API = "chatgpt-4o-latest"  # No non-API counterpart found; retained original value
+    GPT_3_5_TURBO_API = "gpt-3.5-turbo"
+    OPENROUTER_O1_MINI_API = "openai/o1-mini-2024-09-12"
+
     # Mistral models
     MISTRAL_SMALL = "mistral-small-rpa"
     MISTRAL_MEDIUM = "mistral-medium-rpa"
@@ -93,8 +95,10 @@ class LLMModel(Enum):
     @property
     def default_config(self) -> LLMConfig:
         configs = {
+            # NVIDIA Models
             self.NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT_API: LLMConfig(rate_limit=60, token_limit=32768),
-            # ChatGPT models
+
+            # OpenAI models
             self.GPT_4o: LLMConfig(rate_limit=40, token_limit=8192),
             self.o1_PREVIEW: LLMConfig(rate_limit=50, token_limit=16384),  # Adjust these values
             self.o1_MINI: LLMConfig(rate_limit=60, token_limit=4096),      # Adjust these values
@@ -102,7 +106,8 @@ class LLMModel(Enum):
             self.o1_PREVIEW_API: LLMConfig(rate_limit=50, token_limit=16384),  # Adjust these values
             self.o1_MINI_API: LLMConfig(rate_limit=60, token_limit=4096),      # Adjust these values
             self.CHATGPT_4O_LATEST_API: LLMConfig(rate_limit=40, token_limit=8192),
-            self.OPENROUTE_O1_MINI_API: LLMConfig(rate_limit=60, token_limit=4096),
+            self.GPT_3_5_TURBO_API: LLMConfig(rate_limit=40, token_limit=4096),
+            self.OPENROUTER_O1_MINI_API: LLMConfig(rate_limit=60, token_limit=4096),
 
             # Mistral models
             self.MISTRAL_SMALL: LLMConfig(rate_limit=100, token_limit=32768),

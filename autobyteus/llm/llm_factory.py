@@ -1,18 +1,21 @@
-from autobyteus.llm.api.bedrock.bedrock_chat_api import BedrockChat
-from autobyteus.llm.api.claude.claude_chat_api import ClaudeChat
-from autobyteus.llm.api.google.gemini_chat_api import GeminiChat
-from autobyteus.llm.api.mistral.mistral_chat_api import MistralChat
-from autobyteus.llm.api.nvidia.nvidia_chat_api import NvidiaChat
-from autobyteus.llm.api.openai.openai_chat_api import OpenAIChat
-from autobyteus.llm.api.openroute.openroute_chat_api import OpenRouteChat
+from autobyteus.llm.api.bedrock_llm import BedrockLLM
+from autobyteus.llm.api.claude_llm import ClaudeLLM
+from autobyteus.llm.api.gemini_llm import GeminiLLM
+from autobyteus.llm.api.mistral_llm import MistralLLM
+from autobyteus.llm.api.nvidia_llm import NvidiaLLM
+from autobyteus.llm.api.openai_llm import OpenAILLM
+from autobyteus.llm.api.openrouter_llm import OpenRouterLLM
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
-from autobyteus.llm.rpa.claudechat_llm import ClaudeChatLLM
-from autobyteus.llm.rpa.geminichat_llm import GeminiChatLLM
-from autobyteus.llm.rpa.groqchat_llm import GroqChatLLM
-from autobyteus.llm.rpa.mistralchat_llm import MistralChatLLM
-from autobyteus.llm.rpa.perplexitychat_llm import PerplexityChatLLM
 from autobyteus.llm.utils.llm_config import LLMConfig
+
+# Import all LLM implementations
+from autobyteus.llm.rpa.chatgpt_llm import ChatGPTLLM
+from autobyteus.llm.rpa.mistralchat_llm import MistralChatLLM
+from autobyteus.llm.rpa.groqchat_llm import GroqChatLLM
+from autobyteus.llm.rpa.geminichat_llm import GeminiChatLLM
+from autobyteus.llm.rpa.claudechat_llm import ClaudeChatLLM
+from autobyteus.llm.rpa.perplexitychat_llm import PerplexityChatLLM
 
 # Import API LLM implementations
 class LLMFactory:
@@ -26,7 +29,7 @@ class LLMFactory:
     @staticmethod
     def _create_rpa_llm(model: LLMModel, custom_config: LLMConfig = None) -> BaseLLM:
         if model in [LLMModel.GPT_4o, LLMModel.o1_MINI, LLMModel.o1_PREVIEW]:
-            return OpenRouteChat(model, custom_config)
+            return ChatGPTLLM(model, custom_config)
         
         elif model in [LLMModel.MISTRAL_SMALL, LLMModel.MISTRAL_MEDIUM, LLMModel.MISTRAL_LARGE]:
             return MistralChatLLM(model, custom_config)
@@ -64,28 +67,30 @@ class LLMFactory:
             LLMModel.GPT_4o_API, LLMModel.o1_PREVIEW_API, LLMModel.o1_MINI_API,
             LLMModel.CHATGPT_4O_LATEST_API, LLMModel.GPT_3_5_TURBO_API
         ]:
-            return OpenAIChat(model_name=model, system_message="You are a helpful assistant.")
+            return OpenAILLM(model_name=model, system_message="You are a helpful assistant.")
         
         elif model in [
             LLMModel.CLAUDE_3_HAIKU_API, LLMModel.CLAUDE_3_OPUS_API, 
             LLMModel.CLAUDE_3_5_SONNET_API, LLMModel.CLAUDE_3_HAIKU_API
         ]:
-            return ClaudeChat(model_name=model, system_message="You are a helpful assistant.")
+            return ClaudeLLM(model_name=model, system_message="You are a helpful assistant.")
         
         elif model in [LLMModel.MISTRAL_LARGE_API, LLMModel.MISTRAL_MEDIUM_API, LLMModel.MISTRAL_SMALL_API]:
-            return MistralChat(model_name=model)
+            return MistralLLM(model_name=model)
         
         elif model in [LLMModel.BEDROCK_CLAUDE_3_5_SONNET_API]:
-            return BedrockChat(model_name=model)
+            return BedrockLLM(model_name=model)
         
         elif model in [
             LLMModel.GEMINI_1_5_FLASH_API, LLMModel.GEMINI_1_5_PRO_API, LLMModel.GEMINI_1_0_PRO_API
         ]:
-            return GeminiChat(model_name=model)
+            return GeminiLLM(model_name=model)
         
         elif model in [LLMModel.NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT_API]:
-            return NvidiaChat(model_name=model)
-        elif model in [LLMModel.OPENROUTE_O1_MINI_API]:
-            return OpenRouteChat(model_name=model)
+            return NvidiaLLM(model_name=model)
+        
+        elif model in [LLMModel.OPENROUTER_O1_MINI_API]:
+            return OpenRouterLLM(model_name=model)
+        
         else:
             raise ValueError(f"Unsupported API model: {model}")
