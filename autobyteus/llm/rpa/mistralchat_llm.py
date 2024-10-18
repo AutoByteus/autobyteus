@@ -2,12 +2,12 @@ from typing import List, Optional
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.llm_config import LLMConfig
 from autobyteus.llm.models import LLMModel
-from llm_ui_integration.ui_integrators.groq_ui_integrator.groq_ui_integrator import GroqUIIntegrator
+from llm_ui_integration.ui_integrators.mistralchat_ui_integrator.mistral_ui_integrator import MistralUIIntegrator
 
-class GroqLLM(BaseLLM):
+class MistralChatLLM(BaseLLM):
     def __init__(self, model: LLMModel, custom_config: LLMConfig = None):
         super().__init__(model, custom_config)
-        self.ui_integrator = GroqUIIntegrator(model.value)
+        self.ui_integrator = MistralUIIntegrator()
 
     async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs):
         """

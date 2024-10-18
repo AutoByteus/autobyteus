@@ -1,19 +1,18 @@
-# file: autobyteus/llm/rpa/gemini_llm.py
 from typing import List, Optional
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.llm_config import LLMConfig
 from autobyteus.llm.models import LLMModel
-from llm_ui_integration.ui_integrators.gemini_studio_ui_integrator.gemini_studio_ui_integrator import GeminiStudioUIIntegrator
+from llm_ui_integration.ui_integrators.perplexity_ui_integrator.perplexity_ui_integrator import PerplexityUIIntegrator
 
-class GeminiLLM(BaseLLM):
+class PerplexityChatLLM(BaseLLM):
     def __init__(self, model: LLMModel, custom_config: LLMConfig = None):
         super().__init__(model, custom_config)
-        self.ui_integrator = GeminiStudioUIIntegrator(model.value)
+        self.ui_integrator = PerplexityUIIntegrator(model.value)
 
-    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> str:
+    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs):
         """
         Send a user message and return the LLM's response.
-        
+
         :param user_message: The user message to be processed.
         :type user_message: str
         :param file_paths: Optional list of file paths to be sent with the message.
@@ -30,9 +29,9 @@ class GeminiLLM(BaseLLM):
         
         response = await self.ui_integrator.send_user_message(user_message, file_paths, user_message_index)
         return response
-    
+
     async def cleanup(self):
         """
-        Clean up resources used by the Gemini LLM.
+        Close the UI integrator and clean up resources.
         """
         await self.ui_integrator.close()
