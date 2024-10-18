@@ -4,6 +4,7 @@ from autobyteus.llm.api.google.gemini_chat_api import GeminiChat
 from autobyteus.llm.api.mistral.mistral_chat_api import MistralChat
 from autobyteus.llm.api.nvidia.nvidia_chat_api import NvidiaChat
 from autobyteus.llm.api.openai.openai_chat_api import OpenAIChat
+from autobyteus.llm.api.openroute.openroute_chat_api import OpenRouteChat
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.llm_config import LLMConfig
@@ -63,5 +64,7 @@ class LLMFactory:
             return GeminiChat(model_name=model)
         elif model in [LLMModel.NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT_API]:
             return NvidiaChat(model_name=model)
+        elif model in [LLMModel.OPENROUTE_O1_MINI_API]:
+            return OpenRouteChat(model_name=model)
         else:
             raise ValueError(f"Unsupported API model: {model}")

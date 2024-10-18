@@ -12,7 +12,7 @@ class LLMModel(Enum):
     o1_PREVIEW_API = "o1-preview"
     o1_MINI_API = "o1-mini"
     CHATGPT_4O_LATEST_API = "chatgpt-4o-latest"
-
+    OPENROUTE_O1_MINI_API = "openai/o1-mini-2024-09-12"
     # Mistral models
     MISTRAL_SMALL = "mistral-small"
     MISTRAL_MEDIUM = "mistral-medium"
@@ -97,6 +97,7 @@ class LLMModel(Enum):
             self.o1_PREVIEW_API: LLMConfig(rate_limit=50, token_limit=16384),  # Adjust these values
             self.o1_MINI_API: LLMConfig(rate_limit=60, token_limit=4096),  # Adjust these values
             self.CHATGPT_4O_LATEST_API: LLMConfig(rate_limit=40, token_limit=8192),
+            self.OPENROUTE_O1_MINI_API: LLMConfig(rate_limit=60, token_limit=4096),
 
             # Mistral models
             self.MISTRAL_SMALL: LLMConfig(rate_limit=100, token_limit=32768),
