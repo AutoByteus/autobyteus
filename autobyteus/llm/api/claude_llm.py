@@ -1,26 +1,11 @@
 from typing import Dict, Optional, List
 import anthropic
 import os
-from enum import Enum
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
-from dotenv import load_dotenv
+from autobyteus.llm.utils.messages import MessageRole, Message
 
-load_dotenv()
-
-class MessageRole(Enum):
-    USER = "user"
-    ASSISTANT = "assistant"
-
-class Message:
-    def __init__(self, role: MessageRole, content: str):
-        self.role = role
-        self.content = content
-
-    def to_dict(self) -> Dict[str, str]:
-        return {"role": self.role.value, "content": self.content}
-
-class ClaudeChat(BaseLLM):
+class ClaudeLLM(BaseLLM):
     def __init__(self, model_name: LLMModel = None, system_message: str = None):
         self.client = self.initialize()
         self.model = model_name.value if model_name else "claude-3-5-sonnet-20240620"
@@ -34,7 +19,7 @@ class ClaudeChat(BaseLLM):
         if not anthropic_api_key:
             raise ValueError(
                 "ANTHROPIC_API_KEY environment variable is not set. "
-                "Please set this variable in your .env file or export it in your shell."
+                "Please set this variable in your environment."
             )
         try:
             return anthropic.Anthropic(api_key=anthropic_api_key)

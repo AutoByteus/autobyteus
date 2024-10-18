@@ -1,27 +1,11 @@
 from typing import Dict, Optional, List
 from openai import OpenAI
 import os
-from enum import Enum
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
-from dotenv import load_dotenv
+from autobyteus.llm.utils.messages import MessageRole, Message
 
-load_dotenv()
-
-class MessageRole(Enum):
-    SYSTEM = "system"
-    USER = "user"
-    ASSISTANT = "assistant"
-
-class Message:
-    def __init__(self, role: MessageRole, content: str):
-        self.role = role
-        self.content = content
-
-    def to_dict(self) -> Dict[str, str]:
-        return {"role": self.role.value, "content": self.content}
-
-class NvidiaChat(BaseLLM):
+class NvidiaLLM(BaseLLM):
     def __init__(self, model_name: LLMModel = None, system_message: str = None):
         self.client = self.initialize()
         self.model = model_name.value if model_name else "nvidia/llama-3.1-nemotron-70b-instruct"
@@ -36,7 +20,7 @@ class NvidiaChat(BaseLLM):
         if not nvidia_api_key:
             raise ValueError(
                 "NVIDIA_API_KEY environment variable is not set. "
-                "Please set this variable in your .env file or export it in your shell."
+                "Please set this variable in your environment."
             )
         try:
             return OpenAI(

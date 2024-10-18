@@ -2,27 +2,12 @@ from typing import Dict, Optional, List
 import boto3
 import json
 import os
-from enum import Enum
 from botocore.exceptions import ClientError
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
-from dotenv import load_dotenv
+from autobyteus.llm.utils.messages import MessageRole, Message
 
-load_dotenv()
-
-class MessageRole(Enum):
-    USER = "user"
-    ASSISTANT = "assistant"
-
-class Message:
-    def __init__(self, role: MessageRole, content: str):
-        self.role = role
-        self.content = content
-
-    def to_dict(self) -> Dict[str, str]:
-        return {"role": self.role.value, "content": self.content}
-
-class BedrockChat(BaseLLM):
+class BedrockLLM(BaseLLM):
     def __init__(self, model_name: LLMModel = None, system_message: str = None):
         self.client = self.initialize()
         self.model = model_name.value if model_name else "anthropic.claude-3-5-sonnet-20240620-v1:0"
