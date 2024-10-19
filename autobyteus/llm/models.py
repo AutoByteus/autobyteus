@@ -5,13 +5,6 @@ class LLMModel(Enum):
     NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT_API = "nvidia/llama-3.1-nemotron-70b-instruct"
     
     # OpenAI models
-<<<<<<< HEAD
-    GPT_4o = "GPT-4o"
-    o1_PREVIEW = "o1-preview-rpa"
-    o1_MINI = "o1-mini"
-
-=======
->>>>>>> dynamic-register-rpa-library
     GPT_4o_API = "gpt-4o"
     o1_PREVIEW_API = "o1-preview"
     o1_MINI_API = "o1-mini-api"
@@ -43,13 +36,6 @@ class LLMModel(Enum):
     GEMMA_2_27B_API = "gemma-2-27b"
 
     # Claude models
-<<<<<<< HEAD
-    CLAUDE_3_HAIKU = "Claude3Haiku"
-    CLAUDE_3_OPUS = "Claude3Opus"
-    CLAUDE_3_5_SONNET = "Claude35Sonnet"
-
-=======
->>>>>>> dynamic-register-rpa-library
     CLAUDE_3_OPUS_API = "claude-3-opus-20240229"
     CLAUDE_3_SONNET_API = "claude-3-sonnet-20240229"
     CLAUDE_3_HAIKU_API = "claude-3-haiku-20240307"
