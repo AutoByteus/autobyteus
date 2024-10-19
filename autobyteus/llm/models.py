@@ -63,9 +63,6 @@ class LLMModel(Enum):
             self.GPT_4o_API: LLMConfig(rate_limit=40, token_limit=8192),
             self.o1_PREVIEW_API: LLMConfig(rate_limit=50, token_limit=16384),  # Adjust these values
             self.o1_MINI_API: LLMConfig(rate_limit=60, token_limit=4096),      # Adjust these values
-            self.GPT_4o_API: LLMConfig(rate_limit=40, token_limit=8192),
-            self.o1_PREVIEW_API: LLMConfig(rate_limit=50, token_limit=16384),  # Adjust these values
-            self.o1_MINI_API: LLMConfig(rate_limit=60, token_limit=4096),      # Adjust these values
             self.CHATGPT_4O_LATEST_API: LLMConfig(rate_limit=40, token_limit=8192),
             self.GPT_3_5_TURBO_API: LLMConfig(rate_limit=40, token_limit=4096),
 

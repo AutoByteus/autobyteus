@@ -23,7 +23,7 @@ def test_calculate_cost(cost_calculator, token_counter):
     token_counter.add_input_tokens("Input text. " * 100)
     token_counter.add_output_tokens("Output text. " * 50)
     
-    pricing = TokenPricingRegistry.get_pricing(LLMModel.GPT_3_5_TURBO)
+    pricing = TokenPricingRegistry.get_pricing(LLMModel.GPT_3_5_TURBO_API)
     expected_cost = (token_counter.input_tokens / 1000 * pricing.input_price) + \
                     (token_counter.output_tokens / 1000 * pricing.output_price)
     
