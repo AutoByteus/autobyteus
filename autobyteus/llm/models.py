@@ -5,10 +5,6 @@ class LLMModel(Enum):
     NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT_API = "nvidia/llama-3.1-nemotron-70b-instruct"
     
     # OpenAI models
-    GPT_4o = "GPT-4o"
-    o1_PREVIEW = "o1-preview-rpa"
-    o1_MINI = "o1-mini"
-
     GPT_4o_API = "gpt-4o"
     o1_PREVIEW_API = "o1-preview"
     o1_MINI_API = "o1-mini-api"
