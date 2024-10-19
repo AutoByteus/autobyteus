@@ -6,6 +6,7 @@ from botocore.exceptions import ClientError
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.messages import MessageRole, Message
+import anthropic
 
 class BedrockLLM(BaseLLM):
     def __init__(self, model_name: LLMModel = None, system_message: str = None):
@@ -39,31 +40,21 @@ class BedrockLLM(BaseLLM):
 
     async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> str:
         self.messages.append(Message(MessageRole.USER, user_message))
-        
-        request_body = json.dumps({
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 1000,
-            "temperature": 0,
-            "messages": [msg.to_dict() for msg in self.messages],
-            "system": self.system_message if self.system_message else ""
-        })
 
         try:
-            response = self.client.invoke_model(
-                modelId=self.model,
-                body=request_body
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=1000,
+                temperature=0,
+                system=self.system_message,
+                messages=[msg.to_dict() for msg in self.messages]
             )
-            response_body = json.loads(response['body'].read())
-            assistant_message = response_body['content'][0]['text']
+
+            assistant_message = response.content[0].text
             self.messages.append(Message(MessageRole.ASSISTANT, assistant_message))
             return assistant_message
-            
-        except ClientError as e:
-            error_code = e.response['Error']['Code']
-            error_message = e.response['Error']['Message']
-            raise ValueError(f"Bedrock API error: {error_code} - {error_message}")
-        except Exception as e:
-            raise ValueError(f"Error in Bedrock API call: {str(e)}")
+        except anthropic.APIError as e:
+            raise ValueError(f"Error in Claude API call: {str(e)}")
 
     async def cleanup(self):
         pass
