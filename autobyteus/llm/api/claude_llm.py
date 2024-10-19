@@ -10,7 +10,7 @@ class ClaudeLLM(BaseLLM):
         self.client = self.initialize()
         self.model = model_name.value if model_name else "claude-3-5-sonnet-20240620"
         self.system_message = system_message or "You are a helpful assistant."
-        self.messages = [Message(MessageRole.SYSTEM, self.system_message)]
+        self.messages = []
         super().__init__(model=self.model)
 
     @classmethod
@@ -34,6 +34,7 @@ class ClaudeLLM(BaseLLM):
                 model=self.model,
                 max_tokens=1000,
                 temperature=0,
+                system=self.system_message,
                 messages=[msg.to_dict() for msg in self.messages]
             )
 
