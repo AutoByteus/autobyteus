@@ -4,9 +4,9 @@ from autobyteus.llm.models import LLMModel
 
 @pytest.mark.token_pricing
 @pytest.mark.parametrize("model,expected_input_price,expected_output_price", [
-    (LLMModel.GPT_3_5_TURBO, 0.0015, 0.002),
-    (LLMModel.GPT_4, 0.03, 0.06),
-    (LLMModel.CLAUDE_3_HAIKU, 0.0015, 0.002),
+    (LLMModel.GPT_3_5_TURBO_API, 0.0015, 0.002),
+    (LLMModel.GPT_4o_API, 0.03, 0.06),
+    (LLMModel.CLAUDE_3_5_SONNET_API, 0.0015, 0.002),
 ])
 def test_get_pricing_known_model(model, expected_input_price, expected_output_price):
     """Test if get_pricing returns correct pricing for known models."""
