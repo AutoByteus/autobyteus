@@ -40,7 +40,7 @@ class LLMModel(Enum):
     CLAUDE_3_OPUS_API = "claude-3-opus-20240229"
     CLAUDE_3_SONNET_API = "claude-3-sonnet-20240229"
     CLAUDE_3_HAIKU_API = "claude-3-haiku-20240307"
-    CLAUDE_3_5_SONNET_API = "claude-3-5-sonnet-20240620"
+    CLAUDE_3_5_SONNET_API = "claude-3-5-sonnet-20241022"
     BEDROCK_CLAUDE_3_5_SONNET_API = "anthropic.claude-3-5-sonnet-20240620-v1:0"  # No non-API counterpart found; retained original value
 
     # Perplexity models

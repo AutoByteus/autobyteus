@@ -58,7 +58,7 @@ class LLMFactory:
         LLMFactory.register_llm(LLMModel.CLAUDE_3_SONNET_API.name, ClaudeLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.CLAUDE_3_HAIKU_API.name, ClaudeLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.CLAUDE_3_5_SONNET_API.name, ClaudeLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.BEDROCK_CLAUDE_3_5_SONNET_API.name, ClaudeLLM, LLMModel.from_name)
+        LLMFactory.register_llm(LLMModel.BEDROCK_CLAUDE_3_5_SONNET_API.name, BedrockLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.LLAMA_3_1_SONAR_LARGE_128K_ONLINE_API.name, NvidiaLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.LLAMA_3_1_SONAR_SMALL_128K_ONLINE_API.name, NvidiaLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.LLAMA_3_1_SONAR_LARGE_128K_CHAT_API.name, NvidiaLLM, LLMModel.from_name)
