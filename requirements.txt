@@ -22,7 +22,7 @@ python-dotenv
 uvicorn
 fastapi 
 strawberry-graphql
-anthropic
 mistralai
 boto3
 botocore
+anthropic==0.37.1
