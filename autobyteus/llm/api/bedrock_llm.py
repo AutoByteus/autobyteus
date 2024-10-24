@@ -17,7 +17,7 @@ class BedrockLLM(BaseLLM):
     def initialize(cls):
         aws_access_key = os.environ.get("AWS_ACCESS_KEY_ID")
         aws_secret_key = os.environ.get("AWS_SECRET_ACCESS_KEY")
-        aws_region = os.environ.get("AWS_REGION", "us-east-1")
+        aws_region = os.environ.get("AWS_REGION", "us-west-2")
 
         try:
             return AnthropicBedrock(
