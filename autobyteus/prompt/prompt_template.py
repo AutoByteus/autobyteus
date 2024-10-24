@@ -1,6 +1,12 @@
-# file: autobyteus/prompt/prompt_template.py
-
 from autobyteus.prompt.prompt_template_variable import PromptTemplateVariable
+import string
+
+class SafeFormatter(string.Formatter):
+    def get_value(self, key, args, kwargs):
+        if isinstance(key, str):
+            return kwargs.get(key, '{' + key + '}')
+        else:
+            return super().get_value(key, args, kwargs)
 
 class PromptTemplate:
     def __init__(self, template: str = None, file: str = None, variables: list[PromptTemplateVariable] = None):
@@ -28,18 +34,14 @@ class PromptTemplate:
 
     def fill(self, values: dict) -> str:
         """
-        Fill the template using the provided values.
+        Fill the template using the provided values. Only the variables specified in 'values' are replaced.
+        Other placeholders remain unchanged.
 
         Args:
             values (dict): Dictionary containing variable names as keys and their respective values.
 
         Returns:
-            str: The filled template string.
-
-        Raises:
-            KeyError: If a required variable is missing from the provided values.
+            str: The partially filled template string.
         """
-        try:
-            return self.template.format(**values)
-        except KeyError as e:
-            raise KeyError(f"Missing value for template variable: {e}")
+        formatter = SafeFormatter()
+        return formatter.format(self.template, **values)
