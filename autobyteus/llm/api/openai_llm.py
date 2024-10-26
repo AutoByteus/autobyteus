@@ -1,6 +1,8 @@
-from typing import Dict, Optional, List
+from typing import Optional, List
 import openai
 import os
+
+import tiktoken
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.messages import MessageRole, Message
@@ -10,6 +12,7 @@ class OpenAILLM(BaseLLM):
         self.initialize()
         self.model = model_name.value if model_name else LLMModel.GPT_3_5_TURBO_API.value
         self.messages = []
+        self.tokenizer = tiktoken.encoding_for_model("gpt-3.5-turbo")  # Use a compatible tokenizer
         if system_message:
             self.messages.append(Message(MessageRole.SYSTEM, system_message))
         super().__init__(model=self.model)
@@ -23,6 +26,9 @@ class OpenAILLM(BaseLLM):
                 "Please set this variable in your environment."
             )
         openai.api_key = openai_api_key
+
+    def count_tokens(self, text: str) -> int:
+        return len(self.tokenizer.encode(text))
 
     async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> str:
         self.messages.append(Message(MessageRole.USER, user_message))

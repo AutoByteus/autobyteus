@@ -1,6 +1,8 @@
-from typing import Dict, Optional, List
+from typing import Optional, List
 from openai import OpenAI
 import os
+
+import tiktoken
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.messages import MessageRole, Message
@@ -10,6 +12,7 @@ class OpenRouterLLM(BaseLLM):
         self.initialize()
         self.model = model_name.value if model_name else "openai/o1-mini-2024-09-12"
         self.messages = []
+        self.tokenizer = tiktoken.encoding_for_model("gpt-3.5-turbo")  # Use a compatible tokenizer
         if system_message:
             self.messages.append(Message(MessageRole.SYSTEM, system_message))
         super().__init__(model=self.model)
@@ -26,6 +29,9 @@ class OpenRouterLLM(BaseLLM):
             base_url="https://openrouter.ai/api/v1",
             api_key=openrouter_api_key
         )
+
+    def count_tokens(self, text: str) -> int:
+        return len(self.tokenizer.encode(text))
 
     async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> str:
         self.messages.append(Message(MessageRole.USER, user_message))

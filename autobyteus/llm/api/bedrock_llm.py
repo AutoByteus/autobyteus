@@ -1,9 +1,10 @@
-from typing import Dict, Optional, List
+from typing import Optional, List
 from anthropic import AnthropicBedrock
 import os
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.messages import MessageRole, Message
+import tiktoken
 
 class BedrockLLM(BaseLLM):
     def __init__(self, model_name: LLMModel = None, system_message: str = None):
@@ -12,6 +13,7 @@ class BedrockLLM(BaseLLM):
         self.system_message = system_message or "You are a helpful assistant."
         self.messages = []
         super().__init__(model=self.model)
+        self.tokenizer = tiktoken.encoding_for_model("gpt-3.5-turbo")  # Use a compatible tokenizer
 
     @classmethod
     def initialize(cls):
@@ -27,6 +29,9 @@ class BedrockLLM(BaseLLM):
             )
         except Exception as e:
             raise ValueError(f"Failed to initialize Bedrock client: {str(e)}")
+
+    def count_tokens(self, text: str) -> int:
+        return len(self.tokenizer.encode(text))
 
     async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> str:
         self.messages.append(Message(MessageRole.USER, user_message))

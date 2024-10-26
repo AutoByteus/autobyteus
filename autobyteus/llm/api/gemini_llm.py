@@ -1,6 +1,8 @@
-from typing import Dict, Optional, List
+from typing import Optional, List
 import google.generativeai as genai
 import os
+
+import tiktoken
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.messages import MessageRole, Message
@@ -18,6 +20,7 @@ class GeminiLLM(BaseLLM):
         }
         self.chat_session = None
         self.messages = []
+        self.tokenizer = tiktoken.encoding_for_model("gpt-3.5-turbo")  # Use a compatible tokenizer
         if system_message:
             # Instead of using MessageRole.SYSTEM, we'll use MessageRole.USER
             # and prepend "System:" to the message content
@@ -48,6 +51,9 @@ class GeminiLLM(BaseLLM):
             for msg in self.messages:
                 history.append({"role": msg.role.value, "parts": [msg.content]})
             self.chat_session = model.start_chat(history=history)
+
+    def count_tokens(self, text: str) -> int:
+        return len(self.tokenizer.encode(text))
 
     async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> str:
         self.messages.append(Message(MessageRole.USER, user_message))

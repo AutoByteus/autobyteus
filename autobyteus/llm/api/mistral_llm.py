@@ -1,5 +1,7 @@
-from typing import Dict, Optional, List
+from typing import Optional, List
 import os
+
+import tiktoken
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
 from mistralai import Mistral
@@ -10,6 +12,7 @@ class MistralLLM(BaseLLM):
         self.client = self.initialize()
         self.model = model_name.value if model_name else "mistral-large-latest"
         self.messages = []
+        self.tokenizer = tiktoken.encoding_for_model("gpt-3.5-turbo")  # Use a compatible tokenizer
         super().__init__(model=self.model)
 
     @classmethod
@@ -24,6 +27,9 @@ class MistralLLM(BaseLLM):
             return Mistral(api_key=mistral_api_key)
         except Exception as e:
             raise ValueError(f"Failed to initialize Mistral client: {str(e)}")
+
+    def count_tokens(self, text: str) -> int:
+        return len(self.tokenizer.encode(text))
 
     async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> str:
         self.messages.append(Message(MessageRole.USER, user_message))

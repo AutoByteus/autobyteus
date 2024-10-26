@@ -1,17 +1,18 @@
 import tiktoken
-from autobyteus.llm.utils.llm_config import LLMConfig
 
 class TokenCounter:
-    def __init__(self, config: LLMConfig):
-        self.token_limit = config.token_limit
-        self.model_name = None
-        if self.token_limit:
+    def __init__(self, config=None):
+        self.token_limit = getattr(config, 'token_limit', None)
+        self.model_name = getattr(config, 'model_name', None)
+        if self.token_limit and self.model_name:
             self.encoding = tiktoken.encoding_for_model(self.model_name)
+        else:
+            self.encoding = None
         self.input_tokens = 0
         self.output_tokens = 0
 
     def count_tokens(self, text: str) -> int:
-        if not self.token_limit:
+        if not self.encoding:
             return 0
         return len(self.encoding.encode(text))
 

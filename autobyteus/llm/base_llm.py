@@ -1,22 +1,53 @@
 # file: autobyteus/llm/base_llm.py
 from abc import ABC, abstractmethod
+from enum import Enum
 from typing import List, Optional, Union
+from autobyteus.llm.utils.cost_calculator import CostCalculator
 from autobyteus.llm.utils.llm_config import LLMConfig
 from autobyteus.llm.utils.rate_limiter import RateLimiter
 from autobyteus.llm.models import LLMModel
+from autobyteus.llm.utils.token_counter import TokenCounter
 class BaseLLM(ABC):
-    def __init__(self, model: Union[str, LLMModel], custom_config: LLMConfig = None):
-        self.model = model
-        if isinstance(model, str):
-            self.config = custom_config if custom_config else LLMConfig()  # Use a default config if not provided
-        else:
-            self.config = custom_config if custom_config else model.default_config
+    def __init__(self, model: Union[str, 'LLMModel'], custom_config: 'LLMConfig' = None):
+        self.model = model.value if isinstance(model, Enum) else model
+        self.config = custom_config if custom_config else LLMConfig()
         self.rate_limiter = RateLimiter(self.config)
+        self.token_counter = TokenCounter(self.config.token_limit)
+        self.cost_calculator = CostCalculator(self.model, self.token_counter)
 
     async def send_user_message(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs):
         await self.rate_limiter.wait_if_needed()
+        
+        # Count input tokens
+        input_tokens = self.count_tokens(user_message)
+        if not self.token_counter.add_input_tokens(input_tokens):
+            raise ValueError("Input message exceeds token limit")
+        
+        # Get response from LLM
         response = await self._send_user_message_to_llm(user_message, file_paths, **kwargs)
+        
+        # Count output tokens
+        output_tokens = self.count_tokens(response)
+        if not self.token_counter.add_output_tokens(output_tokens):
+            raise ValueError("Response exceeds token limit")
+        
         return response
+
+    def get_current_cost(self) -> float:
+        """Get the current cost of the conversation."""
+        return self.cost_calculator.calculate_cost()
+    
+    def get_token_usage(self) -> dict:
+        """Get the current token usage statistics."""
+        return {
+            'input_tokens': self.token_counter.input_tokens,
+            'output_tokens': self.token_counter.output_tokens,
+            'total_tokens': self.token_counter.get_total_tokens()
+        }
+
+    def reset_usage(self):
+        """Reset token counter and start fresh."""
+        self.token_counter.reset()
     
     @abstractmethod
     async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> str:
