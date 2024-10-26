@@ -26,3 +26,4 @@ mistralai
 boto3
 botocore
 anthropic==0.37.1
+Jinja2

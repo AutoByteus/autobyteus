@@ -4,7 +4,7 @@ from autobyteus.prompt.prompt_builder import PromptBuilder
 
 @pytest.fixture
 def template_file(tmp_path):
-    template_content = "[Movie Title]:\n{movie_title}\n\n[Genre]:\n{genre}"
+    template_content = "[Movie Title]:\n{{ movie_title }}\n\n[Genre]:\n{{ genre }}"
     template_file = tmp_path / "template.txt"
     with open(template_file, "w") as file:
         file.write(template_content)
@@ -13,8 +13,9 @@ def template_file(tmp_path):
 def test_prompt_builder(template_file):
     # Test building a prompt with variables
     prompt = (
-        PromptBuilder.with_template(str(template_file))
-        .variables(movie_title="The Matrix", genre="Science Fiction")
+        PromptBuilder.from_file(str(template_file))
+        .set_variable_value("movie_title", "The Matrix")
+        .set_variable_value("genre", "Science Fiction")
         .build()
     )
     expected_prompt = "[Movie Title]:\nThe Matrix\n\n[Genre]:\nScience Fiction"
@@ -27,5 +28,10 @@ def test_prompt_builder_missing_template():
 
 def test_prompt_builder_missing_variable(template_file):
     # Test building a prompt with missing variables
-    with pytest.raises(KeyError):
-        PromptBuilder.with_template(str(template_file)).build()
+    prompt = (
+        PromptBuilder.from_file(str(template_file))
+        .set_variable_value("movie_title", "Inception")
+        .build()
+    )
+    expected_prompt = "[Movie Title]:\nInception\n\n[Genre]:\n"
+    assert prompt == expected_prompt

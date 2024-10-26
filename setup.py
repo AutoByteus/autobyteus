@@ -25,6 +25,7 @@ common_dependencies = [
     "uvicorn",
     "fastapi",
     "strawberry-graphql",
+    "Jinja2",
 ]
 
 setup(
