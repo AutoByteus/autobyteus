@@ -1,16 +1,11 @@
-from autobyteus.prompt.prompt_template_variable import PromptTemplateVariable
-import string
-
-class SafeFormatter(string.Formatter):
-    def get_value(self, key, args, kwargs):
-        if isinstance(key, str):
-            return kwargs.get(key, '{' + key + '}')
-        else:
-            return super().get_value(key, args, kwargs)
+from jinja2 import Template, Environment, meta
+import os
 
 class PromptTemplate:
-    def __init__(self, template: str = None, file: str = None, variables: list[PromptTemplateVariable] = None):
+    def __init__(self, template: str = None, file: str = None):
         if file is not None:
+            if not os.path.isfile(file):
+                raise FileNotFoundError(f"Template file '{file}' does not exist.")
             with open(file, 'r') as f:
                 self.template = f.read()
         elif template is not None:
@@ -18,7 +13,10 @@ class PromptTemplate:
         else:
             raise ValueError("Either 'template' or 'file' must be provided.")
 
-        self.variables = variables if variables is not None else []
+        # Initialize Jinja2 environment
+        self.env = Environment()
+        self.parsed_content = self.env.parse(self.template)
+        self.required_vars = meta.find_undeclared_variables(self.parsed_content)
 
     def to_dict(self) -> dict:
         """
@@ -28,8 +26,7 @@ class PromptTemplate:
             dict: Dictionary representation of the PromptTemplate instance.
         """
         return {
-            "template": self.template,
-            "variables": [variable.to_dict() for variable in self.variables]
+            "template": self.template
         }
 
     def fill(self, values: dict) -> str:
@@ -43,5 +40,5 @@ class PromptTemplate:
         Returns:
             str: The partially filled template string.
         """
-        formatter = SafeFormatter()
-        return formatter.format(self.template, **values)
+        template = Template(self.template)
+        return template.render(**values)
