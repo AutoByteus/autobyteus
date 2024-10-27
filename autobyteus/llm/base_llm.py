@@ -12,24 +12,27 @@ class BaseLLM(ABC):
         self.model = model.value if isinstance(model, Enum) else model
         self.config = custom_config if custom_config else LLMConfig()
         self.rate_limiter = RateLimiter(self.config)
-        self.token_counter = TokenCounter(self.config.token_limit)
+        self.is_api_model = getattr(model, 'is_api', True)  # Default to True for backward compatibility
+        self.token_counter = TokenCounter(self.config, is_api_model=self.is_api_model)
         self.cost_calculator = CostCalculator(self.model, self.token_counter)
 
     async def send_user_message(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs):
         await self.rate_limiter.wait_if_needed()
         
-        # Count input tokens
-        input_tokens = self.count_tokens(user_message)
-        if not self.token_counter.add_input_tokens(input_tokens):
-            raise ValueError("Input message exceeds token limit")
+        if self.is_api_model:
+            # Count input tokens only for API models
+            input_tokens = self.token_counter.count_tokens(user_message)
+            if not self.token_counter.add_input_tokens(input_tokens):
+                raise ValueError("Input message exceeds token limit")
         
         # Get response from LLM
         response = await self._send_user_message_to_llm(user_message, file_paths, **kwargs)
         
-        # Count output tokens
-        output_tokens = self.count_tokens(response)
-        if not self.token_counter.add_output_tokens(output_tokens):
-            raise ValueError("Response exceeds token limit")
+        if self.is_api_model:
+            # Count output tokens only for API models
+            output_tokens = self.token_counter.count_tokens(response)
+            if not self.token_counter.add_output_tokens(output_tokens):
+                raise ValueError("Response exceeds token limit")
         
         return response
 
