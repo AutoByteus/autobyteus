@@ -1,8 +1,6 @@
 from typing import Optional, List
 import anthropic
 import os
-
-import tiktoken
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.messages import MessageRole, Message
@@ -13,8 +11,7 @@ class ClaudeLLM(BaseLLM):
         self.model = model_name.value if model_name else "claude-3-5-sonnet-20240620"
         self.system_message = system_message or "You are a helpful assistant."
         self.messages = []
-        super().__init__(model=self.model)
-        self.tokenizer = tiktoken.encoding_for_model("gpt-3.5-turbo")  # Use a compatible tokenizer
+        super().__init__(model=self.model, tokenizer_model_name="gpt-3.5-turbo")
 
     @classmethod
     def initialize(cls):
@@ -28,9 +25,6 @@ class ClaudeLLM(BaseLLM):
             return anthropic.Anthropic(api_key=anthropic_api_key)
         except Exception as e:
             raise ValueError(f"Failed to initialize Anthropic client: {str(e)}")
-        
-    def count_tokens(self, text: str) -> int:
-        return len(self.tokenizer.encode(text))
 
     async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> str:
         self.messages.append(Message(MessageRole.USER, user_message))
