@@ -11,7 +11,7 @@ class BedrockLLM(BaseLLM):
         self.model = model_name.value if model_name else "anthropic.claude-3-5-sonnet-20240620-v1:0"
         self.system_message = system_message or "You are a helpful assistant."
         self.messages = []
-        super().__init__(model=self.model, tokenizer_model_name="gpt-3.5-turbo")
+        super().__init__(model=self.model)
 
     @classmethod
     def initialize(cls):

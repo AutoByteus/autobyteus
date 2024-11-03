@@ -18,7 +18,7 @@ class BaseLLM(ABC):
         self.token_counter = TokenCounter(self.config, is_api_model=self.is_api_model)
         self.cost_calculator = CostCalculator(self.model, self.token_counter)
         # Initialize tokenizer
-        tokenizer_name = tokenizer_model_name if tokenizer_model_name else self.model
+        tokenizer_name = self.model
         try:
             self.tokenizer = tiktoken.encoding_for_model(tokenizer_name)
         except KeyError:

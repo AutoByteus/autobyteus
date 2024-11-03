@@ -5,10 +5,10 @@ from autobyteus.llm.models import LLMModel
 
 class CostCalculator:
     def __init__(self, model: LLMModel, token_counter: TokenCounter):
-        self.model = model
+        self.model = LLMModel.from_name(model) if isinstance(model, str) else model
         self.token_counter = token_counter
-        self.pricing = TokenPricingRegistry.get_pricing(model)
-    
+        self.pricing = TokenPricingRegistry.get_pricing(self.model)
+
     def calculate_cost(self) -> float:
         if not self.model.is_api:
             return 0.0

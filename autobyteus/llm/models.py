@@ -1,4 +1,5 @@
 from enum import Enum
+import re
 from autobyteus.llm.utils.llm_config import LLMConfig
 
 class LLMModel(Enum):
@@ -118,7 +119,12 @@ class LLMModel(Enum):
     
     @classmethod
     def from_name(cls, name: str) -> 'LLMModel':
+        # Replace hyphens with underscores and remove date suffixes
+        enum_name = re.sub(r'[-:]', '_', name).upper()
+        enum_name = re.sub(r'_\d{8}$', '', enum_name)  # Remove date suffixes like _20241022
         try:
-            return cls[name]
+            # Adjust name to match enum member naming
+            enum_name = name.replace('-', '_').upper()
+            return cls[enum_name]
         except KeyError:
             raise ValueError(f"Invalid LLMModel name: {name}")
