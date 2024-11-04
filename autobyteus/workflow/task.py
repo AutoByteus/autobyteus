@@ -11,7 +11,6 @@ from autobyteus.tools.base_tool import BaseTool
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.agent.agent import StandaloneAgent
 from autobyteus.prompt.prompt_builder import PromptBuilder
-from autobyteus.conversation.persistence.file_based_persistence_provider import FileBasedPersistenceProvider
 from autobyteus.person.person import Person
 
 class Task:
@@ -98,9 +97,8 @@ class Task:
             llm=self.llm,
             tools=self.tools,
             use_xml_parser=True,
-            persistence_provider_class=FileBasedPersistenceProvider,
             agent_id=agent_id,
-            initial_prompt=initial_prompt
+            initial_user_message=initial_prompt
         )
 
     def _generate_initial_prompt(self) -> str:
