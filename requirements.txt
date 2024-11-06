@@ -3,8 +3,6 @@ SQLAlchemy
 sqlalchemy-utils
 alembic
 psycopg2-binary
-repository-sqlalchemy
-repository-mongodb
 pytest-playwright
 beautifulsoup4>=4.12.2
 openai
