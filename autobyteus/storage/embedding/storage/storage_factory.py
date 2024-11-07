@@ -1,14 +1,15 @@
 """
 This module contains the get_storage function which is responsible for getting instances of storage
 classes based on a given configuration. It supports getting different types of storage classes,
-such as RedisStorage and WeaviateStorage. Each type of storage class is implemented as a singleton,
-ensuring only one instance of each type can exist.
+such as RedisStorage, WeaviateStorage, and MilvusStorage. Each type of storage class is implemented 
+as a singleton, ensuring only one instance of each type can exist.
 """
 
 import os
 from autobyteus.embeding.embedding_creator_factory import get_embedding_creator
 from autobyteus.storage.embedding.storage.redis_storage import RedisStorage
 from autobyteus.storage.embedding.storage.weaviate_storage import WeaviateStorage
+from autobyteus.storage.embedding.storage.milvus_storage import MilvusStorage
 
 def get_storage():
     """
@@ -23,6 +24,8 @@ def get_storage():
         return RedisStorage(get_embedding_creator().embedding_dim)
     elif storage_backend == 'weaviate':
         return WeaviateStorage(get_embedding_creator().embedding_dim)
+    elif storage_backend == 'milvus':
+        return MilvusStorage(get_embedding_creator().embedding_dim)
     elif storage_backend == 'faiss':
         # TODO: Implement FAISS storage
         raise NotImplementedError("FAISS storage is not yet implemented")

@@ -26,6 +26,7 @@ common_dependencies = [
     "fastapi",
     "strawberry-graphql",
     "Jinja2",
+    "pymilvus"
 ]
 
 setup(
