@@ -1,8 +1,6 @@
-from autobyteus.llm.api.bedrock_llm import BedrockLLM
 from autobyteus.llm.api.claude_llm import ClaudeLLM
 from autobyteus.llm.api.gemini_llm import GeminiLLM
 from autobyteus.llm.api.mistral_llm import MistralLLM
-from autobyteus.llm.api.nvidia_llm import NvidiaLLM
 from autobyteus.llm.api.openai_llm import OpenAILLM
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
@@ -28,7 +26,6 @@ class LLMFactory:
     @staticmethod
     def _initialize_registry():
         # Register main API LLMs using enum names and the main resolver
-        LLMFactory.register_llm(LLMModel.NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT_API.name, NvidiaLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.GPT_4o_API.name, OpenAILLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.o1_PREVIEW_API.name, OpenAILLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.o1_MINI_API.name, OpenAILLM, LLMModel.from_name)
@@ -37,35 +34,11 @@ class LLMFactory:
         LLMFactory.register_llm(LLMModel.MISTRAL_SMALL_API.name, MistralLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.MISTRAL_MEDIUM_API.name, MistralLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.MISTRAL_LARGE_API.name, MistralLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.GEMMA_2_9B_IT_API.name, BedrockLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.GEMMA_7B_IT_API.name, BedrockLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.LLAMA_3_1_405B_REASONING_API.name, BedrockLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.LLAMA_3_1_70B_VERSATILE_API.name, BedrockLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.LLAMA_3_1_8B_INSTANT_API.name, BedrockLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.LLAMA3_70B_8192_API.name, BedrockLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.LLAMA3_8B_8192_API.name, BedrockLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.MIXTRAL_8X7B_32768_API.name, BedrockLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.GEMINI_1_0_PRO_API.name, GeminiLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.GEMINI_1_5_PRO_API.name, GeminiLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.GEMINI_1_5_PRO_EXPERIMENTAL_API.name, GeminiLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.GEMINI_1_5_FLASH_API.name, GeminiLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.GEMMA_2_2B_API.name, GeminiLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.GEMMA_2_9B_API.name, GeminiLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.GEMMA_2_27B_API.name, GeminiLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.CLAUDE_3_OPUS_API.name, ClaudeLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.CLAUDE_3_SONNET_API.name, ClaudeLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.CLAUDE_3_HAIKU_API.name, ClaudeLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.CLAUDE_3_5_SONNET_API.name, ClaudeLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.BEDROCK_CLAUDE_3_5_SONNET_API.name, ClaudeLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.LLAMA_3_1_SONAR_LARGE_128K_ONLINE_API.name, NvidiaLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.LLAMA_3_1_SONAR_SMALL_128K_ONLINE_API.name, NvidiaLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.LLAMA_3_1_SONAR_LARGE_128K_CHAT_API.name, NvidiaLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.LLAMA_3_1_SONAR_SMALL_128K_CHAT_API.name, NvidiaLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.LLAMA_3_1_8B_INSTRUCT_API.name, NvidiaLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.LLAMA_3_1_70B_INSTRUCT_API.name, NvidiaLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.GEMMA_2_27B_IT_API.name, NvidiaLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.NEMOTRON_4_340B_INSTRUCT_API.name, NvidiaLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.MIXTRAL_8X7B_INSTRUCT_API.name, NvidiaLLM, LLMModel.from_name)
 
         # Discover and register additional plugins
         LLMFactory._discover_plugins()
