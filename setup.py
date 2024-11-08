@@ -26,7 +26,8 @@ common_dependencies = [
     "fastapi",
     "strawberry-graphql",
     "Jinja2",
-    "pymilvus"
+    "pymilvus",
+    "google-cloud-aiplatform",
 ]
 
 setup(
