@@ -4,13 +4,14 @@ from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
 from mistralai import Mistral
 from autobyteus.llm.utils.messages import MessageRole, Message
+from autobyteus.llm.utils.llm_config import LLMConfig  # Assuming LLMConfig is needed
 
 class MistralLLM(BaseLLM):
-    def __init__(self, model_name: LLMModel = None):
+    def __init__(self, model_name: LLMModel = None, custom_config: LLMConfig = None):
         self.client = self.initialize()
         self.model = model_name.value if model_name else "mistral-large-latest"
         self.messages = []
-        super().__init__(model=self.model, tokenizer_model_name="gpt-3.5-turbo")
+        super().__init__(model=self.model, custom_config=custom_config)
 
     @classmethod
     def initialize(cls):

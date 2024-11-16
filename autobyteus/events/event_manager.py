@@ -1,5 +1,3 @@
-# File: autobyteus/events/event_manager.py
-
 from autobyteus.events.event_types import EventType
 from autobyteus.utils.singleton import SingletonMeta
 from typing import Dict, List, Callable, Optional
@@ -23,9 +21,12 @@ class EventManager(metaclass=SingletonMeta):
 
     def emit(self, event: EventType, agent_id: Optional[str] = None, *args, **kwargs):
         if event in self.listeners:
+            # Include agent_id in kwargs
+            updated_kwargs = {'agent_id': agent_id, **kwargs}
+            
             if agent_id is not None and agent_id in self.listeners[event]:
                 for listener in self.listeners[event][agent_id]:
-                    listener(*args, **kwargs)
+                    listener(*args, **updated_kwargs)
             if None in self.listeners[event]:  # Global listeners
                 for listener in self.listeners[event][None]:
-                    listener(*args, **kwargs)
+                    listener(*args, **updated_kwargs)

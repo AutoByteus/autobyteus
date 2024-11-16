@@ -32,7 +32,7 @@ class ClaudeLLM(BaseLLM):
         try:
             response = self.client.messages.create(
                 model=self.model,
-                max_tokens=1000,
+                max_tokens=8000,
                 temperature=0,
                 system=self.system_message,
                 messages=[msg.to_dict() for msg in self.messages]

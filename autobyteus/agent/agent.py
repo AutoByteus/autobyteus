@@ -1,10 +1,7 @@
 import asyncio
 import logging
-from typing import List, Type, Optional
+from typing import List, Optional
 from autobyteus.agent.llm_response_parser import LLMResponseParser
-from autobyteus.conversation.conversation_manager import ConversationManager
-from autobyteus.conversation.persistence.file_based_persistence_provider import FileBasedPersistenceProvider
-from autobyteus.conversation.persistence.provider import PersistenceProvider
 from autobyteus.events.event_emitter import EventEmitter
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.tools.base_tool import BaseTool
@@ -12,15 +9,14 @@ from autobyteus.agent.xml_llm_response_parser import XMLLLMResponseParser
 from autobyteus.prompt.prompt_builder import PromptBuilder
 from autobyteus.events.event_types import EventType
 from autobyteus.agent.status import AgentStatus
-
 from autobyteus.conversation.user_message import UserMessage
+from autobyteus.conversation.conversation import Conversation
 
 logger = logging.getLogger(__name__)
 
 class StandaloneAgent(EventEmitter):
     def __init__(self, role: str, llm: BaseLLM, tools: List[BaseTool],
                  use_xml_parser=True, 
-                 persistence_provider_class: Optional[Type[PersistenceProvider]] = FileBasedPersistenceProvider, 
                  agent_id=None,
                  prompt_builder: Optional[PromptBuilder] = None,
                  initial_user_message: Optional[UserMessage] = None):
@@ -28,9 +24,7 @@ class StandaloneAgent(EventEmitter):
         self.role = role
         self.llm = llm
         self.tools = tools
-        self.conversation_manager = ConversationManager()
         self.response_parser = XMLLLMResponseParser() if use_xml_parser else LLMResponseParser()
-        self.persistence_provider_class = persistence_provider_class
         self.conversation = None
         self.agent_id = agent_id or f"{self.role}-001"
         self.status = AgentStatus.NOT_STARTED
@@ -45,8 +39,7 @@ class StandaloneAgent(EventEmitter):
 
         self.set_agent_id_on_tools()
         self.register_task_completion_listener()
-        logger.info(f"StandaloneAgent initialized with role: {self.role} and agent_id: {self.agent_id}")
-
+        logger.info(f"StandaloneAgent initialized with role: {self.role}, agent_id: {self.agent_id}")
 
     def _initialize_queues(self):
         if not self._queues_initialized:
@@ -70,7 +63,7 @@ class StandaloneAgent(EventEmitter):
             logger.info(f"Starting execution for agent: {self.role}")
             self._initialize_queues()
             self._initialize_task_completed()
-            await self.initialize_llm_conversation()
+            await self.initialize_conversation()
             
             self.status = AgentStatus.RUNNING
             
@@ -124,14 +117,9 @@ class StandaloneAgent(EventEmitter):
             except Exception as e:
                 logger.error(f"Error handling tool result for agent {self.role}: {str(e)}")
 
-    async def initialize_llm_conversation(self):
-        logger.info(f"Initializing LLM conversation for agent {self.role}")
-        conversation_name = self._sanitize_conversation_name(self.role)
-        self.conversation = await self.conversation_manager.start_conversation(
-            conversation_name=conversation_name,
-            llm=self.llm,
-            persistence_provider_class=self.persistence_provider_class
-        )
+    async def initialize_conversation(self):
+        logger.info(f"Initializing conversation for agent: {self.role}")
+        self.conversation = Conversation(self.llm)
 
         if self.initial_user_message:
             initial_message = self.initial_user_message
@@ -169,8 +157,6 @@ class StandaloneAgent(EventEmitter):
         else:
             logger.warning(f"Tool '{name}' not found for agent {self.role}.")
 
-
-
     def start(self):
         if self.status == AgentStatus.NOT_STARTED or self.status == AgentStatus.ENDED:
             logger.info(f"Starting agent {self.role}")
@@ -199,17 +185,8 @@ class StandaloneAgent(EventEmitter):
             external_tools_section += f"  {i + 1} {tool.tool_usage_xml()}\n\n"
         return external_tools_section.strip()
 
-    @staticmethod
-    def _sanitize_conversation_name(name: str) -> str:
-        """Sanitize the conversation name to ensure it's valid for storage."""
-        return ''.join(c if c.isalnum() else '_' for c in name)
-
     def on_task_completed(self, *args, **kwargs):
         """Event handler for task completion."""
-        #event_type = kwargs.get('event_type')
-        #agent_id = kwargs.get('agent_id')
-        
-        #if event_type == EventType.TASK_COMPLETED and agent_id == self.agent_id:
         logger.info(f"Task completed event received for agent: {self.role}")
         self.task_completed.set()
 
@@ -217,4 +194,3 @@ class StandaloneAgent(EventEmitter):
         """Register a listener for the task completion event."""
         logger.info(f"Registering task completion listener for agent: {self.role}")
         self.subscribe(EventType.TASK_COMPLETED, self.on_task_completed, self.agent_id)
-

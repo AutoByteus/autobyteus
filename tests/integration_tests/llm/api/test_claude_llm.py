@@ -2,7 +2,7 @@ import pytest
 import asyncio
 import os
 from autobyteus.llm.api.claude_llm import ClaudeLLM
-from autobyteus.llm.models import LLMModel
+from autobyteus.llm.models_bak import LLMModel
 
 @pytest.fixture
 def set_claude_env(monkeypatch):

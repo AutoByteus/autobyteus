@@ -14,5 +14,13 @@ class SingletonMeta(type):
         return cls._instances[cls]
     
 
-class ABCSingletonMeta(SingletonMeta, ABCMeta):
+class ABCSingletonMeta(ABCMeta, SingletonMeta):
+    """
+    ABCSingletonMeta combines ABCMeta and SingletonMeta to create a metaclass
+    that supports both the Singleton pattern and abstract base classes.
+    
+    The inheritance order is crucial:
+    - ABCMeta should be listed before SingletonMeta to ensure that
+      the abstract methods are properly handled.
+    """
     pass
