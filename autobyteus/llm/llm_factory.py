@@ -6,7 +6,7 @@ from autobyteus.llm.api.openrouter_llm import OpenRouterLLM
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.llm_config import LLMConfig
-from autobyteus.llm.api.bedrock_llm import BedrockClaudeLLM
+from autobyteus.llm.api.bedrock_llm import BedrockLLM
 import pkg_resources
 from typing import List, Callable, Tuple
 
@@ -40,7 +40,7 @@ class LLMFactory:
         LLMFactory.register_llm(LLMModel.CLAUDE_3_SONNET_API.name, ClaudeLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.CLAUDE_3_HAIKU_API.name, ClaudeLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.CLAUDE_3_5_SONNET_API.name, ClaudeLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.BEDROCK_CLAUDE_3_5_SONNET_API.name, BedrockClaudeLLM, LLMModel.from_name)
+        LLMFactory.register_llm(LLMModel.BEDROCK_CLAUDE_3_5_SONNET_API.name, BedrockLLM, LLMModel.from_name)
 
         # Discover and register additional plugins
         LLMFactory._discover_plugins()

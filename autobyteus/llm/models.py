@@ -119,12 +119,7 @@ class LLMModel(Enum):
     
     @classmethod
     def from_name(cls, name: str) -> 'LLMModel':
-        # Replace hyphens with underscores and remove date suffixes
-        enum_name = re.sub(r'[-:]', '_', name).upper()
-        enum_name = re.sub(r'_\d{8}$', '', enum_name)  # Remove date suffixes like _20241022
         try:
-            # Adjust name to match enum member naming
-            enum_name = name.replace('-', '_').upper()
-            return cls[enum_name]
+            return cls[name]
         except KeyError:
             raise ValueError(f"Invalid LLMModel name: {name}")
