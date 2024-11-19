@@ -62,5 +62,5 @@ class TokenPricingRegistry:
     }
 
     @classmethod
-    def get_pricing(cls, model: LLMModel) -> TokenPricing:
-        return cls._prices.get(model, TokenPricing(0, 0))
+    def get_pricing(cls, model_value: str) -> TokenPricing:
+        return cls._prices.get(model_value, TokenPricing(0, 0))
