@@ -1,4 +1,4 @@
-from typing import Dict, Optional, List
+from typing import Optional, List
 import google.generativeai as genai
 import os
 from autobyteus.llm.models import LLMModel
@@ -22,7 +22,7 @@ class GeminiLLM(BaseLLM):
             # Instead of using MessageRole.SYSTEM, we'll use MessageRole.USER
             # and prepend "System:" to the message content
             self.messages.append(Message(MessageRole.USER, f"System: {system_message}"))
-        super().__init__(model=self.model)
+        super().__init__(model=self.model, tokenizer_model_name="gpt-3.5-turbo")
 
     @classmethod
     def initialize(cls):

@@ -1,4 +1,5 @@
 from enum import Enum
+import re
 from autobyteus.llm.utils.llm_config import LLMConfig
 
 class LLMModel(Enum):
@@ -10,6 +11,7 @@ class LLMModel(Enum):
     o1_MINI_API = "o1-mini-api"
     CHATGPT_4O_LATEST_API = "chatgpt-4o-latest"  # No non-API counterpart found; retained original value
     GPT_3_5_TURBO_API = "gpt-3.5-turbo"
+    OPENROUTER_O1_MINI_API = "openai/o1-mini-2024-09-12"
 
     # Mistral models
     MISTRAL_SMALL_API = "mistral-small"
@@ -39,8 +41,8 @@ class LLMModel(Enum):
     CLAUDE_3_OPUS_API = "claude-3-opus-20240229"
     CLAUDE_3_SONNET_API = "claude-3-sonnet-20240229"
     CLAUDE_3_HAIKU_API = "claude-3-haiku-20240307"
-    CLAUDE_3_5_SONNET_API = "claude-3-5-sonnet-20240620"
-    BEDROCK_CLAUDE_3_5_SONNET_API = "anthropic.claude-3-5-sonnet-20240620-v1:0"  # No non-API counterpart found; retained original value
+    CLAUDE_3_5_SONNET_API = "claude-3-5-sonnet-20241022"
+    BEDROCK_CLAUDE_3_5_SONNET_API = "anthropic.claude-3-5-sonnet-20241022-v2:0"  # No non-API counterpart found; retained original value
 
     # Perplexity models
     LLAMA_3_1_SONAR_LARGE_128K_ONLINE_API = "llama-3-1-sonar-large-128k-online"
@@ -65,6 +67,7 @@ class LLMModel(Enum):
             self.o1_MINI_API: LLMConfig(rate_limit=60, token_limit=4096),      # Adjust these values
             self.CHATGPT_4O_LATEST_API: LLMConfig(rate_limit=40, token_limit=8192),
             self.GPT_3_5_TURBO_API: LLMConfig(rate_limit=40, token_limit=4096),
+            self.OPENROUTER_O1_MINI_API: LLMConfig(rate_limit=60, token_limit=4096),
 
             # Mistral models
             self.MISTRAL_SMALL_API: LLMConfig(rate_limit=100, token_limit=32768),
