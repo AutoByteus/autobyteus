@@ -63,4 +63,4 @@ class TokenPricingRegistry:
 
     @classmethod
     def get_pricing(cls, model_value: str) -> TokenPricing:
-        return cls._prices.get(model_value, TokenPricing(0, 0))
+        return cls._prices.get(model_value, TokenPricing(0.0, 0.0))  # Default to zero if not found

@@ -2,10 +2,9 @@ from autobyteus.llm.utils.token_counter import TokenCounter
 from autobyteus.llm.utils.token_pricing import TokenPricingRegistry
 
 class CostCalculator:
-    def __init__(self, model_value: str, token_counter: TokenCounter, is_api_model: bool):
+    def __init__(self, model_value: str, token_counter: TokenCounter):
         self.model_value = model_value
         self.token_counter = token_counter
-        self.is_api_model = is_api_model
         self.pricing = TokenPricingRegistry.get_pricing(self.model_value)
 
     def calculate_cost(self) -> float:

@@ -1,8 +1,11 @@
 from abc import ABC, abstractmethod
+import datetime
 from enum import Enum
 from typing import List, Optional, Union
+from uuid import uuid4
 from autobyteus.llm.utils.cost_calculator import CostCalculator
 from autobyteus.llm.utils.llm_config import LLMConfig
+from autobyteus.llm.utils.messages import Message
 from autobyteus.llm.utils.rate_limiter import RateLimiter
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.utils.token_counter import TokenCounter
@@ -10,9 +13,10 @@ import tiktoken
 
 class BaseLLM(ABC):
     def __init__(self, model: Union[str, 'LLMModel'], custom_config: 'LLMConfig' = None):
-        if isinstance(model, Enum):
+        if isinstance(model, LLMModel):
             self.model = model.value
             self.is_api_model = getattr(model, 'is_api', True)
+            self.persistence_proxy = PersistenceProxy()
         else:
             self.model = model
             self.is_api_model = True  # Default to True if not provided as LLMModel instance
@@ -20,7 +24,8 @@ class BaseLLM(ABC):
         self.config = custom_config if custom_config else LLMConfig()
         self.rate_limiter = RateLimiter(self.config)
         self.token_counter = TokenCounter(self.config, is_api_model=self.is_api_model)
-        self.cost_calculator = CostCalculator(self.model, self.token_counter, self.is_api_model)
+        self.cost_calculator = CostCalculator(self.model, self.token_counter)
+
         # Initialize tokenizer
         tokenizer_name = self.model
         try:
@@ -32,18 +37,30 @@ class BaseLLM(ABC):
     async def send_user_message(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs):
         await self.rate_limiter.wait_if_needed()
 
-        if self.is_api_model:
-            input_tokens = self.count_tokens(user_message)
-            if not self.token_counter.add_input_tokens(input_tokens):
-                raise ValueError("Input message exceeds token limit")
+        input_tokens = self.count_tokens(user_message)
+        if not self.token_counter.add_input_tokens(input_tokens):
+            raise ValueError("Input message exceeds token limit")
 
         # Get response from LLM
         response = await self._send_user_message_to_llm(user_message, file_paths, **kwargs)
 
-        if self.is_api_model:
-            output_tokens = self.count_tokens(response)
-            if not self.token_counter.add_output_tokens(output_tokens):
-                raise ValueError("Response exceeds token limit")
+        output_tokens = self.count_tokens(response)
+        if not self.token_counter.add_output_tokens(output_tokens):
+            raise ValueError("Response exceeds token limit")
+
+        # Calculate cost
+        cost = self.get_current_cost()
+
+        # Save assistant message and update cost in conversation
+        if conversation_id:
+            assistant_message = Message(
+                message_id=str(uuid4()),
+                role="assistant",
+                message=response,
+                timestamp=datetime.utcnow(),
+            )
+            self.persistence_proxy.save_message(conversation_id, assistant_message)
+            self.persistence_proxy.update_total_cost(conversation_id, cost)
 
         return response
 
