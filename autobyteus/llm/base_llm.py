@@ -16,7 +16,6 @@ class BaseLLM(ABC):
         if isinstance(model, LLMModel):
             self.model = model.value
             self.is_api_model = getattr(model, 'is_api', True)
-            self.persistence_proxy = PersistenceProxy()
         else:
             self.model = model
             self.is_api_model = True  # Default to True if not provided as LLMModel instance
@@ -34,7 +33,7 @@ class BaseLLM(ABC):
             # Fallback to a default encoding
             self.tokenizer = tiktoken.get_encoding("cl100k_base")
 
-    async def send_user_message(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs):
+    async def send_user_message(self, user_message: str, file_paths: Optional[List[str]] = None, conversation_id: Optional[str] = None, **kwargs):
         await self.rate_limiter.wait_if_needed()
 
         input_tokens = self.count_tokens(user_message)
@@ -51,21 +50,18 @@ class BaseLLM(ABC):
         # Calculate cost
         cost = self.get_current_cost()
 
-        # Save assistant message and update cost in conversation
-        if conversation_id:
-            assistant_message = Message(
-                message_id=str(uuid4()),
-                role="assistant",
-                message=response,
-                timestamp=datetime.utcnow(),
-            )
-            self.persistence_proxy.save_message(conversation_id, assistant_message)
-            self.persistence_proxy.update_total_cost(conversation_id, cost)
-
         return response
 
     def count_tokens(self, text: str) -> int:
         return len(self.tokenizer.encode(text))
+
+    def calculate_cost(self, text: str) -> float:
+        """Calculate the cost of a given text."""
+        tokens = self.count_tokens(text)
+        temp_token_counter = TokenCounter(self.config, is_api_model=self.is_api_model)
+        temp_token_counter.add_input_tokens(tokens)
+        temp_cost_calculator = CostCalculator(self.model, temp_token_counter)
+        return temp_cost_calculator.calculate_cost()
 
     def get_current_cost(self) -> float:
         """Get the current cost of the conversation."""
