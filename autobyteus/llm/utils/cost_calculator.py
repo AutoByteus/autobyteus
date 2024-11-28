@@ -8,7 +8,11 @@ class CostCalculator:
         self.pricing = TokenPricingRegistry.get_pricing(self.model_value)
 
     def calculate_cost(self) -> float:
-        # Removed check for is_api_model to calculate cost for all models
         input_cost = (self.token_counter.input_tokens / 1000) * self.pricing.input_price
         output_cost = (self.token_counter.output_tokens / 1000) * self.pricing.output_price
         return round(input_cost + output_cost, 6)
+
+    def calculate_text_cost(self, text: str) -> float:
+        tokens = self.token_counter.count_tokens(text)
+        cost = (tokens / 1000) * self.pricing.input_price
+        return round(cost, 6)
