@@ -2,10 +2,11 @@ from autobyteus.llm.api.claude_llm import ClaudeLLM
 from autobyteus.llm.api.gemini_llm import GeminiLLM
 from autobyteus.llm.api.mistral_llm import MistralLLM
 from autobyteus.llm.api.openai_llm import OpenAILLM
+from autobyteus.llm.api.openrouter_llm import OpenRouterLLM
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.llm_config import LLMConfig
-
+from autobyteus.llm.api.bedrock_llm import BedrockLLM
 import pkg_resources
 from typing import List, Callable, Tuple
 
@@ -31,6 +32,7 @@ class LLMFactory:
         LLMFactory.register_llm(LLMModel.o1_MINI_API.name, OpenAILLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.CHATGPT_4O_LATEST_API.name, OpenAILLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.GPT_3_5_TURBO_API.name, OpenAILLM, LLMModel.from_name)
+        LLMFactory.register_llm(LLMModel.OPENROUTER_O1_MINI_API.name, OpenRouterLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.MISTRAL_SMALL_API.name, MistralLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.MISTRAL_MEDIUM_API.name, MistralLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.MISTRAL_LARGE_API.name, MistralLLM, LLMModel.from_name)
@@ -38,7 +40,7 @@ class LLMFactory:
         LLMFactory.register_llm(LLMModel.CLAUDE_3_SONNET_API.name, ClaudeLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.CLAUDE_3_HAIKU_API.name, ClaudeLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.CLAUDE_3_5_SONNET_API.name, ClaudeLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.BEDROCK_CLAUDE_3_5_SONNET_API.name, ClaudeLLM, LLMModel.from_name)
+        LLMFactory.register_llm(LLMModel.BEDROCK_CLAUDE_3_5_SONNET_API.name, BedrockLLM, LLMModel.from_name)
 
         # Discover and register additional plugins
         LLMFactory._discover_plugins()

@@ -1,4 +1,4 @@
-from typing import Dict, Optional, List
+from typing import Optional, List
 from openai import OpenAI
 import os
 from autobyteus.llm.models import LLMModel
@@ -12,7 +12,7 @@ class NvidiaLLM(BaseLLM):
         self.messages = []
         if system_message:
             self.messages.append(Message(MessageRole.SYSTEM, system_message))
-        super().__init__(model=self.model)
+        super().__init__(model=self.model, tokenizer_model_name="gpt-3.5-turbo")
 
     @classmethod
     def initialize(cls):
