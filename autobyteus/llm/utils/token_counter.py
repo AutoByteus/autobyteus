@@ -2,9 +2,8 @@ from autobyteus.llm.utils.llm_config import LLMConfig
 
 
 class TokenCounter:
-    def __init__(self, config: LLMConfig, is_api_model: bool = True, tokenizer=None):
+    def __init__(self, config: LLMConfig, tokenizer=None):
         self.config = config
-        self.is_api_model = is_api_model
         self.input_tokens = 0
         self.output_tokens = 0
         self.token_limit = self.config.token_limit

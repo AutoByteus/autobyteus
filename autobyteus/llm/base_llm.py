@@ -12,10 +12,8 @@ class BaseLLM(ABC):
     def __init__(self, model: Union[str, 'LLMModel'], custom_config: 'LLMConfig' = None):
         if isinstance(model, LLMModel):
             self.model = model.value
-            self.is_api_model = getattr(model, 'is_api', True)
         else:
             self.model = model
-            self.is_api_model = True  # Default to True if not provided as LLMModel instance
 
         self.config = custom_config if custom_config else LLMConfig()
         self.rate_limiter = RateLimiter(self.config)
@@ -28,7 +26,7 @@ class BaseLLM(ABC):
             # Fallback to a default encoding
             self.tokenizer = tiktoken.get_encoding("cl100k_base")
 
-        self.token_counter = TokenCounter(self.config, is_api_model=self.is_api_model, tokenizer=self.tokenizer)
+        self.token_counter = TokenCounter(self.config, tokenizer=self.tokenizer)
         self.cost_calculator = CostCalculator(self.model, self.token_counter)
 
     async def send_user_message(
