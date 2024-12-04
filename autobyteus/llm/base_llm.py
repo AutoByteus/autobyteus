@@ -38,6 +38,7 @@ class BaseLLM(ABC):
     async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> str:
         pass
 
+    @abstractmethod
     async def _stream_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> AsyncGenerator[str, None]:
         """
         Abstract method for streaming responses from the LLM.
