@@ -1,4 +1,4 @@
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, AsyncGenerator
 import anthropic
 import os
 from autobyteus.llm.models import LLMModel
@@ -10,6 +10,7 @@ class ClaudeLLM(BaseLLM):
         self.client = self.initialize()
         self.model = model_name.value if model_name else "claude-3-5-sonnet-20240620"
         self.system_message = system_message or "You are a helpful assistant."
+        self.max_tokens = 8000  # Hardcoded max_tokens
         self.messages = []
         super().__init__(model=self.model)
 
@@ -32,7 +33,7 @@ class ClaudeLLM(BaseLLM):
         try:
             response = self.client.messages.create(
                 model=self.model,
-                max_tokens=8000,
+                max_tokens=self.max_tokens,
                 temperature=0,
                 system=self.system_message,
                 messages=[msg.to_dict() for msg in self.messages]
@@ -44,5 +45,30 @@ class ClaudeLLM(BaseLLM):
         except anthropic.APIError as e:
             raise ValueError(f"Error in Claude API call: {str(e)}")
 
+    async def _stream_user_message_to_llm(
+        self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs
+    ) -> AsyncGenerator[str, None]:
+        self.messages.append(Message(MessageRole.USER, user_message))
+        complete_response = ""
+
+        try:
+            with self.client.messages.stream(
+                model=self.model,
+                max_tokens=self.max_tokens,
+                temperature=0,
+                system=self.system_message,
+                messages=[msg.to_dict() for msg in self.messages],
+            ) as stream:
+                for text in stream.text_stream:
+                    complete_response += text
+                    yield text
+
+            # After streaming is complete, update message history
+            self.messages.append(Message(MessageRole.ASSISTANT, complete_response))
+
+        except anthropic.APIError as e:
+            raise ValueError(f"Error in Claude API streaming: {str(e)}")
+
     async def cleanup(self):
+        # Currently no cleanup needed for Claude
         pass
