@@ -3,15 +3,16 @@ from autobyteus.llm.api.gemini_llm import GeminiLLM
 from autobyteus.llm.api.mistral_llm import MistralLLM
 from autobyteus.llm.api.openai_llm import OpenAILLM
 from autobyteus.llm.models import LLMModel
+from autobyteus.llm.providers import LLMProvider
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.llm_config import LLMConfig
 
 import pkg_resources
-from typing import List, Callable, Tuple
+from typing import List, Callable, Tuple, Dict, Set
 
 class LLMFactory:
-    _registry: dict[str, Tuple[type, Callable[[str], LLMModel]]] = {}
-
+    _registry: Dict[str, Tuple[type, Callable[[str], LLMModel]]] = {}
+    
     @staticmethod
     def register_llm(model: str, llm_class: type, resolver: Callable[[str], LLMModel]):
         """
@@ -56,6 +57,14 @@ class LLMFactory:
 
     @staticmethod
     def create_llm(model: str, custom_config: LLMConfig = None) -> BaseLLM:
+        """
+        Create an LLM instance for the specified model.
+
+        :param model: The name of the model to create
+        :param custom_config: Optional custom configuration for the LLM
+        :return: An instance of BaseLLM
+        :raises ValueError: If the model is not supported
+        """
         if model in LLMFactory._registry:
             llm_class, resolver = LLMFactory._registry[model]
             try:
@@ -72,6 +81,26 @@ class LLMFactory:
         Returns a list of all registered model names.
         """
         return list(LLMFactory._registry.keys())
+
+    @staticmethod
+    def get_all_providers() -> Set[LLMProvider]:
+        """
+        Returns a set of all available LLM providers.
+        """
+        return set(LLMProvider)
+
+    @staticmethod
+    def get_models_by_provider(provider: LLMProvider) -> List[str]:
+        """
+        Returns a list of all registered model names for a specific provider.
+
+        :param provider: The LLM provider to filter by
+        :return: List of model names from the specified provider
+        """
+        return [
+            model_name for model_name in LLMFactory._registry.keys()
+            if LLMModel[model_name].provider == provider
+        ]
 
 # Initialize the registry upon module import
 LLMFactory._initialize_registry()

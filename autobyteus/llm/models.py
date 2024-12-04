@@ -1,5 +1,6 @@
 from enum import Enum
 from autobyteus.llm.utils.llm_config import LLMConfig
+from autobyteus.llm.providers import LLMProvider
 
 class LLMModel(Enum):
     NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT_API = "nvidia/llama-3.1-nemotron-70b-instruct"
@@ -52,6 +53,63 @@ class LLMModel(Enum):
     GEMMA_2_27B_IT_API = "gemma-2-27b-it"
     NEMOTRON_4_340B_INSTRUCT_API = "nemotron-4-340b-instruct"
     MIXTRAL_8X7B_INSTRUCT_API = "mixtral-8x7b-instruct"
+
+    @property
+    def provider(self) -> LLMProvider:
+        provider_mapping = {
+            # OpenAI models
+            self.GPT_4o_API: LLMProvider.OPENAI,
+            self.o1_PREVIEW_API: LLMProvider.OPENAI,
+            self.o1_MINI_API: LLMProvider.OPENAI,
+            self.CHATGPT_4O_LATEST_API: LLMProvider.OPENAI,
+            self.GPT_3_5_TURBO_API: LLMProvider.OPENAI,
+
+            # Mistral models
+            self.MISTRAL_SMALL_API: LLMProvider.MISTRAL,
+            self.MISTRAL_MEDIUM_API: LLMProvider.MISTRAL,
+            self.MISTRAL_LARGE_API: LLMProvider.MISTRAL,
+
+            # Groq models
+            self.GEMMA_2_9B_IT_API: LLMProvider.GROQ,
+            self.GEMMA_7B_IT_API: LLMProvider.GROQ,
+            self.LLAMA_3_1_405B_REASONING_API: LLMProvider.GROQ,
+            self.LLAMA_3_1_70B_VERSATILE_API: LLMProvider.GROQ,
+            self.LLAMA_3_1_8B_INSTANT_API: LLMProvider.GROQ,
+            self.LLAMA3_70B_8192_API: LLMProvider.GROQ,
+            self.LLAMA3_8B_8192_API: LLMProvider.GROQ,
+            self.MIXTRAL_8X7B_32768_API: LLMProvider.GROQ,
+
+            # Google models
+            self.GEMINI_1_0_PRO_API: LLMProvider.GOOGLE,
+            self.GEMINI_1_5_PRO_API: LLMProvider.GOOGLE,
+            self.GEMINI_1_5_PRO_EXPERIMENTAL_API: LLMProvider.GOOGLE,
+            self.GEMINI_1_5_FLASH_API: LLMProvider.GOOGLE,
+            self.GEMMA_2_2B_API: LLMProvider.GOOGLE,
+            self.GEMMA_2_9B_API: LLMProvider.GOOGLE,
+            self.GEMMA_2_27B_API: LLMProvider.GOOGLE,
+
+            # Anthropic models
+            self.CLAUDE_3_OPUS_API: LLMProvider.ANTHROPIC,
+            self.CLAUDE_3_SONNET_API: LLMProvider.ANTHROPIC,
+            self.CLAUDE_3_HAIKU_API: LLMProvider.ANTHROPIC,
+            self.CLAUDE_3_5_SONNET_API: LLMProvider.ANTHROPIC,
+            self.BEDROCK_CLAUDE_3_5_SONNET_API: LLMProvider.ANTHROPIC,
+
+            # NVIDIA models
+            self.NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT_API: LLMProvider.NVIDIA,
+
+            # Perplexity models
+            self.LLAMA_3_1_SONAR_LARGE_128K_ONLINE_API: LLMProvider.PERPLEXITY,
+            self.LLAMA_3_1_SONAR_SMALL_128K_ONLINE_API: LLMProvider.PERPLEXITY,
+            self.LLAMA_3_1_SONAR_LARGE_128K_CHAT_API: LLMProvider.PERPLEXITY,
+            self.LLAMA_3_1_SONAR_SMALL_128K_CHAT_API: LLMProvider.PERPLEXITY,
+            self.LLAMA_3_1_8B_INSTRUCT_API: LLMProvider.PERPLEXITY,
+            self.LLAMA_3_1_70B_INSTRUCT_API: LLMProvider.PERPLEXITY,
+            self.GEMMA_2_27B_IT_API: LLMProvider.PERPLEXITY,
+            self.NEMOTRON_4_340B_INSTRUCT_API: LLMProvider.PERPLEXITY,
+            self.MIXTRAL_8X7B_INSTRUCT_API: LLMProvider.PERPLEXITY,
+        }
+        return provider_mapping[self]
 
     @property
     def default_config(self) -> LLMConfig:
@@ -109,10 +167,6 @@ class LLMModel(Enum):
             self.MIXTRAL_8X7B_INSTRUCT_API: LLMConfig(rate_limit=60, token_limit=32768),
         }
         return configs.get(self, LLMConfig())
-
-    @property
-    def is_api(self) -> bool:
-        return self.name.endswith('_API')
     
     @classmethod
     def from_name(cls, name: str) -> 'LLMModel':
