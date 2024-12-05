@@ -8,3 +8,220 @@ papers
 https://paperswithcode.com/paper/teler-a-general-taxonomy-of-llm-prompts-for
 
 
+
+
+
+I am now executing step 1: Analyzing the [UserRequirement].
+
+The requirement is to implement streaming support in the LLM integration. Streaming allows for receiving the response from the LLM token by token rather than waiting for the complete response. This is particularly useful for:
+- Providing real-time feedback to users
+- Reducing perceived latency
+- Better handling of long responses
+
+I have completed step 1 and am now moving to step 2.
+
+I am now executing step 2: Reviewing the [Context] section.
+
+The current implementation has:
+1. A BaseLLM abstract class that defines core functionality
+2. An OpenAILLM implementation that uses the OpenAI API
+3. No current streaming support
+4. Async methods already in place, which will work well with streaming
+
+Key observations:
+- We'll need to modify both base_llm.py and openai_llm.py
+- The current architecture supports extension through abstract methods
+- We should maintain backward compatibility for non-streaming use cases
+
+I have completed step 2 and am now moving to step 3.
+
+I am now executing step 3: Outlining key components and identifying potential challenges.
+
+Key components needed:
+1. New abstract method in BaseLLM for streaming
+2. Streaming implementation in OpenAILLM
+3. Type definitions for streaming responses
+4. Error handling for stream interruptions
+
+Potential challenges:
+1. Maintaining backward compatibility
+2. Proper resource cleanup for streams
+3. Error handling during streaming
+4. Type safety across async streams
+
+I have completed step 3 and am now moving to step 4.
+
+I am now executing step 4: Reasoning and planning.
+
+Implementation strategy:
+1. Add new streaming method to BaseLLM
+2. Implement streaming in OpenAILLM using OpenAI's streaming API
+3. Ensure proper typing for all streaming components
+4. Add error handling and cleanup mechanisms
+
+The implementation will use Python's async generators for streaming, which provides:
+- Efficient memory usage
+- Natural error handling
+- Clean integration with existing async code
+
+I have completed step 4 and am now moving to step 5.
+
+I am now executing step 5: Developing and presenting the complete solution.
+
+First, let's update the base LLM class:
+
+<file path="autobyteus/autobyteus/llm/base_llm.py">
+```python
+from abc import ABC, abstractmethod
+from typing import List, Optional, Union, AsyncGenerator
+from autobyteus.llm.utils.llm_config import LLMConfig
+from autobyteus.llm.utils.rate_limiter import RateLimiter
+from autobyteus.llm.models import LLMModel
+
+class BaseLLM(ABC):
+    def __init__(self, model: Union[str, LLMModel], custom_config: LLMConfig = None):
+        self.model = model
+        if isinstance(model, str):
+            self.config = custom_config if custom_config else LLMConfig()
+        else:
+            self.config = custom_config if custom_config else model.default_config
+        self.rate_limiter = RateLimiter(self.config)
+
+    async def send_user_message(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs):
+        await self.rate_limiter.wait_if_needed()
+        response = await self._send_user_message_to_llm(user_message, file_paths, **kwargs)
+        return response
+    
+    async def stream_user_message(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> AsyncGenerator[str, None]:
+        """
+        Stream the LLM response token by token.
+        
+        Args:
+            user_message: The message to send to the LLM
+            file_paths: Optional list of file paths for context
+            **kwargs: Additional arguments for the LLM
+            
+        Yields:
+            Tokens from the LLM response as they become available
+        """
+        await self.rate_limiter.wait_if_needed()
+        async for token in self._stream_user_message_to_llm(user_message, file_paths, **kwargs):
+            yield token
+
+    @abstractmethod
+    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> str:
+        pass
+
+    @abstractmethod
+    async def _stream_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> AsyncGenerator[str, None]:
+        pass
+
+    @abstractmethod
+    async def cleanup(self):
+        pass
+
+    def get_token_limit(self) -> int:
+        return self.token_counter.token_limit if self.token_counter.token_limit else float('inf')
+```
+</file>
+
+Now, let's update the OpenAI implementation:
+
+<file path="autobyteus/autobyteus/llm/api/openai_llm.py">
+```python
+from typing import Dict, Optional, List, AsyncGenerator
+import openai
+import os
+from autobyteus.llm.models import LLMModel
+from autobyteus.llm.base_llm import BaseLLM
+from autobyteus.llm.utils.messages import MessageRole, Message
+
+class OpenAILLM(BaseLLM):
+    def __init__(self, model_name: LLMModel = None, system_message: str = None):
+        self.initialize()
+        self.model = model_name.value if model_name else LLMModel.GPT_3_5_TURBO_API.value
+        self.messages = []
+        if system_message:
+            self.messages.append(Message(MessageRole.SYSTEM, system_message))
+        super().__init__(model=self.model)
+
+    @classmethod
+    def initialize(cls):
+        openai_api_key = os.getenv("OPENAI_API_KEY")
+        if not openai_api_key:
+            raise ValueError(
+                "OPENAI_API_KEY environment variable is not set. "
+                "Please set this variable in your environment."
+            )
+        openai.api_key = openai_api_key
+
+    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> str:
+        self.messages.append(Message(MessageRole.USER, user_message))
+
+        try:
+            response = openai.chat.completions.create(
+                model=self.model,
+                messages=[msg.to_dict() for msg in self.messages]
+            )
+
+            assistant_message = response.choices[0].message.content
+            self.messages.append(Message(MessageRole.ASSISTANT, assistant_message))
+            return assistant_message
+        except (AttributeError, IndexError) as e:
+            raise ValueError(f"Unexpected structure in OpenAI API response: {str(e)}")
+
+    async def _stream_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> AsyncGenerator[str, None]:
+        """
+        Stream the response from OpenAI token by token.
+        """
+        self.messages.append(Message(MessageRole.USER, user_message))
+        full_response = []
+
+        try:
+            stream = await openai.chat.completions.create(
+                model=self.model,
+                messages=[msg.to_dict() for msg in self.messages],
+                stream=True
+            )
+
+            async for chunk in stream:
+                if chunk.choices[0].delta.content is not None:
+                    token = chunk.choices[0].delta.content
+                    full_response.append(token)
+                    yield token
+
+            # After streaming is complete, store the full message
+            complete_response = ''.join(full_response)
+            self.messages.append(Message(MessageRole.ASSISTANT, complete_response))
+
+        except Exception as e:
+            # Close the stream if there's an error
+            if 'stream' in locals():
+                await stream.aclose()
+            raise ValueError(f"Error during streaming: {str(e)}")
+
+    async def cleanup(self):
+        """
+        Clean up any resources used by the LLM.
+        """
+        # Currently no cleanup needed for OpenAI
+        pass
+```
+</file>
+
+I have completed step 5 and am now moving to step 6.
+
+I am now executing step 6: Asking for user feedback on the implemented solution.
+
+Key features of the implementation:
+1. Added streaming support while maintaining backward compatibility
+2. Proper error handling and resource cleanup
+3. Type-safe async generators for streaming
+4. Message history maintenance during streaming
+5. Rate limiting support for streaming responses
+
+Would you like to review the implementation or suggest any changes? Some specific areas you might want to consider:
+1. Error handling approach
+2. Stream cleanup mechanisms
+3. Message history management
+4. Rate limiting behavior for streaming
