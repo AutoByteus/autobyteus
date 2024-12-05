@@ -7,7 +7,7 @@ class LLMModel(Enum):
     
     # OpenAI models
     GPT_4o_API = "gpt-4o"
-    o1_PREVIEW_API = "o1-preview"
+    o1_API = "o1"
     o1_MINI_API = "o1-mini-api"
     CHATGPT_4O_LATEST_API = "chatgpt-4o-latest"  # No non-API counterpart found; retained original value
     GPT_3_5_TURBO_API = "gpt-3.5-turbo"
@@ -59,7 +59,7 @@ class LLMModel(Enum):
         provider_mapping = {
             # OpenAI models
             self.GPT_4o_API: LLMProvider.OPENAI,
-            self.o1_PREVIEW_API: LLMProvider.OPENAI,
+            self.o1_API: LLMProvider.OPENAI,
             self.o1_MINI_API: LLMProvider.OPENAI,
             self.CHATGPT_4O_LATEST_API: LLMProvider.OPENAI,
             self.GPT_3_5_TURBO_API: LLMProvider.OPENAI,
@@ -119,7 +119,7 @@ class LLMModel(Enum):
 
             # OpenAI models
             self.GPT_4o_API: LLMConfig(rate_limit=40, token_limit=8192),
-            self.o1_PREVIEW_API: LLMConfig(rate_limit=50, token_limit=16384),  # Adjust these values
+            self.o1_API: LLMConfig(rate_limit=50, token_limit=16384),  # Adjust these values
             self.o1_MINI_API: LLMConfig(rate_limit=60, token_limit=4096),      # Adjust these values
             self.CHATGPT_4O_LATEST_API: LLMConfig(rate_limit=40, token_limit=8192),
             self.GPT_3_5_TURBO_API: LLMConfig(rate_limit=40, token_limit=4096),
