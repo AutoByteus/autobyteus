@@ -1,29 +1,28 @@
 import asyncio
 import logging
-from autobyteus.agent.agent import StandaloneAgent, AgentStatus
-from autobyteus.agent.message.send_message_to import SendMessageTo
-from autobyteus.events.event_types import EventType
-from autobyteus.agent.message.message_types import MessageType
+from typing import Optional, AsyncIterator
+from autobyteus.agent.async_agent import AsyncAgent
 from autobyteus.agent.message.message import Message
-from typing import TYPE_CHECKING, Optional
+from autobyteus.agent.message.message_types import MessageType
+from autobyteus.agent.message.send_message_to import SendMessageTo
+from autobyteus.agent.status import AgentStatus
+from autobyteus.events.event_types import EventType
 
 if TYPE_CHECKING:
     from autobyteus.agent.orchestrator.base_agent_orchestrator import BaseAgentOrchestrator
 
 logger = logging.getLogger(__name__)
 
-class GroupAwareAgent(StandaloneAgent):
+class AsyncGroupAwareAgent(AsyncAgent):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.agent_orchestrator: Optional['BaseAgentOrchestrator'] = None
         self.incoming_agent_messages: Optional[asyncio.Queue] = None
-        logger.info(f"GroupAwareAgent initialized with role: {self.role}")
+        logger.info(f"AsyncGroupAwareAgent initialized with role: {self.role}")
 
     def _initialize_queues(self):
         if not self._queues_initialized:
-            self.tool_result_messages = asyncio.Queue()
-            self.user_messages = asyncio.Queue()
-            self._queues_initialized = True
+            super()._initialize_queues()
             self.incoming_agent_messages = asyncio.Queue()
             logger.info(f"Queues initialized for agent {self.role}")
 
@@ -36,7 +35,6 @@ class GroupAwareAgent(StandaloneAgent):
     async def receive_agent_message(self, message: Message):
         logger.info(f"Agent {self.agent_id} received message from {message.sender_agent_id}")
         if not self._queues_initialized:
-            logger.warning(f"Agent {self.agent_id} received message before queues were initialized. Initializing now.")
             self._initialize_queues()
         await self.incoming_agent_messages.put(message)
         if self.status != AgentStatus.RUNNING:
@@ -82,8 +80,11 @@ class GroupAwareAgent(StandaloneAgent):
                 if message.message_type == MessageType.TASK_RESULT:
                     self.agent_orchestrator.handle_task_completed(message.sender_agent_id)
                 
-                llm_response = await self.conversation.send_user_message(f"Message from sender_agent_id {message.sender_agent_id}, content {message.content}")
-                await self.process_llm_response(llm_response)
+                await self.process_streaming_response(
+                    self.conversation.stream_user_message(
+                        f"Message from sender_agent_id {message.sender_agent_id}, content {message.content}"
+                    )
+                )
             except asyncio.TimeoutError:
                 continue
             except asyncio.CancelledError:
@@ -118,4 +119,4 @@ class GroupAwareAgent(StandaloneAgent):
         await super().cleanup()
         while not self.incoming_agent_messages.empty():
             self.incoming_agent_messages.get_nowait()
-        logger.info(f"Cleanup completed for group-aware agent: {self.role}")
+        logger.info(f"Cleanup completed for async group-aware agent: {self.role}")
