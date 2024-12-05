@@ -28,7 +28,7 @@ class LLMFactory:
     def _initialize_registry():
         # Register main API LLMs using enum names and the main resolver
         LLMFactory.register_llm(LLMModel.GPT_4o_API.name, OpenAILLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.o1_PREVIEW_API.name, OpenAILLM, LLMModel.from_name)
+        LLMFactory.register_llm(LLMModel.o1_API.name, OpenAILLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.o1_MINI_API.name, OpenAILLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.CHATGPT_4O_LATEST_API.name, OpenAILLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.GPT_3_5_TURBO_API.name, OpenAILLM, LLMModel.from_name)
