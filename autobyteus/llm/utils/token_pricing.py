@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from autobyteus.llm.models_bak import LLMModel
+from autobyteus.llm.models import LLMModel
 
 @dataclass
 class TokenPricing:
