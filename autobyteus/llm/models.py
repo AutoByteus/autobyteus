@@ -8,14 +8,14 @@ class LLMModel(Enum):
     # OpenAI models
     GPT_4o_API = "gpt-4o"
     o1_API = "o1"
-    o1_MINI_API = "o1-mini-api"
+    o1_MINI_API = "o1-mini"
     CHATGPT_4O_LATEST_API = "chatgpt-4o-latest"  # No non-API counterpart found; retained original value
     GPT_3_5_TURBO_API = "gpt-3.5-turbo"
 
     # Mistral models
-    MISTRAL_SMALL_API = "mistral-small"
+    MISTRAL_SMALL_API = "mistral-small-latest"
     MISTRAL_MEDIUM_API = "mistral-medium"
-    MISTRAL_LARGE_API = "mistral-large"
+    MISTRAL_LARGE_API = "mistral-large-latest"
 
     # Groq models
     GEMMA_2_9B_IT_API = "gemma2-9b-it"
