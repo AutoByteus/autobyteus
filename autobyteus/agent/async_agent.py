@@ -153,7 +153,7 @@ class AsyncAgent(StandaloneAgent):
                     EventType.ASSISTANT_RESPONSE, 
                     agent_id=self.agent_id, 
                     response=chunk,
-                    streaming=True
+                    is_complete=False  # Changed from streaming=True
                 )
                 complete_response += chunk
 
@@ -162,7 +162,7 @@ class AsyncAgent(StandaloneAgent):
                 EventType.ASSISTANT_RESPONSE, 
                 agent_id=self.agent_id, 
                 response=complete_response,
-                streaming=False
+                is_complete=True
             )
 
             # Process tool invocations only after receiving complete response
