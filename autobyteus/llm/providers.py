@@ -8,3 +8,4 @@ class LLMProvider(Enum):
     GEMINI = "gemini"
     NVIDIA = "nvidia"
     PERPLEXITY = "perplexity"
+    OLLAMA = "ollama"
