@@ -58,7 +58,7 @@ class LLMModel(Enum):
     MIXTRAL_8X7B_INSTRUCT_API = "mixtral-8x7b-instruct"
 
     # Ollama models
-    LLAMA3_2_API = "llama3.2"
+    LLAMA_3_2_LOCAL = "llama3.2"
 
     @property
     def provider(self) -> LLMProvider:
@@ -110,7 +110,7 @@ class LLMModel(Enum):
             self.MIXTRAL_8X7B_INSTRUCT_API: LLMProvider.PERPLEXITY,
 
             # Ollama models
-            self.LLAMA3_2_API: LLMProvider.OLLAMA,
+            self.LLAMA_3_2_LOCAL: LLMProvider.OLLAMA,
         }
         return provider_mapping[self]
 
@@ -188,7 +188,7 @@ class LLMModel(Enum):
             self.MIXTRAL_8X7B_INSTRUCT_API: LLMConfig(rate_limit=60, token_limit=32768),
 
             # Ollama models
-            self.LLAMA3_2_API: LLMConfig(rate_limit=60, token_limit=8192),
+            self.LLAMA_3_2_LOCAL: LLMConfig(rate_limit=60, token_limit=8192),
         }
         return configs.get(self, LLMConfig())
 
