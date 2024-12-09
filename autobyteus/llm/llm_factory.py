@@ -2,6 +2,7 @@ from autobyteus.llm.api.claude_llm import ClaudeLLM
 from autobyteus.llm.api.gemini_llm import GeminiLLM
 from autobyteus.llm.api.mistral_llm import MistralLLM
 from autobyteus.llm.api.openai_llm import OpenAILLM
+from autobyteus.llm.api.ollama_llm import OllamaLLM
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.providers import LLMProvider
 from autobyteus.llm.base_llm import BaseLLM
@@ -12,7 +13,7 @@ from typing import List, Callable, Tuple, Dict, Set
 
 class LLMFactory:
     _registry: Dict[str, Tuple[type, Callable[[str], LLMModel]]] = {}
-    
+
     @staticmethod
     def register_llm(model: str, llm_class: type, resolver: Callable[[str], LLMModel]):
         """
@@ -40,6 +41,7 @@ class LLMFactory:
         LLMFactory.register_llm(LLMModel.CLAUDE_3_HAIKU_API.name, ClaudeLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.CLAUDE_3_5_SONNET_API.name, ClaudeLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.BEDROCK_CLAUDE_3_5_SONNET_API.name, ClaudeLLM, LLMModel.from_name)
+        LLMFactory.register_llm(LLMModel.LLAMA3_2_API.name, OllamaLLM, LLMModel.from_name)
 
         # Discover and register additional plugins
         LLMFactory._discover_plugins()
