@@ -41,7 +41,7 @@ class LLMFactory:
         LLMFactory.register_llm(LLMModel.CLAUDE_3_HAIKU_API.name, ClaudeLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.CLAUDE_3_5_SONNET_API.name, ClaudeLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.BEDROCK_CLAUDE_3_5_SONNET_API.name, ClaudeLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.LLAMA3_2_API.name, OllamaLLM, LLMModel.from_name)
+        LLMFactory.register_llm(LLMModel.LLAMA_3_2_LOCAL.name, OllamaLLM, LLMModel.from_name)
 
         # Discover and register additional plugins
         LLMFactory._discover_plugins()
