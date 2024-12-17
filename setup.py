@@ -35,7 +35,10 @@ setup(
     version="0.1.0",
     packages=find_packages(),
     include_package_data=True,
-    install_requires=common_dependencies,
+    install_requires=[
+        *common_dependencies,
+        "brui_core@git+https://github.com/AutoByteus/brui_core.git"
+    ],
     extras_require={
         "dev": [
             "coverage",

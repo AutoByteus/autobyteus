@@ -17,4 +17,4 @@ pytest-integration
 pytest-mock
 vcrpy
 pytest-vcr
-git+https://github.com/AFE-AI/llm_chatui_provider.git@main
+git+https://github.com/AutoByteus/from brui_core.git@main
