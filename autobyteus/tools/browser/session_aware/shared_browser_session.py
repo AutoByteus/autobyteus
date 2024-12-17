@@ -1,4 +1,4 @@
-from llm_ui_integration.ui_integrator import UIIntegrator
+from brui_core.ui_integrator import UIIntegrator
 
 class SharedBrowserSession(UIIntegrator):
     def __init__(self):
