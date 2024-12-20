@@ -1,3 +1,5 @@
+
+import logging
 from typing import Optional, List, AsyncGenerator
 import openai
 import os
@@ -6,31 +8,29 @@ from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.messages import MessageRole, Message
 from autobyteus.llm.utils.process_image import process_image
 
+logger = logging.getLogger(__name__)
 
 class OpenAILLM(BaseLLM):
     def __init__(self, model_name: LLMModel = None, system_message: str = None):
         self.initialize()
-        self.model = (
-            model_name.value if model_name else LLMModel.GPT_3_5_TURBO_API.value
-        )
-        self.max_tokens = 8000  # Adding max_tokens to match Claude implementation
+        self.model = model_name.value if model_name else LLMModel.GPT_3_5_TURBO_API.value
+        self.max_tokens = 8000
         self.messages = []
 
-        ## Add system message to the message history
         if system_message:
             self.messages.append(Message(MessageRole.SYSTEM, system_message))
 
         super().__init__(model=self.model)
+        logger.info(f"OpenAILLM initialized with model: {self.model}")
 
     @classmethod
     def initialize(cls):
         openai_api_key = os.getenv("OPENAI_API_KEY")
         if not openai_api_key:
-            raise ValueError(
-                "OPENAI_API_KEY environment variable is not set. "
-                "Please set this variable in your environment."
-            )
+            logger.error("OPENAI_API_KEY environment variable is not set.")
+            raise ValueError("OPENAI_API_KEY environment variable is not set.")
         openai.api_key = openai_api_key
+        logger.info("OpenAI API key set successfully")
 
     async def _send_user_message_to_llm(
         self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs
@@ -43,15 +43,18 @@ class OpenAILLM(BaseLLM):
         if file_paths:
             for file_path in file_paths:
                 try:
-                    image_content = process_image(file_path)  ## process images
+                    image_content = process_image(file_path)
                     content.append(image_content)
-                except ValueError:
+                    logger.info(f"Processed image: {file_path}")
+                except ValueError as e:
+                    logger.error(f"Error processing image {file_path}: {str(e)}")
                     continue
 
-        # Create message with structured content
         self.messages.append(Message(MessageRole.USER, content))
+        logger.debug(f"Prepared message content: {content}")
 
         try:
+            logger.info("Sending request to OpenAI API")
             response = openai.chat.completions.create(
                 model=self.model,
                 messages=[msg.to_dict() for msg in self.messages],
@@ -59,9 +62,11 @@ class OpenAILLM(BaseLLM):
             )
             assistant_message = response.choices[0].message.content
             self.messages.append(Message(MessageRole.ASSISTANT, assistant_message))
+            logger.info("Received response from OpenAI API")
             return assistant_message
-        except (AttributeError, IndexError) as e:
-            raise ValueError(f"Unexpected structure in OpenAI API response: {str(e)}")
+        except Exception as e:
+            logger.error(f"Error in OpenAI API request: {str(e)}")
+            raise ValueError(f"Error in OpenAI API request: {str(e)}")
 
     async def _stream_user_message_to_llm(
         self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs
@@ -74,16 +79,20 @@ class OpenAILLM(BaseLLM):
         if file_paths:
             for file_path in file_paths:
                 try:
-                    image_content = process_image(file_path)  ## process images
+                    image_content = process_image(file_path)
                     content.append(image_content)
-                except ValueError:
+                    logger.info(f"Processed image for streaming: {file_path}")
+                except ValueError as e:
+                    logger.error(f"Error processing image for streaming {file_path}: {str(e)}")
                     continue
 
-        self.messages.append(Message(MessageRole.USER, user_message))
+        self.messages.append(Message(MessageRole.USER, content))
+        logger.debug(f"Prepared streaming message content: {content}")
 
         complete_response = ""
 
         try:
+            logger.info("Starting streaming request to OpenAI API")
             stream = openai.chat.completions.create(
                 model=self.model,
                 messages=[msg.to_dict() for msg in self.messages],
@@ -97,11 +106,13 @@ class OpenAILLM(BaseLLM):
                     complete_response += token
                     yield token
 
-            # After streaming is complete, update message history
             self.messages.append(Message(MessageRole.ASSISTANT, complete_response))
+            logger.info("Completed streaming response from OpenAI API")
 
         except Exception as e:
+            logger.error(f"Error in OpenAI API streaming: {str(e)}")
             raise ValueError(f"Error in OpenAI API streaming: {str(e)}")
 
     async def cleanup(self):
+        logger.info("Cleanup completed for OpenAILLM")
         pass
