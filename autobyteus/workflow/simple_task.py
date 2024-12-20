@@ -1,126 +1,99 @@
 import asyncio
 import logging
-from typing import Optional, Callable, Any, List
+from typing import Optional, Callable, Any, List, Union
 
 from autobyteus.agent.agent import StandaloneAgent
-from autobyteus.llm.base_llm import BaseLLM
-from autobyteus.events.event_types import EventType
-from autobyteus.events.event_emitter import EventEmitter
+from autobyteus.llm.models import LLMModel
+from autobyteus.llm.llm_factory import LLMFactory
 from autobyteus.conversation.user_message import UserMessage
 
 logger = logging.getLogger(__name__)
 
-class SimpleTask(EventEmitter):
+class SimpleTask:
     """
-    A simplified task execution class focusing on single instruction tasks
-    with minimal configuration, built-in result retrieval, and optional file inputs.
+    A simplified task execution class for running single-instruction tasks
+    with minimal configuration and built-in result handling.
     """
+    
     def __init__(
-        self, 
-        llm: BaseLLM, 
-        instruction: str, 
+        self,
+        name: str,
+        instruction: str,
+        llm_model: LLMModel,
+        input_data: Optional[Union[str, List[str]]] = None,
         output_parser: Optional[Callable[[str], Any]] = None,
-        role: str = "SimpleTask",
-        file_paths: Optional[List[str]] = None
     ):
         """
-        Initialize a SimpleTask with optional file paths.
+        Initialize a SimpleTask.
 
         Args:
-            llm (BaseLLM): Language model to use for task execution
-            instruction (str): Task instruction or prompt
-            output_parser (Optional[Callable]): Optional function to parse output
-            role (str, optional): Role description for the task. Defaults to "SimpleTask".
-            file_paths (Optional[List[str]], optional): List of file paths to include. Defaults to None.
+            name (str): Name of the task
+            instruction (str): Task instruction/prompt
+            llm_model (LLMModel): LLM model to use
+            input_data (Optional[Union[str, List[str]]], optional): Input data or file paths. Defaults to None.
+            output_parser (Optional[Callable], optional): Function to parse the output. Defaults to None.
         """
-        super().__init__()
-        self.llm = llm
+        self.name = name
         self.instruction = instruction
-        self.output_parser = output_parser or (lambda x: x)
-        self.role = role
-        self.file_paths = file_paths or []
+        self.llm_model = llm_model
+        self.input_data = input_data if isinstance(input_data, list) else ([input_data] if input_data else [])
+        self.output_parser = output_parser
         
-        self._result_event = asyncio.Event()
-        self._result = None
-        self._agent = None
-
-        # Log file paths if provided
-        if self.file_paths:
-            logger.info(f"SimpleTask initialized with {len(self.file_paths)} file paths")
-
-    def _on_agent_response(self, *args, **kwargs):
-        """
-        Handle agent responses and capture the final result.
-        
-        Registered as an event listener to capture the final response.
-        """
-        response = kwargs.get('response')
-        is_complete = kwargs.get('is_complete', False)
-        
-        if is_complete and response:
-            try:
-                self._result = self.output_parser(response)
-                self._result_event.set()
-                logger.info(f"SimpleTask result captured: {self._result}")
-            except Exception as e:
-                logger.error(f"Error parsing task result: {e}")
-                self._result = None
-                self._result_event.set()
+        logger.info(f"Initialized task '{self.name}' with model {self.llm_model.value} and {len(self.input_data)} inputs")
 
     async def execute(self) -> Any:
         """
-        Execute the task and retrieve the result.
+        Execute the task and return the result.
 
         Returns:
-            The parsed result of the task execution.
+            The result of the task execution, parsed if output_parser is provided
         """
         try:
-            # Create UserMessage with instruction and file paths
+            llm = LLMFactory.create_llm(self.llm_model)
+            
             user_message = UserMessage(
-                content=self.instruction, 
-                file_paths=self.file_paths
+                content=self.instruction,
+                file_paths=self.input_data
             )
 
-            # Create StandaloneAgent with no tools
-            self._agent = StandaloneAgent(
-                role=self.role,
-                llm=self.llm,
-                tools=[],  # No tools for SimpleTask
+            agent = StandaloneAgent(
+                role=self.name,
+                llm=llm,
+                tools=[],
                 use_xml_parser=True,
                 initial_user_message=user_message
             )
 
-            # Log file paths details
-            if self.file_paths:
-                logger.info(f"Executing SimpleTask with {len(self.file_paths)} file paths: {self.file_paths}")
+            result_queue = asyncio.Queue()
 
-            # Subscribe to agent responses
-            self._agent.subscribe(
-                EventType.ASSISTANT_RESPONSE, 
-                self._on_agent_response, 
-                self._agent.agent_id
-            )
+            async def handle_response(*args, **kwargs):
+                response = kwargs.get('response')
+                if response:
+                    await result_queue.put(response)
 
-            # Start the agent
-            await self._agent.run()
+            agent.subscribe("ASSISTANT_RESPONSE", handle_response, agent.agent_id)
 
-            # Wait for result
-            await self._result_event.wait()
+            try:
+                agent.start()
+                result = await asyncio.wait_for(
+                    result_queue.get(),
+                    timeout=30.0
+                )
+                
+                # Only parse if output_parser is provided
+                if self.output_parser:
+                    return self.output_parser(result)
+                return result
 
-            return self._result
+            except asyncio.TimeoutError:
+                logger.error(f"Task '{self.name}' timed out")
+                raise TimeoutError(f"Task '{self.name}' execution timed out")
+
+            finally:
+                agent.unsubscribe("ASSISTANT_RESPONSE", handle_response, agent.agent_id)
+                agent.stop()
+                await agent.cleanup()
 
         except Exception as e:
-            logger.error(f"Error executing SimpleTask: {e}")
+            logger.error(f"Error executing task '{self.name}': {str(e)}")
             raise
-        finally:
-            if self._agent:
-                await self._agent.cleanup()
-
-    def get_result(self) -> Optional[Any]:
-        """
-        Retrieve the task result synchronously.
-
-        Returns:
-            The task result if available, None otherwise.
-        """
-        return self._result
