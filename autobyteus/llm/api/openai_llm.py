@@ -1,18 +1,25 @@
-from typing import Dict, Optional, List, AsyncGenerator
+from typing import Optional, List, AsyncGenerator
 import openai
 import os
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.messages import MessageRole, Message
+from autobyteus.llm.utils.process_image import process_image
+
 
 class OpenAILLM(BaseLLM):
     def __init__(self, model_name: LLMModel = None, system_message: str = None):
         self.initialize()
-        self.model = model_name.value if model_name else LLMModel.GPT_3_5_TURBO_API.value
+        self.model = (
+            model_name.value if model_name else LLMModel.GPT_3_5_TURBO_API.value
+        )
         self.max_tokens = 8000  # Adding max_tokens to match Claude implementation
         self.messages = []
+
+        ## Add system message to the message history
         if system_message:
             self.messages.append(Message(MessageRole.SYSTEM, system_message))
+
         super().__init__(model=self.model)
 
     @classmethod
@@ -25,13 +32,30 @@ class OpenAILLM(BaseLLM):
             )
         openai.api_key = openai_api_key
 
-    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> str:
-        self.messages.append(Message(MessageRole.USER, user_message))
+    async def _send_user_message_to_llm(
+        self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs
+    ) -> str:
+        content = []
+
+        if user_message:
+            content.append({"type": "text", "text": user_message})
+
+        if file_paths:
+            for file_path in file_paths:
+                try:
+                    image_content = process_image(file_path)  ## process images
+                    content.append(image_content)
+                except ValueError:
+                    continue
+
+        # Create message with structured content
+        self.messages.append(Message(MessageRole.USER, content))
+
         try:
             response = openai.chat.completions.create(
                 model=self.model,
                 messages=[msg.to_dict() for msg in self.messages],
-                max_tokens=self.max_tokens
+                max_tokens=self.max_tokens,
             )
             assistant_message = response.choices[0].message.content
             self.messages.append(Message(MessageRole.ASSISTANT, assistant_message))
@@ -42,7 +66,21 @@ class OpenAILLM(BaseLLM):
     async def _stream_user_message_to_llm(
         self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs
     ) -> AsyncGenerator[str, None]:
+        content = []
+
+        if user_message:
+            content.append({"type": "text", "text": user_message})
+
+        if file_paths:
+            for file_path in file_paths:
+                try:
+                    image_content = process_image(file_path)  ## process images
+                    content.append(image_content)
+                except ValueError:
+                    continue
+
         self.messages.append(Message(MessageRole.USER, user_message))
+
         complete_response = ""
 
         try:
@@ -50,7 +88,7 @@ class OpenAILLM(BaseLLM):
                 model=self.model,
                 messages=[msg.to_dict() for msg in self.messages],
                 max_tokens=self.max_tokens,
-                stream=True
+                stream=True,
             )
 
             for chunk in stream:

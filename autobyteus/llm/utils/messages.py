@@ -1,13 +1,15 @@
-from typing import Dict
+from typing import Dict, Union, List
 from enum import Enum
+
 
 class MessageRole(Enum):
     SYSTEM = "system"
     USER = "user"
     ASSISTANT = "assistant"
 
+
 class Message:
-    def __init__(self, role: MessageRole, content: str):
+    def __init__(self, role: MessageRole, content: Union[str, List[Dict]]):
         self.role = role
         self.content = content
 
@@ -17,7 +19,9 @@ class Message:
     def to_mistral_message(self):
         if self.role == MessageRole.USER:
             from mistralai import UserMessage
+
             return UserMessage(content=self.content)
         elif self.role == MessageRole.ASSISTANT:
             from mistralai import AssistantMessage
+
             return AssistantMessage(content=self.content)
