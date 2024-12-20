@@ -5,6 +5,6 @@ class LLMProvider(Enum):
     ANTHROPIC = "anthropic"
     MISTRAL = "mistral"
     GROQ = "groq"
-    GOOGLE = "google"
+    GEMINI = "gemini"
     NVIDIA = "nvidia"
     PERPLEXITY = "perplexity"
