@@ -157,6 +157,14 @@ class AsyncAgent(StandaloneAgent):
                 )
                 complete_response += chunk
 
+            # Emit the complete response
+            self.emit(
+                EventType.ASSISTANT_RESPONSE, 
+                agent_id=self.agent_id, 
+                response=complete_response,
+                is_complete=True
+            )
+
             # Process tool invocations only after receiving complete response
             tool_invocation: ToolInvocation = self.response_parser.parse_response(complete_response)
             if tool_invocation.is_valid():
