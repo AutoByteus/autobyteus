@@ -17,4 +17,4 @@ pytest-integration
 pytest-mock
 vcrpy
 pytest-vcr
-git+https://github.com/AutoByteus/from brui_core.git@main
+brui_core@git+https://github.com/AutoByteus/brui_core.git
