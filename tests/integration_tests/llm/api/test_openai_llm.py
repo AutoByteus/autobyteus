@@ -12,16 +12,6 @@ def set_openai_env(monkeypatch):
     )
 
 
-@pytest.fixture
-def openai_llm(set_openai_env):
-    openai_api_key = os.getenv("OPENAI_API_KEY")
-    if not openai_api_key:
-        pytest.skip("OpenAI API key not set. Skipping OpenAILLM tests.")
-    model_name = None  # Use default model
-    system_message = "You are a helpful assistant."
-    return OpenAILLM(model_name=model_name, system_message=system_message)
-
-
 @pytest.fixture(
     params=[
         LLMModel.CHATGPT_4O_LATEST_API,

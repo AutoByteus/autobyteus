@@ -5,12 +5,13 @@ temperature = 0.7
 
 [model."GPT_4o_API"]
 model = "gpt-4o"
-max_tokens = 4096
+# max_tokens = 8192
 temperature = 0.7
 
 [model."o1_API"]
 model = "o1"
-max_tokens = 4096
+max_tokens = 16384
+token_limit = 16384
 temperature = 0.7
 
 [model."o1_MINI_API"]
@@ -20,7 +21,7 @@ temperature = 0.7
 
 [model."CHATGPT_4O_LATEST_API"]
 model = "chatgpt-4o-latest"
-max_tokens = 4096
+max_tokens = 8192
 temperature = 0.7
 
 [model."GPT_3_5_TURBO_API"]
@@ -30,15 +31,20 @@ temperature = 0.7
 
 [model."MISTRAL_SMALL_API"]
 model = "mistral-small-latest"
-max_tokens = 4096
+max_tokens = 32768
 temperature = 0.7
 
 [model."MISTRAL_MEDIUM_API"]
 model = "mistral-medium"
-max_tokens = 4096
+max_tokens = 32768
 temperature = 0.7
 
 [model."MISTRAL_LARGE_API"]
 model = "mistral-large-latest"
-max_tokens = 4096
+max_tokens = 32768
+temperature = 0.7
+
+[model."PIXTRAL_LARGE_API"]
+model = "pixtral-large-latest"
+max_tokens = 32768
 temperature = 0.7

@@ -52,6 +52,9 @@ class LLMFactory:
         LLMFactory.register_llm(
             LLMModel.MISTRAL_LARGE_API.name, MistralLLM, LLMModel.from_name
         )
+        LLMFactory.register_llm(
+            LLMModel.PIXTRAL_LARGE_API.name, MistralLLM, LLMModel.from_name
+        )
 
         ## Claude models
         LLMFactory.register_llm(

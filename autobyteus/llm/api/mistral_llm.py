@@ -5,6 +5,7 @@ from autobyteus.llm.base_llm import BaseLLM
 from mistralai import Mistral
 from autobyteus.llm.utils.messages import MessageRole, Message
 from autobyteus.llm.utils.llm_config import LLMConfig
+from autobyteus.llm.utils.process_image import process_image
 import logging
 
 logger = logging.getLogger(__name__)
@@ -36,9 +37,35 @@ class MistralLLM(BaseLLM):
     async def _send_user_message_to_llm(
         self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs
     ) -> str:
-        self.messages.append(Message(MessageRole.USER, user_message))
-
+        ## paramters from singelton config
         completion_params = self.config.to_dict()
+
+        # If we only have text and no images, send directly
+        if not file_paths:
+            self.messages.append(Message(MessageRole.USER, user_message))
+
+        else:
+            # Handle mixed content with images
+            content = []
+
+            if user_message:
+                content.append({"type": "text", "content": user_message})
+
+            for file_path in file_paths:
+                try:
+                    image_content = process_image(
+                        file_path
+                    )  ## processing images as per Model APIs requirements
+                    content.append(image_content)
+                    logger.info(f"Processed image: {file_path}")
+
+                except ValueError as e:
+                    logger.error(f"Error processing image {file_path}: {str(e)}")
+                    continue
+
+            self.messages.append(Message(MessageRole.USER, content))
+
+        logger.debug(f"Prepared message: {self.messages[-1].content}")
 
         try:
             mistral_messages = [msg.to_mistral_message() for msg in self.messages]
@@ -49,6 +76,7 @@ class MistralLLM(BaseLLM):
             assistant_message = chat_response.choices[0].message.content
             self.messages.append(Message(MessageRole.ASSISTANT, assistant_message))
             return assistant_message
+
         except Exception as e:
             raise ValueError(f"Error in Mistral API call: {str(e)}")
 
@@ -58,9 +86,29 @@ class MistralLLM(BaseLLM):
         """
         Stream responses from Mistral API token by token using async streaming.
         """
-        self.messages.append(Message(MessageRole.USER, user_message))
-
         completion_params = self.config.to_dict()
+
+        # Handle multimodal content
+        if not file_paths:
+            self.messages.append(Message(MessageRole.USER, user_message))
+
+        else:
+            content = []
+
+            if user_message:
+                content.append({"type": "text", "content": user_message})
+
+            for file_path in file_paths:
+                try:
+                    image_content = process_image(file_path)
+                    content.append(image_content)
+                    logger.info(f"Processed image: {file_path}")
+
+                except ValueError as e:
+                    logger.error(f"Error processing image {file_path}: {str(e)}")
+                    continue
+
+            self.messages.append(Message(MessageRole.USER, content))
 
         try:
             mistral_messages = [msg.to_mistral_message() for msg in self.messages]

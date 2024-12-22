@@ -1,4 +1,3 @@
-
 import base64
 import mimetypes
 from typing import Dict, Union
@@ -8,8 +7,8 @@ from pathlib import Path
 def get_mime_type(file_path: str) -> str:
     """Determine MIME type of file."""
     mime_type, _ = mimetypes.guess_type(file_path)
-    if not mime_type or not mime_type.startswith('image/'):
-        return 'image/jpeg'  # default fallback
+    if not mime_type or not mime_type.startswith("image/"):
+        return "image/jpeg"  # default fallback
     return mime_type
 
 
@@ -33,9 +32,7 @@ def create_data_uri(mime_type: str, base64_data: str) -> Dict:
     """Create properly structured data URI object for API."""
     return {
         "type": "image_url",
-        "image_url": {
-            "url": f"data:{mime_type};base64,{base64_data}"
-        }
+        "image_url": {"url": f"data:{mime_type};base64,{base64_data}"},
     }
 
 
@@ -68,19 +65,9 @@ def process_image(image_input: Union[str, bytes]) -> Dict:
             return create_data_uri("image/jpeg", image_input)
 
         elif image_input.startswith(("http://", "https://")):
-            return {
-                "type": "image_url",
-                "image_url": {
-                    "url": image_input
-                }
-            }
+            return {"type": "image_url", "image_url": {"url": image_input}}
         elif image_input.startswith("data:image"):
-            return {
-                "type": "image_url",
-                "image_url": {
-                    "url": image_input
-                }
-            }
+            return {"type": "image_url", "image_url": {"url": image_input}}
 
         raise ValueError("Invalid image path or URL")
 

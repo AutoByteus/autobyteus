@@ -22,6 +22,7 @@ class LLMModel(Enum):
     MISTRAL_SMALL_API = "mistral-small-latest"
     MISTRAL_MEDIUM_API = "mistral-medium"
     MISTRAL_LARGE_API = "mistral-large-latest"
+    PIXTRAL_LARGE_API = "pixtral-large-latest"
 
     # Groq models
     GEMMA_2_9B_IT_API = "gemma2-9b-it"
@@ -73,6 +74,7 @@ class LLMModel(Enum):
             self.MISTRAL_SMALL_API: LLMProvider.MISTRAL,
             self.MISTRAL_MEDIUM_API: LLMProvider.MISTRAL,
             self.MISTRAL_LARGE_API: LLMProvider.MISTRAL,
+            self.PIXTRAL_LARGE_API: LLMProvider.MISTRAL,
             # Groq models
             self.GEMMA_2_9B_IT_API: LLMProvider.GROQ,
             self.GEMMA_7B_IT_API: LLMProvider.GROQ,
@@ -139,6 +141,9 @@ class LLMModel(Enum):
             ),
             self.MISTRAL_LARGE_API: LLMConfig(
                 **model_config.get("MISTRAL_LARGE_API", {})
+            ),
+            self.PIXTRAL_LARGE_API: LLMConfig(
+                **model_config.get("PIXTRAL_LARGE_API", {})
             ),
             # Groq models
             self.GEMMA_2_9B_IT_API: LLMConfig(

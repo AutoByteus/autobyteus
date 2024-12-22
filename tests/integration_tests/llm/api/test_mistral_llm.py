@@ -9,6 +9,14 @@ def set_mistral_env(monkeypatch):
     monkeypatch.setenv("MISTRAL_API_KEY", "")
 
 
+@pytest.fixture
+def pixtral_llm(set_pixtral_env):
+    mistral_api_key = os.getenv("MISTRAL_API_KEY")
+    if not mistral_api_key:
+        pytest.skip("Mistral API key not set. Skipping MistralLLM tests.")
+    return MistralLLM(model_name=LLMModel.PIXTRAL_LARGE_API)
+
+
 @pytest.fixture(
     params=[
         LLMModel.MISTRAL_SMALL_API,
