@@ -6,6 +6,7 @@ from mistralai import Mistral
 from autobyteus.llm.utils.messages import MessageRole, Message
 from autobyteus.llm.utils.llm_config import LLMConfig
 
+
 class MistralLLM(BaseLLM):
     def __init__(self, model_name: LLMModel = None, custom_config: LLMConfig = None):
         self.client = self.initialize()
@@ -26,12 +27,14 @@ class MistralLLM(BaseLLM):
         except Exception as e:
             raise ValueError(f"Failed to initialize Mistral client: {str(e)}")
 
-    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> str:
+    async def _send_user_message_to_llm(
+        self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs
+    ) -> str:
         self.messages.append(Message(MessageRole.USER, user_message))
 
         try:
             mistral_messages = [msg.to_mistral_message() for msg in self.messages]
-            
+
             chat_response = self.client.chat.complete(
                 model=self.model,
                 messages=mistral_messages,
@@ -43,15 +46,17 @@ class MistralLLM(BaseLLM):
         except Exception as e:
             raise ValueError(f"Error in Mistral API call: {str(e)}")
 
-    async def _stream_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> AsyncGenerator[str, None]:
+    async def _stream_user_message_to_llm(
+        self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs
+    ) -> AsyncGenerator[str, None]:
         """
         Stream responses from Mistral API token by token using async streaming.
         """
         self.messages.append(Message(MessageRole.USER, user_message))
-        
+
         try:
             mistral_messages = [msg.to_mistral_message() for msg in self.messages]
-            
+
             # Await the stream_async call
             stream = await self.client.chat.stream_async(
                 model=self.model,
@@ -59,7 +64,7 @@ class MistralLLM(BaseLLM):
             )
 
             accumulated_message = ""
-            
+
             async for chunk in stream:
                 if chunk.data.choices[0].delta.content is not None:
                     token = chunk.data.choices[0].delta.content

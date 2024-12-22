@@ -1,14 +1,6 @@
 import asyncio
 import logging
-from typing import (
-    List, 
-    Optional, 
-    AsyncGenerator, 
-    Any, 
-    NoReturn,
-    Union,
-    AsyncIterator
-)
+from typing import List, Optional, AsyncGenerator, Any, NoReturn, Union, AsyncIterator
 from autobyteus.agent.agent import StandaloneAgent
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.tools.base_tool import BaseTool
@@ -21,21 +13,22 @@ from autobyteus.agent.tool_invocation import ToolInvocation
 
 logger = logging.getLogger(__name__)
 
+
 class AsyncAgent(StandaloneAgent):
     """
     An asynchronous agent that supports streaming LLM responses while maintaining
     compatibility with the base agent functionality.
     """
-    
+
     def __init__(
-        self, 
-        role: str, 
-        llm: BaseLLM, 
+        self,
+        role: str,
+        llm: BaseLLM,
         tools: List[BaseTool],
-        use_xml_parser: bool = True, 
+        use_xml_parser: bool = True,
         agent_id: Optional[str] = None,
         prompt_builder: Optional[PromptBuilder] = None,
-        initial_user_message: Optional[UserMessage] = None
+        initial_user_message: Optional[UserMessage] = None,
     ) -> None:
         """
         Initialize the AsyncAgent with the given parameters.
@@ -50,13 +43,13 @@ class AsyncAgent(StandaloneAgent):
             initial_user_message: Optional initial message to start the conversation
         """
         super().__init__(
-            role, 
-            llm, 
-            tools, 
-            use_xml_parser, 
-            agent_id, 
-            prompt_builder, 
-            initial_user_message
+            role,
+            llm,
+            tools,
+            use_xml_parser,
+            agent_id,
+            prompt_builder,
+            initial_user_message,
         )
 
     async def initialize_conversation(self) -> None:
@@ -68,16 +61,14 @@ class AsyncAgent(StandaloneAgent):
             initial_message = self.initial_user_message
         else:
             prompt_content = self.prompt_builder.set_variable_value(
-                "external_tools", 
-                self._get_external_tools_section()
+                "external_tools", self._get_external_tools_section()
             ).build()
             initial_message = UserMessage(content=prompt_content)
 
         logger.debug(f"Initial user message for agent {self.role}: {initial_message}")
         await self.process_streaming_response(
             self.conversation.stream_user_message(
-                initial_message.content, 
-                initial_message.file_paths
+                initial_message.content, initial_message.file_paths
             )
         )
 
@@ -90,14 +81,12 @@ class AsyncAgent(StandaloneAgent):
         while not self.task_completed.is_set() and self.status == AgentStatus.RUNNING:
             try:
                 user_message: UserMessage = await asyncio.wait_for(
-                    self.user_messages.get(), 
-                    timeout=1.0
+                    self.user_messages.get(), timeout=1.0
                 )
                 logger.info(f"Agent {self.role} handling user message")
                 await self.process_streaming_response(
                     self.conversation.stream_user_message(
-                        user_message.content, 
-                        user_message.file_paths
+                        user_message.content, user_message.file_paths
                     )
                 )
             except asyncio.TimeoutError:
@@ -106,7 +95,9 @@ class AsyncAgent(StandaloneAgent):
                 logger.info(f"User message handler for agent {self.role} cancelled")
                 break
             except Exception as e:
-                logger.error(f"Error handling user message for agent {self.role}: {str(e)}")
+                logger.error(
+                    f"Error handling user message for agent {self.role}: {str(e)}"
+                )
 
     async def handle_tool_result_messages(self) -> NoReturn:
         """
@@ -117,10 +108,11 @@ class AsyncAgent(StandaloneAgent):
         while not self.task_completed.is_set() and self.status == AgentStatus.RUNNING:
             try:
                 message: str = await asyncio.wait_for(
-                    self.tool_result_messages.get(), 
-                    timeout=1.0
+                    self.tool_result_messages.get(), timeout=1.0
                 )
-                logger.info(f"Agent {self.role} handling tool result message: {message}")
+                logger.info(
+                    f"Agent {self.role} handling tool result message: {message}"
+                )
                 await self.process_streaming_response(
                     self.conversation.stream_user_message(
                         f"Tool execution result: {message}"
@@ -132,16 +124,17 @@ class AsyncAgent(StandaloneAgent):
                 logger.info(f"Tool result handler for agent {self.role} cancelled")
                 break
             except Exception as e:
-                logger.error(f"Error handling tool result for agent {self.role}: {str(e)}")
+                logger.error(
+                    f"Error handling tool result for agent {self.role}: {str(e)}"
+                )
 
     async def process_streaming_response(
-        self, 
-        response_stream: AsyncIterator[str]
+        self, response_stream: AsyncIterator[str]
     ) -> None:
         """
         Process streaming responses from the LLM, emitting each chunk and handling
         tool invocations after receiving the complete response.
-        
+
         Args:
             response_stream: AsyncIterator yielding response tokens
         """
@@ -150,33 +143,35 @@ class AsyncAgent(StandaloneAgent):
             async for chunk in response_stream:
                 # Emit each chunk as it arrives
                 self.emit(
-                    EventType.ASSISTANT_RESPONSE, 
-                    agent_id=self.agent_id, 
+                    EventType.ASSISTANT_RESPONSE,
+                    agent_id=self.agent_id,
                     response=chunk,
-                    is_complete=False  # Changed from streaming=True
+                    is_complete=False,  # Changed from streaming=True
                 )
                 complete_response += chunk
 
             # Emit the complete response
             self.emit(
-                EventType.ASSISTANT_RESPONSE, 
-                agent_id=self.agent_id, 
+                EventType.ASSISTANT_RESPONSE,
+                agent_id=self.agent_id,
                 response=complete_response,
-                is_complete=True
+                is_complete=True,
             )
 
             # Process tool invocations only after receiving complete response
-            tool_invocation: ToolInvocation = self.response_parser.parse_response(complete_response)
+            tool_invocation: ToolInvocation = self.response_parser.parse_response(
+                complete_response
+            )
             if tool_invocation.is_valid():
                 await self.execute_tool(tool_invocation)
             else:
-                logger.info(f"Assistant response for agent {self.role}: {complete_response}")
+                logger.info(
+                    f"Assistant response for agent {self.role}: {complete_response}"
+                )
 
         except Exception as e:
-            logger.error(f"Error processing streaming response for agent {self.role}: {str(e)}")
-            # Emit error event if needed
-            self.emit(
-                EventType.ERROR,
-                agent_id=self.agent_id,
-                error=str(e)
+            logger.error(
+                f"Error processing streaming response for agent {self.role}: {str(e)}"
             )
+            # Emit error event if needed
+            self.emit(EventType.ERROR, agent_id=self.agent_id, error=str(e))

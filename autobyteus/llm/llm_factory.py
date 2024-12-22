@@ -10,9 +10,10 @@ from autobyteus.llm.utils.llm_config import LLMConfig
 import pkg_resources
 from typing import List, Callable, Tuple, Dict, Set
 
+
 class LLMFactory:
     _registry: Dict[str, Tuple[type, Callable[[str], LLMModel]]] = {}
-    
+
     @staticmethod
     def register_llm(model: str, llm_class: type, resolver: Callable[[str], LLMModel]):
         """
@@ -27,19 +28,67 @@ class LLMFactory:
     @staticmethod
     def _initialize_registry():
         # Register main API LLMs using enum names and the main resolver
+
+        ## OpenAI models
         LLMFactory.register_llm(LLMModel.GPT_4o_API.name, OpenAILLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.o1_API.name, OpenAILLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.o1_MINI_API.name, OpenAILLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.CHATGPT_4O_LATEST_API.name, OpenAILLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.GPT_3_5_TURBO_API.name, OpenAILLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.MISTRAL_SMALL_API.name, MistralLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.MISTRAL_MEDIUM_API.name, MistralLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.MISTRAL_LARGE_API.name, MistralLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.CLAUDE_3_OPUS_API.name, ClaudeLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.CLAUDE_3_SONNET_API.name, ClaudeLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.CLAUDE_3_HAIKU_API.name, ClaudeLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.CLAUDE_3_5_SONNET_API.name, ClaudeLLM, LLMModel.from_name)
-        LLMFactory.register_llm(LLMModel.BEDROCK_CLAUDE_3_5_SONNET_API.name, ClaudeLLM, LLMModel.from_name)
+        LLMFactory.register_llm(
+            LLMModel.o1_MINI_API.name, OpenAILLM, LLMModel.from_name
+        )
+        LLMFactory.register_llm(
+            LLMModel.CHATGPT_4O_LATEST_API.name, OpenAILLM, LLMModel.from_name
+        )
+        LLMFactory.register_llm(
+            LLMModel.GPT_3_5_TURBO_API.name, OpenAILLM, LLMModel.from_name
+        )
+
+        ## Mistral models
+        LLMFactory.register_llm(
+            LLMModel.MISTRAL_SMALL_API.name, MistralLLM, LLMModel.from_name
+        )
+        LLMFactory.register_llm(
+            LLMModel.MISTRAL_MEDIUM_API.name, MistralLLM, LLMModel.from_name
+        )
+        LLMFactory.register_llm(
+            LLMModel.MISTRAL_LARGE_API.name, MistralLLM, LLMModel.from_name
+        )
+
+        ## Claude models
+        LLMFactory.register_llm(
+            LLMModel.CLAUDE_3_OPUS_API.name, ClaudeLLM, LLMModel.from_name
+        )
+        LLMFactory.register_llm(
+            LLMModel.CLAUDE_3_SONNET_API.name, ClaudeLLM, LLMModel.from_name
+        )
+        LLMFactory.register_llm(
+            LLMModel.CLAUDE_3_HAIKU_API.name, ClaudeLLM, LLMModel.from_name
+        )
+        LLMFactory.register_llm(
+            LLMModel.CLAUDE_3_5_SONNET_API.name, ClaudeLLM, LLMModel.from_name
+        )
+        LLMFactory.register_llm(
+            LLMModel.BEDROCK_CLAUDE_3_5_SONNET_API.name, ClaudeLLM, LLMModel.from_name
+        )
+
+        ## Gemini models
+        LLMFactory.register_llm(
+            LLMModel.GEMINI_1_0_PRO_API.name, GeminiLLM, LLMModel.from_name
+        )
+        LLMFactory.register_llm(
+            LLMModel.GEMINI_1_5_PRO_API.name, GeminiLLM, LLMModel.from_name
+        )
+        LLMFactory.register_llm(
+            LLMModel.GEMINI_1_5_PRO_EXPERIMENTAL_API.name, GeminiLLM, LLMModel.from_name
+        )
+        LLMFactory.register_llm(
+            LLMModel.GEMINI_1_5_FLASH_API.name, GeminiLLM, LLMModel.from_name
+        )
+        LLMFactory.register_llm(
+            LLMModel.GEMMA_2_2B_API.name, GeminiLLM, LLMModel.from_name
+        )
+        LLMFactory.register_llm(
+            LLMModel.GEMMA_2_9B_API.name, GeminiLLM, LLMModel.from_name
+        )
 
         # Discover and register additional plugins
         LLMFactory._discover_plugins()
@@ -47,7 +96,7 @@ class LLMFactory:
     @staticmethod
     def _discover_plugins():
         # Iterate over entry points in the 'autobyteus.plugins' group
-        for entry_point in pkg_resources.iter_entry_points(group='autobyteus.plugins'):
+        for entry_point in pkg_resources.iter_entry_points(group="autobyteus.plugins"):
             try:
                 plugin_factory = entry_point.load()
                 # Each plugin must have a 'register' method
@@ -98,9 +147,11 @@ class LLMFactory:
         :return: List of model names from the specified provider
         """
         return [
-            model_name for model_name in LLMFactory._registry.keys()
+            model_name
+            for model_name in LLMFactory._registry.keys()
             if LLMModel[model_name].provider == provider
         ]
+
 
 # Initialize the registry upon module import
 LLMFactory._initialize_registry()

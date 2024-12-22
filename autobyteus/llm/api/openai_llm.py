@@ -1,4 +1,3 @@
-
 import logging
 from typing import Optional, List, AsyncGenerator
 import openai
@@ -10,18 +9,20 @@ from autobyteus.llm.utils.process_image import process_image
 
 logger = logging.getLogger(__name__)
 
+
 class OpenAILLM(BaseLLM):
     def __init__(self, model_name: LLMModel = None, system_message: str = None):
         self.initialize()
-        self.model = model_name.value if model_name else LLMModel.GPT_3_5_TURBO_API.value
-        self.max_tokens = 8000
-        self.messages = []
 
+        # Initialize base with model configuration
+        super().__init__(model=model_name or LLMModel.GPT_3_5_TURBO_API)
+
+        self.messages = []
         if system_message:
             self.messages.append(Message(MessageRole.SYSTEM, system_message))
 
-        super().__init__(model=self.model)
-        logger.info(f"OpenAILLM initialized with model: {self.model}")
+        # super().__init__(model=self.config.to_dict())
+        logger.info(f"OpenAILLM initialized with model: {self.config.model}")
 
     @classmethod
     def initialize(cls):
@@ -55,11 +56,11 @@ class OpenAILLM(BaseLLM):
 
         try:
             logger.info("Sending request to OpenAI API")
-            response = openai.chat.completions.create(
-                model=self.model,
-                messages=[msg.to_dict() for msg in self.messages],
-                max_tokens=self.max_tokens,
-            )
+
+            completion_params = self.config.to_dict()
+            completion_params["messages"] = [msg.to_dict() for msg in self.messages]
+
+            response = openai.chat.completions.create(**completion_params)
             assistant_message = response.choices[0].message.content
             self.messages.append(Message(MessageRole.ASSISTANT, assistant_message))
             logger.info("Received response from OpenAI API")
@@ -83,7 +84,9 @@ class OpenAILLM(BaseLLM):
                     content.append(image_content)
                     logger.info(f"Processed image for streaming: {file_path}")
                 except ValueError as e:
-                    logger.error(f"Error processing image for streaming {file_path}: {str(e)}")
+                    logger.error(
+                        f"Error processing image for streaming {file_path}: {str(e)}"
+                    )
                     continue
 
         self.messages.append(Message(MessageRole.USER, content))

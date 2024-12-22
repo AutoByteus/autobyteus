@@ -1,44 +1,44 @@
 [model."NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT_API"]
-model_id = "nvidia/llama-3.1-nemotron-70b-instruct"
+model = "nvidia/llama-3.1-nemotron-70b-instruct"
 max_tokens = 4096
 temperature = 0.7
 
 [model."GPT_4o_API"]
-model_id = "gpt-4o"
+model = "gpt-4o"
 max_tokens = 4096
 temperature = 0.7
 
 [model."o1_API"]
-model_id = "o1"
+model = "o1"
 max_tokens = 4096
 temperature = 0.7
 
 [model."o1_MINI_API"]
-model_id = "o1-mini"
+model = "o1-mini"
 max_tokens = 4096
 temperature = 0.7
 
 [model."CHATGPT_4O_LATEST_API"]
-model_id = "chatgpt-4o-latest"
+model = "chatgpt-4o-latest"
 max_tokens = 4096
 temperature = 0.7
 
 [model."GPT_3_5_TURBO_API"]
-model_id = "gpt-3.5-turbo"
+model = "gpt-3.5-turbo"
 max_tokens = 4096
 temperature = 0.7
 
 [model."MISTRAL_SMALL_API"]
-model_id = "mistral-small-latest"
+model = "mistral-small-latest"
 max_tokens = 4096
 temperature = 0.7
 
 [model."MISTRAL_MEDIUM_API"]
-model_id = "mistral-medium"
+model = "mistral-medium"
 max_tokens = 4096
 temperature = 0.7
 
 [model."MISTRAL_LARGE_API"]
-model_id = "mistral-large-latest"
+model = "mistral-large-latest"
 max_tokens = 4096
 temperature = 0.7

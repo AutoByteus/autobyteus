@@ -1,6 +1,7 @@
 from enum import Enum
 from autobyteus.llm.utils.llm_config import LLMConfig
 from autobyteus.llm.providers import LLMProvider
+from autobyteus.configs.base_config import BaseConfig
 
 
 class LLMModel(Enum):
@@ -112,77 +113,119 @@ class LLMModel(Enum):
 
     @property
     def default_config(self) -> LLMConfig:
+        model_config = BaseConfig().get("MODEL")
+
         configs = {
             # NVIDIA Models
             self.NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT_API: LLMConfig(
-                rate_limit=60, token_limit=32768
+                **model_config.get("NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT_API", {})
             ),
             # OpenAI models
-            self.GPT_4o_API: LLMConfig(rate_limit=40, token_limit=8192),
-            self.o1_API: LLMConfig(
-                rate_limit=50, token_limit=16384
-            ),  # Adjust these values
-            self.o1_MINI_API: LLMConfig(
-                rate_limit=60, token_limit=4096
-            ),  # Adjust these values
-            self.CHATGPT_4O_LATEST_API: LLMConfig(rate_limit=40, token_limit=8192),
-            self.GPT_3_5_TURBO_API: LLMConfig(rate_limit=40, token_limit=4096),
+            self.GPT_4o_API: LLMConfig(**model_config.get("GPT_4o_API", {})),
+            self.o1_API: LLMConfig(**model_config.get("o1_API", {})),
+            self.o1_MINI_API: LLMConfig(**model_config.get("o1_MINI_API", {})),
+            self.GPT_3_5_TURBO_API: LLMConfig(
+                **model_config.get("GPT_3_5_TURBO_API", {})
+            ),
             # Mistral models
-            self.MISTRAL_SMALL_API: LLMConfig(rate_limit=100, token_limit=32768),
-            self.MISTRAL_MEDIUM_API: LLMConfig(rate_limit=80, token_limit=32768),
-            self.MISTRAL_LARGE_API: LLMConfig(rate_limit=60, token_limit=32768),
+            self.MISTRAL_SMALL_API: LLMConfig(
+                **model_config.get("MISTRAL_SMALL_API", {})
+            ),
+            self.MISTRAL_MEDIUM_API: LLMConfig(
+                **model_config.get("MISTRAL_MEDIUM_API", {})
+            ),
+            self.MISTRAL_LARGE_API: LLMConfig(
+                **model_config.get("MISTRAL_LARGE_API", {})
+            ),
             # Groq models
-            self.GEMMA_2_9B_IT_API: LLMConfig(rate_limit=60, token_limit=8192),
-            self.GEMMA_7B_IT_API: LLMConfig(rate_limit=60, token_limit=8192),
+            self.GEMMA_2_9B_IT_API: LLMConfig(
+                **model_config.get("GEMMA_2_9B_IT_API", {})
+            ),
+            self.GEMMA_7B_IT_API: LLMConfig(**model_config.get("GEMMA_7B_IT_API", {})),
             self.LLAMA_3_1_405B_REASONING_API: LLMConfig(
-                rate_limit=60, token_limit=4096
+                **model_config.get("LLAMA_3_1_405B_REASONING_API", {})
             ),
             self.LLAMA_3_1_70B_VERSATILE_API: LLMConfig(
-                rate_limit=60, token_limit=4096
+                **model_config.get("LLAMA_3_1_70B_VERSATILE_API", {})
             ),
-            self.LLAMA_3_1_8B_INSTANT_API: LLMConfig(rate_limit=60, token_limit=4096),
-            self.LLAMA3_70B_8192_API: LLMConfig(rate_limit=60, token_limit=8192),
-            self.LLAMA3_8B_8192_API: LLMConfig(rate_limit=60, token_limit=8192),
-            self.MIXTRAL_8X7B_32768_API: LLMConfig(rate_limit=60, token_limit=32768),
-            # Gemini models
-            self.GEMINI_1_0_PRO_API: LLMConfig(rate_limit=60, token_limit=30720),
-            self.GEMINI_1_5_PRO_API: LLMConfig(rate_limit=20, token_limit=30720),
+            self.LLAMA_3_1_8B_INSTANT_API: LLMConfig(
+                **model_config.get("LLAMA_3_1_8B_INSTANT_API", {})
+            ),
+            self.LLAMA3_70B_8192_API: LLMConfig(
+                **model_config.get("LLAMA3_70B_8192_API", {})
+            ),
+            self.LLAMA3_8B_8192_API: LLMConfig(
+                **model_config.get("LLAMA3_8B_8192_API", {})
+            ),
+            self.MIXTRAL_8X7B_32768_API: LLMConfig(
+                **model_config.get("MIXTRAL_8X7B_32768_API", {})
+            ),
+            # Google models
+            self.GEMINI_1_0_PRO_API: LLMConfig(
+                **model_config.get("GEMINI_1_0_PRO_API", {})
+            ),
+            self.GEMINI_1_5_PRO_API: LLMConfig(
+                **model_config.get("GEMINI_1_5_PRO_API", {})
+            ),
             self.GEMINI_1_5_PRO_EXPERIMENTAL_API: LLMConfig(
-                rate_limit=30, token_limit=30720
+                **model_config.get("GEMINI_1_5_PRO_EXPERIMENTAL_API", {})
             ),
-            self.GEMINI_1_5_FLASH_API: LLMConfig(rate_limit=60, token_limit=16384),
-            self.GEMMA_2_2B_API: LLMConfig(rate_limit=60, token_limit=8192),
-            self.GEMMA_2_9B_API: LLMConfig(rate_limit=60, token_limit=8192),
-            self.GEMMA_2_27B_API: LLMConfig(rate_limit=60, token_limit=8192),
-            # Claude models
-            self.CLAUDE_3_OPUS_API: LLMConfig(rate_limit=40, token_limit=200000),
-            self.CLAUDE_3_SONNET_API: LLMConfig(rate_limit=50, token_limit=200000),
-            self.CLAUDE_3_HAIKU_API: LLMConfig(rate_limit=60, token_limit=200000),
-            self.CLAUDE_3_5_SONNET_API: LLMConfig(rate_limit=50, token_limit=200000),
+            self.GEMINI_1_5_FLASH_API: LLMConfig(
+                **model_config.get("GEMINI_1_5_FLASH_API", {})
+            ),
+            self.GEMMA_2_2B_API: LLMConfig(**model_config.get("GEMMA_2_2B_API", {})),
+            self.GEMMA_2_9B_API: LLMConfig(**model_config.get("GEMMA_2_9B_API", {})),
+            self.GEMMA_2_27B_API: LLMConfig(**model_config.get("GEMMA_2_27B_API", {})),
+            # Anthropic models
+            self.CLAUDE_3_OPUS_API: LLMConfig(
+                **model_config.get("CLAUDE_3_OPUS_API", {})
+            ),
+            self.CLAUDE_3_SONNET_API: LLMConfig(
+                **model_config.get("CLAUDE_3_SONNET_API", {})
+            ),
+            self.CLAUDE_3_HAIKU_API: LLMConfig(
+                **model_config.get("CLAUDE_3_HAIKU_API", {})
+            ),
+            self.CLAUDE_3_5_SONNET_API: LLMConfig(
+                **model_config.get("CLAUDE_3_5_SONNET_API", {})
+            ),
             self.BEDROCK_CLAUDE_3_5_SONNET_API: LLMConfig(
-                rate_limit=50, token_limit=200000
+                **model_config.get("BEDROCK_CLAUDE_3_5_SONNET_API", {})
+            ),
+            # NVIDIA models
+            self.NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT_API: LLMConfig(
+                **model_config.get("NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT_API", {})
             ),
             # Perplexity models
             self.LLAMA_3_1_SONAR_LARGE_128K_ONLINE_API: LLMConfig(
-                rate_limit=60, token_limit=128000
+                **model_config.get("LLAMA_3_1_SONAR_LARGE_128K_ONLINE_API", {})
             ),
             self.LLAMA_3_1_SONAR_SMALL_128K_ONLINE_API: LLMConfig(
-                rate_limit=60, token_limit=128000
+                **model_config.get("LLAMA_3_1_SONAR_SMALL_128K_ONLINE_API", {})
             ),
             self.LLAMA_3_1_SONAR_LARGE_128K_CHAT_API: LLMConfig(
-                rate_limit=60, token_limit=128000
+                **model_config.get("LLAMA_3_1_SONAR_LARGE_128K_CHAT_API", {})
             ),
             self.LLAMA_3_1_SONAR_SMALL_128K_CHAT_API: LLMConfig(
-                rate_limit=60, token_limit=128000
+                **model_config.get("LLAMA_3_1_SONAR_SMALL_128K_CHAT_API", {})
             ),
-            self.LLAMA_3_1_8B_INSTRUCT_API: LLMConfig(rate_limit=60, token_limit=4096),
-            self.LLAMA_3_1_70B_INSTRUCT_API: LLMConfig(rate_limit=60, token_limit=4096),
-            self.GEMMA_2_27B_IT_API: LLMConfig(rate_limit=60, token_limit=8192),
+            self.LLAMA_3_1_8B_INSTRUCT_API: LLMConfig(
+                **model_config.get("LLAMA_3_1_8B_INSTRUCT_API", {})
+            ),
+            self.LLAMA_3_1_70B_INSTRUCT_API: LLMConfig(
+                **model_config.get("LLAMA_3_1_70B_INSTRUCT_API", {})
+            ),
+            self.GEMMA_2_27B_IT_API: LLMConfig(
+                **model_config.get("GEMMA_2_27B_IT_API", {})
+            ),
             self.NEMOTRON_4_340B_INSTRUCT_API: LLMConfig(
-                rate_limit=40, token_limit=32768
+                **model_config.get("NEMOTRON_4_340B_INSTRUCT_API", {})
             ),
-            self.MIXTRAL_8X7B_INSTRUCT_API: LLMConfig(rate_limit=60, token_limit=32768),
+            self.MIXTRAL_8X7B_INSTRUCT_API: LLMConfig(
+                **model_config.get("MIXTRAL_8X7B_INSTRUCT_API", {})
+            ),
         }
+
         return configs.get(self, LLMConfig())
 
     @classmethod
