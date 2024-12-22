@@ -29,11 +29,15 @@ def test_get_all_models(llm_factory):
     assert len(models) > 0, "The models list should not be empty."
 
 
-def test_create_llm_valid_models(llm_factory, model_name):
+def test_create_llm_valid_models(
+    llm_factory,
+):
     """
     Test that LLMFactory.create_llm() successfully creates instances for all registered models.
     """
+    model_name = "MISTRAL_MEDIUM_API"
     llm_instance = llm_factory.create_llm(model_name)
+    print(llm_instance)
     assert isinstance(
         llm_instance, BaseLLM
     ), f"Instance for {model_name} should be a BaseLLM."

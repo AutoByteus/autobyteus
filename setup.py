@@ -37,7 +37,7 @@ setup(
     include_package_data=True,
     install_requires=[
         *common_dependencies,
-        "brui_core@git+https://github.com/AutoByteus/brui_core.git"
+        "brui_core@git+https://github.com/AutoByteus/brui_core.git",
     ],
     extras_require={
         "dev": [
@@ -77,6 +77,6 @@ setup(
         "Programming Language :: Python :: 3.10",
     ],
     package_data={
-        "autobyteus": ["py.typed"],
+        "autobyteus": ["py.typed", "models.toml"],
     },
 )
