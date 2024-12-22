@@ -127,6 +127,9 @@ class LLMModel(Enum):
             self.GPT_3_5_TURBO_API: LLMConfig(
                 **model_config.get("GPT_3_5_TURBO_API", {})
             ),
+            self.CHATGPT_4O_LATEST_API: LLMConfig(
+                **model_config.get("CHATGPT_4O_LATEST_API", {})
+            ),
             # Mistral models
             self.MISTRAL_SMALL_API: LLMConfig(
                 **model_config.get("MISTRAL_SMALL_API", {})

@@ -5,14 +5,20 @@ from autobyteus.llm.base_llm import BaseLLM
 from mistralai import Mistral
 from autobyteus.llm.utils.messages import MessageRole, Message
 from autobyteus.llm.utils.llm_config import LLMConfig
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class MistralLLM(BaseLLM):
     def __init__(self, model_name: LLMModel = None, custom_config: LLMConfig = None):
         self.client = self.initialize()
-        self.model = model_name.value if model_name else "mistral-large-latest"
+
+        # Initialize base with model configuration
+        super().__init__(model=model_name or LLMModel.MISTRAL_LARGE_API)
         self.messages = []
-        super().__init__(model=self.model, custom_config=custom_config)
+
+        logger.info(f"MistralLLM initialized with model: {self.config.model}")
 
     @classmethod
     def initialize(cls):
@@ -32,13 +38,13 @@ class MistralLLM(BaseLLM):
     ) -> str:
         self.messages.append(Message(MessageRole.USER, user_message))
 
+        completion_params = self.config.to_dict()
+
         try:
             mistral_messages = [msg.to_mistral_message() for msg in self.messages]
+            completion_params["messages"] = mistral_messages
 
-            chat_response = self.client.chat.complete(
-                model=self.model,
-                messages=mistral_messages,
-            )
+            chat_response = self.client.chat.complete(**completion_params)
 
             assistant_message = chat_response.choices[0].message.content
             self.messages.append(Message(MessageRole.ASSISTANT, assistant_message))
@@ -54,14 +60,14 @@ class MistralLLM(BaseLLM):
         """
         self.messages.append(Message(MessageRole.USER, user_message))
 
+        completion_params = self.config.to_dict()
+
         try:
             mistral_messages = [msg.to_mistral_message() for msg in self.messages]
+            completion_params["messages"] = mistral_messages
 
             # Await the stream_async call
-            stream = await self.client.chat.stream_async(
-                model=self.model,
-                messages=mistral_messages,
-            )
+            stream = await self.client.chat.stream_async(**completion_params)
 
             accumulated_message = ""
 

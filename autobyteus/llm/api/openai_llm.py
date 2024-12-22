@@ -21,7 +21,6 @@ class OpenAILLM(BaseLLM):
         if system_message:
             self.messages.append(Message(MessageRole.SYSTEM, system_message))
 
-        # super().__init__(model=self.config.to_dict())
         logger.info(f"OpenAILLM initialized with model: {self.config.model}")
 
     @classmethod
@@ -96,12 +95,12 @@ class OpenAILLM(BaseLLM):
 
         try:
             logger.info("Starting streaming request to OpenAI API")
-            stream = openai.chat.completions.create(
-                model=self.model,
-                messages=[msg.to_dict() for msg in self.messages],
-                max_tokens=self.max_tokens,
-                stream=True,
-            )
+
+            completion_params = self.config.to_dict()
+            completion_params["messages"] = [msg.to_dict() for msg in self.messages]
+            completion_params["stream"] = True
+
+            stream = openai.chat.completions.create(**completion_params)
 
             for chunk in stream:
                 if chunk.choices[0].delta.content is not None:

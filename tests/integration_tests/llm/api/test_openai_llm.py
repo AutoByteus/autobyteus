@@ -1,5 +1,4 @@
 import pytest
-import asyncio
 import os
 from autobyteus.llm.api.openai_llm import OpenAILLM
 from autobyteus.llm.models import LLMModel

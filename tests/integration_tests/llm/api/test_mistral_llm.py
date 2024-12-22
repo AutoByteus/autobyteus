@@ -1,5 +1,4 @@
 import pytest
-import asyncio
 import os
 from autobyteus.llm.api.mistral_llm import MistralLLM
 from autobyteus.llm.models import LLMModel
@@ -10,12 +9,19 @@ def set_mistral_env(monkeypatch):
     monkeypatch.setenv("MISTRAL_API_KEY", "")
 
 
-@pytest.fixture
-def mistral_llm(set_mistral_env):
+@pytest.fixture(
+    params=[
+        LLMModel.MISTRAL_SMALL_API,
+        LLMModel.MISTRAL_MEDIUM_API,
+        LLMModel.MISTRAL_LARGE_API,
+    ]
+)
+def mistral_llm(set_mistral_env, request):
     mistral_api_key = os.getenv("MISTRAL_API_KEY")
     if not mistral_api_key:
         pytest.skip("Mistral API key not set. Skipping MistralLLM tests.")
-    model_name = LLMModel.MISTRAL_LARGE_API
+    model_name = request.param
+    print(f"Testing MistralLLM with model: {model_name}")
     return MistralLLM(model_name=model_name)
 
 
