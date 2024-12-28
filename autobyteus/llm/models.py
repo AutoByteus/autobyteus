@@ -4,7 +4,9 @@ from autobyteus.llm.providers import LLMProvider
 
 
 class LLMModel(Enum):
-    NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT_API = "nvidia/llama-3.1-nemotron-70b-instruct"
+    NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT_API = (
+        "nvidia/llama-3.1-nemotron-70b-instruct"
+    )
 
     # OpenAI models
     GPT_4o_API = "gpt-4o"
@@ -58,7 +60,7 @@ class LLMModel(Enum):
     MIXTRAL_8X7B_INSTRUCT_API = "mixtral-8x7b-instruct"
 
     # Ollama models
-    LLAMA_3_2_LOCAL = "llama3.2"
+    OLLAMA_LLAMA_3_2 = "ollama-llama3.2"
 
     @property
     def provider(self) -> LLMProvider:
@@ -110,7 +112,7 @@ class LLMModel(Enum):
             self.MIXTRAL_8X7B_INSTRUCT_API: LLMProvider.PERPLEXITY,
 
             # Ollama models
-            self.LLAMA_3_2_LOCAL: LLMProvider.OLLAMA,
+            self.OLLAMA_LLAMA_3_2: LLMProvider.OLLAMA,
         }
         return provider_mapping[self]
 
@@ -188,7 +190,7 @@ class LLMModel(Enum):
             self.MIXTRAL_8X7B_INSTRUCT_API: LLMConfig(rate_limit=60, token_limit=32768),
 
             # Ollama models
-            self.LLAMA_3_2_LOCAL: LLMConfig(rate_limit=60, token_limit=8192),
+            self.OLLAMA_LLAMA_3_2: LLMConfig(rate_limit=60, token_limit=8192),
         }
         return configs.get(self, LLMConfig())
 

@@ -1,4 +1,3 @@
-
 import logging
 from typing import Optional, List, AsyncGenerator
 import openai
