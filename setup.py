@@ -28,6 +28,7 @@ common_dependencies = [
     "Jinja2",
     "pymilvus",
     "google-cloud-aiplatform",
+    "ollama",
 ]
 
 setup(
