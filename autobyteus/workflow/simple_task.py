@@ -3,6 +3,7 @@ import logging
 from typing import Optional, Callable, Any, List, Union
 
 from autobyteus.agent.agent import StandaloneAgent
+from autobyteus.events.event_types import EventType
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.llm_factory import LLMFactory
 from autobyteus.conversation.user_message import UserMessage
@@ -59,8 +60,6 @@ class SimpleTask:
             agent = StandaloneAgent(
                 role=self.name,
                 llm=llm,
-                tools=[],
-                use_xml_parser=True,
                 initial_user_message=user_message
             )
 
@@ -71,7 +70,7 @@ class SimpleTask:
                 if response:
                     await result_queue.put(response)
 
-            agent.subscribe("ASSISTANT_RESPONSE", handle_response, agent.agent_id)
+            agent.subscribe(EventType.ASSISTANT_RESPONSE, handle_response, agent.agent_id)
 
             try:
                 agent.start()

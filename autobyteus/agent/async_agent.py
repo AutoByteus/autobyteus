@@ -146,6 +146,7 @@ class AsyncAgent(StandaloneAgent):
         complete_response: str = ""
         try:
             async for chunk in response_stream:
+                # Emit each chunk as it arrives
                 self.emit(
                     EventType.ASSISTANT_RESPONSE, 
                     agent_id=self.agent_id, 
@@ -153,7 +154,7 @@ class AsyncAgent(StandaloneAgent):
                     is_complete=False
                 )
                 complete_response += chunk
-
+            # Emit the complete response
             self.emit(
                 EventType.ASSISTANT_RESPONSE, 
                 agent_id=self.agent_id, 

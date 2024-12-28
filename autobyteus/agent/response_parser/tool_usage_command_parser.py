@@ -1,4 +1,4 @@
-from autobyteus.agent.response_parser.llm_response_parser import LLMResponseParser
+
 import xml.etree.ElementTree as ET
 import re
 from xml.sax.saxutils import escape, unescape
@@ -9,7 +9,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-class ToolUsageCommandParser(LLMResponseParser):
+class ToolUsageCommandParser:
     def parse_response(self, response: str) -> ToolInvocation:
         logger.debug(f"Full response: {response}")
 
