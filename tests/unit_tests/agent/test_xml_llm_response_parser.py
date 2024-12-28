@@ -1,5 +1,3 @@
-# File: /home/ryan-ai/miniHDD/Learning/chatgpt/autobyteus/tests/unit_tests/agent/test_xml_llm_response_parser.py
-
 import pytest
 from autobyteus.agent.xml_llm_response_parser import XMLLLMResponseParser
 from autobyteus.agent.tool_invocation import ToolInvocation

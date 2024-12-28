@@ -1,11 +1,10 @@
 import asyncio
 import logging
 from typing import List, Optional
-from autobyteus.agent.llm_response_parser import LLMResponseParser
+from autobyteus.agent.response_parser.tool_usage_command_parser import ToolUsageCommandParser
 from autobyteus.events.event_emitter import EventEmitter
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.tools.base_tool import BaseTool
-from autobyteus.agent.xml_llm_response_parser import XMLLLMResponseParser
 from autobyteus.prompt.prompt_builder import PromptBuilder
 from autobyteus.events.event_types import EventType
 from autobyteus.agent.status import AgentStatus
@@ -15,16 +14,15 @@ from autobyteus.conversation.conversation import Conversation
 logger = logging.getLogger(__name__)
 
 class StandaloneAgent(EventEmitter):
-    def __init__(self, role: str, llm: BaseLLM, tools: List[BaseTool],
-                 use_xml_parser=True, 
+    def __init__(self, role: str, llm: BaseLLM, tools: Optional[List[BaseTool]] = None,
                  agent_id=None,
                  prompt_builder: Optional[PromptBuilder] = None,
                  initial_user_message: Optional[UserMessage] = None):
         super().__init__()
         self.role = role
         self.llm = llm
-        self.tools = tools
-        self.response_parser = XMLLLMResponseParser() if use_xml_parser else LLMResponseParser()
+        self.tools = tools or []
+        self.tool_usage_response_parser = ToolUsageCommandParser() if self.tools else None
         self.conversation = None
         self.agent_id = agent_id or f"{self.role}-001"
         self.status = AgentStatus.NOT_STARTED
@@ -37,7 +35,9 @@ class StandaloneAgent(EventEmitter):
         if not self.prompt_builder and not self.initial_user_message:
             raise ValueError("Either prompt_builder or initial_user_message must be provided")
 
-        self.set_agent_id_on_tools()
+        if self.tools:
+            self.set_agent_id_on_tools()
+            
         self.register_task_completion_listener()
         logger.info(f"StandaloneAgent initialized with role: {self.role}, agent_id: {self.agent_id}")
 
@@ -78,7 +78,7 @@ class StandaloneAgent(EventEmitter):
         finally:
             self.status = AgentStatus.ENDED
             await self.cleanup()
-        
+
     async def handle_user_messages(self):
         logger.info(f"Agent {self.role} started handling user messages")
         while not self.task_completed.is_set() and self.status == AgentStatus.RUNNING:
@@ -124,20 +124,29 @@ class StandaloneAgent(EventEmitter):
         if self.initial_user_message:
             initial_message = self.initial_user_message
         else:
-            prompt_content = self.prompt_builder.set_variable_value("external_tools", self._get_external_tools_section()).build()
+            prompt_content = self.prompt_builder.set_variable_value(
+                "external_tools", 
+                self._get_external_tools_section()
+            ).build()
             initial_message = UserMessage(content=prompt_content)
 
         logger.debug(f"Initial user message for agent {self.role}: {initial_message}")
-        initial_llm_response = await self.conversation.send_user_message(initial_message.content, initial_message.file_paths)
+        initial_llm_response = await self.conversation.send_user_message(
+            initial_message.content,
+            initial_message.file_paths
+        )
         await self.process_llm_response(initial_llm_response)
 
-    async def process_llm_response(self, response):
+    async def process_llm_response(self, response: str) -> None:
         self.emit(EventType.ASSISTANT_RESPONSE, agent_id=self.agent_id, response=response)
-        tool_invocation = self.response_parser.parse_response(response)
-        if tool_invocation.is_valid():
-            await self.execute_tool(tool_invocation)
-        else:
-            logger.info(f"Assistant response for agent {self.role}: {response}")
+        
+        if self.tools and self.tool_usage_response_parser:
+            tool_invocation = self.tool_usage_response_parser.parse_response(response)
+            if tool_invocation.is_valid():
+                await self.execute_tool(tool_invocation)
+                return
+
+        logger.info(f"Assistant response for agent {self.role}: {response}")
 
     async def execute_tool(self, tool_invocation):
         name = tool_invocation.name
@@ -175,22 +184,23 @@ class StandaloneAgent(EventEmitter):
         logger.info(f"Cleanup completed for agent: {self.role}")
 
     def set_agent_id_on_tools(self):
-        for tool in self.tools:
-            tool.set_agent_id(self.agent_id)
+        if self.tools:
+            for tool in self.tools:
+                tool.set_agent_id(self.agent_id)
 
-    def _get_external_tools_section(self):
-        """Generate a string representation of all available tools."""
+    def _get_external_tools_section(self) -> str:
+        if not self.tools:
+            return ""
+            
         external_tools_section = ""
         for i, tool in enumerate(self.tools):
             external_tools_section += f"  {i + 1} {tool.tool_usage_xml()}\n\n"
         return external_tools_section.strip()
 
     def on_task_completed(self, *args, **kwargs):
-        """Event handler for task completion."""
         logger.info(f"Task completed event received for agent: {self.role}")
         self.task_completed.set()
 
     def register_task_completion_listener(self):
-        """Register a listener for the task completion event."""
         logger.info(f"Registering task completion listener for agent: {self.role}")
         self.subscribe(EventType.TASK_COMPLETED, self.on_task_completed, self.agent_id)

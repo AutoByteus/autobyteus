@@ -1,3 +1,4 @@
+from autobyteus.agent.response_parser.llm_response_parser import LLMResponseParser
 import xml.etree.ElementTree as ET
 import re
 from xml.sax.saxutils import escape, unescape
@@ -8,8 +9,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-class XMLLLMResponseParser:
-    def parse_response(self, response):
+class ToolUsageCommandParser(LLMResponseParser):
+    def parse_response(self, response: str) -> ToolInvocation:
         logger.debug(f"Full response: {response}")
 
         start_tag = "<command"
@@ -57,7 +58,7 @@ class XMLLLMResponseParser:
         logger.debug("No valid command found")
         return ToolInvocation()
 
-    def _preprocess_xml(self, xml_content):
+    def _preprocess_xml(self, xml_content: str) -> str:
         def wrap_arg_in_cdata(match):
             full_tag = match.group(1)
             content = match.group(2)
@@ -66,10 +67,15 @@ class XMLLLMResponseParser:
             return f"{full_tag}{escaped_content}"
 
         # Process all <arg> elements
-        processed_content = re.sub(r'(<arg name="[^"]*">)(.*?)(?=</arg>)', wrap_arg_in_cdata, xml_content, flags=re.DOTALL)
+        processed_content = re.sub(
+            r'(<arg name="[^"]*">)(.*?)(?=</arg>)',
+            wrap_arg_in_cdata,
+            xml_content,
+            flags=re.DOTALL
+        )
         return processed_content
 
-    def _parse_arguments(self, command_element):
+    def _parse_arguments(self, command_element: ET.Element) -> dict:
         arguments = {}
         for arg in command_element.findall('arg'):
             arg_name = arg.attrib.get('name')
@@ -88,7 +94,7 @@ class XMLLLMResponseParser:
             arguments[arg_name] = arg_value
         return arguments
 
-    def _fix_malformed_xml(self, xml_content):
+    def _fix_malformed_xml(self, xml_content: str) -> str:
         # This is a simple fix attempt. You might need to expand this based on common issues.
         fixed_content = xml_content.replace('&', '&amp;')
         return fixed_content

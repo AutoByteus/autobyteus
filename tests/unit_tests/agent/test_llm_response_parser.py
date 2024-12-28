@@ -1,5 +1,5 @@
 import pytest
-from autobyteus.agent.llm_response_parser import LLMResponseParser
+from autobyteus.agent.response_parser.llm_response_parser import LLMResponseParser
 
 @pytest.fixture
 def response_parser():
