@@ -11,7 +11,7 @@ class TokenPricingRegistry:
         # ChatGPT models
         LLMModel.GPT_4o_API: TokenPricing(0.0015, 0.002),
         LLMModel.o1_MINI_API: TokenPricing(0.03, 0.06),
-        LLMModel.o1_PREVIEW_API: TokenPricing(0.0015, 0.002),
+        LLMModel.o1_API: TokenPricing(0.0015, 0.002),
 
         # Mistral models
         LLMModel.MISTRAL_SMALL_API: TokenPricing(0.0015, 0.0015),

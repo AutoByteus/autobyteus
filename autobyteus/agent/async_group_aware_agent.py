@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Optional, AsyncIterator
+from typing import Optional, AsyncIterator
 from autobyteus.agent.async_agent import AsyncAgent
 from autobyteus.agent.message.message import Message
 from autobyteus.agent.message.message_types import MessageType

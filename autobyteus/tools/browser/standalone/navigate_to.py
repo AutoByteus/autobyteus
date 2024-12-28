@@ -1,5 +1,5 @@
 from autobyteus.tools.base_tool import BaseTool
-from llm_ui_integration.ui_integrator import UIIntegrator
+from brui_core.ui_integrator import UIIntegrator
 from urllib.parse import urlparse
 
 class NavigateTo(BaseTool, UIIntegrator):

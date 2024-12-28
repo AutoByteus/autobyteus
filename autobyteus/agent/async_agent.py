@@ -31,8 +31,7 @@ class AsyncAgent(StandaloneAgent):
         self, 
         role: str, 
         llm: BaseLLM, 
-        tools: List[BaseTool],
-        use_xml_parser: bool = True, 
+        tools: Optional[List[BaseTool]] = None,
         agent_id: Optional[str] = None,
         prompt_builder: Optional[PromptBuilder] = None,
         initial_user_message: Optional[UserMessage] = None
@@ -53,7 +52,6 @@ class AsyncAgent(StandaloneAgent):
             role, 
             llm, 
             tools, 
-            use_xml_parser, 
             agent_id, 
             prompt_builder, 
             initial_user_message
@@ -153,10 +151,9 @@ class AsyncAgent(StandaloneAgent):
                     EventType.ASSISTANT_RESPONSE, 
                     agent_id=self.agent_id, 
                     response=chunk,
-                    is_complete=False  # Changed from streaming=True
+                    is_complete=False
                 )
                 complete_response += chunk
-
             # Emit the complete response
             self.emit(
                 EventType.ASSISTANT_RESPONSE, 
@@ -165,18 +162,17 @@ class AsyncAgent(StandaloneAgent):
                 is_complete=True
             )
 
-            # Process tool invocations only after receiving complete response
-            tool_invocation: ToolInvocation = self.response_parser.parse_response(complete_response)
-            if tool_invocation.is_valid():
-                await self.execute_tool(tool_invocation)
-            else:
-                logger.info(f"Assistant response for agent {self.role}: {complete_response}")
+            if self.tools and self.tool_usage_response_parser:
+                tool_invocation: ToolInvocation = self.tool_usage_response_parser.parse_response(complete_response)
+                if tool_invocation.is_valid():
+                    await self.execute_tool(tool_invocation)
+                    return
+
+            logger.info(f"Assistant response for agent {self.role}: {complete_response}")
 
         except Exception as e:
             logger.error(f"Error processing streaming response for agent {self.role}: {str(e)}")
-            # Emit error event if needed
             self.emit(
                 EventType.ERROR,
                 agent_id=self.agent_id,
-                error=str(e)
-            )
+                error=str(e))

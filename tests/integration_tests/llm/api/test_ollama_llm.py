@@ -7,7 +7,7 @@ from autobyteus.llm.models import LLMModel
 @pytest.fixture
 def ollama_llm():
     system_message = "You are a helpful assistant."
-    return OllamaLLM(model_name=LLMModel.LLAMA_3_2_LOCAL, system_message=system_message)
+    return OllamaLLM(model_name=LLMModel.OLLAMA_LLAMA_3_2, system_message=system_message)
 
 @pytest.mark.asyncio
 async def test_ollama_llm_response(ollama_llm):
