@@ -1,9 +1,3 @@
-pymongo
-SQLAlchemy
-sqlalchemy-utils
-alembic
-psycopg2-binary
-pytest-playwright
 beautifulsoup4>=4.12.2
 openai
 playsound==1.2.2

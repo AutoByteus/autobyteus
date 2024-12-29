@@ -2,13 +2,6 @@ from setuptools import setup, find_packages
 
 # Common dependencies
 common_dependencies = [
-    "pymongo",
-    "SQLAlchemy",
-    "sqlalchemy-utils",
-    "alembic",
-    "repository-sqlalchemy",
-    "repository-mongodb",
-    "pytest-playwright",
     "beautifulsoup4>=4.12.2",
     "openai",
     "playsound==1.2.2",
@@ -23,8 +16,6 @@ common_dependencies = [
     "toml",
     "python-dotenv",
     "uvicorn",
-    "fastapi",
-    "strawberry-graphql",
     "Jinja2",
     "pymilvus",
     "google-cloud-aiplatform",
