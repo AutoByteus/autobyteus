@@ -15,10 +15,11 @@ common_dependencies = [
     "Pillow",
     "toml",
     "python-dotenv",
-    "uvicorn",
+    "mistralai",
+    "boto3",
+    "botocore",
+    "anthropic==0.37.1",
     "Jinja2",
-    "pymilvus",
-    "google-cloud-aiplatform",
     "ollama",
 ]
 
