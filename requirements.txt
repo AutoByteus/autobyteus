@@ -11,9 +11,6 @@ sentence-transformers
 Pillow
 toml
 python-dotenv
-uvicorn
-fastapi 
-strawberry-graphql
 mistralai
 boto3
 botocore
