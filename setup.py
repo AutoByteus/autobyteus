@@ -12,6 +12,7 @@ common_dependencies = [
     "redis",
     "weaviate-client",
     "sentence-transformers",
+    "pymilvus==2.5.2",
     "Pillow",
     "toml",
     "python-dotenv",
