@@ -6,10 +6,16 @@ from autobyteus.llm.utils.messages import MessageRole, Message
 import logging
 import asyncio
 import httpx
+import os
 
 class OllamaLLM(BaseLLM):
+    DEFAULT_OLLAMA_HOST = 'http://localhost:11434'
+
     def __init__(self, model_name: LLMModel = None, system_message: str = None):
-        self.client = AsyncClient(host='http://localhost:11434') # Ensure this host is correct
+        self.ollama_host = os.getenv('OLLAMA_HOST', self.DEFAULT_OLLAMA_HOST)
+        logging.info(f"Initializing Ollama with host: {self.ollama_host}")
+        
+        self.client = AsyncClient(host=self.ollama_host)
         self.model = model_name.value if model_name else "llama3.2"
         self.system_message = system_message or "You are a helpful assistant."
         self.messages = []
