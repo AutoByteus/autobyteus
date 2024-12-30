@@ -60,7 +60,7 @@ class LLMModel(Enum):
     MIXTRAL_8X7B_INSTRUCT_API = "mixtral-8x7b-instruct"
 
     # Ollama models
-    OLLAMA_LLAMA_3_2 = "ollama-llama3.2"
+    OLLAMA_LLAMA_3_2 = "llama3.2"
 
     @property
     def provider(self) -> LLMProvider:
