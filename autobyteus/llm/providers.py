@@ -9,3 +9,4 @@ class LLMProvider(Enum):
     NVIDIA = "nvidia"
     PERPLEXITY = "perplexity"
     OLLAMA = "ollama"
+    DEEPSEEK = "deepseek"
