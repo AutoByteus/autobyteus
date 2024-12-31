@@ -2,7 +2,7 @@ beautifulsoup4>=4.12.2
 openai
 playsound==1.2.2
 requests
-tiktoken==0.3.3
+tiktoken==0.7.0
 google-api-python-client
 google-generativeai
 redis
@@ -18,3 +18,4 @@ anthropic==0.37.1
 Jinja2
 ollama
 pymilvus==2.5.2
+mistral_common
