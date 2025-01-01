@@ -6,7 +6,7 @@ common_dependencies = [
     "openai",
     "playsound==1.2.2",
     "requests",
-    "tiktoken==0.3.3",
+    "tiktoken==0.7.0",
     "google-api-python-client",
     "google-generativeai",
     "redis",
