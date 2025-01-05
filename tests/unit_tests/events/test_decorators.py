@@ -1,26 +1,26 @@
-# File: autobyteus/tests/unit_tests/events/test_decorators.py
 
 import pytest
 from autobyteus.events.decorators import publish_event, event_listener
 from autobyteus.events.event_types import EventType
 from autobyteus.events.event_emitter import EventEmitter
 
-class DummyEmitter(EventEmitter):
+class TestEmitter(EventEmitter):
     @publish_event(EventType.TOOL_EXECUTION_COMPLETED)
-    def dummy_method(self):
-        return "Result"
+    def execute_tool(self):
+        return "Tool Executed"
 
     @event_listener(EventType.TOOL_EXECUTION_COMPLETED)
-    def dummy_listener(self, result):
-        self.listened_result = result
+    def on_tool_completed(self, result):
+        self.result = result
 
 def test_publish_event_decorator():
-    emitter = DummyEmitter()
-    result = emitter.dummy_method()
-    assert result == "Result"
-    # The actual event emission is tested in integration tests
+    emitter = TestEmitter()
+    result = emitter.execute_tool()
+    assert result == "Tool Executed"
+    assert hasattr(emitter, 'result')
+    assert emitter.result == "Tool Executed"
 
 def test_event_listener_decorator():
-    emitter = DummyEmitter()
-    assert hasattr(emitter.dummy_listener, '_is_event_listener')
-    assert emitter.dummy_listener._event_type == EventType.TOOL_EXECUTION_COMPLETED
+    emitter = TestEmitter()
+    assert hasattr(emitter.on_tool_completed, '_is_event_listener')
+    assert emitter.on_tool_completed._event_type == EventType.TOOL_EXECUTION_COMPLETED

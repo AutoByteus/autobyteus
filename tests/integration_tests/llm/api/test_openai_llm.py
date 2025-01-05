@@ -2,6 +2,7 @@ import pytest
 import asyncio
 import os
 from autobyteus.llm.api.openai_llm import OpenAILLM
+from autobyteus.llm.models import LLMModel
 
 @pytest.fixture
 def set_openai_env(monkeypatch):
@@ -12,9 +13,7 @@ def openai_llm(set_openai_env):
     openai_api_key = os.getenv("OPENAI_API_KEY")
     if not openai_api_key:
         pytest.skip("OpenAI API key not set. Skipping OpenAILLM tests.")
-    model_name = None  # Use default model
-    system_message = "You are a helpful assistant."
-    return OpenAILLM(model_name=model_name, system_message=system_message)
+    return OpenAILLM(model=LLMModel.GPT_4o_API)
 
 @pytest.mark.asyncio
 async def test_openai_llm_response(openai_llm):
@@ -49,8 +48,8 @@ async def test_openai_llm_streaming(openai_llm):
     
     # Verify message history was updated correctly
     assert len(openai_llm.messages) == 3  # System message + User message + Assistant message
-    assert openai_llm.messages[-2].content == user_message
-    assert openai_llm.messages[-1].content == complete_response
+    assert openai_llm.messages[1].content == user_message
+    assert openai_llm.messages[2].content == complete_response
 
     # Print final response for manual verification
     print(f"\nComplete response: {complete_response}")

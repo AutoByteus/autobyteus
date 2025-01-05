@@ -2,32 +2,44 @@
 import anthropic
 from autobyteus.llm.token_counter.base_token_counter import BaseTokenCounter
 from autobyteus.llm.models import LLMModel
+from autobyteus.llm.utils.messages import Message
+from typing import List
 
 class ClaudeTokenCounter(BaseTokenCounter):
     """
     A token counter implementation for Claude (Anthropic) using the official Anthropic Python SDK.
     """
+
     def __init__(self, model: LLMModel):
         super().__init__(model)
         # Initialize anthropic client
         self.client = anthropic.Client()
 
-    def count_tokens(self, text: str) -> int:
+    def count_input_tokens(self, messages: List[Message]) -> int:
         """
-        Count the number of tokens in the given text using Anthropic's token counter.
-        
-        Note: This token count is only accurate for older models like claude-2.1.
-        For newer Claude models, this should be considered a very rough estimate.
-        For exact token counts with newer models, rely on the `usage` property
-        in the API response instead.
+        Count the total number of tokens in the list of input messages using Anthropic's token counter.
 
         Args:
-            text (str): The text to count tokens for.
+            messages (List[Message]): The list of input messages.
 
         Returns:
-            int: An approximate count of tokens in the text.
+            int: The total number of input tokens.
         """
-        if not text:
+        if not messages:
             return 0
-        # The count_tokens method from the anthropic client expects a list
-        return self.client.count_tokens([text])
+        texts = [message.content for message in messages]
+        return self.client.count_tokens(texts)
+
+    def count_output_tokens(self, message: Message) -> int:
+        """
+        Count the number of tokens in the output message using Anthropic's token counter.
+
+        Args:
+            message (Message): The output message.
+
+        Returns:
+            int: The number of output tokens.
+        """
+        if not message.content:
+            return 0
+        return self.client.count_tokens([message.content])

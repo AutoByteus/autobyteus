@@ -13,7 +13,7 @@ from autobyteus.conversation.conversation import Conversation
 
 logger = logging.getLogger(__name__)
 
-class StandaloneAgent(EventEmitter):
+class Agent(EventEmitter):
     def __init__(self, role: str, llm: BaseLLM, tools: Optional[List[BaseTool]] = None,
                  agent_id=None,
                  prompt_builder: Optional[PromptBuilder] = None,
@@ -38,7 +38,6 @@ class StandaloneAgent(EventEmitter):
         if self.tools:
             self.set_agent_id_on_tools()
             
-        self.register_task_completion_listener()
         logger.info(f"StandaloneAgent initialized with role: {self.role}, agent_id: {self.agent_id}")
 
     def _initialize_queues(self):
@@ -64,12 +63,13 @@ class StandaloneAgent(EventEmitter):
             self._initialize_queues()
             self._initialize_task_completed()
             await self.initialize_conversation()
-            
-            self.status = AgentStatus.RUNNING
-            
+
             user_message_handler = asyncio.create_task(self.handle_user_messages())
             tool_result_handler = asyncio.create_task(self.handle_tool_result_messages())
-            
+
+            # Once everything is ready, set the status to RUNNING
+            self.status = AgentStatus.RUNNING
+
             await asyncio.gather(user_message_handler, tool_result_handler)
 
         except Exception as e:
@@ -96,10 +96,27 @@ class StandaloneAgent(EventEmitter):
                 logger.error(f"Error handling user message for agent {self.role}: {str(e)}")
 
     async def receive_user_message(self, message: UserMessage):
+        """
+        This method gracefully waits for the agent to become RUNNING
+        if it's in the process of starting up, ensuring the queues are
+        initialized before we put a message into them.
+        """
         logger.info(f"Agent {self.agent_id} received user message")
-        await self.user_messages.put(message)
-        if self.status != AgentStatus.RUNNING:
+
+        # If the agent is not started (or ended), begin the start process
+        if self.status in [AgentStatus.NOT_STARTED, AgentStatus.ENDED]:
             self.start()
+
+        # If the agent is still starting, wait until it transitions to RUNNING
+        while self.status == AgentStatus.STARTING:
+            await asyncio.sleep(0.1)
+
+        if self.status != AgentStatus.RUNNING:
+            logger.error(f"Agent is not in a running state: {self.status}")
+            return
+
+        # Now that we are running, safely place the message in the queue
+        await self.user_messages.put(message)
 
     async def handle_tool_result_messages(self):
         logger.info(f"Agent {self.role} started handling tool result messages")
@@ -138,7 +155,7 @@ class StandaloneAgent(EventEmitter):
         await self.process_llm_response(initial_llm_response)
 
     async def process_llm_response(self, response: str) -> None:
-        self.emit(EventType.ASSISTANT_RESPONSE, agent_id=self.agent_id, response=response)
+        self.emit(EventType.ASSISTANT_RESPONSE, response=response)
         
         if self.tools and self.tool_usage_response_parser:
             tool_invocation = self.tool_usage_response_parser.parse_response(response)
@@ -167,9 +184,21 @@ class StandaloneAgent(EventEmitter):
             logger.warning(f"Tool '{name}' not found for agent {self.role}.")
 
     def start(self):
-        if self.status == AgentStatus.NOT_STARTED or self.status == AgentStatus.ENDED:
+        """
+        Starts the agent by creating a task that runs the main loop (run).
+        Sets the AgentStatus to STARTING to prevent message enqueuing before
+        the system is fully initialized.
+        """
+        if self.status in [AgentStatus.NOT_STARTED, AgentStatus.ENDED]:
             logger.info(f"Starting agent {self.role}")
+            self.status = AgentStatus.STARTING
             self._run_task = asyncio.create_task(self.run())
+        elif self.status == AgentStatus.STARTING:
+            logger.info(f"Agent {self.role} is already in STARTING state.")
+        elif self.status == AgentStatus.RUNNING:
+            logger.info(f"Agent {self.role} is already running.")
+        else:
+            logger.warning(f"Agent {self.role} is in an unexpected state: {self.status}")
 
     def stop(self):
         if self._run_task and not self._run_task.done():
@@ -200,7 +229,3 @@ class StandaloneAgent(EventEmitter):
     def on_task_completed(self, *args, **kwargs):
         logger.info(f"Task completed event received for agent: {self.role}")
         self.task_completed.set()
-
-    def register_task_completion_listener(self):
-        logger.info(f"Registering task completion listener for agent: {self.role}")
-        self.subscribe(EventType.TASK_COMPLETED, self.on_task_completed, self.agent_id)

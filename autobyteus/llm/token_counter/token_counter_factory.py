@@ -4,6 +4,7 @@ from autobyteus.llm.token_counter.claude_token_counter import ClaudeTokenCounter
 from autobyteus.llm.token_counter.mistral_token_counter import MistralTokenCounter
 from autobyteus.llm.token_counter.base_token_counter import BaseTokenCounter
 from autobyteus.llm.models import LLMModel
+from autobyteus.llm.providers import LLMProvider
 
 def get_token_counter(model: LLMModel) -> BaseTokenCounter:
     """
@@ -15,11 +16,11 @@ def get_token_counter(model: LLMModel) -> BaseTokenCounter:
     Returns:
         BaseTokenCounter: An instance of a token counter specific to the model.
     """
-    if model.provider == "OPENAI":
+    if model.provider == LLMProvider.OPENAI:
         return OpenAITokenCounter(model)
-    elif model.provider == "ANTHROPIC":
+    elif model.provider == LLMProvider.ANTHROPIC:
         return ClaudeTokenCounter(model)
-    elif model.provider == "MISTRAL":
+    elif model.provider == LLMProvider.MISTRAL:
         return MistralTokenCounter(model)
     else:
         # For models that do not have a specialized counter, raise a NotImplementedError

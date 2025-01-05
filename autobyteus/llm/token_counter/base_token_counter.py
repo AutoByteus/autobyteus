@@ -1,8 +1,7 @@
 
 import abc
-from typing import Optional
-
-from autobyteus.llm.utils.llm_config import LLMConfig
+from typing import List
+from autobyteus.llm.utils.messages import Message
 
 class BaseTokenCounter(abc.ABC):
     """
@@ -10,42 +9,56 @@ class BaseTokenCounter(abc.ABC):
     Different providers have different token counting approaches.
     """
 
-    def __init__(self, config: LLMConfig):
-        self.config = config
-        self.input_tokens = 0
-        self.output_tokens = 0
+    def __init__(self, model: str):
+        """
+        Initialize the BaseTokenCounter with the model.
+
+        Args:
+            model (str): The model to be used for token counting.
+        """
+        self.model = model
 
     @abc.abstractmethod
-    def count_tokens(self, text: str) -> int:
+    def count_input_tokens(self, messages: List[Message]) -> int:
         """
-        Return the number of tokens for the given text based on the provider's methodology.
+        Return the total number of tokens for the given list of input messages based on the provider's methodology.
+
+        Args:
+            messages (List[Message]): The list of input messages.
+
+        Returns:
+            int: The total number of input tokens.
         """
         pass
 
-    def add_input_tokens(self, text: str) -> bool:
+    @abc.abstractmethod
+    def count_output_tokens(self, message: Message) -> int:
         """
-        Adds the computed tokens for an input text.
-        Returns True always since there is no token limit.
-        """
-        tokens = self.count_tokens(text)
-        self.input_tokens += tokens
-        return True
+        Return the number of tokens for the given output message based on the provider's methodology.
 
-    def add_output_tokens(self, text: str) -> bool:
+        Args:
+            message (Message): The output message.
+
+        Returns:
+            int: The number of output tokens.
         """
-        Adds the computed tokens for an output text.
-        Returns True always since there is no token limit.
-        """
-        tokens = self.count_tokens(text)
-        self.output_tokens += tokens
-        return True
+        pass
 
     def reset(self):
         """
-        Resets the counter for both input and output tokens.
+        Resets any internal counters or state. This method can be overridden by subclasses if needed.
         """
-        self.input_tokens = 0
-        self.output_tokens = 0
+        pass
 
-    def get_total_tokens(self) -> int:
-        return self.input_tokens + self.output_tokens
+    def get_total_tokens(self, input_tokens: int, output_tokens: int) -> int:
+        """
+        Returns the total tokens based on provided input and output token counts.
+
+        Args:
+            input_tokens (int): The number of input tokens.
+            output_tokens (int): The number of output tokens.
+
+        Returns:
+            int: The total number of tokens.
+        """
+        return input_tokens + output_tokens

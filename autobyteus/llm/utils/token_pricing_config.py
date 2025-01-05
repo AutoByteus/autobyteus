@@ -18,14 +18,16 @@ class TokenPricingConfigRegistry:
     """
     _prices = {
         # ChatGPT models
-        LLMModel.GPT_4o_API.value: TokenPricingConfig(0.0000015, 0.000002),
-        LLMModel.o1_MINI_API.value: TokenPricingConfig(0.00003, 0.00006),
-        LLMModel.o1_API.value: TokenPricingConfig(0.0000015, 0.000002),
+        LLMModel.GPT_4o_API.value: TokenPricingConfig(2.50, 10.00),
+        LLMModel.o1_API.value: TokenPricingConfig(15.00, 60.00),
+        LLMModel.o1_MINI_API.value: TokenPricingConfig(0.15, 0.60),
+        LLMModel.CHATGPT_4O_LATEST_API.value: TokenPricingConfig(2.50, 10.00),
+        LLMModel.GPT_3_5_TURBO_API.value: TokenPricingConfig(1.50, 2.00),
 
         # Mistral models
-        LLMModel.MISTRAL_SMALL_API.value: TokenPricingConfig(0.0000015, 0.0000015),
-        LLMModel.MISTRAL_MEDIUM_API.value: TokenPricingConfig(0.000002, 0.000002),
-        LLMModel.MISTRAL_LARGE_API.value: TokenPricingConfig(0.000003, 0.000003),
+        LLMModel.MISTRAL_SMALL_API.value: TokenPricingConfig(0.20, 0.60),
+        LLMModel.MISTRAL_MEDIUM_API.value: TokenPricingConfig(0.20, 0.60),
+        LLMModel.MISTRAL_LARGE_API.value: TokenPricingConfig(2.00, 6.00),
 
         # Groq models
         LLMModel.GEMMA_2_9B_IT_API.value: TokenPricingConfig(0.0000005, 0.0000005),
@@ -47,9 +49,11 @@ class TokenPricingConfigRegistry:
         LLMModel.GEMMA_2_27B_API.value: TokenPricingConfig(0.0000001, 0.0000002),
 
         # Claude models
-        LLMModel.CLAUDE_3_HAIKU_API.value: TokenPricingConfig(0.0000015, 0.000002),
-        LLMModel.CLAUDE_3_OPUS_API.value: TokenPricingConfig(0.00003, 0.00006),
-        LLMModel.CLAUDE_3_5_SONNET_API.value: TokenPricingConfig(0.000002, 0.000003),
+        LLMModel.CLAUDE_3_HAIKU_API.value: TokenPricingConfig(0.25, 1.25),
+        LLMModel.CLAUDE_3_OPUS_API.value: TokenPricingConfig(15.00, 75.00),
+        LLMModel.CLAUDE_3_5_SONNET_API.value: TokenPricingConfig(3.00, 15.00),
+        LLMModel.CLAUDE_3_SONNET_API.value: TokenPricingConfig(3.00, 15.00),
+        LLMModel.BEDROCK_CLAUDE_3_5_SONNET_API.value: TokenPricingConfig(3.00, 15.00),
 
         # Perplexity models
         LLMModel.LLAMA_3_1_SONAR_LARGE_128K_ONLINE_API.value: TokenPricingConfig(0.000001, 0.000001),
@@ -61,6 +65,12 @@ class TokenPricingConfigRegistry:
         LLMModel.GEMMA_2_27B_IT_API.value: TokenPricingConfig(0.000001, 0.000001),
         LLMModel.NEMOTRON_4_340B_INSTRUCT_API.value: TokenPricingConfig(0.00002, 0.00002),
         LLMModel.MIXTRAL_8X7B_INSTRUCT_API.value: TokenPricingConfig(0.000001, 0.000001),
+
+        # DeepSeek models
+        LLMModel.DEEPSEEK_CHAT_API.value: TokenPricingConfig(0.14, 0.28),
+
+        # NVIDIA models
+        LLMModel.NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT_API.value: TokenPricingConfig(0.00002, 0.00002),
     }
 
     @classmethod

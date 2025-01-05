@@ -9,7 +9,7 @@ from autobyteus.events.event_types import EventType
 
 logger = logging.getLogger(__name__)
 
-class BaseAgentOrchestrator(EventEmitter, ABC):
+class BaseAgentOrchestrator(EventEmitter):
     def __init__(self):
         super().__init__()
         self.agents: Dict[str, GroupAwareAgent] = {}  # Keyed by agent_id
@@ -58,8 +58,20 @@ class BaseAgentOrchestrator(EventEmitter, ABC):
             logger.info(f"Agent removed: role={agent.role}, id={agent_id}")
 
     def handle_task_completed(self, agent_id: str):
+        """
+        Handle task completion for a specific agent. This emits the event directly to the target agent,
+        ensuring only the relevant agent receives the completion notification.
+        """
+        logger.info(f"Handling task completion for agent: {agent_id}")
         #self.remove_agent(agent_id)
-        self.emit(EventType.TASK_COMPLETED, agent_id)
+        
+        # Get the target agent
+        target_agent = self.get_agent(agent_id)
+        if target_agent:
+            # Emit the event directly to the target agent
+            self.emit(EventType.TASK_COMPLETED, target=target_agent)
+        else:
+            logger.warning(f"Could not find agent {agent_id} to notify of task completion")
 
     @abstractmethod
     async def run(self):

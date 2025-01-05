@@ -7,7 +7,7 @@ from autobyteus.llm.models import LLMModel
 @pytest.fixture
 def ollama_llm():
     system_message = "You are a helpful assistant."
-    return OllamaLLM(model_name=LLMModel.OLLAMA_LLAMA_3_2, system_message=system_message)
+    return OllamaLLM(model=LLMModel.OLLAMA_LLAMA_3_2, system_message=system_message)
 
 @pytest.mark.asyncio
 async def test_ollama_llm_response(ollama_llm):
@@ -41,9 +41,9 @@ async def test_ollama_llm_streaming(ollama_llm):
     assert isinstance(complete_response, str)
 
     # Verify message history was updated correctly
-    assert len(ollama_llm.messages) == 2  # User message + Assistant message
-    assert ollama_llm.messages[0].content == user_message
-    assert ollama_llm.messages[1].content == complete_response
+    assert len(ollama_llm.messages) == 3  # System Message + User message + Assistant message
+    assert ollama_llm.messages[1].content == user_message
+    assert ollama_llm.messages[2].content == complete_response
 
     # Print final response for manual verification
     print(f"\nComplete response: {complete_response}")

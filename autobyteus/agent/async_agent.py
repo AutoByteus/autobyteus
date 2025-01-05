@@ -9,7 +9,7 @@ from typing import (
     Union,
     AsyncIterator
 )
-from autobyteus.agent.agent import StandaloneAgent
+from autobyteus.agent.agent import Agent
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.prompt.prompt_builder import PromptBuilder
@@ -21,7 +21,7 @@ from autobyteus.agent.tool_invocation import ToolInvocation
 
 logger = logging.getLogger(__name__)
 
-class AsyncAgent(StandaloneAgent):
+class AsyncAgent(Agent):
     """
     An asynchronous agent that supports streaming LLM responses while maintaining
     compatibility with the base agent functionality.
@@ -149,7 +149,6 @@ class AsyncAgent(StandaloneAgent):
                 # Emit each chunk as it arrives
                 self.emit(
                     EventType.ASSISTANT_RESPONSE, 
-                    agent_id=self.agent_id, 
                     response=chunk,
                     is_complete=False
                 )
@@ -157,7 +156,6 @@ class AsyncAgent(StandaloneAgent):
             # Emit the complete response
             self.emit(
                 EventType.ASSISTANT_RESPONSE, 
-                agent_id=self.agent_id, 
                 response=complete_response,
                 is_complete=True
             )
@@ -174,5 +172,4 @@ class AsyncAgent(StandaloneAgent):
             logger.error(f"Error processing streaming response for agent {self.role}: {str(e)}")
             self.emit(
                 EventType.ERROR,
-                agent_id=self.agent_id,
                 error=str(e))

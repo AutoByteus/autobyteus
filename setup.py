@@ -23,6 +23,7 @@ common_dependencies = [
     "Jinja2",
     "ollama",
     "mistral_common",
+    "aiohttp",
 ]
 
 setup(

@@ -7,11 +7,7 @@ from autobyteus.llm.models import LLMModel
 @pytest.fixture
 def set_openai_env(monkeypatch):
     # Set a dummy API key for testing
-    monkeypatch.setenv(
-        "OPENAI_API_KEY",
-        "",
-    )
-
+    monkeypatch.setenv("OPENAI_API_KEY", "")
 
 @pytest.fixture
 def test_image_path():
@@ -33,11 +29,7 @@ def test_image_path():
 
 @pytest.fixture
 def openai_llm(set_openai_env):
-    system_message = "You are a helpful assistant."
-    return OpenAILLM(
-        model_name=LLMModel.CHATGPT_4O_LATEST_API, system_message=system_message
-    )
-
+    return OpenAILLM(model=LLMModel.CHATGPT_4O_LATEST_API)
 
 @pytest.fixture
 def multiple_test_images(test_image_path):

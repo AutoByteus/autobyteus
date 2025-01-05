@@ -68,10 +68,10 @@ class Timer(BaseTool, EventEmitter):
         """
         remaining_time = self.duration
         while remaining_time > 0:
-            self.emit(EventType.TIMER_UPDATE, self.agent_id, remaining_time=remaining_time)
+            self.emit(EventType.TIMER_UPDATE, remaining_time=remaining_time)
             await asyncio.sleep(min(self.interval, remaining_time))
             remaining_time -= self.interval
-        self.emit(EventType.TIMER_UPDATE, self.agent_id, remaining_time=0)
+        self.emit(EventType.TIMER_UPDATE, remaining_time=0)
         self._is_running = False
 
     async def _execute(self, **kwargs):

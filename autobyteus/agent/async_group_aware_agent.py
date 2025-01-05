@@ -1,3 +1,4 @@
+
 import asyncio
 import logging
 from typing import Optional, AsyncIterator
@@ -30,7 +31,20 @@ class AsyncGroupAwareAgent(AsyncAgent):
         self.agent_orchestrator = agent_orchestrator
         if not any(isinstance(tool, SendMessageTo) for tool in self.tools):
             self.tools.append(SendMessageTo(agent_orchestrator))
+        self.register_task_completion_listener()
         logger.info(f"Agent orchestrator set for agent {self.role}")
+
+    def register_task_completion_listener(self):
+        """Register to listen for task completion events from the orchestrator specifically"""
+        logger.info(f"Registering task completion listener for agent: {self.role}")
+        if self.agent_orchestrator:
+            self.subscribe_from(
+                self.agent_orchestrator, 
+                EventType.TASK_COMPLETED,
+                self.on_task_completed
+            )
+        else:
+            logger.warning(f"Cannot register task completion listener for agent {self.role}: orchestrator not set")
 
     async def receive_agent_message(self, message: Message):
         logger.info(f"Agent {self.agent_id} received message from {message.sender_agent_id}")

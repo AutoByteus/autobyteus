@@ -1,4 +1,3 @@
-# File: autobyteus/events/decorators.py
 
 import functools
 from autobyteus.events.event_types import EventType
@@ -13,7 +12,8 @@ def publish_event(event_type: EventType):
         def wrapper(self, *args, **kwargs):
             result = func(self, *args, **kwargs)
             if isinstance(self, EventEmitter):
-                self.emit(event_type, result)
+                # Emit the event from this emitter instance
+                self.emit(event_type, result=result)
             return result
         return wrapper
     return decorator

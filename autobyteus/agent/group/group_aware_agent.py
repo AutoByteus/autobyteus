@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from autobyteus.agent.agent import StandaloneAgent, AgentStatus
+from autobyteus.agent.agent import Agent, AgentStatus
 from autobyteus.agent.message.send_message_to import SendMessageTo
 from autobyteus.events.event_types import EventType
 from autobyteus.agent.message.message_types import MessageType
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-class GroupAwareAgent(StandaloneAgent):
+class GroupAwareAgent(Agent):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.agent_orchestrator: Optional['BaseAgentOrchestrator'] = None

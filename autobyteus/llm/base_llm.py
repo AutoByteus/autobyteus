@@ -1,48 +1,159 @@
 
 from abc import ABC, abstractmethod
-from typing import List, Optional, AsyncGenerator
+from typing import List, Optional, AsyncGenerator, Type, Dict, Union
 
 from autobyteus.llm.utils.llm_config import LLMConfig
-from autobyteus.llm.utils.rate_limiter import RateLimiter
-from autobyteus.llm.token_counter.token_counter_factory import get_token_counter
-from autobyteus.llm.utils.cost_calculator import TokenPriceCalculator
 from autobyteus.llm.models import LLMModel
+from autobyteus.llm.extensions.base_extension import LLMExtension
+from autobyteus.llm.extensions.extension_registry import ExtensionRegistry
+from autobyteus.llm.utils.messages import Message, MessageRole
+from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 
 class BaseLLM(ABC):
-    def __init__(self, model: LLMModel, custom_config: LLMConfig = None):
+    DEFAULT_SYSTEM_MESSAGE = "You are a helpful assistant"
+
+    def __init__(self, model: LLMModel, system_message: Optional[str] = None, custom_config: LLMConfig = None):
         """
-        Base class for all LLMs. This sets up the configuration,
-        rate limiter, token counter, and cost calculator.
+        Base class for all LLMs. Provides core messaging functionality
+        and extension support.
 
         Args:
             model (LLMModel): An LLMModel enum value.
-            custom_config (LLMConfig, optional): A custom config overriding the default. Defaults to None.
+            system_message (str, optional): An initial system message.
+            custom_config (LLMConfig, optional): A custom config overriding the default.
         """
         self.model = model
         self.config = custom_config if custom_config else model.default_config
+        self._extension_registry = ExtensionRegistry()
+        self.messages: List[Message] = []
+        self.system_message = system_message if system_message is not None else self.DEFAULT_SYSTEM_MESSAGE
+        self.add_system_message(self.system_message)
 
-        # Initialize the rate limiter
-        self.rate_limiter = RateLimiter(self.config)
-
-        # Initialize the provider, token counter, and cost calculator
-        self._initialize_cost_calculator()
-
-    def _initialize_cost_calculator(self):
+    def register_extension(self, extension_class: Type[LLMExtension]) -> LLMExtension:
         """
-        Initializes the provider, token counter, and cost calculator based on the model.
+        Register a new extension.
+        
+        Args:
+            extension_class: The extension class to instantiate and register
+        
+        Returns:
+            LLMExtension: The instantiated extension
         """
-        try:
-            # Initialize the token counter based on the model
-            self.token_counter = get_token_counter(self.model) if self.model else None
+        extension = extension_class(self)
+        self._extension_registry.register(extension)
+        return extension
 
-            # Create a cost calculator attribute based on the model
-            self.cost_calculator = TokenPriceCalculator(self.model, self.token_counter) if self.token_counter else None
-        except Exception as e:
-            # Log the error and set cost_calculator to None
-            print(f"Error initializing cost calculator: {e}")
-            self.cost_calculator = None
+    def unregister_extension(self, extension: LLMExtension) -> None:
+        """
+        Unregister an existing extension.
+        
+        Args:
+            extension (LLMExtension): The extension to unregister
+        """
+        self._extension_registry.unregister(extension)
 
-    async def send_user_message(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs):
+    def get_extension(self, extension_class: Type[LLMExtension]) -> Optional[LLMExtension]:
+        """
+        Get a registered extension by its class.
+        
+        Args:
+            extension_class: The class of the extension to retrieve
+            
+        Returns:
+            Optional[LLMExtension]: The extension instance if found, None otherwise
+        """
+        return self._extension_registry.get(extension_class)
+
+    def __getattr__(self, name: str):
+        """
+        Enable attribute-style access to extensions.
+        Example: llm.token_usage_extension
+        """
+        # Convert attribute name to potential extension class name
+        # e.g., "token_usage_extension" -> "TokenUsageExtension"
+        class_name = ''.join(word.capitalize() for word in name.split('_'))
+        if not class_name.endswith('Extension'):
+            class_name += 'Extension'
+            
+        # Look for an extension matching this pattern
+        for extension in self._extension_registry.get_all():
+            if extension.__class__.__name__ == class_name:
+                return extension
+                
+        raise AttributeError(f"'{self.__class__.__name__}' has no attribute '{name}'")
+
+    def add_system_message(self, message: str):
+        """
+        Add a system message to the conversation history.
+
+        Args:
+            message (str): The system message content.
+        """
+        self.messages.append(Message(MessageRole.SYSTEM, message))
+
+    def add_user_message(self, message: Union[str, List[Dict]]):
+        """
+        Add a user message to the conversation history.
+
+        Args:
+            message (Union[str, List[Dict]]): The user message content.
+        """
+        msg = Message(MessageRole.USER, message)
+        self.messages.append(msg)
+        self._trigger_on_user_message_added(msg)
+
+    def add_assistant_message(self, message: str):
+        """
+        Add an assistant message to the conversation history.
+
+        Args:
+            message (str): The assistant message content.
+        """
+        msg = Message(MessageRole.ASSISTANT, message)
+        self.messages.append(msg)
+        self._trigger_on_assistant_message_added(msg)
+
+    def _trigger_on_user_message_added(self, message: Message):
+        """
+        Internal helper to invoke the on_user_message_added hook on every extension.
+
+        Args:
+            message (Message): The user message that was added
+        """
+        for extension in self._extension_registry.get_all():
+            extension.on_user_message_added(message)
+
+    def _trigger_on_assistant_message_added(self, message: Message):
+        """
+        Internal helper to invoke the on_assistant_message_added hook on every extension.
+
+        Args:
+            message (Message): The assistant message that was added
+        """
+        for extension in self._extension_registry.get_all():
+            extension.on_assistant_message_added(message)
+
+    async def _execute_before_hooks(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> None:
+        """
+        Execute all registered before_invoke hooks.
+        """
+        for extension in self._extension_registry.get_all():
+            await extension.before_invoke(user_message, file_paths, **kwargs)
+
+    async def _execute_after_hooks(self, user_message: str, file_paths: Optional[List[str]] = None, response: CompleteResponse = None, **kwargs) -> None:
+        """
+        Execute all registered after_invoke hooks.
+        
+        Args:
+            user_message (str): The original user message
+            file_paths (Optional[List[str]]): Any file paths used in the request
+            response (CompleteResponse): The complete response from the LLM
+            **kwargs: Additional arguments for LLM-specific usage
+        """
+        for extension in self._extension_registry.get_all():
+            await extension.after_invoke(user_message, file_paths, response, **kwargs)
+
+    async def send_user_message(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> str:
         """
         Sends a user message to the LLM and returns the LLM's response.
 
@@ -54,9 +165,10 @@ class BaseLLM(ABC):
         Returns:
             str: The response from the LLM.
         """
-        await self.rate_limiter.wait_if_needed()
+        await self._execute_before_hooks(user_message, file_paths, **kwargs)
         response = await self._send_user_message_to_llm(user_message, file_paths, **kwargs)
-        return response
+        await self._execute_after_hooks(user_message, file_paths, response, **kwargs)
+        return response.content
 
     async def stream_user_message(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> AsyncGenerator[str, None]:
         """
@@ -70,18 +182,34 @@ class BaseLLM(ABC):
         Yields:
             AsyncGenerator[str, None]: Tokens from the LLM response.
         """
-        await self.rate_limiter.wait_if_needed()
-        async for token in self._stream_user_message_to_llm(user_message, file_paths, **kwargs):
-            yield token
+        await self._execute_before_hooks(user_message, file_paths, **kwargs)
+
+        accumulated_content = ""
+        final_chunk = None
+        
+        async for chunk in self._stream_user_message_to_llm(user_message, file_paths, **kwargs):
+            accumulated_content += chunk.content
+            if chunk.is_complete:
+                final_chunk = chunk
+            yield chunk.content
+
+        # Create a CompleteResponse from the accumulated content and final chunk's usage
+        complete_response = CompleteResponse(
+            content=accumulated_content,
+            usage=final_chunk.usage if final_chunk else None
+        )
+        
+        await self._execute_after_hooks(user_message, file_paths, complete_response, **kwargs)
 
     @abstractmethod
-    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> str:
+    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> CompleteResponse:
         """
         Abstract method for sending a user message to an LLM. Must be implemented by subclasses.
         """
         pass
 
-    async def _stream_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> AsyncGenerator[str, None]:
+    @abstractmethod
+    async def _stream_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> AsyncGenerator[ChunkResponse, None]:
         """
         Abstract method for streaming a user message response from the LLM. Must be implemented by subclasses.
         """
@@ -89,17 +217,9 @@ class BaseLLM(ABC):
 
     async def cleanup(self):
         """
-        Perform any cleanup operations. Subclasses may override this method if needed.
+        Perform cleanup operations for the LLM and all extensions.
         """
-        pass
-
-    def get_token_limit(self) -> int:
-        """
-        Get the maximum token limit for the current LLM.
-
-        Returns:
-            int: The token limit or infinity if no limit is specified.
-        """
-        if self.token_counter and self.token_counter.token_limit:
-            return self.token_counter.token_limit
-        return float('inf')
+        for extension in self._extension_registry.get_all():
+            await extension.cleanup()
+        self._extension_registry.clear()
+        self.messages = []

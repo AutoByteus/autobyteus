@@ -3,12 +3,13 @@ import asyncio
 import re
 from typing import List, Optional, AsyncGenerator
 from autobyteus.llm.base_llm import BaseLLM
+from autobyteus.llm.models import LLMModel
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.conversation.conversation import Conversation
 
 class MockLLM(BaseLLM):
     def __init__(self, responses=None):
-        super().__init__(model="mock-model")
+        super().__init__(model=LLMModel.MISTRAL_LARGE_API)
         self.responses = responses or ["Default response"]
         self.current_response = 0
         

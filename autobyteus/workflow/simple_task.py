@@ -2,7 +2,7 @@ import asyncio
 import logging
 from typing import Optional, Callable, Any, List, Union
 
-from autobyteus.agent.agent import StandaloneAgent
+from autobyteus.agent.agent import Agent
 from autobyteus.events.event_types import EventType
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.llm_factory import LLMFactory
@@ -57,7 +57,7 @@ class SimpleTask:
                 file_paths=self.input_data
             )
 
-            agent = StandaloneAgent(
+            agent = Agent(
                 role=self.name,
                 llm=llm,
                 initial_user_message=user_message
