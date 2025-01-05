@@ -1,5 +1,5 @@
 
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, AsyncGenerator
 import boto3
 import json
 import os
@@ -7,6 +7,8 @@ from botocore.exceptions import ClientError
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.messages import MessageRole, Message
+from autobyteus.llm.utils.token_usage import TokenUsage
+from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 
 class BedrockLLM(BaseLLM):
     def __init__(self, model: LLMModel = None, system_message: str = None):
@@ -35,7 +37,7 @@ class BedrockLLM(BaseLLM):
         except Exception as e:
             raise ValueError(f"Failed to initialize Bedrock client: {str(e)}")
     
-    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> str:
+    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> CompleteResponse:
         self.add_user_message(user_message)
         
         request_body = json.dumps({
@@ -54,8 +56,17 @@ class BedrockLLM(BaseLLM):
             response_body = json.loads(response['body'].read())
             assistant_message = response_body['content'][0]['text']
             self.add_assistant_message(assistant_message)
-            return assistant_message
             
+            token_usage = TokenUsage(
+                prompt_tokens=0,
+                completion_tokens=0,
+                total_tokens=0
+            )
+            
+            return CompleteResponse(
+                content=assistant_message,
+                usage=token_usage
+            )
         except ClientError as e:
             error_code = e.response['Error']['Code']
             error_message = e.response['Error']['Message']

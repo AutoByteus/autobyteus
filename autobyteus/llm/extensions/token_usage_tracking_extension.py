@@ -1,6 +1,5 @@
 
-from typing import Optional, List
-from autobyteus.llm.base_llm import BaseLLM
+from typing import Optional, List, TYPE_CHECKING
 from autobyteus.llm.extensions.base_extension import LLMExtension
 from autobyteus.llm.token_counter.token_counter_factory import get_token_counter
 from autobyteus.llm.utils.token_usage import TokenUsage
@@ -8,12 +7,15 @@ from autobyteus.llm.utils.token_usage_tracker import TokenUsageTracker
 from autobyteus.llm.utils.messages import Message, MessageRole
 from autobyteus.llm.utils.response_types import CompleteResponse
 
+if TYPE_CHECKING:
+    from autobyteus.llm.base_llm import BaseLLM
+
 class TokenUsageTrackingExtension(LLMExtension):
     """
     Extension that tracks and monitors token usage and associated costs for LLM interactions.
     """
 
-    def __init__(self, llm: BaseLLM):
+    def __init__(self, llm: "BaseLLM"):
         super().__init__(llm)
         self.token_counter = get_token_counter(llm.model)
         self.usage_tracker = TokenUsageTracker(llm.model, self.token_counter)

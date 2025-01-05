@@ -1,11 +1,13 @@
 
 import logging
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, AsyncGenerator
 from openai import OpenAI
 import os
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.messages import MessageRole, Message
+from autobyteus.llm.utils.token_usage import TokenUsage
+from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +33,7 @@ class NvidiaLLM(BaseLLM):
         except Exception as e:
             raise ValueError(f"Failed to initialize Nvidia client: {str(e)}")
     
-    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> str:
+    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> CompleteResponse:
         self.add_user_message(user_message)
         try:
             completion = self.client.chat.completions.create(
@@ -44,13 +46,23 @@ class NvidiaLLM(BaseLLM):
             )
             assistant_message = completion.choices[0].message.content
             self.add_assistant_message(assistant_message)
-            return assistant_message
+            
+            token_usage = TokenUsage(
+                prompt_tokens=0,
+                completion_tokens=0,
+                total_tokens=0
+            )
+            
+            return CompleteResponse(
+                content=assistant_message,
+                usage=token_usage
+            )
         except Exception as e:
             raise ValueError(f"Error in Nvidia API call: {str(e)}")
     
-    async def stream_response(self, user_message: str) -> str:
-        """Optional method for streaming responses"""
+    async def stream_response(self, user_message: str) -> AsyncGenerator[ChunkResponse, None]:
         self.add_user_message(user_message)
+        complete_response = ""
         try:
             completion = self.client.chat.completions.create(
                 model=self.model,
@@ -61,13 +73,28 @@ class NvidiaLLM(BaseLLM):
                 stream=True
             )
             
-            full_response = ""
             for chunk in completion:
                 if chunk.choices[0].delta.content is not None:
-                    full_response += chunk.choices[0].delta.content
+                    token = chunk.choices[0].delta.content
+                    complete_response += token
+                    yield ChunkResponse(
+                        content=token,
+                        is_complete=False
+                    )
+            
+            token_usage = TokenUsage(
+                prompt_tokens=0,
+                completion_tokens=0,
+                total_tokens=0
+            )
+            
+            yield ChunkResponse(
+                content="",
+                is_complete=True,
+                usage=token_usage
+            )
 
-            self.add_assistant_message(full_response)
-            return full_response
+            self.add_assistant_message(complete_response)
         except Exception as e:
             raise ValueError(f"Error in Nvidia API streaming call: {str(e)}")
     

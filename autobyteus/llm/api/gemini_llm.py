@@ -1,11 +1,13 @@
 
 import logging
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, AsyncGenerator
 import google.generativeai as genai
 import os
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.messages import MessageRole, Message
+from autobyteus.llm.utils.token_usage import TokenUsage
+from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +29,7 @@ class GeminiLLM(BaseLLM):
     def initialize(cls):
         api_key = os.environ.get("GEMINI_API_KEY")
         if not api_key:
+            logger.error("GEMINI_API_KEY environment variable is not set.")
             raise ValueError(
                 "GEMINI_API_KEY environment variable is not set. "
                 "Please set this variable in your environment."
@@ -35,7 +38,8 @@ class GeminiLLM(BaseLLM):
             genai.configure(api_key=api_key)
             return genai
         except Exception as e:
-            raise ValueError(f"Failed to initialize Gemini: {str(e)}")
+            logger.error(f"Failed to initialize Gemini client: {str(e)}")
+            raise ValueError(f"Failed to initialize Gemini client: {str(e)}")
 
     def _ensure_chat_session(self):
         if not self.chat_session:
@@ -48,15 +52,26 @@ class GeminiLLM(BaseLLM):
                 history.append({"role": msg.role.value, "parts": [msg.content]})
             self.chat_session = model.start_chat(history=history)
 
-    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> str:
+    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> CompleteResponse:
         self.add_user_message(user_message)
         try:
             self._ensure_chat_session()
             response = self.chat_session.send_message(user_message)
             assistant_message = response.text
             self.add_assistant_message(assistant_message)
-            return assistant_message
+            
+            token_usage = TokenUsage(
+                prompt_tokens=0,
+                completion_tokens=0,
+                total_tokens=0
+            )
+            
+            return CompleteResponse(
+                content=assistant_message,
+                usage=token_usage
+            )
         except Exception as e:
+            logger.error(f"Error in Gemini API call: {str(e)}")
             raise ValueError(f"Error in Gemini API call: {str(e)}")
     
     async def cleanup(self):

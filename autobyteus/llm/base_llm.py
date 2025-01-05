@@ -2,6 +2,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional, AsyncGenerator, Type, Dict, Union
 
+from autobyteus.llm.extensions.token_usage_tracking_extension import TokenUsageTrackingExtension
 from autobyteus.llm.utils.llm_config import LLMConfig
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.extensions.base_extension import LLMExtension
@@ -25,6 +26,10 @@ class BaseLLM(ABC):
         self.model = model
         self.config = custom_config if custom_config else model.default_config
         self._extension_registry = ExtensionRegistry()
+
+        # Register TokenUsageTrackingExtension by default
+        self.register_extension(TokenUsageTrackingExtension)
+
         self.messages: List[Message] = []
         self.system_message = system_message if system_message is not None else self.DEFAULT_SYSTEM_MESSAGE
         self.add_system_message(self.system_message)
