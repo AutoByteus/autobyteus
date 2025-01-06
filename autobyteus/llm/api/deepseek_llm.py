@@ -114,7 +114,7 @@ class DeepSeekLLM(BaseLLM):
                 stream_options={"include_usage": True}
             )
 
-            async for chunk in stream:
+            for chunk in stream:
                 chunk: ChatCompletionChunk
                 if chunk.choices[0].delta.content is not None:
                     token = chunk.choices[0].delta.content

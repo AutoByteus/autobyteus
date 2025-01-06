@@ -28,11 +28,21 @@ class BaseLLM(ABC):
         self._extension_registry = ExtensionRegistry()
 
         # Register TokenUsageTrackingExtension by default
-        self.register_extension(TokenUsageTrackingExtension)
+        self._token_usage_extension: TokenUsageTrackingExtension = self.register_extension(TokenUsageTrackingExtension)
 
         self.messages: List[Message] = []
         self.system_message = system_message if system_message is not None else self.DEFAULT_SYSTEM_MESSAGE
         self.add_system_message(self.system_message)
+
+    @property
+    def latest_token_usage(self):
+        """
+        Get the token usage from the last interaction with the LLM.
+        
+        Returns:
+            The token usage information from the last interaction
+        """
+        return self._token_usage_extension.latest_token_usage
 
     def register_extension(self, extension_class: Type[LLMExtension]) -> LLMExtension:
         """
@@ -68,24 +78,6 @@ class BaseLLM(ABC):
             Optional[LLMExtension]: The extension instance if found, None otherwise
         """
         return self._extension_registry.get(extension_class)
-
-    def __getattr__(self, name: str):
-        """
-        Enable attribute-style access to extensions.
-        Example: llm.token_usage_extension
-        """
-        # Convert attribute name to potential extension class name
-        # e.g., "token_usage_extension" -> "TokenUsageExtension"
-        class_name = ''.join(word.capitalize() for word in name.split('_'))
-        if not class_name.endswith('Extension'):
-            class_name += 'Extension'
-            
-        # Look for an extension matching this pattern
-        for extension in self._extension_registry.get_all():
-            if extension.__class__.__name__ == class_name:
-                return extension
-                
-        raise AttributeError(f"'{self.__class__.__name__}' has no attribute '{name}'")
 
     def add_system_message(self, message: str):
         """

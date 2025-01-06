@@ -113,32 +113,33 @@ class OpenAILLM(BaseLLM):
                 messages=[msg.to_dict() for msg in self.messages],
                 max_tokens=self.max_tokens,
                 stream=True,
-                stream_options={"include_usage": True}  # Added this option to get usage stats
+                stream_options={"include_usage": True}
             )
 
-            async for chunk in stream:
+            for chunk in stream:
                 chunk: ChatCompletionChunk
-                if chunk.choices[0].delta.content is not None:
+                
+                # Check if this chunk has choices with content
+                if chunk.choices and chunk.choices[0].delta.content is not None:
                     token = chunk.choices[0].delta.content
                     complete_response += token
-                    
-                    # For intermediate chunks, don't include usage
                     yield ChunkResponse(
                         content=token,
                         is_complete=False
                     )
-
-                # Check if this is the last chunk (it will have usage data)
+                
+                # Handle the final chunk with usage data
                 if hasattr(chunk, 'usage') and chunk.usage is not None:
                     token_usage = self._create_token_usage(chunk.usage)
+                    # Add the assistant's complete response to the conversation history
+                    self.add_assistant_message(complete_response)
+                    logger.info("Completed streaming response from OpenAI API")
                     yield ChunkResponse(
                         content="",
                         is_complete=True,
                         usage=token_usage
                     )
 
-            self.add_assistant_message(complete_response)
-            logger.info("Completed streaming response from OpenAI API")
         except Exception as e:
             logger.error(f"Error in OpenAI API streaming: {str(e)}")
             raise ValueError(f"Error in OpenAI API streaming: {str(e)}")
