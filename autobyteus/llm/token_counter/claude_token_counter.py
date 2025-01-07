@@ -12,8 +12,23 @@ class ClaudeTokenCounter(BaseTokenCounter):
 
     def __init__(self, model: LLMModel):
         super().__init__(model)
-        # Initialize anthropic client
         self.client = anthropic.Client()
+
+    def convert_to_internal_format(self, messages: List[Message]) -> List[str]:
+        """
+        Convert messages to the internal format required for Claude token counting.
+
+        Args:
+            messages (List[Message]): The list of input messages.
+
+        Returns:
+            List[str]: The list of processed message strings.
+        """
+        processed_messages = []
+        for message in messages:
+            processed_message = f"{message.role.value}: {message.content}"
+            processed_messages.append(processed_message)
+        return processed_messages
 
     def count_input_tokens(self, messages: List[Message]) -> int:
         """
@@ -27,8 +42,18 @@ class ClaudeTokenCounter(BaseTokenCounter):
         """
         if not messages:
             return 0
-        texts = [message.content for message in messages]
-        return self.client.count_tokens(texts)
+
+        total_tokens = 0
+        processed_messages = self.convert_to_internal_format(messages)
+        
+        for message in processed_messages:
+            try:
+                tokens = self.client.count_tokens(message)
+                total_tokens += tokens
+            except Exception as e:
+                raise ValueError(f"Failed to count tokens for message: {str(e)}")
+                
+        return total_tokens
 
     def count_output_tokens(self, message: Message) -> int:
         """
@@ -42,4 +67,9 @@ class ClaudeTokenCounter(BaseTokenCounter):
         """
         if not message.content:
             return 0
-        return self.client.count_tokens([message.content])
+            
+        try:
+            processed_message = f"{message.role.value}: {message.content}"
+            return self.client.count_tokens(processed_message)
+        except Exception as e:
+            raise ValueError(f"Failed to count output tokens: {str(e)}")
