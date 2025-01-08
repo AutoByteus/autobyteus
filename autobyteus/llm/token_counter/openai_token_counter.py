@@ -1,18 +1,19 @@
-
 import tiktoken
-from typing import List
+from typing import List, TYPE_CHECKING
 from autobyteus.llm.token_counter.base_token_counter import BaseTokenCounter
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.utils.messages import Message
 
+if TYPE_CHECKING:
+    from autobyteus.llm.base_llm import BaseLLM
 
 class OpenAITokenCounter(BaseTokenCounter):
     """
     A token counter implementation for OpenAI models using tiktoken.
     """
 
-    def __init__(self, model: LLMModel):
-        super().__init__(model)
+    def __init__(self, model: LLMModel, llm: 'BaseLLM' = None):
+        super().__init__(model, llm)
         try:
             self.encoding = tiktoken.encoding_for_model(model.value)
         except Exception:

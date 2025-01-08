@@ -1,17 +1,19 @@
-
 import anthropic
+from typing import List, TYPE_CHECKING
 from autobyteus.llm.token_counter.base_token_counter import BaseTokenCounter
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.utils.messages import Message
-from typing import List
+
+if TYPE_CHECKING:
+    from autobyteus.llm.base_llm import BaseLLM
 
 class ClaudeTokenCounter(BaseTokenCounter):
     """
     A token counter implementation for Claude (Anthropic) using the official Anthropic Python SDK.
     """
 
-    def __init__(self, model: LLMModel):
-        super().__init__(model)
+    def __init__(self, model: LLMModel, llm: 'BaseLLM' = None):
+        super().__init__(model, llm)
         self.client = anthropic.Client()
 
     def convert_to_internal_format(self, messages: List[Message]) -> List[str]:

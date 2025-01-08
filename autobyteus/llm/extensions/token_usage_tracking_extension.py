@@ -17,7 +17,7 @@ class TokenUsageTrackingExtension(LLMExtension):
 
     def __init__(self, llm: "BaseLLM"):
         super().__init__(llm)
-        self.token_counter = get_token_counter(llm.model)
+        self.token_counter = get_token_counter(llm.model, llm)
         self.usage_tracker = TokenUsageTracker(llm.model, self.token_counter)
         self._latest_usage: Optional[TokenUsage] = None
 
@@ -35,29 +35,28 @@ class TokenUsageTrackingExtension(LLMExtension):
         self, user_message: str, file_paths: Optional[List[str]] = None, response: CompleteResponse = None, **kwargs
     ) -> None:
         """
-        Override self-calculated usage with provider's usage if available
+        Get the latest usage from tracker and optionally override token counts with provider's usage if available
         """
+        latest_usage = self.usage_tracker.get_latest_usage()
+        
         if isinstance(response, CompleteResponse) and response.usage:
-            latest_usage = self.usage_tracker.get_latest_usage()
-            if latest_usage:
-                # Update token counts from provider
-                latest_usage.prompt_tokens = response.usage.prompt_tokens
-                latest_usage.completion_tokens = response.usage.completion_tokens
-                latest_usage.total_tokens = response.usage.total_tokens
+            # Override token counts with provider's data if available
+            latest_usage.prompt_tokens = response.usage.prompt_tokens
+            latest_usage.completion_tokens = response.usage.completion_tokens
+            latest_usage.total_tokens = response.usage.total_tokens
+            
+        # Always calculate costs using current token counts
+        latest_usage.prompt_cost = self.usage_tracker.calculate_cost(
+            latest_usage.prompt_tokens, True)
+        latest_usage.completion_cost = self.usage_tracker.calculate_cost(
+            latest_usage.completion_tokens, False)
+        latest_usage.total_cost = latest_usage.prompt_cost + latest_usage.completion_cost
                 
-                # Recalculate costs using provider's token counts
-                latest_usage.prompt_cost = self.usage_tracker.calculate_cost(
-                    response.usage.prompt_tokens, True)
-                latest_usage.completion_cost = self.usage_tracker.calculate_cost(
-                    response.usage.completion_tokens, False)
-                latest_usage.total_cost = latest_usage.prompt_cost + latest_usage.completion_cost
-                
-                # Store the latest usage
-                self._latest_usage = latest_usage
+        self._latest_usage = latest_usage
 
     def on_user_message_added(self, message: Message) -> None:
-        """Track usage whenever a user message is added."""
-        self.usage_tracker.calculate_input_messages([message])
+        """Track usage whenever a user message is added. Here input message argument is not used, because the input token counts should consider all the input messages"""
+        self.usage_tracker.calculate_input_messages(self.llm.messages)
 
     def on_assistant_message_added(self, message: Message) -> None:
         """Track usage whenever an assistant message is added."""

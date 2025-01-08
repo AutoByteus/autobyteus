@@ -18,7 +18,7 @@ def mistral_llm(set_mistral_env):
 @pytest.mark.asyncio
 async def test_mistral_llm_response(mistral_llm):
     user_message = "Hello, Mistral LLM!"
-    response = await mistral_llm._send_user_message_to_llm(user_message)
+    response = await mistral_llm.send_user_message(user_message)
     print(response)
     assert isinstance(response, str)
     assert len(response) > 0
@@ -30,7 +30,7 @@ async def test_mistral_llm_streaming(mistral_llm):
     received_tokens = []
     complete_response = ""
     
-    async for token in mistral_llm._stream_user_message_to_llm(user_message):
+    async for token in mistral_llm.stream_user_message(user_message):
         # Verify each token is a string
         assert isinstance(token, str)
         received_tokens.append(token)

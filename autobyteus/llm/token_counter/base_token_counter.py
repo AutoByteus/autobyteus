@@ -1,6 +1,9 @@
 
 import abc
-from typing import List
+from typing import List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.messages import Message
 
 class BaseTokenCounter(abc.ABC):
@@ -9,14 +12,16 @@ class BaseTokenCounter(abc.ABC):
     Different providers have different token counting approaches.
     """
 
-    def __init__(self, model: str):
+    def __init__(self, model: str, llm: 'BaseLLM' = None):
         """
         Initialize the BaseTokenCounter with the model.
 
         Args:
             model (str): The model to be used for token counting.
+            llm (BaseLLM, optional): The LLM instance. Defaults to None.
         """
         self.model = model
+        self.llm = llm
 
     @abc.abstractmethod
     def count_input_tokens(self, messages: List[Message]) -> int:
