@@ -1,8 +1,10 @@
+
 from autobyteus.llm.api.claude_llm import ClaudeLLM
 from autobyteus.llm.api.gemini_llm import GeminiLLM
 from autobyteus.llm.api.mistral_llm import MistralLLM
 from autobyteus.llm.api.openai_llm import OpenAILLM
 from autobyteus.llm.api.ollama_llm import OllamaLLM
+from autobyteus.llm.api.deepseek_llm import DeepSeekLLM
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.providers import LLMProvider
 from autobyteus.llm.base_llm import BaseLLM
@@ -16,13 +18,6 @@ class LLMFactory:
 
     @staticmethod
     def register_llm(model: str, llm_class: type, resolver: Callable[[str], LLMModel]):
-        """
-        Register an LLM model with its corresponding class and resolver.
-
-        :param model: The name of the model.
-        :param llm_class: The class to instantiate for this model.
-        :param resolver: A callable that takes the model name and returns an LLMModel enum instance.
-        """
         LLMFactory._registry[model] = (llm_class, resolver)
 
     @staticmethod
@@ -42,6 +37,8 @@ class LLMFactory:
         LLMFactory.register_llm(LLMModel.CLAUDE_3_5_SONNET_API.name, ClaudeLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.BEDROCK_CLAUDE_3_5_SONNET_API.name, ClaudeLLM, LLMModel.from_name)
         LLMFactory.register_llm(LLMModel.OLLAMA_LLAMA_3_2.name, OllamaLLM, LLMModel.from_name)
+        # Add DeepSeek registration
+        LLMFactory.register_llm(LLMModel.DEEPSEEK_CHAT_API.name, DeepSeekLLM, LLMModel.from_name)
 
         # Discover and register additional plugins
         LLMFactory._discover_plugins()

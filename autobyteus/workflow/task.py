@@ -9,7 +9,7 @@ and execution logic using a dynamically created Agent.
 from typing import Any, List, Optional
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.llm.base_llm import BaseLLM
-from autobyteus.agent.agent import StandaloneAgent
+from autobyteus.agent.agent import Agent
 from autobyteus.prompt.prompt_builder import PromptBuilder
 from autobyteus.person.person import Person
 
@@ -86,13 +86,13 @@ class Task:
         self.result = agent.conversation.get_last_assistant_message()
         return self.result
 
-    def _create_agent(self) -> StandaloneAgent:
+    def _create_agent(self) -> Agent:
         agent_id = f"task_{self.objective[:10]}_{id(self)}"
         
         # Generate the initial prompt
         initial_prompt = self._generate_initial_prompt()
         
-        return StandaloneAgent(
+        return Agent(
             role=f"Task_{self.objective[:20]}",
             llm=self.llm,
             tools=self.tools,

@@ -1,6 +1,6 @@
 import pytest
 import asyncio
-from autobyteus.agent.agent import StandaloneAgent
+from autobyteus.agent.agent import Agent
 from autobyteus.conversation.user_message import UserMessage
 from autobyteus.events.event_types import EventType
 
@@ -9,11 +9,11 @@ async def test_agent_event_emission(mock_llm, mock_tools):
     # Track emitted events
     received_events = []
     
-    def event_handler(agent_id, response):
-        received_events.append((agent_id, response))
+    def event_handler(response, **kwargs):
+        received_events.append((response))
     
     initial_message = UserMessage(content="Hello")
-    agent = StandaloneAgent(
+    agent = Agent(
         role="test_agent",
         llm=mock_llm,
         tools=mock_tools,
@@ -43,7 +43,7 @@ async def test_agent_event_emission(mock_llm, mock_tools):
 @pytest.mark.asyncio
 async def test_task_completion_event(mock_llm, mock_tools):
     initial_message = UserMessage(content="Hello")
-    agent = StandaloneAgent(
+    agent = Agent(
         role="test_agent",
         llm=mock_llm,
         tools=mock_tools,

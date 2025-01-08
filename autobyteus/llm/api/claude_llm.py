@@ -1,19 +1,22 @@
-from typing import Dict, Optional, List, AsyncGenerator
+
+from typing import Dict, Optional, List, AsyncGenerator, Tuple
 import anthropic
 import os
+import logging
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.messages import MessageRole, Message
+from autobyteus.llm.utils.token_usage import TokenUsage
+from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
+
+logger = logging.getLogger(__name__)
 
 class ClaudeLLM(BaseLLM):
-    def __init__(self, model_name: LLMModel = None, system_message: str = None):
+    def __init__(self, model: LLMModel = None, system_message: str = None):
+        super().__init__(model=model or LLMModel.CLAUDE_3_5_SONNET_API, system_message=system_message)
         self.client = self.initialize()
-        self.model = model_name.value if model_name else "claude-3-5-sonnet-20240620"
-        self.system_message = system_message or "You are a helpful assistant."
-        self.max_tokens = 8000  # Hardcoded max_tokens
-        self.messages = []
-        super().__init__(model=self.model)
-
+        self.max_tokens = 8000
+    
     @classmethod
     def initialize(cls):
         anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -26,49 +29,109 @@ class ClaudeLLM(BaseLLM):
             return anthropic.Anthropic(api_key=anthropic_api_key)
         except Exception as e:
             raise ValueError(f"Failed to initialize Anthropic client: {str(e)}")
-
-    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> str:
-        self.messages.append(Message(MessageRole.USER, user_message))
+    
+    def _get_non_system_messages(self) -> List[Dict]:
+        """
+        Returns all messages excluding system messages for Anthropic API compatibility.
+        """
+        return [msg.to_dict() for msg in self.messages if msg.role != MessageRole.SYSTEM]
+    
+    def _create_token_usage(self, input_tokens: int, output_tokens: int) -> TokenUsage:
+        """Convert Anthropic usage data to TokenUsage format."""
+        return TokenUsage(
+            prompt_tokens=input_tokens,
+            completion_tokens=output_tokens,
+            total_tokens=input_tokens + output_tokens
+        )
+    
+    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> CompleteResponse:
+        self.add_user_message(user_message)
 
         try:
             response = self.client.messages.create(
-                model=self.model,
+                model=self.model.value,
                 max_tokens=self.max_tokens,
                 temperature=0,
                 system=self.system_message,
-                messages=[msg.to_dict() for msg in self.messages]
+                messages=self._get_non_system_messages()
             )
 
             assistant_message = response.content[0].text
-            self.messages.append(Message(MessageRole.ASSISTANT, assistant_message))
-            return assistant_message
-        except anthropic.APIError as e:
-            raise ValueError(f"Error in Claude API call: {str(e)}")
+            self.add_assistant_message(assistant_message)
 
+            token_usage = self._create_token_usage(
+                response.usage.input_tokens,
+                response.usage.output_tokens
+            )
+            
+            logger.info(f"Token usage - Input: {response.usage.input_tokens}, Output: {response.usage.output_tokens}")
+            
+            return CompleteResponse(
+                content=assistant_message,
+                usage=token_usage
+            )
+        except anthropic.APIError as e:
+            logger.error(f"Error in Claude API call: {str(e)}")
+            raise ValueError(f"Error in Claude API call: {str(e)}")
+    
     async def _stream_user_message_to_llm(
         self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs
-    ) -> AsyncGenerator[str, None]:
-        self.messages.append(Message(MessageRole.USER, user_message))
+    ) -> AsyncGenerator[ChunkResponse, None]:
+        self.add_user_message(user_message)
         complete_response = ""
+        final_message = None
 
         try:
             with self.client.messages.stream(
-                model=self.model,
+                model=self.model.value,
                 max_tokens=self.max_tokens,
                 temperature=0,
                 system=self.system_message,
-                messages=[msg.to_dict() for msg in self.messages],
+                messages=self._get_non_system_messages(),
             ) as stream:
-                for text in stream.text_stream:
-                    complete_response += text
-                    yield text
+                for event in stream:
+                    logger.debug(f"Event Received: {event.type}")
+                    
+                    if event.type == "message_start":
+                        logger.debug(f"Message Start: {event.message}")
+                    
+                    elif event.type == "content_block_start":
+                        logger.debug(f"Content Block Start at index {event.index}: {event.content_block}")
+                    
+                    elif event.type == "content_block_delta" and event.delta.type == "text_delta":
+                        logger.debug(f"Text Delta: {event.delta.text}")
+                        complete_response += event.delta.text
+                        yield ChunkResponse(
+                            content=event.delta.text,
+                            is_complete=False
+                        )
+                    
+                    elif event.type == "message_delta":
+                        logger.debug(f"Message Delta: Stop Reason - {event.delta.stop_reason}, "
+                                   f"Stop Sequence - {event.delta.stop_sequence}")
+                    
+                    elif event.type == "content_block_stop":
+                        logger.debug(f"Content Block Stop at index {event.index}: {event.content_block}")
 
-            # After streaming is complete, update message history
-            self.messages.append(Message(MessageRole.ASSISTANT, complete_response))
+                # Get final message for token usage
+                final_message = stream.get_final_message()
+                if final_message:
+                    token_usage = self._create_token_usage(
+                        final_message.usage.input_tokens,
+                        final_message.usage.output_tokens
+                    )
+                    logger.info(f"Final token usage - Input: {final_message.usage.input_tokens}, "
+                               f"Output: {final_message.usage.output_tokens}")
+                    yield ChunkResponse(
+                        content="",
+                        is_complete=True,
+                        usage=token_usage
+                    )
 
+            self.add_assistant_message(complete_response)
         except anthropic.APIError as e:
+            logger.error(f"Error in Claude API streaming: {str(e)}")
             raise ValueError(f"Error in Claude API streaming: {str(e)}")
-
+    
     async def cleanup(self):
-        # Currently no cleanup needed for Claude
-        pass
+        super().cleanup()

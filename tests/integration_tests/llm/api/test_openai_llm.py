@@ -1,28 +1,30 @@
+
 import pytest
 import asyncio
 import os
 from autobyteus.llm.api.openai_llm import OpenAILLM
+from autobyteus.llm.models import LLMModel
+from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
+from autobyteus.llm.utils.token_usage import TokenUsage
 
 @pytest.fixture
 def set_openai_env(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "")
+    monkeypatch.setenv("OPENAI_API_KEY", "")  # Replace with a valid API key for testing
 
 @pytest.fixture
 def openai_llm(set_openai_env):
     openai_api_key = os.getenv("OPENAI_API_KEY")
     if not openai_api_key:
         pytest.skip("OpenAI API key not set. Skipping OpenAILLM tests.")
-    model_name = None  # Use default model
-    system_message = "You are a helpful assistant."
-    return OpenAILLM(model_name=model_name, system_message=system_message)
+    return OpenAILLM(model=LLMModel.GPT_4o_API)
 
 @pytest.mark.asyncio
 async def test_openai_llm_response(openai_llm):
     user_message = "Hello, OpenAI LLM!"
     response = await openai_llm._send_user_message_to_llm(user_message)
-    print(user_message)
-    assert isinstance(response, str)
-    assert len(response) > 0
+    assert isinstance(response, CompleteResponse)
+    assert isinstance(response.content, str)
+    assert len(response.content) > 0
 
 @pytest.mark.asyncio
 async def test_openai_llm_streaming(openai_llm):
@@ -33,12 +35,15 @@ async def test_openai_llm_streaming(openai_llm):
     
     async for token in openai_llm._stream_user_message_to_llm(user_message):
         # Verify each token is a string
-        assert isinstance(token, str)
-        received_tokens.append(token)
-        complete_response += token
+        assert isinstance(token, ChunkResponse)
+        if token.content:
+            assert isinstance(token.content, str)
+            received_tokens.append(token.content)
+            complete_response += token.content
         
-        # Print tokens as they arrive for debugging
-        print(f"Received token: {token}")
+        if token.is_complete:
+            if token.usage:
+                assert isinstance(token.usage, TokenUsage)
     
     # Verify we received tokens
     assert len(received_tokens) > 0
@@ -49,11 +54,47 @@ async def test_openai_llm_streaming(openai_llm):
     
     # Verify message history was updated correctly
     assert len(openai_llm.messages) == 3  # System message + User message + Assistant message
-    assert openai_llm.messages[-2].content == user_message
-    assert openai_llm.messages[-1].content == complete_response
 
-    # Print final response for manual verification
-    print(f"\nComplete response: {complete_response}")
+    # Cleanup
+    await openai_llm.cleanup()
+
+@pytest.mark.asyncio
+async def test_send_user_message(openai_llm):
+    """Test the public API send_user_message"""
+    user_message = "Can you summarize the following text?"
+    response = await openai_llm.send_user_message(user_message)
+    assert isinstance(response, str)
+    assert len(response) > 0
+
+    # Verify message history was updated correctly
+    assert len(openai_llm.messages) == 3  # System message + User message + Assistant message
+    assert openai_llm.messages[1].content == user_message
+    assert openai_llm.messages[2].content == response
+
+@pytest.mark.asyncio
+async def test_stream_user_message(openai_llm):
+    """Test the public API stream_user_message"""
+    user_message = "Please list three benefits of using Python."
+    received_tokens = []
+    complete_response = ""
     
+    async for token in openai_llm.stream_user_message(user_message):
+        # Verify each token is a string
+        assert isinstance(token, str)
+        received_tokens.append(token)
+        complete_response += token
+    
+    # Verify we received tokens
+    assert len(received_tokens) > 0
+    
+    # Verify the complete response
+    assert len(complete_response) > 0
+    assert isinstance(complete_response, str)
+    
+    # Verify message history was updated correctly
+    assert len(openai_llm.messages) == 3  # System message + User message + Assistant message
+    assert openai_llm.messages[1].content == user_message
+    assert openai_llm.messages[2].content == complete_response
+
     # Cleanup
     await openai_llm.cleanup()

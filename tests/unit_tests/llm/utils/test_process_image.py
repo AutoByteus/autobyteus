@@ -2,7 +2,7 @@ import pytest
 from pathlib import Path
 import base64
 from unittest.mock import mock_open, patch
-from autobyteus.llm.utils.process_image import process_image, is_base64, is_valid_image_path
+from autobyteus.llm.utils.image_payload_formatter import process_image, is_base64, is_valid_image_path
 
 def test_process_image_with_bytes():
     test_bytes = b"test image bytes"

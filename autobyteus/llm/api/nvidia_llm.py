@@ -1,19 +1,22 @@
-from typing import Dict, Optional, List
+
+import logging
+from typing import Dict, Optional, List, AsyncGenerator
 from openai import OpenAI
 import os
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.messages import MessageRole, Message
+from autobyteus.llm.utils.token_usage import TokenUsage
+from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
+
+logger = logging.getLogger(__name__)
 
 class NvidiaLLM(BaseLLM):
-    def __init__(self, model_name: LLMModel = None, system_message: str = None):
+    def __init__(self, model: LLMModel = None, system_message: str = None):
+        super().__init__(model=model or LLMModel.NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT_API, system_message=system_message)
         self.client = self.initialize()
-        self.model = model_name.value if model_name else "nvidia/llama-3.1-nemotron-70b-instruct"
-        self.messages = []
-        if system_message:
-            self.messages.append(Message(MessageRole.SYSTEM, system_message))
-        super().__init__(model=self.model)
-
+        logger.info(f"NvidiaLLM initialized with model: {self.model}")
+    
     @classmethod
     def initialize(cls):
         nvidia_api_key = os.environ.get("NVIDIA_API_KEY")
@@ -29,9 +32,9 @@ class NvidiaLLM(BaseLLM):
             )
         except Exception as e:
             raise ValueError(f"Failed to initialize Nvidia client: {str(e)}")
-
-    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> str:
-        self.messages.append(Message(MessageRole.USER, user_message))
+    
+    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> CompleteResponse:
+        self.add_user_message(user_message)
         try:
             completion = self.client.chat.completions.create(
                 model=self.model,
@@ -42,14 +45,24 @@ class NvidiaLLM(BaseLLM):
                 stream=False
             )
             assistant_message = completion.choices[0].message.content
-            self.messages.append(Message(MessageRole.ASSISTANT, assistant_message))
-            return assistant_message
+            self.add_assistant_message(assistant_message)
+            
+            token_usage = TokenUsage(
+                prompt_tokens=0,
+                completion_tokens=0,
+                total_tokens=0
+            )
+            
+            return CompleteResponse(
+                content=assistant_message,
+                usage=token_usage
+            )
         except Exception as e:
             raise ValueError(f"Error in Nvidia API call: {str(e)}")
-
-    async def stream_response(self, user_message: str) -> str:
-        """Optional method for streaming responses"""
-        self.messages.append(Message(MessageRole.USER, user_message))
+    
+    async def stream_response(self, user_message: str) -> AsyncGenerator[ChunkResponse, None]:
+        self.add_user_message(user_message)
+        complete_response = ""
         try:
             completion = self.client.chat.completions.create(
                 model=self.model,
@@ -60,15 +73,30 @@ class NvidiaLLM(BaseLLM):
                 stream=True
             )
             
-            full_response = ""
             for chunk in completion:
                 if chunk.choices[0].delta.content is not None:
-                    full_response += chunk.choices[0].delta.content
+                    token = chunk.choices[0].delta.content
+                    complete_response += token
+                    yield ChunkResponse(
+                        content=token,
+                        is_complete=False
+                    )
+            
+            token_usage = TokenUsage(
+                prompt_tokens=0,
+                completion_tokens=0,
+                total_tokens=0
+            )
+            
+            yield ChunkResponse(
+                content="",
+                is_complete=True,
+                usage=token_usage
+            )
 
-            self.messages.append(Message(MessageRole.ASSISTANT, full_response))
-            return full_response
+            self.add_assistant_message(complete_response)
         except Exception as e:
             raise ValueError(f"Error in Nvidia API streaming call: {str(e)}")
-
+    
     async def cleanup(self):
-        pass
+        super().cleanup()

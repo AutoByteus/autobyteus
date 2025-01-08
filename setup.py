@@ -22,6 +22,8 @@ common_dependencies = [
     "anthropic==0.37.1",
     "Jinja2",
     "ollama",
+    "mistral_common",
+    "aiohttp",
 ]
 
 setup(

@@ -1,3 +1,4 @@
+
 from typing import Dict, Union, List
 from enum import Enum
 
@@ -19,9 +20,12 @@ class Message:
     def to_mistral_message(self):
         if self.role == MessageRole.USER:
             from mistralai import UserMessage
-
             return UserMessage(content=self.content)
         elif self.role == MessageRole.ASSISTANT:
             from mistralai import AssistantMessage
-
             return AssistantMessage(content=self.content)
+        elif self.role == MessageRole.SYSTEM:
+            from mistralai import SystemMessage
+            return SystemMessage(content=self.content)
+        else:
+            raise ValueError(f"Unsupported message role: {self.role}")

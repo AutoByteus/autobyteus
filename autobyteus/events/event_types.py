@@ -1,3 +1,4 @@
+
 # File: autobyteus/events/event_types.py
 
 from enum import Enum, auto

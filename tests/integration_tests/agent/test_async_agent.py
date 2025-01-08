@@ -56,8 +56,8 @@ async def test_async_agent_message_handling(mock_llm, mock_tools):
     )
     
     received_events = []
-    def event_handler(agent_id, response, streaming=False):
-        received_events.append((agent_id, response, streaming))
+    def event_handler(response, is_complete=False, **kwargs):
+        received_events.append((response, is_complete))
     
     agent.subscribe(EventType.ASSISTANT_RESPONSE, event_handler)
     

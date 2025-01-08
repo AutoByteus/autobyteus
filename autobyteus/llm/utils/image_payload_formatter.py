@@ -41,7 +41,7 @@ def create_data_uri(mime_type: str, base64_data: str) -> Dict:
 
 def process_image(image_input: Union[str, bytes]) -> Dict:
     """
-    Process image input into format required by OpenAI API.
+    Process image input into format required by LLM APIs.
 
     Args:
         image_input: Can be:

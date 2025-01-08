@@ -2,6 +2,7 @@ import pytest
 import asyncio
 import os
 from autobyteus.llm.api.mistral_llm import MistralLLM
+from autobyteus.llm.models import LLMModel
 
 @pytest.fixture
 def set_mistral_env(monkeypatch):
@@ -12,13 +13,12 @@ def mistral_llm(set_mistral_env):
     mistral_api_key = os.getenv("MISTRAL_API_KEY")
     if not mistral_api_key:
         pytest.skip("Mistral API key not set. Skipping MistralLLM tests.")
-    model_name = None  # Use default model
-    return MistralLLM(model_name=model_name)
+    return MistralLLM(model=LLMModel.MISTRAL_LARGE_API)
 
 @pytest.mark.asyncio
 async def test_mistral_llm_response(mistral_llm):
     user_message = "Hello, Mistral LLM!"
-    response = await mistral_llm._send_user_message_to_llm(user_message)
+    response = await mistral_llm.send_user_message(user_message)
     print(response)
     assert isinstance(response, str)
     assert len(response) > 0
@@ -26,11 +26,11 @@ async def test_mistral_llm_response(mistral_llm):
 @pytest.mark.asyncio
 async def test_mistral_llm_streaming(mistral_llm):
     """Test that streaming returns tokens incrementally and builds complete response"""
-    user_message = "Please write a short greeting."
+    user_message = "Say hi only, no extra words"
     received_tokens = []
     complete_response = ""
     
-    async for token in mistral_llm._stream_user_message_to_llm(user_message):
+    async for token in mistral_llm.stream_user_message(user_message):
         # Verify each token is a string
         assert isinstance(token, str)
         received_tokens.append(token)
