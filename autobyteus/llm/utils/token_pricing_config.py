@@ -20,7 +20,7 @@ class TokenPricingConfigRegistry:
         # ChatGPT models
         LLMModel.GPT_4o_API.value: TokenPricingConfig(2.50, 10.00),
         LLMModel.o1_API.value: TokenPricingConfig(15.00, 60.00),
-        LLMModel.o1_MINI_API.value: TokenPricingConfig(0.15, 0.60),
+        LLMModel.o1_MINI_API.value: TokenPricingConfig(3.00, 12.00),
         LLMModel.CHATGPT_4O_LATEST_API.value: TokenPricingConfig(2.50, 10.00),
         LLMModel.GPT_3_5_TURBO_API.value: TokenPricingConfig(1.50, 2.00),
 
