@@ -1,9 +1,8 @@
-
 import pytest
 from unittest.mock import MagicMock
 from datetime import datetime
 from autobyteus.llm.models import LLMModel
-from autobyteus.llm.utils.token_pricing_config import TokenPricingConfig, TokenPricingConfigRegistry
+from autobyteus.llm.utils.llm_config import TokenPricingConfig
 from autobyteus.llm.token_counter.base_token_counter import BaseTokenCounter
 from autobyteus.llm.utils.token_usage_tracker import TokenUsageTracker, TokenUsage
 from autobyteus.llm.utils.messages import Message, MessageRole
@@ -68,7 +67,9 @@ def test_calculate_input_usage(token_usage_tracker, sample_messages):
     assert usage.prompt_tokens == 1000
     assert usage.completion_tokens == 0
     assert usage.total_tokens == 1000
-    expected_prompt_cost = (1000 / 1_000_000) * TokenPricingConfigRegistry.get_pricing(LLMModel.GPT_3_5_TURBO_API.value).input_token_pricing
+    
+    pricing = LLMModel.GPT_3_5_TURBO_API.default_config.pricing_config
+    expected_prompt_cost = (1000 / 1_000_000) * pricing.input_token_pricing
     assert usage.prompt_cost == expected_prompt_cost
     assert usage.completion_cost == 0.0
     assert usage.total_cost == expected_prompt_cost
@@ -91,8 +92,11 @@ def test_calculate_output_usage(token_usage_tracker, sample_messages):
     assert usage.prompt_tokens == 1000
     assert usage.completion_tokens == 1500
     assert usage.total_tokens == 2500
-    expected_prompt_cost = (1000 / 1_000_000) * TokenPricingConfigRegistry.get_pricing(LLMModel.GPT_3_5_TURBO_API.value).input_token_pricing
-    expected_completion_cost = (1500 / 1_000_000) * TokenPricingConfigRegistry.get_pricing(LLMModel.GPT_3_5_TURBO_API.value).output_token_pricing
+    
+    pricing = LLMModel.GPT_3_5_TURBO_API.default_config.pricing_config
+    expected_prompt_cost = (1000 / 1_000_000) * pricing.input_token_pricing
+    expected_completion_cost = (1500 / 1_000_000) * pricing.output_token_pricing
+    
     assert usage.prompt_cost == expected_prompt_cost
     assert usage.completion_cost == expected_completion_cost
     assert usage.total_cost == expected_prompt_cost + expected_completion_cost
@@ -116,8 +120,11 @@ def test_calculate_both_input_and_output_usage(token_usage_tracker, sample_messa
     assert usage.prompt_tokens == 1000
     assert usage.completion_tokens == 1500
     assert usage.total_tokens == 2500
-    expected_prompt_cost = (1000 / 1_000_000) * TokenPricingConfigRegistry.get_pricing(LLMModel.GPT_3_5_TURBO_API.value).input_token_pricing
-    expected_completion_cost = (1500 / 1_000_000) * TokenPricingConfigRegistry.get_pricing(LLMModel.GPT_3_5_TURBO_API.value).output_token_pricing
+    
+    pricing = LLMModel.GPT_3_5_TURBO_API.default_config.pricing_config
+    expected_prompt_cost = (1000 / 1_000_000) * pricing.input_token_pricing
+    expected_completion_cost = (1500 / 1_000_000) * pricing.output_token_pricing
+    
     assert usage.prompt_cost == expected_prompt_cost
     assert usage.completion_cost == expected_completion_cost
     assert usage.total_cost == expected_prompt_cost + expected_completion_cost
@@ -159,12 +166,14 @@ def test_multiple_usages(token_usage_tracker, sample_messages):
     usage_history = token_usage_tracker.get_usage_history()
     assert len(usage_history) == 2
     
+    pricing = LLMModel.GPT_3_5_TURBO_API.default_config.pricing_config
+    
     # First usage
     first_usage = usage_history[0]
     assert first_usage.prompt_tokens == 1000
     assert first_usage.completion_tokens == 1500
-    expected_first_prompt_cost = (1000 / 1_000_000) * TokenPricingConfigRegistry.get_pricing(LLMModel.GPT_3_5_TURBO_API.value).input_token_pricing
-    expected_first_completion_cost = (1500 / 1_000_000) * TokenPricingConfigRegistry.get_pricing(LLMModel.GPT_3_5_TURBO_API.value).output_token_pricing
+    expected_first_prompt_cost = (1000 / 1_000_000) * pricing.input_token_pricing
+    expected_first_completion_cost = (1500 / 1_000_000) * pricing.output_token_pricing
     assert first_usage.prompt_cost == expected_first_prompt_cost
     assert first_usage.completion_cost == expected_first_completion_cost
     assert first_usage.total_cost == expected_first_prompt_cost + expected_first_completion_cost
@@ -173,8 +182,8 @@ def test_multiple_usages(token_usage_tracker, sample_messages):
     second_usage = usage_history[1]
     assert second_usage.prompt_tokens == 1000
     assert second_usage.completion_tokens == 1500
-    expected_second_prompt_cost = (1000 / 1_000_000) * TokenPricingConfigRegistry.get_pricing(LLMModel.GPT_3_5_TURBO_API.value).input_token_pricing
-    expected_second_completion_cost = (1500 / 1_000_000) * TokenPricingConfigRegistry.get_pricing(LLMModel.GPT_3_5_TURBO_API.value).output_token_pricing
+    expected_second_prompt_cost = (1000 / 1_000_000) * pricing.input_token_pricing
+    expected_second_completion_cost = (1500 / 1_000_000) * pricing.output_token_pricing
     assert second_usage.prompt_cost == expected_second_prompt_cost
     assert second_usage.completion_cost == expected_second_completion_cost
     assert second_usage.total_cost == expected_second_prompt_cost + expected_second_completion_cost
@@ -206,6 +215,7 @@ def test_default_pricing(token_usage_tracker, sample_messages):
     
     usage = usage_history[0]
     
+    # Since unknown_model won't have proper pricing, default pricing should be 0.0
     assert usage.prompt_cost == 0.0
     assert usage.completion_cost == 0.0
     assert usage.total_cost == 0.0
@@ -231,8 +241,9 @@ def test_zero_tokens(token_usage_tracker):
     assert usage.completion_tokens == 1500  # Mock returns 1500 even for empty output
     assert usage.total_tokens == 2500
     
-    expected_prompt_cost = (1000 / 1_000_000) * TokenPricingConfigRegistry.get_pricing(LLMModel.GPT_3_5_TURBO_API.value).input_token_pricing
-    expected_completion_cost = (1500 / 1_000_000) * TokenPricingConfigRegistry.get_pricing(LLMModel.GPT_3_5_TURBO_API.value).output_token_pricing
+    pricing = LLMModel.GPT_3_5_TURBO_API.default_config.pricing_config
+    expected_prompt_cost = (1000 / 1_000_000) * pricing.input_token_pricing
+    expected_completion_cost = (1500 / 1_000_000) * pricing.output_token_pricing
     expected_total_cost = expected_prompt_cost + expected_completion_cost
     
     assert usage.prompt_cost == expected_prompt_cost
@@ -258,7 +269,8 @@ def test_partial_history(token_usage_tracker, sample_messages):
     assert usage.prompt_tokens == 1000
     assert usage.completion_tokens == 0
     assert usage.total_tokens == 1000
-    assert usage.prompt_cost == (1000 / 1_000_000) * TokenPricingConfigRegistry.get_pricing(LLMModel.GPT_3_5_TURBO_API.value).input_token_pricing
+    pricing = LLMModel.GPT_3_5_TURBO_API.default_config.pricing_config
+    assert usage.prompt_cost == (1000 / 1_000_000) * pricing.input_token_pricing
     assert usage.completion_cost == 0.0
     assert usage.total_cost == usage.prompt_cost
 
@@ -274,13 +286,14 @@ def test_complete_response_integration(token_usage_tracker, sample_messages):
     complete_response = CompleteResponse.from_content(output_message.content)
     complete_response.usage = token_usage_tracker.get_usage_history()[-1]
     
+    pricing = LLMModel.GPT_3_5_TURBO_API.default_config.pricing_config
     assert complete_response.usage is not None
     assert complete_response.usage.completion_tokens == 1500
-    assert complete_response.usage.completion_cost == (1500 / 1_000_000) * TokenPricingConfigRegistry.get_pricing(LLMModel.GPT_3_5_TURBO_API.value).output_token_pricing
+    assert complete_response.usage.completion_cost == (1500 / 1_000_000) * pricing.output_token_pricing
     assert complete_response.usage.total_tokens == 2500
     assert complete_response.usage.total_cost == (
-        (1000 / 1_000_000) * TokenPricingConfigRegistry.get_pricing(LLMModel.GPT_3_5_TURBO_API.value).input_token_pricing +
-        (1500 / 1_000_000) * TokenPricingConfigRegistry.get_pricing(LLMModel.GPT_3_5_TURBO_API.value).output_token_pricing
+        (1000 / 1_000_000) * pricing.input_token_pricing +
+        (1500 / 1_000_000) * pricing.output_token_pricing
     )
 
 
@@ -291,6 +304,8 @@ def test_chunk_response_handling(token_usage_tracker, sample_messages):
     input_messages, _ = sample_messages
     token_usage_tracker.calculate_input_messages(input_messages)
     
+    pricing = LLMModel.GPT_3_5_TURBO_API.default_config.pricing_config
+    
     # Simulate receiving a chunk of the output
     chunk1 = ChunkResponse(content="Assistant part 1", is_complete=False)
     chunk1.usage = TokenUsage(
@@ -298,14 +313,14 @@ def test_chunk_response_handling(token_usage_tracker, sample_messages):
         completion_tokens=750,
         total_tokens=750,
         prompt_cost=0.0,
-        completion_cost=(750 / 1_000_000) * TokenPricingConfigRegistry.get_pricing(LLMModel.GPT_3_5_TURBO_API.value).output_token_pricing,
-        total_cost=(750 / 1_000_000) * TokenPricingConfigRegistry.get_pricing(LLMModel.GPT_3_5_TURBO_API.value).output_token_pricing
+        completion_cost=(750 / 1_000_000) * pricing.output_token_pricing,
+        total_cost=(750 / 1_000_000) * pricing.output_token_pricing
     )
     token_usage_tracker._usage_history.append(chunk1.usage)
     
     assert token_usage_tracker.get_total_output_tokens() == 750
     assert token_usage_tracker.get_total_cost() == (
-        (1000 / 1_000_000) * TokenPricingConfigRegistry.get_pricing(LLMModel.GPT_3_5_TURBO_API.value).input_token_pricing +
+        (1000 / 1_000_000) * pricing.input_token_pricing +
         chunk1.usage.total_cost
     )
     
@@ -316,19 +331,18 @@ def test_chunk_response_handling(token_usage_tracker, sample_messages):
         completion_tokens=750,
         total_tokens=750,
         prompt_cost=0.0,
-        completion_cost=(750 / 1_000_000) * TokenPricingConfigRegistry.get_pricing(LLMModel.GPT_3_5_TURBO_API.value).output_token_pricing,
-        total_cost=(750 / 1_000_000) * TokenPricingConfigRegistry.get_pricing(LLMModel.GPT_3_5_TURBO_API.value).output_token_pricing
+        completion_cost=(750 / 1_000_000) * pricing.output_token_pricing,
+        total_cost=(750 / 1_000_000) * pricing.output_token_pricing
     )
     token_usage_tracker._usage_history.append(chunk2.usage)
     
     assert token_usage_tracker.get_total_output_tokens() == 1500
     assert token_usage_tracker.get_total_cost() == (
-        (1000 / 1_000_000) * TokenPricingConfigRegistry.get_pricing(LLMModel.GPT_3_5_TURBO_API.value).input_token_pricing +
+        (1000 / 1_000_000) * pricing.input_token_pricing +
         chunk1.usage.total_cost +
         chunk2.usage.total_cost
     )
     
     latest_output = token_usage_tracker.get_usage_history()[-1]
     assert latest_output.completion_tokens == 750
-    assert latest_output.completion_cost == (750 / 1_000_000) * TokenPricingConfigRegistry.get_pricing(LLMModel.GPT_3_5_TURBO_API.value).output_token_pricing
-
+    assert latest_output.completion_cost == (750 / 1_000_000) * pricing.output_token_pricing

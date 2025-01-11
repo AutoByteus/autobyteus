@@ -1,10 +1,8 @@
-
 from enum import Enum
 from datetime import datetime
 from typing import List, Optional
 from autobyteus.llm.utils.messages import Message
 from autobyteus.llm.models import LLMModel
-from autobyteus.llm.utils.token_pricing_config import TokenPricingConfigRegistry
 from autobyteus.llm.token_counter.base_token_counter import BaseTokenCounter
 from autobyteus.llm.utils.token_usage import TokenUsage
 
@@ -20,7 +18,8 @@ class TokenUsageTracker:
             token_counter (BaseTokenCounter): Counter for calculating token counts
         """
         self.token_counter = token_counter
-        self.pricing_config = TokenPricingConfigRegistry.get_pricing(model.value)
+        # Directly retrieve pricing_config from the model's default configuration
+        self.pricing_config = model.default_config.pricing_config
         self._usage_history: List[TokenUsage] = []
         self.current_usage: Optional[TokenUsage] = None
 

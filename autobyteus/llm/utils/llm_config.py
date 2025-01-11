@@ -2,6 +2,11 @@ from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, List
 
 @dataclass
+class TokenPricingConfig:
+    input_token_pricing: float = 0.0
+    output_token_pricing: float = 0.0
+
+@dataclass
 class LLMConfig:
     rate_limit: Optional[int] = None  # requests per minute
     token_limit: Optional[int] = None
@@ -13,6 +18,7 @@ class LLMConfig:
     presence_penalty: Optional[float] = None
     stop_sequences: Optional[List] = None
     extra_params: Dict[str, Any] = field(default_factory=dict)
+    pricing_config: TokenPricingConfig = field(default_factory=TokenPricingConfig)
 
     @classmethod
     def default_config(cls):
