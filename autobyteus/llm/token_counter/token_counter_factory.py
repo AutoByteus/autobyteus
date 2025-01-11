@@ -30,6 +30,10 @@ def get_token_counter(model: LLMModel, llm: 'BaseLLM') -> BaseTokenCounter:
         return MistralTokenCounter(model, llm)
     elif model.provider == LLMProvider.DEEPSEEK:
         return DeepSeekTokenCounter(model, llm)
+    elif model.provider == LLMProvider.OLLAMA:
+        return OpenAITokenCounter(model, llm)
+    elif model.provider == LLMProvider.GEMINI:
+        return OpenAITokenCounter(model, llm)
     else:
         # For models that do not have a specialized counter, raise a NotImplementedError
         raise NotImplementedError(f"No token counter available for model {model.value}")

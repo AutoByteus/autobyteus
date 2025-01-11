@@ -12,11 +12,16 @@ from autobyteus.llm.api.mistral_llm import MistralLLM
 from autobyteus.llm.api.openai_llm import OpenAILLM
 from autobyteus.llm.api.ollama_llm import OllamaLLM
 from autobyteus.llm.api.deepseek_llm import DeepSeekLLM
+from autobyteus.llm.ollama_provider import OllamaModelProvider
 
 logger = logging.getLogger(__name__)
 
 class LLMFactory:
     _models_by_provider: Dict[LLMProvider, List[LLMModel]] = {}
+
+    @staticmethod
+    def register(model: LLMModel):
+        LLMFactory.register_model(model)
 
     @staticmethod
     def _initialize_registry():
@@ -192,6 +197,9 @@ class LLMFactory:
         # Discover and register plugin models
         LLMFactory._discover_plugins()
 
+
+        OllamaModelProvider.discover_and_register()
+
         # Dynamically assign each model as a class attribute on LLMModel for enum-like access
         for provider_models in LLMFactory._models_by_provider.values():
             for model in provider_models:
@@ -201,13 +209,12 @@ class LLMFactory:
     def _discover_plugins():
         """
         Discover plugins registered under the 'autobyteus.plugins' entry point.
-        Plugins can register new models using LLMFactory.register_model.
+        Plugins can register new models using their own register_llm_models method.
         """
         for entry_point in pkg_resources.iter_entry_points(group='autobyteus.plugins'):
             try:
                 plugin_factory = entry_point.load()
-                # Each plugin must have a 'register' method accepting a register function
-                plugin_factory.register(LLMFactory.register_model)
+                plugin_factory.register_llm_models()
             except Exception as e:
                 logger.error(f"Failed to load plugin {entry_point.name}: {e}")
 

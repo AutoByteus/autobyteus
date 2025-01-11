@@ -12,7 +12,7 @@ def ollama_llm():
 @pytest.mark.asyncio
 async def test_ollama_llm_response(ollama_llm):
     user_message = "Hello, Ollama LLM!"
-    response = await ollama_llm._send_user_message_to_llm(user_message)
+    response = await ollama_llm.send_user_message(user_message)
     print("🧐🧐🧐🧐 %s", response)
     assert isinstance(response, str)
     assert len(response) > 0
@@ -24,7 +24,7 @@ async def test_ollama_llm_streaming(ollama_llm):
     received_tokens = []
     complete_response = ""
 
-    async for token in ollama_llm._stream_user_message_to_llm(user_message):
+    async for token in ollama_llm.stream_user_message(user_message):
         # Verify each token is a string
         assert isinstance(token, str)
         received_tokens.append(token)
