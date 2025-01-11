@@ -31,8 +31,8 @@ class OllamaModelProvider:
 
             for model_info in models:
                 llm_model = LLMModel(
-                    name=model_info['name'],
-                    value=model_info['model'],
+                    name=model_info.model,
+                    value=model_info.model,
                     provider=LLMProvider.OLLAMA,
                     llm_class=OllamaLLM,
                     default_config=LLMConfig(

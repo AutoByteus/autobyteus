@@ -21,7 +21,7 @@ common_dependencies = [
     "botocore",
     "anthropic==0.37.1",
     "Jinja2",
-    "ollama",
+    "ollama==0.4.5",
     "mistral_common",
     "aiohttp",
 ]
