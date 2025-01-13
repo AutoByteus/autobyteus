@@ -10,3 +10,4 @@ class LLMProvider(Enum):
     PERPLEXITY = "perplexity"
     OLLAMA = "ollama"
     DEEPSEEK = "deepseek"
+    AUTOBYTEUS = "autobyteus"

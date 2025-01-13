@@ -165,18 +165,6 @@ class LLMFactory:
                     pricing_config=TokenPricingConfig(3.00, 15.00)
                 )
             ),
-            # OLLAMA Provider Models
-            LLMModel(
-                name="OLLAMA_LLAMA_3_2",
-                value="llama3.2",
-                provider=LLMProvider.OLLAMA,
-                llm_class=OllamaLLM,
-                default_config=LLMConfig(
-                    rate_limit=60,
-                    token_limit=8192,
-                    pricing_config=TokenPricingConfig(0.0, 0.0)
-                )
-            ),
             # DEEPSEEK Provider Models
             LLMModel(
                 name="DEEPSEEK_CHAT_API",
@@ -265,7 +253,7 @@ class LLMFactory:
         """
         Returns a set of all available LLM providers.
         """
-        return set(LLMFactory._models_by_provider.keys())
+        return set(LLMProvider)
 
     @staticmethod
     def get_models_by_provider(provider: LLMProvider) -> List[str]:
