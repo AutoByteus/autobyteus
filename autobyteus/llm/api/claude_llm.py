@@ -12,8 +12,8 @@ from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 logger = logging.getLogger(__name__)
 
 class ClaudeLLM(BaseLLM):
-    def __init__(self, model: LLMModel = None, system_message: str = None):
-        super().__init__(model=model or LLMModel.CLAUDE_3_5_SONNET_API, system_message=system_message)
+    def __init__(self, model: LLMModel = None, system_message: str = None, custom_config: LLMConfig = None):
+        super().__init__(model=model or LLMModel.CLAUDE_3_5_SONNET_API, system_message=system_message, custom_config=custom_config)
         self.client = self.initialize()
         self.max_tokens = 8000
     

@@ -15,7 +15,7 @@ from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 logger = logging.getLogger(__name__)
 
 class DeepSeekLLM(BaseLLM):
-    def __init__(self, model: LLMModel = None, system_message: str = None):
+    def __init__(self, model: LLMModel = None, system_message: str = None, custom_config: LLMConfig = None):
         deepseek_api_key = os.getenv("DEEPSEEK_API_KEY")
         if not deepseek_api_key:
             logger.error("DEEPSEEK_API_KEY environment variable is not set.")
@@ -24,9 +24,8 @@ class DeepSeekLLM(BaseLLM):
         self.client = OpenAI(api_key=deepseek_api_key, base_url="https://api.deepseek.com")
         logger.info("DeepSeek API key and base URL set successfully")
 
-        super().__init__(model=model or LLMModel.DEEPSEEK_CHAT_API, system_message=system_message)
+        super().__init__(model=model or LLMModel.DEEPSEEK_CHAT_API, system_message=system_message, custom_config=custom_config)
         self.max_tokens = 8000
-        logger.info(f"DeepSeekLLM initialized with model: {self.model}")
 
     def _create_token_usage(self, usage_data: Optional[CompletionUsage]) -> Optional[TokenUsage]:
         """Convert usage data to TokenUsage format."""

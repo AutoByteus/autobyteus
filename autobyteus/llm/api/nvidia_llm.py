@@ -12,10 +12,9 @@ from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 logger = logging.getLogger(__name__)
 
 class NvidiaLLM(BaseLLM):
-    def __init__(self, model: LLMModel = None, system_message: str = None):
-        super().__init__(model=model or LLMModel.NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT_API, system_message=system_message)
+    def __init__(self, model: LLMModel = None, system_message: str = None, custom_config: LLMConfig = None):
+        super().__init__(model=model or LLMModel.NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT_API, system_message=system_message, custom_config=custom_config)
         self.client = self.initialize()
-        logger.info(f"NvidiaLLM initialized with model: {self.model}")
     
     @classmethod
     def initialize(cls):
