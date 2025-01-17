@@ -7,6 +7,7 @@ from openai.types.completion_usage import CompletionUsage
 from openai.types.chat import ChatCompletionChunk
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.models import LLMModel
+from autobyteus.llm.utils.llm_config import LLMConfig
 from autobyteus.llm.utils.messages import MessageRole, Message
 from autobyteus.llm.utils.image_payload_formatter import process_image
 from autobyteus.llm.utils.token_usage import TokenUsage
