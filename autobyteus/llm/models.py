@@ -28,11 +28,21 @@ class LLMModel:
         llm_class: Type["BaseLLM"],
         default_config: Optional[LLMConfig] = None
     ):
+        # Validate name doesn't already exist as a class attribute
+        if hasattr(LLMModel, name):
+            existing_model = getattr(LLMModel, name)
+            if isinstance(existing_model, LLMModel):
+                raise ValueError(f"Model with name '{name}' already exists")
+            
         self._name = name
         self._value = value
         self.provider = provider
         self.llm_class = llm_class
         self.default_config = default_config if default_config else LLMConfig()
+
+        # Set this instance as a class attribute
+        logger.debug(f"Setting LLMModel class attribute: {name}")
+        setattr(LLMModel, name, self)
 
     @property
     def name(self) -> str:

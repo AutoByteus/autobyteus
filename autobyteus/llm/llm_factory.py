@@ -18,10 +18,20 @@ logger = logging.getLogger(__name__)
 
 class LLMFactory:
     _models_by_provider: Dict[LLMProvider, List[LLMModel]] = {}
+    _initialized = False
 
     @staticmethod
     def register(model: LLMModel):
         LLMFactory.register_model(model)
+
+    @staticmethod
+    def ensure_initialized():
+        """
+        Ensures the factory is initialized before use.
+        """
+        if not LLMFactory._initialized:
+            LLMFactory._initialize_registry()
+            LLMFactory._initialized = True
 
     @staticmethod
     def _initialize_registry():
@@ -112,7 +122,7 @@ class LLMFactory:
             ),
             LLMModel(
                 name="MISTRAL_LARGE_API",
-                value="mistral-large",
+                value="mistral-large-latest",
                 provider=LLMProvider.MISTRAL,
                 llm_class=MistralLLM,
                 default_config=LLMConfig(
@@ -177,6 +187,25 @@ class LLMFactory:
                     pricing_config=TokenPricingConfig(0.14, 0.28)
                 )
             ),
+            # GEMINI Provider Models
+            LLMModel(
+                name="GEMINI_1_5_PRO_API",
+                value="gemini-1-5-pro",
+                provider=LLMProvider.GEMINI,
+                llm_class=OpenAILLM,
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(1.25, 5.00)
+                )
+            ),
+            LLMModel(
+                name="GEMINI_1_5_FLASH_API",
+                value="gemini-1-5-flash",
+                provider=LLMProvider.GEMINI,
+                llm_class=OpenAILLM,
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(0.075, 0.30)
+                )
+            ),
             # Add additional supported models as needed, following the pattern
         ]
         for model in supported_models:
@@ -185,13 +214,7 @@ class LLMFactory:
         # Discover and register plugin models
         LLMFactory._discover_plugins()
 
-
         OllamaModelProvider.discover_and_register()
-
-        # Dynamically assign each model as a class attribute on LLMModel for enum-like access
-        for provider_models in LLMFactory._models_by_provider.values():
-            for model in provider_models:
-                setattr(LLMModel, model.name, model)
 
     @staticmethod
     def _discover_plugins():
@@ -214,6 +237,7 @@ class LLMFactory:
         models = LLMFactory._models_by_provider.setdefault(model.provider, [])
         models.append(model)
 
+    @staticmethod
     def create_llm(model: str, custom_config: Optional[LLMConfig] = None) -> BaseLLM:
         """
         Create an LLM instance for the specified model name.
@@ -232,6 +256,7 @@ class LLMFactory:
         Note:
             Although the parameter is named 'model', it refers to the model's name, not its value.
         """
+        LLMFactory.ensure_initialized()
         for models in LLMFactory._models_by_provider.values():
             for model_instance in models:
                 if model_instance.value == model or model_instance.name == model:
@@ -243,6 +268,7 @@ class LLMFactory:
         """
         Returns a list of all registered model values.
         """
+        LLMFactory.ensure_initialized()
         all_models = []
         for models in LLMFactory._models_by_provider.values():
             all_models.extend(model.name for model in models)
@@ -253,6 +279,7 @@ class LLMFactory:
         """
         Returns a set of all available LLM providers.
         """
+        LLMFactory.ensure_initialized()
         return set(LLMProvider)
 
     @staticmethod
@@ -260,6 +287,7 @@ class LLMFactory:
         """
         Returns a list of all model values for a specific provider.
         """
+        LLMFactory.ensure_initialized()
         return [model.value for model in LLMFactory._models_by_provider.get(provider, [])]
 
     @staticmethod
@@ -267,7 +295,5 @@ class LLMFactory:
         """
         Returns a list of LLMModel instances for a specific provider.
         """
+        LLMFactory.ensure_initialized()
         return LLMFactory._models_by_provider.get(provider, [])
-
-# Initialize the registry upon module import
-LLMFactory._initialize_registry()

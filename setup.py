@@ -1,5 +1,4 @@
 from setuptools import setup, find_packages
-
 # Common dependencies
 common_dependencies = [
     "beautifulsoup4>=4.12.2",
@@ -25,7 +24,6 @@ common_dependencies = [
     "mistral_common",
     "aiohttp",
 ]
-
 setup(
     name="autobyteus",
     version="0.1.0",
@@ -33,7 +31,7 @@ setup(
     include_package_data=True,
     install_requires=[
         *common_dependencies,
-        "brui_core@git+https://github.com/AutoByteus/brui_core.git"
+        "brui-core==1.0.0"
     ],
     extras_require={
         "dev": [
