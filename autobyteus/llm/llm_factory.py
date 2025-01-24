@@ -2,6 +2,7 @@ from typing import List, Set, Optional, Dict
 import logging
 import pkg_resources
 
+from autobyteus.llm.autobyteus_provider import AutobyteusModelProvider
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.providers import LLMProvider
 from autobyteus.llm.utils.llm_config import LLMConfig, TokenPricingConfig
@@ -211,23 +212,8 @@ class LLMFactory:
         for model in supported_models:
             LLMFactory.register_model(model)
 
-        # Discover and register plugin models
-        LLMFactory._discover_plugins()
-
         OllamaModelProvider.discover_and_register()
-
-    @staticmethod
-    def _discover_plugins():
-        """
-        Discover plugins registered under the 'autobyteus.plugins' entry point.
-        Plugins can register new models using their own register_llm_models method.
-        """
-        for entry_point in pkg_resources.iter_entry_points(group='autobyteus.plugins'):
-            try:
-                plugin_factory = entry_point.load()
-                plugin_factory.register_llm_models()
-            except Exception as e:
-                logger.error(f"Failed to load plugin {entry_point.name}: {e}")
+        AutobyteusModelProvider.discover_and_register()
 
     @staticmethod
     def register_model(model: LLMModel):
