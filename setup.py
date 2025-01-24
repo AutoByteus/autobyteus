@@ -23,6 +23,8 @@ common_dependencies = [
     "ollama==0.4.5",
     "mistral_common",
     "aiohttp",
+    "autobyteus-llm-client==1.0.2",
+    "brui-core==1.0.1",
 ]
 setup(
     name="autobyteus",
@@ -31,7 +33,6 @@ setup(
     include_package_data=True,
     install_requires=[
         *common_dependencies,
-        "brui-core==1.0.0"
     ],
     extras_require={
         "dev": [

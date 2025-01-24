@@ -77,7 +77,6 @@ class AutobyteusLLM(BaseLLM):
 
         self.add_user_message(user_message)
         complete_response = ""
-        token_usage = None
         
         try:
             async for chunk in self.client.stream_message(
@@ -92,24 +91,27 @@ class AutobyteusLLM(BaseLLM):
                 
                 content = chunk.get('content', '')
                 complete_response += content
+                is_complete = chunk.get('is_complete', False)
                 
-                yield ChunkResponse(
-                    content=content,
-                    is_complete=False
-                )
-
-                if chunk.get('token_usage'):
-                    token_usage = TokenUsage(
-                        prompt_tokens=chunk['token_usage'].get('prompt_tokens', 0),
-                        completion_tokens=chunk['token_usage'].get('completion_tokens', 0),
-                        total_tokens=chunk['token_usage'].get('total_tokens', 0)
+                # If this is the final chunk, include token usage
+                if is_complete:
+                    token_usage = None
+                    if chunk.get('token_usage'):
+                        token_usage = TokenUsage(
+                            prompt_tokens=chunk['token_usage'].get('prompt_tokens', 0),
+                            completion_tokens=chunk['token_usage'].get('completion_tokens', 0),
+                            total_tokens=chunk['token_usage'].get('total_tokens', 0)
+                        )
+                    yield ChunkResponse(
+                        content=content,
+                        is_complete=True,
+                        usage=token_usage
                     )
-
-            yield ChunkResponse(
-                content="",
-                is_complete=True,
-                usage=token_usage
-            )
+                else:
+                    yield ChunkResponse(
+                        content=content,
+                        is_complete=False
+                    )
             
             self.add_assistant_message(complete_response)
         except Exception as e:
