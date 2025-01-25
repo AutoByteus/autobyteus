@@ -23,8 +23,8 @@ common_dependencies = [
     "ollama==0.4.5",
     "mistral_common",
     "aiohttp",
-    "autobyteus-llm-client==1.0.2",
-    "brui-core==1.0.2",
+    "autobyteus-llm-client==1.0.3",
+    "brui-core==1.0.4",
 ]
 setup(
     name="autobyteus",
