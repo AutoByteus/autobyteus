@@ -11,8 +11,10 @@
     // Turn off tsc task auto detection since we have the necessary tasks as npm scripts
     "typescript.tsc.autoDetect": "off",
     "python.testing.pytestArgs": [
-        "tests"
+        "tests",
+        "-s"
     ],
     "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+    "python.testing.pytestEnabled": true,
+    "debug.python.justMyCode": false
 }

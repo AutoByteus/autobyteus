@@ -20,3 +20,5 @@ ollama==0.4.5
 pymilvus==2.5.2
 mistral_common
 aiohttp
+autobyteus-llm-client==1.0.2
+brui-core==1.0.2
