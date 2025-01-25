@@ -24,7 +24,7 @@ common_dependencies = [
     "mistral_common",
     "aiohttp",
     "autobyteus-llm-client==1.0.2",
-    "brui-core==1.0.1",
+    "brui-core==1.0.2",
 ]
 setup(
     name="autobyteus",
