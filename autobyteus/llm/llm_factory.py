@@ -42,18 +42,6 @@ class LLMFactory:
         """
         # Organize supported models by provider sections
         supported_models = [
-            # NVIDIA Provider Models
-            LLMModel(
-                name="NVIDIA_LLAMA_3_1_NEMOTRON_70B_INSTRUCT_API",
-                value="nvidia/llama-3.1-nemotron-70b-instruct",
-                provider=LLMProvider.NVIDIA,
-                llm_class=OpenAILLM,
-                default_config=LLMConfig(
-                    rate_limit=60, 
-                    token_limit=32768,
-                    pricing_config=TokenPricingConfig(0.00002, 0.00002)
-                )
-            ),
             # OPENAI Provider Models
             LLMModel(
                 name="GPT_4o_API",
@@ -85,15 +73,6 @@ class LLMFactory:
                 )
             ),
             LLMModel(
-                name="CHATGPT_4O_LATEST_API",
-                value="chatgpt-4o-latest",
-                provider=LLMProvider.OPENAI,
-                llm_class=OpenAILLM,
-                default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(2.50, 10.00)
-                )
-            ),
-            LLMModel(
                 name="GPT_3_5_TURBO_API",
                 value="gpt-3.5-turbo",
                 provider=LLMProvider.OPENAI,
@@ -104,24 +83,6 @@ class LLMFactory:
             ),
             # MISTRAL Provider Models
             LLMModel(
-                name="MISTRAL_SMALL_API",
-                value="mistral-small-latest",
-                provider=LLMProvider.MISTRAL,
-                llm_class=MistralLLM,
-                default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(0.20, 0.60)
-                )
-            ),
-            LLMModel(
-                name="MISTRAL_MEDIUM_API",
-                value="mistral-medium",
-                provider=LLMProvider.MISTRAL,
-                llm_class=MistralLLM,
-                default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(0.20, 0.60)
-                )
-            ),
-            LLMModel(
                 name="MISTRAL_LARGE_API",
                 value="mistral-large-latest",
                 provider=LLMProvider.MISTRAL,
@@ -131,33 +92,6 @@ class LLMFactory:
                 )
             ),
             # ANTHROPIC Provider Models
-            LLMModel(
-                name="CLAUDE_3_OPUS_API",
-                value="claude-3-opus-20240229",
-                provider=LLMProvider.ANTHROPIC,
-                llm_class=ClaudeLLM,
-                default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(15.00, 75.00)
-                )
-            ),
-            LLMModel(
-                name="CLAUDE_3_SONNET_API",
-                value="claude-3-sonnet-20240229",
-                provider=LLMProvider.ANTHROPIC,
-                llm_class=ClaudeLLM,
-                default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(3.00, 15.00)
-                )
-            ),
-            LLMModel(
-                name="CLAUDE_3_HAIKU_API",
-                value="claude-3-haiku-20240307",
-                provider=LLMProvider.ANTHROPIC,
-                llm_class=ClaudeLLM,
-                default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(0.25, 1.25)
-                )
-            ),
             LLMModel(
                 name="CLAUDE_3_5_SONNET_API",
                 value="claude-3-5-sonnet-20240620",
