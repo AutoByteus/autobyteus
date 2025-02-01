@@ -65,7 +65,7 @@ class LLMFactory:
             ),
             LLMModel(
                 name="o1_MINI_API",
-                value="o1-mini",
+                value="o3-mini",
                 provider=LLMProvider.OPENAI,
                 llm_class=OpenAILLM,
                 default_config=LLMConfig(
@@ -119,7 +119,19 @@ class LLMFactory:
                 default_config=LLMConfig(
                     rate_limit=60,
                     token_limit=8000,
-                    pricing_config=TokenPricingConfig(0.14, 0.28)
+                    pricing_config=TokenPricingConfig(0.014, 0.28)
+                )
+            ),
+            # Adding deepseek-reasoner support
+            LLMModel(
+                name="DEEPSEEK_REASONER_API",
+                value="deepseek-reasoner",
+                provider=LLMProvider.DEEPSEEK,
+                llm_class=DeepSeekLLM,
+                default_config=LLMConfig(
+                    rate_limit=60,
+                    token_limit=8000,
+                    pricing_config=TokenPricingConfig(0.14, 2.19)
                 )
             ),
             # GEMINI Provider Models

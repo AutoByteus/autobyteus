@@ -1,4 +1,3 @@
-
 import logging
 import os
 from typing import Optional, List, AsyncGenerator
@@ -8,7 +7,7 @@ from openai.types.chat import ChatCompletionChunk
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.utils.llm_config import LLMConfig
-from autobyteus.llm.utils.messages import MessageRole, Message
+from autobyteus.llm.utils.messages import MessageRole
 from autobyteus.llm.utils.image_payload_formatter import process_image
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
@@ -42,6 +41,10 @@ class DeepSeekLLM(BaseLLM):
     async def _send_user_message_to_llm(
         self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs
     ) -> CompleteResponse:
+        """
+        Sends a non-streaming request to the DeepSeek API.
+        Supports optional reasoning content if provided in the response.
+        """
         content = []
 
         if user_message:
@@ -67,14 +70,33 @@ class DeepSeekLLM(BaseLLM):
                 messages=[msg.to_dict() for msg in self.messages],
                 max_tokens=self.max_tokens,
             )
-            assistant_message = response.choices[0].message.content
-            self.add_assistant_message(assistant_message)
-            
+            full_message = response.choices[0].message
+
+            # Extract reasoning_content if present
+            if hasattr(full_message, "reasoning_content"):
+                reasoning = full_message.reasoning_content or ""
+            else:
+                reasoning = full_message.get("reasoning_content", "")
+
+            # Extract main content
+            if hasattr(full_message, "content"):
+                main_content = full_message.content or ""
+            else:
+                main_content = full_message.get("content", "")
+
+            # Construct display content with delimiters if reasoning exists
+            if reasoning:
+                display_content = f"<thinking>{reasoning}</thinking>\n{main_content}"
+                self.add_assistant_message(main_content, reasoning_content=reasoning)
+            else:
+                display_content = main_content
+                self.add_assistant_message(main_content)
+
             token_usage = self._create_token_usage(response.usage)
             logger.info("Received response from DeepSeek API with usage data")
             
             return CompleteResponse(
-                content=assistant_message,
+                content=display_content,
                 usage=token_usage
             )
         except Exception as e:
@@ -84,6 +106,24 @@ class DeepSeekLLM(BaseLLM):
     async def _stream_user_message_to_llm(
         self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs
     ) -> AsyncGenerator[ChunkResponse, None]:
+        """
+        Streams the response from the DeepSeek API.
+        Supports optional reasoning content with immediate yielding.
+        
+        Streaming Behavior Adjustments:
+        - Every reasoning chunk is yielded immediately.
+        - For the very first reasoning chunk, prepend "<thinking>" to its content.
+        - When the first main content token is encountered:
+            - If any reasoning tokens have been yielded, immediately yield an extra chunk with "</thinking>\n"
+              to mark the end of the reasoning section.
+        - If no main content tokens are encountered (only reasoning), after streaming completes,
+          yield a final chunk with "</thinking>\n" to close the reasoning section.
+        - After streaming, add the assistant message with or without reasoning content as follows:
+              if reasoning_content:
+                  self.add_assistant_message(accumulated_content, reasoning_content=reasoning_content)
+              else:
+                  self.add_assistant_message(accumulated_content)
+        """
         content = []
 
         if user_message:
@@ -102,7 +142,11 @@ class DeepSeekLLM(BaseLLM):
         self.add_user_message(content)
         logger.debug(f"Prepared streaming message content: {content}")
 
-        complete_response = ""
+        # Initialize variables to track reasoning and main content
+        reasoning_content = ""
+        first_reasoning_emitted = False
+        reasoning_closed = False
+        accumulated_content = ""
 
         try:
             logger.info("Starting streaming request to DeepSeek API")
@@ -116,16 +160,43 @@ class DeepSeekLLM(BaseLLM):
 
             for chunk in stream:
                 chunk: ChatCompletionChunk
-                if chunk.choices[0].delta.content is not None:
-                    token = chunk.choices[0].delta.content
-                    complete_response += token
-                    
+
+                # Process reasoning tokens: yield immediately and accumulate.
+                reasoning_chunk = getattr(chunk.choices[0].delta, "reasoning_content", None)
+                if reasoning_chunk is not None:
+                    if not first_reasoning_emitted:
+                        # Prepend the opening tag for the first reasoning chunk.
+                        yield ChunkResponse(
+                            content=f"<thinking>{reasoning_chunk}",
+                            is_complete=False
+                        )
+                        first_reasoning_emitted = True
+                    else:
+                        yield ChunkResponse(
+                            content=reasoning_chunk,
+                            is_complete=False
+                        )
+                    # Accumulate the raw reasoning token (without the prepended tag)
+                    reasoning_content += reasoning_chunk
+
+                # Process main content tokens.
+                main_token = chunk.choices[0].delta.content
+                if main_token is not None:
+                    if first_reasoning_emitted and not reasoning_closed:
+                        # Before yielding the first main content token, close the reasoning section.
+                        yield ChunkResponse(
+                            content="</thinking>\n",
+                            is_complete=False
+                        )
+                        reasoning_closed = True
+                    accumulated_content += main_token
                     yield ChunkResponse(
-                        content=token,
+                        content=main_token,
                         is_complete=False
                     )
 
-                if hasattr(chunk, 'usage') and chunk.usage is not None:
+                # Yield token usage if available.
+                if hasattr(chunk, "usage") and chunk.usage is not None:
                     token_usage = self._create_token_usage(chunk.usage)
                     yield ChunkResponse(
                         content="",
@@ -133,11 +204,23 @@ class DeepSeekLLM(BaseLLM):
                         usage=token_usage
                     )
 
-            self.add_assistant_message(complete_response)
+            # End of stream: if only reasoning tokens were received and the closing tag has not been yielded,
+            # yield it now.
+            if first_reasoning_emitted and not reasoning_closed:
+                yield ChunkResponse(
+                    content="</thinking>\n",
+                    is_complete=False
+                )
+            
+            # After streaming, add the assistant message with or without reasoning content.
+            if reasoning_content:
+                self.add_assistant_message(accumulated_content, reasoning_content=reasoning_content)
+            else:
+                self.add_assistant_message(accumulated_content)
             logger.info("Completed streaming response from DeepSeek API")
         except Exception as e:
             logger.error(f"Error in DeepSeek API streaming: {str(e)}")
             raise ValueError(f"Error in DeepSeek API streaming: {str(e)}")
     
     async def cleanup(self):
-        super().cleanup()
+        await super().cleanup()

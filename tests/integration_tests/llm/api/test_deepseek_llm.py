@@ -15,7 +15,7 @@ def deepseek_llm(set_deepseek_env):
     deepseek_api_key = os.getenv("DEEPSEEK_API_KEY")
     if not deepseek_api_key:
         pytest.skip("DeepSeek API key not set. Skipping DeepSeekLLM tests.")
-    return DeepSeekLLM(model=LLMModel.DEEPSEEK_CHAT_API)
+    return DeepSeekLLM(model=LLMModel.DEEPSEEK_REASONER_API)
 
 @pytest.mark.asyncio
 async def test_deepseek_llm_response(deepseek_llm):

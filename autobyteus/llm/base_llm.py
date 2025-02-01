@@ -1,4 +1,3 @@
-
 from abc import ABC, abstractmethod
 from typing import List, Optional, AsyncGenerator, Type, Dict, Union
 
@@ -99,14 +98,15 @@ class BaseLLM(ABC):
         self.messages.append(msg)
         self._trigger_on_user_message_added(msg)
 
-    def add_assistant_message(self, message: str):
+    def add_assistant_message(self, message: str, reasoning_content: Optional[str] = None):
         """
         Add an assistant message to the conversation history.
 
         Args:
             message (str): The assistant message content.
+            reasoning_content (Optional[str]): Optional reasoning content to attach.
         """
-        msg = Message(MessageRole.ASSISTANT, message)
+        msg = Message(MessageRole.ASSISTANT, message, reasoning_content=reasoning_content)
         self.messages.append(msg)
         self._trigger_on_assistant_message_added(msg)
 
