@@ -86,7 +86,7 @@ class DeepSeekLLM(BaseLLM):
 
             # Construct display content with delimiters if reasoning exists
             if reasoning:
-                display_content = f"<think>{reasoning}</think>\n{main_content}"
+                display_content = f"<llm_reasoning_token>{reasoning}</llm_reasoning_token>\n{main_content}"
                 self.add_assistant_message(main_content, reasoning_content=reasoning)
             else:
                 display_content = main_content
@@ -112,12 +112,12 @@ class DeepSeekLLM(BaseLLM):
         
         Streaming Behavior Adjustments:
         - Every reasoning chunk is yielded immediately.
-        - For the very first reasoning chunk, prepend "<think>" to its content.
+        - For the very first reasoning chunk, prepend "<llm_reasoning_token>" to its content.
         - When the first main content token is encountered:
-            - If any reasoning tokens have been yielded, immediately yield an extra chunk with "</think>\n"
+            - If any reasoning tokens have been yielded, immediately yield an extra chunk with "</llm_reasoning_token>\n"
               to mark the end of the reasoning section.
         - If no main content tokens are encountered (only reasoning), after streaming completes,
-          yield a final chunk with "</think>\n" to close the reasoning section.
+          yield a final chunk with "</llm_reasoning_token>\n" to close the reasoning section.
         - After streaming, add the assistant message with or without reasoning content as follows:
               if reasoning_content:
                   self.add_assistant_message(accumulated_content, reasoning_content=reasoning_content)
@@ -167,7 +167,7 @@ class DeepSeekLLM(BaseLLM):
                     if not first_reasoning_emitted:
                         # Prepend the opening tag for the first reasoning chunk.
                         yield ChunkResponse(
-                            content=f"<think>{reasoning_chunk}",
+                            content=f"<llm_reasoning_token>{reasoning_chunk}",
                             is_complete=False
                         )
                         first_reasoning_emitted = True
@@ -185,7 +185,7 @@ class DeepSeekLLM(BaseLLM):
                     if first_reasoning_emitted and not reasoning_closed:
                         # Before yielding the first main content token, close the reasoning section.
                         yield ChunkResponse(
-                            content="</think>\n",
+                            content="</llm_reasoning_token>\n",
                             is_complete=False
                         )
                         reasoning_closed = True
@@ -208,7 +208,7 @@ class DeepSeekLLM(BaseLLM):
             # yield it now.
             if first_reasoning_emitted and not reasoning_closed:
                 yield ChunkResponse(
-                    content="</think>\n",
+                    content="</llm_reasoning_token>\n",
                     is_complete=False
                 )
             
