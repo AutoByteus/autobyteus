@@ -1,4 +1,3 @@
-
 from typing import Dict, Optional, List, AsyncGenerator
 from ollama import AsyncClient, ChatResponse, ResponseError
 from autobyteus.llm.models import LLMModel
@@ -33,7 +32,23 @@ class OllamaLLM(BaseLLM):
                 messages=[msg.to_dict() for msg in self.messages]
             )
             assistant_message = response['message']['content']
-            self.add_assistant_message(assistant_message)
+            
+            # Detect and process reasoning content using <think> markers
+            reasoning_content = ""
+            main_content = assistant_message
+            if "<think>" in assistant_message and "</think>" in assistant_message:
+                start_index = assistant_message.index("<think>")
+                end_index = assistant_message.index("</think>") + len("</think>")
+                # Extract reasoning content and replace markers with standardized tags
+                reasoning_segment = assistant_message[start_index:end_index]
+                reasoning_content = reasoning_segment.replace("<think>", "<llm_reasoning_token>").replace("</think>", "</llm_reasoning_token>\n")
+                # Remove the reasoning segment from the main content
+                main_content = assistant_message[:start_index] + assistant_message[end_index:]
+                display_content = f"{reasoning_content}\n{main_content}"
+            else:
+                display_content = assistant_message
+
+            self.add_assistant_message(main_content, reasoning_content=reasoning_content if reasoning_content else None)
             
             token_usage = TokenUsage(
                 prompt_tokens=0,
@@ -42,7 +57,7 @@ class OllamaLLM(BaseLLM):
             )
             
             return CompleteResponse(
-                content=assistant_message,
+                content=display_content,
                 usage=token_usage
             )
         except httpx.HTTPError as e:
@@ -59,32 +74,48 @@ class OllamaLLM(BaseLLM):
         self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs
     ) -> AsyncGenerator[ChunkResponse, None]:
         self.add_user_message(user_message)
-        complete_response = ""
+        accumulated_main = ""
+        accumulated_reasoning = ""
+        in_reasoning = False
         try:
             async for part in await self.client.chat(
                 model=self.model.value,
                 messages=[msg.to_dict() for msg in self.messages],
                 stream=True
             ):
-                complete_response += part['message']['content']
-                yield ChunkResponse(
-                    content=part['message']['content'],
-                    is_complete=False
-                )
+                token = part['message']['content']
+                token_stripped = token.strip()
+                
+                if token_stripped == "<think>":
+                    # Yield the standardized reasoning start marker immediately.
+                    yield ChunkResponse(content="<llm_reasoning_token>", is_complete=False)
+                    in_reasoning = True
+                    continue
+                elif token_stripped == "</think>":
+                    if in_reasoning:
+                        # Yield the standardized reasoning closing marker.
+                        yield ChunkResponse(content="</llm_reasoning_token>", is_complete=False)
+                    in_reasoning = False
+                    continue
+                else:
+                    if in_reasoning:
+                        yield ChunkResponse(content=token, is_complete=False)
+                        accumulated_reasoning += token
+                    else:
+                        yield ChunkResponse(content=token, is_complete=False)
+                        accumulated_main += token
             
             token_usage = TokenUsage(
                 prompt_tokens=0,
                 completion_tokens=0,
                 total_tokens=0
             )
+            yield ChunkResponse(content="", is_complete=True, usage=token_usage)
             
-            yield ChunkResponse(
-                content="",
-                is_complete=True,
-                usage=token_usage
-            )
-
-            self.add_assistant_message(complete_response)
+            if accumulated_reasoning:
+                self.add_assistant_message(accumulated_main, reasoning_content=accumulated_reasoning)
+            else:
+                self.add_assistant_message(accumulated_main)
         except httpx.HTTPError as e:
             logging.error(f"HTTP Error in Ollama streaming: {e.response.status_code} - {e.response.text}")
             raise
@@ -96,4 +127,4 @@ class OllamaLLM(BaseLLM):
             raise
 
     async def cleanup(self):
-        super().cleanup()
+        await super().cleanup()

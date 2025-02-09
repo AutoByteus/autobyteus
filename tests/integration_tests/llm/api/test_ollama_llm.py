@@ -2,12 +2,12 @@ import pytest
 import asyncio
 import os
 from autobyteus.llm.api.ollama_llm import OllamaLLM
+from autobyteus.llm.llm_factory import LLMFactory
 from autobyteus.llm.models import LLMModel
 
 @pytest.fixture
 def ollama_llm():
-    system_message = "You are a helpful assistant."
-    return OllamaLLM(model=LLMModel.OLLAMA_LLAMA_3_2, system_message=system_message)
+    return LLMFactory.create_llm(model="deepseek-r1:latest")
 
 @pytest.mark.asyncio
 async def test_ollama_llm_response(ollama_llm):
