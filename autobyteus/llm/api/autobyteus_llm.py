@@ -40,7 +40,7 @@ class AutobyteusLLM(BaseLLM):
         try:
             response = await self.client.send_message(
                 conversation_id=self.conversation_id,
-                model_name=self.model.value,
+                model_name=self.model.name,
                 user_message=user_message,
                 file_paths=file_paths,
                 user_message_index=user_message_index
