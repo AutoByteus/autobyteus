@@ -13,6 +13,7 @@ from autobyteus.llm.api.mistral_llm import MistralLLM
 from autobyteus.llm.api.openai_llm import OpenAILLM
 from autobyteus.llm.api.ollama_llm import OllamaLLM
 from autobyteus.llm.api.deepseek_llm import DeepSeekLLM
+from autobyteus.llm.api.grok_llm import GrokLLM
 from autobyteus.llm.ollama_provider import OllamaModelProvider
 
 logger = logging.getLogger(__name__)
@@ -69,7 +70,7 @@ class LLMFactory:
                 provider=LLMProvider.OPENAI,
                 llm_class=OpenAILLM,
                 default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(3.00, 12.00)
+                    pricing_config=TokenPricingConfig(1.0, 4.00)
                 )
             ),
             LLMModel(
@@ -153,7 +154,18 @@ class LLMFactory:
                     pricing_config=TokenPricingConfig(0.075, 0.30)
                 )
             ),
-            # Add additional supported models as needed, following the pattern
+            # GROK Provider Models
+            LLMModel(
+                name="GROK_2_1212_API",
+                value="grok-2-1212",
+                provider=LLMProvider.GROK,
+                llm_class=GrokLLM,
+                default_config=LLMConfig(
+                    rate_limit=60,
+                    token_limit=8000,
+                    pricing_config=TokenPricingConfig(2.0, 6.0)
+                )
+            ),
         ]
         for model in supported_models:
             LLMFactory.register_model(model)

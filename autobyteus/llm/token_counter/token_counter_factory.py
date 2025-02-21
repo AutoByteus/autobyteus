@@ -1,4 +1,3 @@
-
 from typing import TYPE_CHECKING
 from autobyteus.llm.token_counter.openai_token_counter import OpenAITokenCounter
 from autobyteus.llm.token_counter.claude_token_counter import ClaudeTokenCounter
@@ -29,6 +28,8 @@ def get_token_counter(model: LLMModel, llm: 'BaseLLM') -> BaseTokenCounter:
     elif model.provider == LLMProvider.MISTRAL:
         return MistralTokenCounter(model, llm)
     elif model.provider == LLMProvider.DEEPSEEK:
+        return DeepSeekTokenCounter(model, llm)
+    elif model.provider == LLMProvider.GROK:
         return DeepSeekTokenCounter(model, llm)
     elif model.provider == LLMProvider.OLLAMA:
         return OpenAITokenCounter(model, llm)
