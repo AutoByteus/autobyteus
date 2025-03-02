@@ -36,6 +36,32 @@ class LLMFactory:
             LLMFactory._initialized = True
 
     @staticmethod
+    def reinitialize():
+        """
+        Reinitializes the model registry by resetting the initialization state
+        and reinitializing the registry.
+        
+        This is useful when new provider API keys are configured and
+        we need to discover models that might be available with the new keys.
+        
+        Returns:
+            bool: True if reinitialization was successful, False otherwise.
+        """
+        try:
+            logger.info("Reinitializing LLM model registry...")
+            # Reset the initialized flag
+            LLMFactory._initialized = False
+            # Clear existing models registry
+            LLMFactory._models_by_provider = {}
+            # Reinitialize the registry
+            LLMFactory.ensure_initialized()
+            logger.info("LLM model registry reinitialized successfully")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to reinitialize LLM model registry: {str(e)}")
+            return False
+
+    @staticmethod
     def _initialize_registry():
         """
         Initialize the registry with supported models, discover plugins,
@@ -94,8 +120,8 @@ class LLMFactory:
             ),
             # ANTHROPIC Provider Models
             LLMModel(
-                name="CLAUDE_3_5_SONNET_API",
-                value="claude-3-5-sonnet-20240620",
+                name="CLAUDE_3_7_SONNET_API",
+                value="claude-3-7-sonnet-20250219",
                 provider=LLMProvider.ANTHROPIC,
                 llm_class=ClaudeLLM,
                 default_config=LLMConfig(
@@ -103,8 +129,8 @@ class LLMFactory:
                 )
             ),
             LLMModel(
-                name="BEDROCK_CLAUDE_3_5_SONNET_API",
-                value="anthropic.claude-3-5-sonnet-20240620-v1:0",
+                name="BEDROCK_CLAUDE_3_7_SONNET_API",
+                value="anthropic.claude-3-7-sonnet-20250219-v1:0",
                 provider=LLMProvider.ANTHROPIC,
                 llm_class=ClaudeLLM,
                 default_config=LLMConfig(
