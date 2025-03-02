@@ -1,6 +1,7 @@
 from typing import List, Set, Optional, Dict
 import logging
 import pkg_resources
+import inspect
 
 from autobyteus.llm.autobyteus_provider import AutobyteusModelProvider
 from autobyteus.llm.models import LLMModel
@@ -36,6 +37,21 @@ class LLMFactory:
             LLMFactory._initialized = True
 
     @staticmethod
+    def _clear_model_class_attributes():
+        """
+        Clear all LLMModel instances that were set as class attributes on the LLMModel class.
+        This is necessary for reinitialization to avoid 'model already exists' errors.
+        """
+        # Get all attributes of the LLMModel class
+        for attr_name in list(vars(LLMModel).keys()):
+            attr_value = getattr(LLMModel, attr_name)
+            # Check if the attribute is an instance of LLMModel
+            if isinstance(attr_value, LLMModel):
+                logger.debug(f"Removing LLMModel class attribute: {attr_name}")
+                # Delete the attribute to avoid 'model already exists' errors during reinitialization
+                delattr(LLMModel, attr_name)
+
+    @staticmethod
     def reinitialize():
         """
         Reinitializes the model registry by resetting the initialization state
@@ -49,12 +65,19 @@ class LLMFactory:
         """
         try:
             logger.info("Reinitializing LLM model registry...")
+            
+            # Clear all LLMModel instances set as class attributes
+            LLMFactory._clear_model_class_attributes()
+            
             # Reset the initialized flag
             LLMFactory._initialized = False
+            
             # Clear existing models registry
             LLMFactory._models_by_provider = {}
+            
             # Reinitialize the registry
             LLMFactory.ensure_initialized()
+            
             logger.info("LLM model registry reinitialized successfully")
             return True
         except Exception as e:
