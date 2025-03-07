@@ -1,14 +1,9 @@
 beautifulsoup4>=4.12.2
 openai
-playsound==1.2.2
 requests
 tiktoken==0.7.0
 google-api-python-client
 google-generativeai
-redis
-weaviate-client
-sentence-transformers
-Pillow
 toml
 python-dotenv
 mistralai
