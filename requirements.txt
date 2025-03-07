@@ -12,5 +12,5 @@ Jinja2
 ollama==0.4.5
 mistral_common
 aiohttp
-autobyteus-llm-client==1.0.7
+autobyteus-llm-client==1.0.8
 brui-core==1.0.4

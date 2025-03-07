@@ -1,4 +1,5 @@
 from setuptools import setup, find_packages
+
 # Common dependencies
 common_dependencies = [
     "beautifulsoup4>=4.12.2",
@@ -15,13 +16,14 @@ common_dependencies = [
     "ollama==0.4.5",
     "mistral_common",
     "aiohttp",
-    "autobyteus-llm-client==1.0.7",
+    "autobyteus-llm-client==1.0.8",
     "brui-core==1.0.4",
 ]
+
 setup(
     name="autobyteus",
-    version="0.1.0",
-    packages=find_packages(),
+    version="1.0.0",
+    packages=find_packages(exclude=["tests", "tests.*"]),
     include_package_data=True,
     install_requires=[
         *common_dependencies,
