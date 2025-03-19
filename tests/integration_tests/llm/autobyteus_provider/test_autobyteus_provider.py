@@ -47,7 +47,7 @@ async def test_preserve_existing_registrations_on_failure(monkeypatch):
     LLMFactory.register_model(dummy_model)
     
     # Force discovery failure by using invalid URL
-    monkeypatch.setenv('AUTOBYTEUS_SERVER_URL', 'http://invalid-server:9999')
+    monkeypatch.setenv('AUTOBYTEUS_LLM_SERVER_URL', 'http://invalid-server:9999')
     
     await AutobyteusModelProvider.discover_and_register()
     
