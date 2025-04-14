@@ -17,12 +17,12 @@ common_dependencies = [
     "mistral_common",
     "aiohttp",
     "autobyteus-llm-client==1.0.9",
-    "brui-core==1.0.7",
+    "brui-core==1.0.8",
 ]
 
 setup(
     name="autobyteus",
-    version="1.0.3",
+    version="1.0.4",
     packages=find_packages(exclude=["tests", "tests.*"]),
     include_package_data=True,
     install_requires=[
