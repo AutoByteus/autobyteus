@@ -47,3 +47,7 @@ class BaseTool(EventEmitter, ABC):
     def tool_usage_xml(self):
         """Return a string describing the usage of the tool in XML format."""
         pass
+    
+    def tool_usage_json(self):
+        """Return a string describing the usage of the tool in JSON format."""
+        pass
