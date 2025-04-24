@@ -11,10 +11,13 @@ class NavigateTo(BaseTool, UIIntegrator):
         BaseTool.__init__(self)
         UIIntegrator.__init__(self)
 
-    def tool_usage(self):
-        return "NavigateTo: Navigates to a specified website. Usage: <<<NavigateTo(url='https://example.com')>>>, where 'https://example.com' is the URL of the website to navigate to."
-
     def tool_usage_xml(self):
+        """
+        Return an XML string describing the usage of the NavigateTo tool.
+
+        Returns:
+            str: An XML description of how to use the NavigateTo tool.
+        """
         return '''
         NavigateTo: Navigates to a specified website. Usage:
         <command name="NavigateTo">
@@ -24,18 +27,6 @@ class NavigateTo(BaseTool, UIIntegrator):
         '''
 
     async def _execute(self, **kwargs):
-        """
-        Navigate to the specified URL using Playwright.
-
-        Args:
-            **kwargs: Keyword arguments containing the URL. The URL should be specified as 'url'.
-
-        Returns:
-            str: A message indicating successful navigation or an error message.
-
-        Raises:
-            ValueError: If the 'url' keyword argument is not specified or is invalid.
-        """
         url = kwargs.get('url')
         if not url:
             raise ValueError("The 'url' keyword argument must be specified.")

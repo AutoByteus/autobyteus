@@ -12,10 +12,13 @@ class WebPagePDFGenerator(BaseTool, UIIntegrator):
         UIIntegrator.__init__(self)
         self.logger = logging.getLogger(__name__)
 
-    def tool_usage(self):
-        return "WebPagePDFGenerator: Generates a PDF of a given webpage in A4 format and saves it to the specified directory. Usage: <<<WebPagePDFGenerator(url='webpage_url', save_dir='path/to/save/directory')>>>, where 'webpage_url' is a string containing the URL of the webpage to generate a PDF from, and 'path/to/save/directory' is the directory where the PDF will be saved."
-
     def tool_usage_xml(self):
+        """
+        Return an XML string describing the usage of the WebPagePDFGenerator tool.
+
+        Returns:
+            str: An XML description of how to use the WebPagePDFGenerator tool.
+        """
         return '''
         WebPagePDFGenerator: Generates a PDF of a given webpage in A4 format and saves it to the specified directory. Usage:
         <command name="WebPagePDFGenerator">

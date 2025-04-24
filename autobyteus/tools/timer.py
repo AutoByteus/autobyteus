@@ -30,6 +30,21 @@ class Timer(BaseTool, EventEmitter):
         self._is_running: bool = False
         self._task: Optional[asyncio.Task] = None
 
+    def tool_usage_xml(self):
+        """
+        Return an XML string describing the usage of the Timer tool.
+
+        Returns:
+            str: An XML description of how to use the Timer tool.
+        """
+        return '''Timer: Sets and runs a timer, emitting events with remaining time. Usage:
+    <command name="Timer">
+        <arg name="duration">300</arg>
+        <arg name="interval" optional="true">60</arg>
+    </command>
+    where duration and interval are in seconds. interval is optional and defaults to 60 seconds.
+    '''
+
     def set_duration(self, duration: int):
         """
         Set the duration of the timer.
@@ -103,21 +118,3 @@ class Timer(BaseTool, EventEmitter):
 
         self.start()
         return f"Timer started for {self.duration} seconds, emitting events every {self.interval} seconds"
-
-    def tool_usage(self):
-        """
-        Return a string describing the usage of the Timer.
-        """
-        return 'Timer: Sets and runs a timer, emitting events with remaining time. Usage: <<<Timer(duration=300, interval=60)>>>, where duration and interval are in seconds.'
-
-    def tool_usage_xml(self):
-        """
-        Return an XML string describing the usage of the Timer.
-        """
-        return '''Timer: Sets and runs a timer, emitting events with remaining time. Usage:
-    <command name="Timer">
-        <arg name="duration">300</arg>
-        <arg name="interval" optional="true">60</arg>
-    </command>
-    where duration and interval are in seconds. interval is optional and defaults to 60 seconds.
-    '''

@@ -14,15 +14,12 @@ class FileWriter(BaseTool):
     it will create the necessary directories.
     """
 
-    def tool_usage(self):
-        """
-        Return a string describing the usage of the FileWriter tool.
-        """
-        return 'FileWriter: Creates a file with specified content. Usage: <<<FileWriter(path="file_path", content="file_content")>>>, where "file_path" is the path to create the file and "file_content" is the content to write to the file.'
-
     def tool_usage_xml(self):
         """
         Return an XML string describing the usage of the FileWriter tool.
+
+        Returns:
+            str: An XML description of how to use the FileWriter tool.
         """
         return '''FileWriter: Creates a file with specified content. Usage:
     <command name="FileWriter">
@@ -56,7 +53,6 @@ class FileWriter(BaseTool):
         if content is None:
             raise ValueError("The 'content' keyword argument must be specified.")
 
-        # Ensure the directory exists
         os.makedirs(os.path.dirname(path), exist_ok=True)
 
         with open(path, 'w') as file:

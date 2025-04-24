@@ -18,13 +18,13 @@ class PDFDownloader(BaseTool):
         self.default_download_folder = get_default_download_folder()
         self.download_folder = custom_download_folder or self.default_download_folder
 
-    def tool_usage(self):
-        """
-        Return a string describing the usage of the PDFDownloader tool.
-        """
-        return 'PDFDownloader: Downloads a PDF file from a given URL. Usage: <<<PDFDownloader(url="https://example.com/file.pdf")>>>'
-
     def tool_usage_xml(self):
+        """
+        Return an XML string describing the usage of the PDFDownloader tool.
+
+        Returns:
+            str: An XML description of how to use the PDFDownloader tool.
+        """
         return '''PDFDownloader: Downloads a PDF file from a given URL. Usage:
     <command name="PDFDownloader">
     <arg name="url">https://example.com/file.pdf</arg>
@@ -57,29 +57,23 @@ class PDFDownloader(BaseTool):
 
         try:
             response = requests.get(url, stream=True)
-            response.raise_for_status()  # Raises an HTTPError for bad responses
+            response.raise_for_status()
 
-            # Check if the content type is PDF
             content_type = response.headers.get('Content-Type', '').lower()
             if 'application/pdf' not in content_type:
                 raise ValueError(f"The URL does not point to a PDF file. Content-Type: {content_type}")
 
-            # Generate a unique filename based on the current timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"downloaded_pdf_{timestamp}.pdf"
             save_path = os.path.join(download_folder, filename)
 
-            # Ensure the directory exists
             os.makedirs(download_folder, exist_ok=True)
-
-            # Save the PDF file
             with open(save_path, 'wb') as file:
                 for chunk in response.iter_content(chunk_size=8192):
                     file.write(chunk)
 
             self.logger.info(f"PDF successfully downloaded and saved to {save_path}")
             return f"PDF successfully downloaded and saved to {save_path}"
-
         except requests.exceptions.RequestException as e:
             error_message = f"Error downloading PDF: {str(e)}"
             self.logger.error(error_message)

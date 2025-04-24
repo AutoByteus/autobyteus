@@ -12,11 +12,14 @@ class BrowserSessionAwareWebPageReader(BrowserSessionAwareTool):
     def get_name(self) -> str:
         return "WebPageReader"
 
-    def tool_usage(self):
-        return 'WebPageReader: Reads and cleans the HTML content from a given webpage. Usage: <<<WebPageReader(webpage_url="url_to_read")>>>, where "url_to_read" is a string containing the URL of the webpage to read the content from.'
-
     def tool_usage_xml(self):
-        return '''WebPageReader: Reads the HTML content from a given webpage. Usage:
+        """
+        Return an XML string describing the usage of the WebPageReader tool.
+
+        Returns:
+            str: An XML description of how to use the WebPageReader tool.
+        """
+        return '''WebPageReader: Reads and cleans the HTML content from a given webpage. Usage:
 <command name="WebPageReader">
   <arg name="webpage_url">url_to_read</arg>
 </command>

@@ -13,10 +13,13 @@ class BrowserSessionAwareNavigateTo(BrowserSessionAwareTool):
     def get_name(self) -> str:
         return "NavigateTo"
 
-    def tool_usage(self):
-        return "NavigateTo: Navigates to a specified website. Usage: <<<NavigateTo(webpage_url='https://example.com')>>>, where 'https://example.com' is the URL of the website to navigate to."
-
     def tool_usage_xml(self):
+        """
+        Return an XML string describing the usage of the NavigateTo tool.
+
+        Returns:
+            str: An XML description of how to use the NavigateTo tool.
+        """
         return '''
         NavigateTo: Navigates to a specified website. Usage:
         <command name="NavigateTo">

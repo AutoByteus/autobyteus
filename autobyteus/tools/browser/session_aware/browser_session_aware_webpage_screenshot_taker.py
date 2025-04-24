@@ -11,10 +11,13 @@ class BrowserSessionAwareWebPageScreenshotTaker(BrowserSessionAwareTool):
     def get_name(self) -> str:
         return "WebPageScreenshotTaker"
 
-    def tool_usage(self):
-        return "WebPageScreenshotTaker: Takes a screenshot of a given webpage and saves it to the specified file. Usage: <<<WebPageScreenshotTaker(webpage_url='url_to_screenshot', file_name='screenshot_file_name')>>>, where 'url_to_screenshot' is a string containing the URL of the webpage to take a screenshot of, and 'screenshot_file_name' is the name of the file to save the screenshot (including extension, e.g., 'screenshot.png'). Optionally, 'screenshot_file_name' can include a relative path (e.g., 'images/screenshot.png'). Returns the absolute file path of the saved screenshot."
-
     def tool_usage_xml(self):
+        """
+        Return an XML string describing the usage of the WebPageScreenshotTaker tool.
+
+        Returns:
+            str: An XML description of how to use the WebPageScreenshotTaker tool.
+        """
         return '''WebPageScreenshotTaker: Takes a screenshot of a given webpage and saves it to the specified file. Usage:
 <command name="WebPageScreenshotTaker">
   <arg name="webpage_url">url_to_screenshot</arg>

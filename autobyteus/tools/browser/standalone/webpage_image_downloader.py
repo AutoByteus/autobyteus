@@ -11,11 +11,14 @@ class WebPageImageDownloader(BaseTool, UIIntegrator):
         BaseTool.__init__(self)
         UIIntegrator.__init__(self)
 
-    def tool_usage(self):
-        return "WebPageImageDownloader: Downloads images (excluding SVGs) from a given webpage and saves them to the specified directory. Usage: <<<WebPageImageDownloader(url='webpage_url', save_dir='path/to/save/directory')>>>, where 'webpage_url' is a string containing the URL of the webpage to download images from, and 'path/to/save/directory' is the directory where the images will be saved."
-
     def tool_usage_xml(self):
-            return '''
+        """
+        Return an XML string describing the usage of the WebPageImageDownloader tool.
+
+        Returns:
+            str: An XML description of how to use the WebPageImageDownloader tool.
+        """
+        return '''
     WebPageImageDownloader: Downloads images (excluding SVGs) from a given webpage and saves them to the specified directory. Usage:
     <command name="WebPageImageDownloader">
     <arg name="url">webpage_url</arg>
@@ -25,18 +28,6 @@ class WebPageImageDownloader(BaseTool, UIIntegrator):
     '''
 
     async def _execute(self, **kwargs):
-        """
-        Download images (excluding SVGs) from the webpage at the given URL using Playwright and save them to the specified directory.
-
-        Args:
-            **kwargs: Keyword arguments containing the URL and save directory. The URL should be specified as 'url', and the directory as 'save_dir'.
-
-        Returns:
-            list: The file paths of the saved images.
-
-        Raises:
-            ValueError: If the 'url' or 'save_dir' keyword arguments are not specified.
-        """
         url = kwargs.get('url')
         save_dir = kwargs.get('save_dir')
         if not url:
@@ -62,66 +53,23 @@ class WebPageImageDownloader(BaseTool, UIIntegrator):
         return saved_paths
 
     async def _get_image_urls(self):
-        """
-        Get the URLs of all images on the current page.
-
-        Returns:
-            list: A list of image URLs.
-        """
         image_urls = await self.page.evaluate("""() => {
             return Array.from(document.images).map(i => i.src);
         }""")
         return image_urls
     
     def _resolve_url(self, base_url, url):
-        """
-        Resolve a URL against a base URL to get the absolute URL.
-
-        Args:
-            base_url (str): The base URL.
-            url (str): The URL to resolve.
-
-        Returns:
-            str: The absolute URL.
-        """
         return urljoin(base_url, url)
 
     def _is_svg(self, url):
-        """
-        Check if a URL points to an SVG image.
-
-        Args:
-            url (str): The URL to check.
-
-        Returns:
-            bool: True if the URL points to an SVG, False otherwise.
-        """
         return url.lower().endswith('.svg')
 
     def _generate_file_path(self, directory, index, url):
-        """
-        Generate a unique file path for an image.
-
-        Args:
-            directory (str): The directory to save the image in.
-            index (int): A unique index for this image.
-            url (str): The URL of the image (used to get the file extension).
-
-        Returns:
-            str: The generated file path.
-        """
         ext = os.path.splitext(url)[1]
         filename = f"image_{index}{ext}"
         return os.path.join(directory, filename)
 
     async def _download_and_save_image(self, url, file_path):
-        """
-        Download an image from a URL and save it to a file.
-
-        Args:
-            url (str): The URL of the image to download.
-            file_path (str): The path to save the image to.
-        """
         await self.page.goto(url)
         image_buffer = await self.page.screenshot(full_page=True)
         with open(file_path, "wb") as f:

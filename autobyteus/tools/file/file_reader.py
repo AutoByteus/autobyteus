@@ -15,15 +15,12 @@ class FileReader(BaseTool):
     it will raise a FileNotFoundError.
     """
 
-    def tool_usage(self):
-        """
-        Return a string describing the usage of the FileReader tool.
-        """
-        return 'FileReader: Reads content from a specified file. Usage: <<<FileReader(path="file_path")>>>, where "file_path" is the path to the file to be read.'
-
     def tool_usage_xml(self):
         """
         Return an XML string describing the usage of the FileReader tool.
+
+        Returns:
+            str: An XML description of how to use the FileReader tool.
         """
         return '''FileReader: Reads content from a specified file. Usage:
     <command name="FileReader">

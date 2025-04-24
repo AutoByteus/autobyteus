@@ -12,27 +12,15 @@ class AskUserInput(BaseTool):
         super().__init__()
         self.logger = logging.getLogger(__name__)
 
-    def tool_usage(self):
-        """
-        Return a string describing the usage of the AskUserInput tool.
-        """
-        return '''AskUserInput: Requests input from the user based on LLM's prompt. 
-        Usage: <<<AskUserInput(request="[Your request here]")>>>
-        
-        Examples:
-        1. When needing to request user for search input:
-           <<<AskUserInput(request="What would you like to search for?")>>>
-        
-        2. When needing to request user for form input:
-           <<<AskUserInput(request="Please enter your full name:")>>>
-        
-        3. When needing to request user for a choice:
-           <<<AskUserInput(request="Select an option (1, 2, or 3):")>>>
-        '''
-
     def tool_usage_xml(self):
+        """
+        Return an XML string describing the usage of the AskUserInput tool.
+
+        Returns:
+            str: An XML description of how to use the AskUserInput tool.
+        """
         return '''AskUserInput: Requests input from the user based on a given context or prompt. 
-    <command name="AskUserInput"
+    <command name="AskUserInput">
     <arg name="request">[Your request here]</arg>
     </command>
 

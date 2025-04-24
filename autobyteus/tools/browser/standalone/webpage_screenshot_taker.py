@@ -1,7 +1,6 @@
 from autobyteus.tools.base_tool import BaseTool
 from brui_core.ui_integrator import UIIntegrator
 
-
 class WebPageScreenshotTaker(BaseTool, UIIntegrator):
     """
     A class that takes a screenshot of a given webpage using Playwright.
@@ -10,11 +9,14 @@ class WebPageScreenshotTaker(BaseTool, UIIntegrator):
         BaseTool.__init__(self)
         UIIntegrator.__init__(self)
 
-    def tool_usage(self):
-        return "WebPageScreenshotTaker: Takes a screenshot of a given webpage and saves it to the specified file path. Usage: <<<WebPageScreenshotTaker(url='webpage_url', file_path='screenshot_file_path')>>>, where 'webpage_url' is a string containing the URL of the webpage to take a screenshot of, and 'screenshot_file_path' is the path where the screenshot will be saved."
-
     def tool_usage_xml(self):
-            return '''WebPageScreenshotTaker: Takes a screenshot of a given webpage and saves it to the specified file path. Usage:
+        """
+        Return an XML string describing the usage of the WebPageScreenshotTaker tool.
+
+        Returns:
+            str: An XML description of how to use the WebPageScreenshotTaker tool.
+        """
+        return '''WebPageScreenshotTaker: Takes a screenshot of a given webpage and saves it to the specified file path. Usage:
     <command name="WebPageScreenshotTaker">
     <arg name="url">webpage_url</arg>
     <arg name="file_path">screenshot_file_path</arg>

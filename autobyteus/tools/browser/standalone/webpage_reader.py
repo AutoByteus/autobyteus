@@ -6,9 +6,6 @@ This module provides a WebPageReader tool for reading and cleaning HTML content 
 The WebPageReader class allows users to retrieve and clean the HTML content of a specified webpage
 using Playwright. It inherits from BaseTool and UIIntegrator, providing a seamless integration
 with web browsers.
-
-Classes:
-    WebPageReader: A tool for reading and cleaning HTML content from webpages.
 """
 
 from autobyteus.tools.base_tool import BaseTool
@@ -39,16 +36,20 @@ class WebPageReader(BaseTool, UIIntegrator):
         UIIntegrator.__init__(self)
         self.cleaning_mode = cleaning_mode
 
-    def tool_usage(self):
-        return 'WebPageReader: Reads and cleans the HTML content from a given webpage. Usage: <<<WebPageReader(url="webpage_url")>>>, where "webpage_url" is a string containing the URL of the webpage to read the content from.'
-
     def tool_usage_xml(self):
+        """
+        Return an XML string describing the usage of the WebPageReader tool.
+
+        Returns:
+            str: An XML description of how to use the WebPageReader tool.
+        """
         return '''WebPageReader: Reads the HTML content from a given webpage. Usage:
 <command name="WebPageReader">
   <arg name="url">webpage_url</arg>
 </command>
 where "webpage_url" is a string containing the URL of the webpage to read the content from.
 '''
+
     async def _execute(self, **kwargs):
         """
         Read and clean the HTML content from the webpage at the given URL using Playwright.

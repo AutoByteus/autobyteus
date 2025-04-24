@@ -27,19 +27,6 @@ class BashExecutor(BaseTool):
         """
         super().__init__()
 
-    def tool_usage(self):
-        """
-        Return a string describing the usage of the BashExecutor tool.
-
-        Returns:
-            str: A description of how to use the BashExecutor tool.
-        """
-        return (
-            'BashExecutor: Executes bash commands and retrieves their output. '
-            'Usage: <<<BashExecutor(command="bash command")>>>, '
-            'where "bash command" is a string containing the command to be executed.'
-        )
-
     def tool_usage_xml(self):
         """
         Return an XML string describing the usage of the BashExecutor tool.
