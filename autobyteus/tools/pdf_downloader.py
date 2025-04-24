@@ -18,7 +18,8 @@ class PDFDownloader(BaseTool):
         self.default_download_folder = get_default_download_folder()
         self.download_folder = custom_download_folder or self.default_download_folder
 
-    def tool_usage_xml(self):
+    @classmethod
+    def tool_usage_xml(cls):
         """
         Return an XML string describing the usage of the PDFDownloader tool.
 

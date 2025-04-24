@@ -27,7 +27,8 @@ class BashExecutor(BaseTool):
         """
         super().__init__()
 
-    def tool_usage_xml(self):
+    @classmethod
+    def tool_usage_xml(cls):
         """
         Return an XML string describing the usage of the BashExecutor tool.
 

@@ -36,7 +36,8 @@ class WebPageReader(BaseTool, UIIntegrator):
         UIIntegrator.__init__(self)
         self.cleaning_mode = cleaning_mode
 
-    def tool_usage_xml(self):
+    @classmethod
+    def tool_usage_xml(cls):
         """
         Return an XML string describing the usage of the WebPageReader tool.
 

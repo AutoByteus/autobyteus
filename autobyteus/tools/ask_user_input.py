@@ -12,7 +12,8 @@ class AskUserInput(BaseTool):
         super().__init__()
         self.logger = logging.getLogger(__name__)
 
-    def tool_usage_xml(self):
+    @classmethod
+    def tool_usage_xml(cls):
         """
         Return an XML string describing the usage of the AskUserInput tool.
 

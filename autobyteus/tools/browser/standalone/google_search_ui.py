@@ -46,7 +46,8 @@ class GoogleSearch(BaseTool, UIIntegrator):
         self.text_area_selector = 'textarea[name="q"]'
         self.cleaning_mode = cleaning_mode
 
-    def tool_usage_xml(self):
+    @classmethod
+    def tool_usage_xml(cls):
         """
         Return an XML string describing the usage of the GoogleSearch tool.
 

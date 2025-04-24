@@ -12,7 +12,8 @@ class BrowserSessionAwareWebPageReader(BrowserSessionAwareTool):
     def get_name(self) -> str:
         return "WebPageReader"
 
-    def tool_usage_xml(self):
+    @classmethod
+    def tool_usage_xml(cls):
         """
         Return an XML string describing the usage of the WebPageReader tool.
 

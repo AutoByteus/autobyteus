@@ -21,7 +21,8 @@ class ImageDownloader(BaseTool):
         self.supported_formats = ['.jpeg', '.jpg', '.gif', '.png', '.webp']
         self.last_downloaded_image = None
 
-    def tool_usage_xml(self):
+    @classmethod
+    def tool_usage_xml(cls):
         """
         Return an XML string describing the usage of the ImageDownloader tool.
 

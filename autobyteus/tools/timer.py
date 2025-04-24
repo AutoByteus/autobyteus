@@ -30,7 +30,8 @@ class Timer(BaseTool, EventEmitter):
         self._is_running: bool = False
         self._task: Optional[asyncio.Task] = None
 
-    def tool_usage_xml(self):
+    @classmethod
+    def tool_usage_xml(cls):
         """
         Return an XML string describing the usage of the Timer tool.
 

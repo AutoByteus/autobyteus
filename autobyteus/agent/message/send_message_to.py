@@ -18,9 +18,6 @@ class SendMessageTo(BaseTool):
         except ValueError as e:
             return f"Error: {str(e)}"
     
-    def tool_usage(self) -> str:
-        return self.tool_usage_xml()
-
     def tool_usage_xml(self) -> str:
         return '''SendMessageTo: Sends a message to another agent in the group. Usage:
     <command name="SendMessageTo">

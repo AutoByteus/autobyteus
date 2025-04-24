@@ -15,7 +15,8 @@ class FileReader(BaseTool):
     it will raise a FileNotFoundError.
     """
 
-    def tool_usage_xml(self):
+    @classmethod
+    def tool_usage_xml(cls):
         """
         Return an XML string describing the usage of the FileReader tool.
 

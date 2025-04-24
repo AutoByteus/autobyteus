@@ -14,7 +14,8 @@ class BrowserSessionAwareWebElementTrigger(BrowserSessionAwareTool):
     def get_name(self) -> str:
         return "WebElementTrigger"
     
-    def tool_usage_xml(self):
+    @classmethod
+    def tool_usage_xml(cls):
         """
         Return an XML string describing the usage of the WebElementTrigger tool.
 

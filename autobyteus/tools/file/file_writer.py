@@ -14,7 +14,8 @@ class FileWriter(BaseTool):
     it will create the necessary directories.
     """
 
-    def tool_usage_xml(self):
+    @classmethod
+    def tool_usage_xml(cls):
         """
         Return an XML string describing the usage of the FileWriter tool.
 

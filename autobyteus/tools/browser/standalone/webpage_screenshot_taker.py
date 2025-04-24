@@ -9,7 +9,8 @@ class WebPageScreenshotTaker(BaseTool, UIIntegrator):
         BaseTool.__init__(self)
         UIIntegrator.__init__(self)
 
-    def tool_usage_xml(self):
+    @classmethod
+    def tool_usage_xml(cls):
         """
         Return an XML string describing the usage of the WebPageScreenshotTaker tool.
 

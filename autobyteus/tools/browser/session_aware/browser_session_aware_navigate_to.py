@@ -13,7 +13,8 @@ class BrowserSessionAwareNavigateTo(BrowserSessionAwareTool):
     def get_name(self) -> str:
         return "NavigateTo"
 
-    def tool_usage_xml(self):
+    @classmethod
+    def tool_usage_xml(cls):
         """
         Return an XML string describing the usage of the NavigateTo tool.
 

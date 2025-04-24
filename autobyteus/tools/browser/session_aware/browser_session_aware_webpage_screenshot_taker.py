@@ -11,7 +11,8 @@ class BrowserSessionAwareWebPageScreenshotTaker(BrowserSessionAwareTool):
     def get_name(self) -> str:
         return "WebPageScreenshotTaker"
 
-    def tool_usage_xml(self):
+    @classmethod
+    def tool_usage_xml(cls):
         """
         Return an XML string describing the usage of the WebPageScreenshotTaker tool.
 
