@@ -62,7 +62,7 @@ class AutobyteusModelProvider:
                     
                     LLMFactory.register_model(llm_model)
                     registered_count += 1
-                    logger.debug(f"Registered model: {model_info['name']} with canonical name: {model_info["canonical_name"]}")
+                    logger.debug(f"Registered model: {model_info['name']} with canonical name: {model_info['canonical_name']}")
                     
                 except Exception as e:
                     logger.error(f"Model registration failed: {str(e)}")

@@ -223,7 +223,7 @@ class Agent(EventEmitter):
             
         external_tools_section = ""
         for i, tool in enumerate(self.tools):
-            external_tools_section += f"  {i + 1} {tool.tool_usage_xml()}\n\n"
+            external_tools_section += f"  {i + 1} {tool.tool_usage()}\n\n"
         return external_tools_section.strip()
 
     def on_task_completed(self, *args, **kwargs):

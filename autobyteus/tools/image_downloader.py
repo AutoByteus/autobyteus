@@ -14,11 +14,14 @@ from autobyteus.events.decorators import event_listener
 logger = logging.getLogger(__name__)
 
 class ImageDownloader(BaseTool):
+    # Define supported_formats as a class variable so it can be accessed in class methods
+    supported_formats = ['.jpeg', '.jpg', '.gif', '.png', '.webp']
+    
     def __init__(self, custom_download_folder=None):
         super().__init__()
         self.default_download_folder = get_default_download_folder()
         self.download_folder = custom_download_folder or self.default_download_folder
-        self.supported_formats = ['.jpeg', '.jpg', '.gif', '.png', '.webp']
+        self.supported_formats = self.__class__.supported_formats  # Set instance attribute from class variable for backward compatibility
         self.last_downloaded_image = None
 
     @classmethod
@@ -37,9 +40,9 @@ Usage:
 </command>
 
 Parameters:
-- "image_url": A string containing a direct URL to an image file (must end with {', '.join(self.supported_formats)})
+- "image_url": A string containing a direct URL to an image file (must end with {', '.join(cls.supported_formats)})
 
-Supported image formats: {', '.join(format.upper()[1:] for format in self.supported_formats)}
+Supported image formats: {', '.join(format.upper()[1:] for format in cls.supported_formats)}
 
 Positive examples:
 <command name="ImageDownloader">
