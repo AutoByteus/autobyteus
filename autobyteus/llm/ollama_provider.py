@@ -79,7 +79,6 @@ class OllamaModelProvider:
                         value=model_name,
                         provider=LLMProvider.OLLAMA,
                         llm_class=OllamaLLM,
-                        canonical_name=model_name,  # Use model_name as the canonical_name
                         default_config=LLMConfig(
                             rate_limit=60,
                             token_limit=8192,
