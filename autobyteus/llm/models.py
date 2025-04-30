@@ -13,6 +13,7 @@ class LLMModel:
     Represents a single model's metadata:
       - name (str): A human-readable label, e.g. "GPT-4 Official" 
       - value (str): A unique identifier used in code or APIs, e.g. "gpt-4o"
+      - canonical_name (str): A shorter, standardized reference name for prompts, e.g. "gpt-4o" or "claude-3.7"
       - provider (LLMProvider): The provider enum 
       - llm_class (Type[BaseLLM]): Which Python class to instantiate 
       - default_config (LLMConfig): Default configuration (token limit, etc.)
@@ -26,6 +27,7 @@ class LLMModel:
         value: str,
         provider: LLMProvider,
         llm_class: Type["BaseLLM"],
+        canonical_name: str,
         default_config: Optional[LLMConfig] = None
     ):
         # Validate name doesn't already exist as a class attribute
@@ -36,6 +38,7 @@ class LLMModel:
             
         self._name = name
         self._value = value
+        self._canonical_name = canonical_name
         self.provider = provider
         self.llm_class = llm_class
         self.default_config = default_config if default_config else LLMConfig()
@@ -58,6 +61,14 @@ class LLMModel:
         """
         return self._value
 
+    @property
+    def canonical_name(self) -> str:
+        """
+        A standardized, shorter reference name for this model.
+        Useful for prompt engineering and cross-referencing similar models.
+        """
+        return self._canonical_name
+
     def create_llm(self, custom_config: Optional[LLMConfig] = None) -> "BaseLLM":
         """
         Instantiate the LLM class for this model, applying
@@ -69,5 +80,6 @@ class LLMModel:
     def __repr__(self):
         return (
             f"LLMModel(name='{self._name}', value='{self._value}', "
+            f"canonical_name='{self._canonical_name}', "
             f"provider='{self.provider.name}', llm_class='{self.llm_class.__name__}')"
         )

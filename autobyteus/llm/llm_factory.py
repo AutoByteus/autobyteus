@@ -98,6 +98,7 @@ class LLMFactory:
                 value="gpt-4o",
                 provider=LLMProvider.OPENAI,
                 llm_class=OpenAILLM,
+                canonical_name="gpt-4o",
                 default_config=LLMConfig(
                     rate_limit=40, 
                     token_limit=8192,
@@ -105,30 +106,23 @@ class LLMFactory:
                 )
             ),
             LLMModel(
-                name="o1_API",
-                value="o1",
+                name="o3_API",
+                value="o3",
                 provider=LLMProvider.OPENAI,
                 llm_class=OpenAILLM,
+                canonical_name="o3",
                 default_config=LLMConfig(
                     pricing_config=TokenPricingConfig(15.00, 60.00)
                 )
             ),
             LLMModel(
-                name="o1_MINI_API",
-                value="o3-mini",
+                name="o4_MINI_API",
+                value="o4-mini",
                 provider=LLMProvider.OPENAI,
                 llm_class=OpenAILLM,
+                canonical_name="o4-mini",
                 default_config=LLMConfig(
                     pricing_config=TokenPricingConfig(1.0, 4.00)
-                )
-            ),
-            LLMModel(
-                name="GPT_3_5_TURBO_API",
-                value="gpt-3.5-turbo",
-                provider=LLMProvider.OPENAI,
-                llm_class=OpenAILLM,
-                default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(1.50, 2.00)
                 )
             ),
             # MISTRAL Provider Models
@@ -137,6 +131,7 @@ class LLMFactory:
                 value="mistral-large-latest",
                 provider=LLMProvider.MISTRAL,
                 llm_class=MistralLLM,
+                canonical_name="mistral-large",
                 default_config=LLMConfig(
                     pricing_config=TokenPricingConfig(2.00, 6.00)
                 )
@@ -147,6 +142,7 @@ class LLMFactory:
                 value="claude-3-7-sonnet-20250219",
                 provider=LLMProvider.ANTHROPIC,
                 llm_class=ClaudeLLM,
+                canonical_name="claude-3.7",
                 default_config=LLMConfig(
                     pricing_config=TokenPricingConfig(3.00, 15.00)
                 )
@@ -156,6 +152,7 @@ class LLMFactory:
                 value="anthropic.claude-3-7-sonnet-20250219-v1:0",
                 provider=LLMProvider.ANTHROPIC,
                 llm_class=ClaudeLLM,
+                canonical_name="claude-3.7",
                 default_config=LLMConfig(
                     pricing_config=TokenPricingConfig(3.00, 15.00)
                 )
@@ -166,6 +163,7 @@ class LLMFactory:
                 value="deepseek-chat",
                 provider=LLMProvider.DEEPSEEK,
                 llm_class=DeepSeekLLM,
+                canonical_name="deepseek-chat",
                 default_config=LLMConfig(
                     rate_limit=60,
                     token_limit=8000,
@@ -178,6 +176,7 @@ class LLMFactory:
                 value="deepseek-reasoner",
                 provider=LLMProvider.DEEPSEEK,
                 llm_class=DeepSeekLLM,
+                canonical_name="deepseek-reasoner",
                 default_config=LLMConfig(
                     rate_limit=60,
                     token_limit=8000,
@@ -190,6 +189,7 @@ class LLMFactory:
                 value="gemini-1-5-pro",
                 provider=LLMProvider.GEMINI,
                 llm_class=OpenAILLM,
+                canonical_name="gemini-1.5-pro",
                 default_config=LLMConfig(
                     pricing_config=TokenPricingConfig(1.25, 5.00)
                 )
@@ -199,6 +199,7 @@ class LLMFactory:
                 value="gemini-1-5-flash",
                 provider=LLMProvider.GEMINI,
                 llm_class=OpenAILLM,
+                canonical_name="gemini-1.5-flash",
                 default_config=LLMConfig(
                     pricing_config=TokenPricingConfig(0.075, 0.30)
                 )
@@ -209,6 +210,7 @@ class LLMFactory:
                 value="grok-2-1212",
                 provider=LLMProvider.GROK,
                 llm_class=GrokLLM,
+                canonical_name="grok-2",
                 default_config=LLMConfig(
                     rate_limit=60,
                     token_limit=8000,
@@ -290,3 +292,21 @@ class LLMFactory:
         """
         LLMFactory.ensure_initialized()
         return LLMFactory._models_by_provider.get(provider, [])
+
+    @staticmethod
+    def get_canonical_name(model_name: str) -> Optional[str]:
+        """
+        Get the canonical name for a model by its name.
+        
+        Args:
+            model_name (str): The model name (e.g., "GPT_4o_API")
+            
+        Returns:
+            Optional[str]: The canonical name if found, None otherwise
+        """
+        LLMFactory.ensure_initialized()
+        for models in LLMFactory._models_by_provider.values():
+            for model_instance in models:
+                if model_instance.name == model_name:
+                    return model_instance.canonical_name
+        return None
