@@ -31,9 +31,7 @@ class BaseTool(ABC, EventEmitter, metaclass=ToolMeta):
         Can be overridden by child classes if a different registration name is needed.
         """
         return cls.__name__
-
-    @classmethod
-    @abstractmethod
+    
     @classmethod
     def tool_usage_xml(cls) -> str:
         """

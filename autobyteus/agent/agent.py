@@ -225,6 +225,15 @@ class Agent(EventEmitter):
             for tool in self.tools:
                 tool.set_agent_id(self.agent_id)
 
+    def _get_external_tools_section(self) -> str:
+        if not self.tools:
+            return ""
+            
+        external_tools_section = ""
+        for i, tool in enumerate(self.tools):
+            external_tools_section += f"  {i + 1} {tool.tool_usage()}\n\n"
+        return external_tools_section.strip()
+
     def on_task_completed(self, *args, **kwargs):
         logger.info(f"Task completed event received for agent: {self.role}")
         self.task_completed.set()

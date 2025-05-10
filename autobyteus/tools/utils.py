@@ -13,5 +13,5 @@ def format_tool_usage_info(tools: List[BaseTool]) -> str:
     """
     tool_usage_info = ""
     for i, tool in enumerate(tools):
-        tool_usage_info += f"  {i + 1} {tool.tool_usage_xml()}\n\n"
+        tool_usage_info += f"  {i + 1} {tool.tool_usage()}\n\n"
     return tool_usage_info.strip()
