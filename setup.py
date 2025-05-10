@@ -16,13 +16,13 @@ common_dependencies = [
     "ollama==0.4.5",
     "mistral_common",
     "aiohttp",
-    "autobyteus-llm-client==1.0.9",
+    "autobyteus-llm-client==1.1.0",
     "brui-core==1.0.8",
 ]
 
 setup(
     name="autobyteus",
-    version="1.0.5",
+    version="1.0.6",
     packages=find_packages(exclude=["tests", "tests.*"]),
     include_package_data=True,
     install_requires=[
