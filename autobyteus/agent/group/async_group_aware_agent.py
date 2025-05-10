@@ -7,6 +7,7 @@ from autobyteus.agent.message.message_types import MessageType
 from autobyteus.agent.message.send_message_to import SendMessageTo
 from autobyteus.agent.status import AgentStatus
 from autobyteus.events.event_types import EventType
+from autobyteus.conversation.user_message import UserMessage
 
 if TYPE_CHECKING:
     from autobyteus.agent.orchestrator.base_agent_orchestrator import BaseAgentOrchestrator
@@ -45,7 +46,6 @@ class AsyncGroupAwareAgent(AsyncAgent):
             logger.info(f"Agent {self.role} entering running state")
             self._initialize_queues()
             self._initialize_task_completed()
-            await self.initialize_conversation()
         
             self.status = AgentStatus.RUNNING
             
@@ -80,10 +80,9 @@ class AsyncGroupAwareAgent(AsyncAgent):
                 if message.message_type == MessageType.TASK_RESULT:
                     self.agent_orchestrator.handle_task_completed(message.sender_agent_id)
                 
+                agent_message = UserMessage(content=f"Message from sender_agent_id {message.sender_agent_id}, content {message.content}")
                 await self.process_streaming_response(
-                    self.conversation.stream_user_message(
-                        f"Message from sender_agent_id {message.sender_agent_id}, content {message.content}"
-                    )
+                    self.llm.stream_user_message(agent_message)
                 )
             except asyncio.TimeoutError:
                 continue

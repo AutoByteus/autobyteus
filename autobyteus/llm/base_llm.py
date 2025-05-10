@@ -8,6 +8,7 @@ from autobyteus.llm.extensions.base_extension import LLMExtension
 from autobyteus.llm.extensions.extension_registry import ExtensionRegistry
 from autobyteus.llm.utils.messages import Message, MessageRole
 from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
+from autobyteus.conversation.user_message import UserMessage
 
 class BaseLLM(ABC):
     DEFAULT_SYSTEM_MESSAGE = "You are a helpful assistant"
@@ -87,14 +88,14 @@ class BaseLLM(ABC):
         """
         self.messages.append(Message(MessageRole.SYSTEM, message))
 
-    def add_user_message(self, message: Union[str, List[Dict]]):
+    def _add_user_message(self, user_message: UserMessage):
         """
         Add a user message to the conversation history.
 
         Args:
-            message (Union[str, List[Dict]]): The user message content.
+            user_message (UserMessage): The user message object.
         """
-        msg = Message(MessageRole.USER, message)
+        msg = Message(MessageRole.USER, user_message.content)
         self.messages.append(msg)
         self._trigger_on_user_message_added(msg)
 
@@ -130,61 +131,64 @@ class BaseLLM(ABC):
         for extension in self._extension_registry.get_all():
             extension.on_assistant_message_added(message)
 
-    async def _execute_before_hooks(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> None:
+    async def _execute_before_hooks(self, user_message: UserMessage, **kwargs) -> None:
         """
         Execute all registered before_invoke hooks.
         """
         for extension in self._extension_registry.get_all():
-            await extension.before_invoke(user_message, file_paths, **kwargs)
+            await extension.before_invoke(user_message.content, user_message.image_urls, **kwargs)
 
-    async def _execute_after_hooks(self, user_message: str, file_paths: Optional[List[str]] = None, response: CompleteResponse = None, **kwargs) -> None:
+    async def _execute_after_hooks(self, user_message: UserMessage, response: CompleteResponse = None, **kwargs) -> None:
         """
         Execute all registered after_invoke hooks.
         
         Args:
-            user_message (str): The original user message
-            file_paths (Optional[List[str]]): Any file paths used in the request
+            user_message (UserMessage): The user message object
             response (CompleteResponse): The complete response from the LLM
             **kwargs: Additional arguments for LLM-specific usage
         """
         for extension in self._extension_registry.get_all():
-            await extension.after_invoke(user_message, file_paths, response, **kwargs)
+            await extension.after_invoke(user_message.content, user_message.image_urls, response, **kwargs)
 
-    async def send_user_message(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> str:
+    async def send_user_message(self, user_message: UserMessage, **kwargs) -> str:
         """
         Sends a user message to the LLM and returns the LLM's response.
 
         Args:
-            user_message (str): The text input from the user.
-            file_paths (List[str], optional): A list of file paths for additional context.
+            user_message (UserMessage): The user message object.
             **kwargs: Additional arguments for LLM-specific usage.
 
         Returns:
             str: The response from the LLM.
         """
-        await self._execute_before_hooks(user_message, file_paths, **kwargs)
-        response = await self._send_user_message_to_llm(user_message, file_paths, **kwargs)
-        await self._execute_after_hooks(user_message, file_paths, response, **kwargs)
+        self._add_user_message(user_message)
+        
+        await self._execute_before_hooks(user_message, **kwargs)
+        response = await self._send_user_message_to_llm(user_message, **kwargs)
+        await self._execute_after_hooks(user_message, response, **kwargs)
+        
+        self.add_assistant_message(response.content)
         return response.content
 
-    async def stream_user_message(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> AsyncGenerator[str, None]:
+    async def stream_user_message(self, user_message: UserMessage, **kwargs) -> AsyncGenerator[str, None]:
         """
         Streams the LLM response token by token.
 
         Args:
-            user_message (str): The text input from the user.
-            file_paths (List[str], optional): A list of file paths for additional context.
+            user_message (UserMessage): The user message object.
             **kwargs: Additional arguments for LLM-specific usage.
 
         Yields:
             AsyncGenerator[str, None]: Tokens from the LLM response.
         """
-        await self._execute_before_hooks(user_message, file_paths, **kwargs)
+        self._add_user_message(user_message)
+        
+        await self._execute_before_hooks(user_message, **kwargs)
 
         accumulated_content = ""
         final_chunk = None
         
-        async for chunk in self._stream_user_message_to_llm(user_message, file_paths, **kwargs):
+        async for chunk in self._stream_user_message_to_llm(user_message, **kwargs):
             accumulated_content += chunk.content
             if chunk.is_complete:
                 final_chunk = chunk
@@ -196,17 +200,18 @@ class BaseLLM(ABC):
             usage=final_chunk.usage if final_chunk else None
         )
         
-        await self._execute_after_hooks(user_message, file_paths, complete_response, **kwargs)
+        await self._execute_after_hooks(user_message, complete_response, **kwargs)
+        self.add_assistant_message(accumulated_content)
 
     @abstractmethod
-    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> CompleteResponse:
+    async def _send_user_message_to_llm(self, user_message: UserMessage, **kwargs) -> CompleteResponse:
         """
         Abstract method for sending a user message to an LLM. Must be implemented by subclasses.
         """
         pass
 
     @abstractmethod
-    async def _stream_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> AsyncGenerator[ChunkResponse, None]:
+    async def _stream_user_message_to_llm(self, user_message: UserMessage, **kwargs) -> AsyncGenerator[ChunkResponse, None]:
         """
         Abstract method for streaming a user message response from the LLM. Must be implemented by subclasses.
         """

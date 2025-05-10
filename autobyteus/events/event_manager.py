@@ -1,7 +1,12 @@
 
 from autobyteus.events.event_types import EventType
 from autobyteus.utils.singleton import SingletonMeta
-from typing import Dict, List, Callable, Optional
+from typing import Dict, List, Callable, Optional, Any
+from collections import defaultdict
+
+class EventError(Exception):
+    """Base exception class for event-related errors."""
+    pass
 
 class EventManager(metaclass=SingletonMeta):
     def __init__(self):

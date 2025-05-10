@@ -12,11 +12,9 @@ from typing import (
 from autobyteus.agent.agent import Agent
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.tools.base_tool import BaseTool
-from autobyteus.prompt.prompt_builder import PromptBuilder
 from autobyteus.events.event_types import EventType
 from autobyteus.agent.status import AgentStatus
 from autobyteus.conversation.user_message import UserMessage
-from autobyteus.conversation.conversation import Conversation
 from autobyteus.agent.tool_invocation import ToolInvocation
 
 logger = logging.getLogger(__name__)
@@ -32,9 +30,7 @@ class AsyncAgent(Agent):
         role: str, 
         llm: BaseLLM, 
         tools: Optional[List[BaseTool]] = None,
-        agent_id: Optional[str] = None,
-        prompt_builder: Optional[PromptBuilder] = None,
-        initial_user_message: Optional[UserMessage] = None
+        agent_id: Optional[str] = None
     ) -> None:
         """
         Initialize the AsyncAgent with the given parameters.
@@ -43,40 +39,13 @@ class AsyncAgent(Agent):
             role: The role of the agent
             llm: The language model instance
             tools: List of available tools
-            use_xml_parser: Whether to use XML parser for responses
             agent_id: Optional unique identifier for the agent
-            prompt_builder: Optional prompt builder instance
-            initial_user_message: Optional initial message to start the conversation
         """
         super().__init__(
             role, 
             llm, 
             tools, 
-            agent_id, 
-            prompt_builder, 
-            initial_user_message
-        )
-
-    async def initialize_conversation(self) -> None:
-        """Initialize the conversation with initial message or prompt."""
-        logger.info(f"Initializing conversation for agent: {self.role}")
-        self.conversation = Conversation(self.llm)
-
-        if self.initial_user_message:
-            initial_message = self.initial_user_message
-        else:
-            prompt_content = self.prompt_builder.set_variable_value(
-                "external_tools", 
-                self._get_external_tools_section()
-            ).build()
-            initial_message = UserMessage(content=prompt_content)
-
-        logger.debug(f"Initial user message for agent {self.role}: {initial_message}")
-        await self.process_streaming_response(
-            self.conversation.stream_user_message(
-                initial_message.content, 
-                initial_message.file_paths
-            )
+            agent_id
         )
 
     async def handle_user_messages(self) -> NoReturn:
@@ -93,10 +62,7 @@ class AsyncAgent(Agent):
                 )
                 logger.info(f"Agent {self.role} handling user message")
                 await self.process_streaming_response(
-                    self.conversation.stream_user_message(
-                        user_message.content, 
-                        user_message.file_paths
-                    )
+                    self.llm.stream_user_message(user_message)
                 )
             except asyncio.TimeoutError:
                 continue
@@ -119,10 +85,9 @@ class AsyncAgent(Agent):
                     timeout=1.0
                 )
                 logger.info(f"Agent {self.role} handling tool result message: {message}")
+                tool_result_message = UserMessage(content=f"Tool execution result: {message}")
                 await self.process_streaming_response(
-                    self.conversation.stream_user_message(
-                        f"Tool execution result: {message}"
-                    )
+                    self.llm.stream_user_message(tool_result_message)
                 )
             except asyncio.TimeoutError:
                 continue
