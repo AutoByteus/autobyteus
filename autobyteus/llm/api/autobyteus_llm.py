@@ -29,7 +29,7 @@ class AutobyteusLLM(BaseLLM):
     async def _send_user_message_to_llm(
         self,
         user_message: str,
-        file_paths: Optional[List[str]] = None,
+        image_urls: Optional[List[str]] = None,
         **kwargs
     ) -> CompleteResponse:
         user_message_index = kwargs.get("user_message_index")
@@ -42,7 +42,7 @@ class AutobyteusLLM(BaseLLM):
                 conversation_id=self.conversation_id,
                 model_name=self.model.name,
                 user_message=user_message,
-                file_paths=file_paths,
+                file_paths=image_urls,
                 user_message_index=user_message_index
             )
             
@@ -68,7 +68,7 @@ class AutobyteusLLM(BaseLLM):
     async def _stream_user_message_to_llm(
         self,
         user_message: str,
-        file_paths: Optional[List[str]] = None,
+        image_urls: Optional[List[str]] = None,
         **kwargs
     ) -> AsyncGenerator[ChunkResponse, None]:
         user_message_index = kwargs.get("user_message_index")
@@ -83,7 +83,7 @@ class AutobyteusLLM(BaseLLM):
                 conversation_id=self.conversation_id,
                 model_name=self.model.name,
                 user_message=user_message,
-                file_paths=file_paths,
+                file_paths=image_urls,
                 user_message_index=user_message_index
             ):
                 if 'error' in chunk:

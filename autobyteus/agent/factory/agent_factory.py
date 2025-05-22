@@ -1,108 +1,206 @@
 # file: autobyteus/agent/factory/agent_factory.py
 import logging
-from autobyteus.agent.agent_runtime import AgentRuntime
-from autobyteus.agent.agent_instance import AgentInstance
-from autobyteus.agent.group.group_aware_agent import GroupAwareAgent
+from typing import List, Union, Optional, Dict, cast, Type, TYPE_CHECKING, Any
+
 from autobyteus.llm.llm_factory import LLMFactory
-from autobyteus.tools.factory.tool_factory import ToolFactory
-from autobyteus.llm.models import LLMModel
-from autobyteus.agent.response_parser.base_response_parser import BaseResponseParser
-from autobyteus.agent.response_parser.tool_usage_command_parser import ToolUsageCommandParser
-from typing import List, Union, Optional
+from autobyteus.tools.registry import ToolRegistry, default_tool_registry
+from autobyteus.tools.tool_config import ToolConfig
+from autobyteus.llm.models import LLMModel, LLMConfig
+from autobyteus.agent.context import AgentContext 
+from autobyteus.agent.events import AgentEventQueues 
+from autobyteus.agent.events import ( 
+    UserMessageReceivedEvent, 
+    InterAgentMessageReceivedEvent, 
+    PendingToolInvocationEvent, 
+    ToolResultEvent,
+    LLMCompleteResponseReceivedEvent, 
+    GenericEvent, 
+    AgentStartedEvent,
+    AgentStoppedEvent,
+    AgentErrorEvent,
+    ToolExecutionApprovalEvent,
+    LLMPromptReadyEvent,
+    ApprovedToolInvocationEvent, 
+)
+from autobyteus.agent.registry.agent_definition import AgentDefinition 
+from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace 
+from autobyteus.agent.handlers import ( 
+    UserInputMessageEventHandler,
+    InterAgentMessageReceivedEventHandler, 
+    ToolInvocationRequestEventHandler,
+    ToolResultEventHandler,
+    LLMCompleteResponseReceivedEventHandler, 
+    GenericEventHandler, 
+    EventHandlerRegistry,
+    LifecycleEventLogger, 
+    ToolExecutionApprovalEventHandler,
+    ApprovedToolInvocationEventHandler, 
+)
+from autobyteus.agent.handlers.llm_prompt_ready_event_handler import LLMPromptReadyEventHandler
+
+
+if TYPE_CHECKING:
+    from autobyteus.agent.agent_runtime import AgentRuntime
+
 
 logger = logging.getLogger(__name__)
 
 class AgentFactory:
     """
-    Factory class for creating different types of agents.
-
-    This factory simplifies the creation of AgentInstance objects and their
-    corresponding runtime agents.
+    Factory class for creating agents.
+    This factory primarily creates AgentRuntime objects based on the 
+    new architecture (AgentContext, AgentRuntime).
+    It relies on ToolRegistry and LLMFactory for creating tools and LLM instances.
     """
     def __init__(self,
-                 role: str,
-                 agent_type: str,
-                 tool_factory: ToolFactory,
-                 llm_factory: LLMFactory,
-                 llm_model: LLMModel,
-                 tool_names: List[str],
-                 response_parsers: Optional[List[BaseResponseParser]] = None):
+                 tool_registry: ToolRegistry,
+                 llm_factory: LLMFactory): 
         """
         Initializes the AgentFactory.
 
         Args:
-            role: The role the created agents will fulfill.
-            agent_type: The type of agent to create ("standalone" or "group_aware").
-            tool_factory: A factory to create tool instances.
-            llm_factory: A factory to create LLM instances.
-            llm_model: The specific LLM model configuration to use.
-            tool_names: A list of tool names the agent should be equipped with.
-            response_parsers: Optional list of response parsers to use.
+            tool_registry: An instance of ToolRegistry.
+            llm_factory: An instance of LLMFactory.
         """
-        self.role = role
-        self.agent_type = agent_type
-        self.tool_factory = tool_factory
+        if not isinstance(tool_registry, ToolRegistry):
+            raise TypeError(f"AgentFactory 'tool_registry' must be an instance of ToolRegistry. Got {type(tool_registry)}")
+        if not isinstance(llm_factory, LLMFactory):
+            raise TypeError(f"AgentFactory 'llm_factory' must be an instance of LLMFactory. Got {type(llm_factory)}")
+            
+        self.tool_registry = tool_registry
         self.llm_factory = llm_factory
-        self.llm_model = llm_model
-        self.tool_names = tool_names
-        self.response_parsers = response_parsers or []
-        logger.info(f"AgentFactory initialized for role '{role}' and type '{agent_type}'")
+        logger.info("AgentFactory initialized with ToolRegistry and LLMFactory.")
 
-    def create_agent_instance(self, agent_id: str) -> AgentInstance:
-        """
-        Creates an AgentInstance with the given configuration.
-
-        Args:
-            agent_id: The unique identifier for the agent being created.
-
-        Returns:
-            An AgentInstance object with the configured properties.
-        """
-        logger.info(f"Creating agent instance with id '{agent_id}' for role '{self.role}'")
+    def _get_default_event_handler_registry(self) -> EventHandlerRegistry:
+        registry = EventHandlerRegistry()
         
-        try:
-            tools = [self.tool_factory.create_tool(name) for name in self.tool_names]
-            logger.debug(f"Tools created for agent '{agent_id}': {[tool.get_name() for tool in tools]}")
-        except Exception as e:
-            logger.error(f"Error creating tools for agent '{agent_id}': {e}")
-            raise ValueError(f"Failed to create tools for agent {agent_id}: {e}") from e
+        registry.register(UserMessageReceivedEvent, UserInputMessageEventHandler())
+        registry.register(InterAgentMessageReceivedEvent, InterAgentMessageReceivedEventHandler()) 
+        registry.register(LLMCompleteResponseReceivedEvent, LLMCompleteResponseReceivedEventHandler())
+        registry.register(PendingToolInvocationEvent, ToolInvocationRequestEventHandler()) 
+        registry.register(ToolResultEvent, ToolResultEventHandler())
+        registry.register(GenericEvent, GenericEventHandler())
+        registry.register(ToolExecutionApprovalEvent, ToolExecutionApprovalEventHandler())
+        registry.register(LLMPromptReadyEvent, LLMPromptReadyEventHandler())
+        registry.register(ApprovedToolInvocationEvent, ApprovedToolInvocationEventHandler()) 
+        
+        lifecycle_logger_instance = LifecycleEventLogger() 
+        registry.register(AgentStartedEvent, lifecycle_logger_instance)
+        registry.register(AgentStoppedEvent, lifecycle_logger_instance)
+        registry.register(AgentErrorEvent, lifecycle_logger_instance)
+        
+        logger.debug(f"Default EventHandlerRegistry created with handlers for: {[cls.__name__ for cls in registry.get_all_registered_event_types()]}")
+        return registry
+
+    def create_agent_context(self, 
+                             agent_id: str, 
+                             definition: AgentDefinition, 
+                             llm_model: LLMModel,
+                             workspace: Optional[BaseAgentWorkspace] = None,
+                             llm_config_override: Optional[Dict[str, Any]] = None,
+                             tool_config_override: Optional[Dict[str, ToolConfig]] = None,
+                             auto_execute_tools_override: bool = True 
+                             ) -> AgentContext: 
+        logger.debug(f"Creating AgentContext for agent_id '{agent_id}' using definition '{definition.name}'. "
+                     f"Workspace: {workspace is not None}. "
+                     f"LLM Model: {llm_model.value if llm_model else 'None (Error if None)'}. "
+                     f"LLM Config Override Keys: {list(llm_config_override.keys()) if llm_config_override else 'None'}. "
+                     f"Tool Config Override Keys: {list(tool_config_override.keys()) if tool_config_override else 'None'}. "
+                     f"Auto Execute Tools Override: {auto_execute_tools_override}.")
+
+        if not isinstance(definition, AgentDefinition):
+            raise TypeError(f"Expected AgentDefinition, got {type(definition).__name__}")
+        if not isinstance(llm_model, LLMModel):
+            raise TypeError(f"An 'llm_model' of type LLMModel must be specified. Got {type(llm_model)}")
+        if workspace is not None and not isinstance(workspace, BaseAgentWorkspace):
+             raise TypeError(f"Expected BaseAgentWorkspace or None for workspace, got {type(workspace).__name__}")
 
         try:
-            llm = self.llm_factory.create_llm(self.llm_model)
-            logger.debug(f"LLM instance created for agent '{agent_id}' using model '{self.llm_model.model_name}'")
+            tool_instances_dict = {}
+            for tool_name in definition.tool_names:
+                # Get tool-specific config if provided
+                tool_config = tool_config_override.get(tool_name) if tool_config_override else None
+                tool_instance = self.tool_registry.create_tool(tool_name, tool_config)
+                tool_instances_dict[tool_name] = tool_instance
+                
+            logger.debug(f"Tools created for AgentContext '{agent_id}': {list(tool_instances_dict.keys())}")
         except Exception as e:
-            logger.error(f"Error creating LLM for agent '{agent_id}': {e}")
-            raise ValueError(f"Failed to create LLM for agent {agent_id}: {e}") from e
+            logger.error(f"Error creating tools for AgentContext '{agent_id}': {e}")
+            raise ValueError(f"Failed to create tools for AgentContext {agent_id} from definition '{definition.name}': {e}") from e
 
-        return AgentInstance(
-            role=self.role,
+        try:
+            final_llm_model: LLMModel = llm_model 
+            model_source = "direct parameter"
+            
+            logger.info(f"LLM model for agent '{agent_id}': '{final_llm_model.value}' (Source: {model_source})")
+
+            base_config_params = {}
+            if hasattr(final_llm_model, 'default_config') and final_llm_model.default_config is not None:
+                 if isinstance(final_llm_model.default_config, LLMConfig):
+                    base_config_params = final_llm_model.default_config.to_dict()
+                 elif isinstance(final_llm_model.default_config, dict): 
+                    base_config_params = final_llm_model.default_config.copy()
+                 else:
+                    logger.warning(f"Model '{final_llm_model.value}' has an unexpected default_config type: {type(final_llm_model.default_config)}. Initializing with empty config.")
+            
+            merged_config_data = base_config_params
+            config_source_log = f"base from model '{final_llm_model.value}'"
+            
+            if llm_config_override: 
+                merged_config_data.update(llm_config_override)
+                config_source_log += ", updated by explicit overrides"
+
+            merged_config_data['system_message'] = definition.system_prompt
+            config_source_log += ", system_prompt from AgentDefinition applied"
+            
+            final_llm_config = LLMConfig(**merged_config_data)
+            
+            llm_instance = self.llm_factory.create_llm(
+                model_identifier=final_llm_model.name, 
+                custom_config=final_llm_config
+            )
+            logger.debug(f"LLM instance created for AgentContext '{agent_id}'. "
+                         f"Final LLM Config based on: {config_source_log}. Config details: {final_llm_config.to_dict()}")
+        except Exception as e:
+            logger.error(f"Error creating LLM for AgentContext '{agent_id}': {e}", exc_info=True)
+            raise ValueError(f"Failed to create LLM for AgentContext {agent_id}: {e}") from e
+
+        queues = AgentEventQueues() 
+
+        agent_context = AgentContext(
             agent_id=agent_id,
-            llm=llm,
-            tools=tools,
-            response_parsers=self.response_parsers
+            definition=definition, 
+            queues=queues,
+            llm_instance=llm_instance,
+            tool_instances=tool_instances_dict,
+            workspace=workspace,
+            auto_execute_tools=auto_execute_tools_override 
         )
+        return agent_context
 
-    def create_agent_runtime(self, agent_id: str) -> Union[AgentRuntime, GroupAwareAgent]:
-        """
-        Creates an agent runtime with the given configuration.
+    def create_agent_runtime(self, 
+                             agent_id: str, 
+                             definition: AgentDefinition,
+                             llm_model: LLMModel,
+                             workspace: Optional[BaseAgentWorkspace] = None,
+                             llm_config_override: Optional[Dict[str, Any]] = None,
+                             tool_config_override: Optional[Dict[str, ToolConfig]] = None,
+                             auto_execute_tools_override: bool = True 
+                             ) -> 'AgentRuntime': 
+        from autobyteus.agent.agent_runtime import AgentRuntime 
 
-        Args:
-            agent_id: The unique identifier for the agent being created.
-
-        Returns:
-            An instance of AgentRuntime or GroupAwareAgent.
-
-        Raises:
-            ValueError: If the configured agent_type is unsupported.
-        """
-        agent_instance = self.create_agent_instance(agent_id)
+        agent_context = self.create_agent_context(
+            agent_id, 
+            definition, 
+            llm_model=llm_model,
+            workspace=workspace,
+            llm_config_override=llm_config_override,
+            tool_config_override=tool_config_override,
+            auto_execute_tools_override=auto_execute_tools_override 
+        )
+        event_handler_registry = self._get_default_event_handler_registry()
         
-        if self.agent_type == "standalone":
-            logger.debug(f"Instantiating AgentRuntime for instance: {agent_id}")
-            return AgentRuntime(agent_instance)
-        elif self.agent_type == "group_aware":
-            logger.debug(f"Instantiating GroupAwareAgent runtime for instance: {agent_id}")
-            return GroupAwareAgent(agent_instance)
-        else:
-            logger.error(f"Unsupported agent type specified in factory: {self.agent_type}")
-            raise ValueError(f"Unsupported agent type: {self.agent_type}")
+        tool_exec_mode_log = "Automatic" if auto_execute_tools_override else "Requires Approval"
+        logger.debug(f"Instantiating AgentRuntime for agent_id: '{agent_id}' with definition: '{definition.name}'. "
+                     f"LLM Model: {llm_model.value}. Workspace provided: {workspace is not None}. Tool Execution Mode: {tool_exec_mode_log}")
+        return AgentRuntime(context=agent_context, event_handler_registry=event_handler_registry)

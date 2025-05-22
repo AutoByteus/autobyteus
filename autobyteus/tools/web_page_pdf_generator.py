@@ -3,6 +3,8 @@ from brui_core.ui_integrator import UIIntegrator
 import os
 import logging
 
+logger = logging.getLogger(__name__)
+
 class WebPagePDFGenerator(BaseTool, UIIntegrator):
     """
     A class that generates a PDF of a given webpage using Playwright.
@@ -10,7 +12,6 @@ class WebPagePDFGenerator(BaseTool, UIIntegrator):
     def __init__(self):
         BaseTool.__init__(self)
         UIIntegrator.__init__(self)
-        self.logger = logging.getLogger(__name__)
 
     @classmethod
     def tool_usage_xml(cls):
@@ -58,10 +59,10 @@ class WebPagePDFGenerator(BaseTool, UIIntegrator):
             file_path = self._generate_file_path(save_dir, url)
             await self._generate_and_save_pdf(file_path)
             
-            self.logger.info(f"PDF generated and saved to {file_path}")
+            logger.info(f"PDF generated and saved to {file_path}")
             return file_path
         except Exception as e:
-            self.logger.error(f"Error generating PDF: {str(e)}")
+            logger.error(f"Error generating PDF: {str(e)}")
             raise
         finally:
             await self.cleanup()

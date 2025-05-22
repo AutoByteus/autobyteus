@@ -40,7 +40,7 @@ class GrokLLM(BaseLLM):
         )
 
     async def _send_user_message_to_llm(
-        self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs
+        self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs
     ) -> CompleteResponse:
         """
         Sends a non-streaming request to the Grok API.
@@ -50,14 +50,14 @@ class GrokLLM(BaseLLM):
         if user_message:
             content.append({"type": "text", "text": user_message})
 
-        if file_paths:
-            for file_path in file_paths:
+        if image_urls:
+            for image_url in image_urls:
                 try:
-                    image_content = process_image(file_path)
+                    image_content = process_image(image_url)
                     content.append(image_content)
-                    logger.info(f"Processed image: {file_path}")
+                    logger.info(f"Processed image: {image_url}")
                 except ValueError as e:
-                    logger.error(f"Error processing image {file_path}: {str(e)}")
+                    logger.error(f"Error processing image {image_url}: {str(e)}")
                     continue
 
         self.add_user_message(content)
@@ -104,7 +104,7 @@ class GrokLLM(BaseLLM):
             raise ValueError(f"Error in Grok API request: {str(e)}")
     
     async def _stream_user_message_to_llm(
-        self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs
+        self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs
     ) -> AsyncGenerator[ChunkResponse, None]:
         """
         Streams the response from the Grok API.
@@ -114,14 +114,14 @@ class GrokLLM(BaseLLM):
         if user_message:
             content.append({"type": "text", "text": user_message})
 
-        if file_paths:
-            for file_path in file_paths:
+        if image_urls:
+            for image_url in image_urls:
                 try:
-                    image_content = process_image(file_path)
+                    image_content = process_image(image_url)
                     content.append(image_content)
-                    logger.info(f"Processed image for streaming: {file_path}")
+                    logger.info(f"Processed image for streaming: {image_url}")
                 except ValueError as e:
-                    logger.error(f"Error processing image for streaming {file_path}: {str(e)}")
+                    logger.error(f"Error processing image for streaming {image_url}: {str(e)}")
                     continue
 
         self.add_user_message(content)

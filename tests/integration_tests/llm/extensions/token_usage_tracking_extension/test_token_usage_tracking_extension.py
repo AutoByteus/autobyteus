@@ -24,7 +24,7 @@ def mock_llm(mock_token_counter):
     Fixture to create a mock LLM with a specified model and token counter.
     """
     mock_llm = MagicMock(spec=BaseLLM)
-    mock_llm.model = LLMModel.GPT_3_5_TURBO_API
+    mock_llm.model = LLMModel.GPT_4o_API
     return mock_llm
 
 @pytest.fixture

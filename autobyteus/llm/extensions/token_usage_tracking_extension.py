@@ -1,4 +1,3 @@
-
 from typing import Optional, List, TYPE_CHECKING
 from autobyteus.llm.extensions.base_extension import LLMExtension
 from autobyteus.llm.token_counter.token_counter_factory import get_token_counter
@@ -27,12 +26,12 @@ class TokenUsageTrackingExtension(LLMExtension):
         return self._latest_usage
 
     async def before_invoke(
-        self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs
+        self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs
     ) -> None:
         pass
 
     async def after_invoke(
-        self, user_message: str, file_paths: Optional[List[str]] = None, response: CompleteResponse = None, **kwargs
+        self, user_message: str, image_urls: Optional[List[str]] = None, response: CompleteResponse = None, **kwargs
     ) -> None:
         """
         Get the latest usage from tracker and optionally override token counts with provider's usage if available

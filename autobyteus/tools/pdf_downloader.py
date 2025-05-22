@@ -4,19 +4,54 @@ import os
 import requests
 import logging
 from datetime import datetime
+from typing import Optional, TYPE_CHECKING
 from autobyteus.tools.base_tool import BaseTool
+from autobyteus.tools.tool_config import ToolConfig
+from autobyteus.tools.tool_config_schema import ToolConfigSchema, ToolConfigParameter, ParameterType
 from autobyteus.utils.file_utils import get_default_download_folder
+
+if TYPE_CHECKING:
+    from autobyteus.tools.tool_config_schema import ToolConfigSchema
+
+logger = logging.getLogger(__name__)
 
 class PDFDownloader(BaseTool):
     """
     A tool that downloads a PDF file from a given URL and saves it locally.
     """
 
-    def __init__(self, custom_download_folder=None):
+    def __init__(self, config: Optional[ToolConfig] = None):
         super().__init__()
-        self.logger = logging.getLogger(__name__)
+        
+        # Extract configuration with defaults
+        custom_download_folder = None
+        if config:
+            custom_download_folder = config.get('custom_download_folder')
+        
         self.default_download_folder = get_default_download_folder()
         self.download_folder = custom_download_folder or self.default_download_folder
+        
+        logger.debug(f"PDFDownloader initialized with download_folder: {self.download_folder}")
+
+    @classmethod
+    def get_config_schema(cls) -> 'ToolConfigSchema':
+        """
+        Return the configuration schema for this tool.
+        
+        Returns:
+            ToolConfigSchema: Schema describing the tool's configuration parameters.
+        """
+        schema = ToolConfigSchema()
+        
+        schema.add_parameter(ToolConfigParameter(
+            name="custom_download_folder",
+            param_type=ParameterType.DIRECTORY_PATH,
+            description="Custom directory path where downloaded PDF files will be saved. If not specified, uses the default download folder.",
+            required=False,
+            default_value=None
+        ))
+        
+        return schema
 
     @classmethod
     def tool_usage_xml(cls):
@@ -32,7 +67,7 @@ class PDFDownloader(BaseTool):
     </command>
     '''
 
-    def _execute(self, **kwargs):
+    async def _execute(self, **kwargs):
         """
         Download a PDF file from the given URL and save it locally.
 
@@ -54,7 +89,7 @@ class PDFDownloader(BaseTool):
         if not url:
             raise ValueError("The 'url' keyword argument must be specified.")
 
-        self.logger.info(f"Attempting to download PDF from {url}")
+        logger.info(f"Attempting to download PDF from {url}")
 
         try:
             response = requests.get(url, stream=True)
@@ -73,17 +108,17 @@ class PDFDownloader(BaseTool):
                 for chunk in response.iter_content(chunk_size=8192):
                     file.write(chunk)
 
-            self.logger.info(f"PDF successfully downloaded and saved to {save_path}")
+            logger.info(f"PDF successfully downloaded and saved to {save_path}")
             return f"PDF successfully downloaded and saved to {save_path}"
         except requests.exceptions.RequestException as e:
             error_message = f"Error downloading PDF: {str(e)}"
-            self.logger.error(error_message)
+            logger.error(error_message)
             return error_message
         except ValueError as e:
             error_message = str(e)
-            self.logger.error(error_message)
+            logger.error(error_message)
             return error_message
         except IOError as e:
             error_message = f"Error saving PDF: {str(e)}"
-            self.logger.error(error_message)
+            logger.error(error_message)
             return error_message

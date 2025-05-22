@@ -1,6 +1,5 @@
 from typing import List, Set, Optional, Dict
 import logging
-import pkg_resources
 import inspect
 
 from autobyteus.llm.autobyteus_provider import AutobyteusModelProvider
@@ -310,3 +309,4 @@ class LLMFactory:
                 if model_instance.name == model_name:
                     return model_instance.canonical_name
         return None
+

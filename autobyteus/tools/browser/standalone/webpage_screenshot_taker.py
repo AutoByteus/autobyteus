@@ -1,13 +1,56 @@
+from typing import Optional, TYPE_CHECKING
 from autobyteus.tools.base_tool import BaseTool
+from autobyteus.tools.tool_config import ToolConfig
+from autobyteus.tools.tool_config_schema import ToolConfigSchema, ToolConfigParameter, ParameterType
 from brui_core.ui_integrator import UIIntegrator
+
+if TYPE_CHECKING:
+    from autobyteus.tools.tool_config_schema import ToolConfigSchema
 
 class WebPageScreenshotTaker(BaseTool, UIIntegrator):
     """
     A class that takes a screenshot of a given webpage using Playwright.
     """
-    def __init__(self):
+    def __init__(self, config: Optional[ToolConfig] = None):
         BaseTool.__init__(self)
         UIIntegrator.__init__(self)
+        
+        # Extract configuration with defaults
+        self.full_page = True  # Default
+        self.image_format = "png"  # Default
+        
+        if config:
+            self.full_page = config.get('full_page', True)
+            self.image_format = config.get('image_format', 'png').lower()
+
+    @classmethod
+    def get_config_schema(cls) -> 'ToolConfigSchema':
+        """
+        Return the configuration schema for this tool.
+        
+        Returns:
+            ToolConfigSchema: Schema describing the tool's configuration parameters.
+        """
+        schema = ToolConfigSchema()
+        
+        schema.add_parameter(ToolConfigParameter(
+            name="full_page",
+            param_type=ParameterType.BOOLEAN,
+            description="Whether to capture the full scrollable page content or just the visible viewport.",
+            required=False,
+            default_value=True
+        ))
+        
+        schema.add_parameter(ToolConfigParameter(
+            name="image_format",
+            param_type=ParameterType.ENUM,
+            description="Image format for the screenshot file.",
+            required=False,
+            default_value="png",
+            enum_values=["png", "jpeg"]
+        ))
+        
+        return schema
 
     @classmethod
     def tool_usage_xml(cls):
@@ -47,6 +90,6 @@ class WebPageScreenshotTaker(BaseTool, UIIntegrator):
 
         await self.initialize()
         await self.page.goto(url)
-        await self.page.screenshot(path=file_path, full_page=True)
+        await self.page.screenshot(path=file_path, full_page=self.full_page, type=self.image_format)
         await self.close()
         return file_path

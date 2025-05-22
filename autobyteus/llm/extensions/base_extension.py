@@ -1,4 +1,3 @@
-
 from abc import ABC, abstractmethod
 from typing import List, Optional, TYPE_CHECKING
 from autobyteus.llm.utils.messages import Message
@@ -13,7 +12,7 @@ class LLMExtension(ABC):
 
     @abstractmethod
     async def before_invoke(
-        self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs
+        self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs
     ) -> None:
         """
         Called before invoking the LLM with a user message.
@@ -22,14 +21,14 @@ class LLMExtension(ABC):
 
     @abstractmethod
     async def after_invoke(
-        self, user_message: str, file_paths: Optional[List[str]] = None, response: CompleteResponse = None, **kwargs
+        self, user_message: str, image_urls: Optional[List[str]] = None, response: CompleteResponse = None, **kwargs
     ) -> None:
         """
         Called after receiving the response from the LLM.
         
         Args:
             user_message: Original user message
-            file_paths: Optional file paths used in request
+            image_urls: Optional image URLs used in request
             response: Complete response including content and usage information
             kwargs: Additional arguments
         """

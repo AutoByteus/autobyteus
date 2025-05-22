@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__) # Using __name__ for specific logger
 class ToolMeta(ABCMeta):
     """
     Metaclass for BaseTool that automatically registers concrete tool subclasses
-    with the default_tool_registry using their static name and usage description
-    obtained from class method `tool_usage()`.
+    with the default_tool_registry using their static name, usage description,
+    optional config schema, and class reference obtained from class methods.
     """
     def __init__(cls, name, bases, dct):
         """
@@ -27,8 +27,16 @@ class ToolMeta(ABCMeta):
         try:
             # Get static/class info from the class being defined
             tool_name = cls.get_name()
-
             usage_description = cls.tool_usage()
+            
+            # Try to get config schema if the tool defines one
+            config_schema = None
+            if hasattr(cls, 'get_config_schema'):
+                try:
+                    config_schema = cls.get_config_schema()
+                    logger.debug(f"Tool class {name} provided config schema with {len(config_schema) if config_schema else 0} parameters")
+                except Exception as e:
+                    logger.warning(f"Tool class {name} has get_config_schema() but it failed: {e}")
 
             # Basic validation of fetched static info
             if not tool_name or not isinstance(tool_name, str):
@@ -39,14 +47,20 @@ class ToolMeta(ABCMeta):
                  logger.error(f"Tool class {name} must return a valid string from class method tool_usage(). Skipping registration.")
                  return
 
-            # Create definition using name and the usage description from tool_usage()
-            definition = ToolDefinition(name=tool_name, description=usage_description)
+            # Create definition using name, usage description, class reference, and optional config schema
+            definition = ToolDefinition(
+                name=tool_name, 
+                description=usage_description, 
+                tool_class=cls,
+                config_schema=config_schema
+            )
             default_tool_registry.register_tool(definition)
-            logger.info(f"Auto-registered tool: '{tool_name}' from class {name}")
+            
+            config_info = f" with {len(config_schema)} config parameters" if config_schema else " (no config)"
+            logger.info(f"Auto-registered tool: '{tool_name}' from class {name}{config_info}")
 
         except AttributeError as e:
              # Catch if required methods are missing (get_name or tool_usage/tool_usage_xml)
              logger.error(f"Tool class {name} is missing required static/class method ({e}). Skipping registration.")
         except Exception as e:
             logger.error(f"Failed to auto-register tool class {name}: {e}", exc_info=True)
-

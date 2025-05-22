@@ -4,12 +4,18 @@ import os
 import aiohttp
 import logging
 from datetime import datetime
+from typing import Optional, TYPE_CHECKING
 from autobyteus.tools.base_tool import BaseTool
+from autobyteus.tools.tool_config import ToolConfig
+from autobyteus.tools.tool_config_schema import ToolConfigSchema, ToolConfigParameter, ParameterType
 from PIL import Image
 from io import BytesIO
 from autobyteus.utils.file_utils import get_default_download_folder
 from autobyteus.events.event_types import EventType
 from autobyteus.events.decorators import event_listener
+
+if TYPE_CHECKING:
+    from autobyteus.tools.tool_config_schema import ToolConfigSchema
 
 logger = logging.getLogger(__name__)
 
@@ -17,12 +23,40 @@ class ImageDownloader(BaseTool):
     # Define supported_formats as a class variable so it can be accessed in class methods
     supported_formats = ['.jpeg', '.jpg', '.gif', '.png', '.webp']
     
-    def __init__(self, custom_download_folder=None):
+    def __init__(self, config: Optional[ToolConfig] = None):
         super().__init__()
+        
+        # Extract configuration with defaults
+        custom_download_folder = None
+        if config:
+            custom_download_folder = config.get('custom_download_folder')
+        
         self.default_download_folder = get_default_download_folder()
         self.download_folder = custom_download_folder or self.default_download_folder
         self.supported_formats = self.__class__.supported_formats  # Set instance attribute from class variable for backward compatibility
         self.last_downloaded_image = None
+        
+        logger.debug(f"ImageDownloader initialized with download_folder: {self.download_folder}")
+
+    @classmethod
+    def get_config_schema(cls) -> 'ToolConfigSchema':
+        """
+        Return the configuration schema for this tool.
+        
+        Returns:
+            ToolConfigSchema: Schema describing the tool's configuration parameters.
+        """
+        schema = ToolConfigSchema()
+        
+        schema.add_parameter(ToolConfigParameter(
+            name="custom_download_folder",
+            param_type=ParameterType.DIRECTORY_PATH,
+            description="Custom directory path where downloaded images will be saved. If not specified, uses the default download folder.",
+            required=False,
+            default_value=None
+        ))
+        
+        return schema
 
     @classmethod
     def tool_usage_xml(cls):
@@ -63,6 +97,7 @@ Negative examples (These will not work):
 </command>
 
 Note: The URL must be a direct link to the image file, not a webpage containing the image.'''
+
     async def _execute(self, **kwargs):
         url = kwargs.get('url')
         if not url:

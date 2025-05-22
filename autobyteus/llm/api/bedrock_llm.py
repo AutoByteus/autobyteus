@@ -37,7 +37,7 @@ class BedrockLLM(BaseLLM):
         except Exception as e:
             raise ValueError(f"Failed to initialize Bedrock client: {str(e)}")
     
-    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> CompleteResponse:
+    async def _send_user_message_to_llm(self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs) -> CompleteResponse:
         self.add_user_message(user_message)
         
         request_body = json.dumps({

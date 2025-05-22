@@ -8,9 +8,18 @@ using Playwright. It inherits from BaseTool and UIIntegrator, providing a seamle
 with web browsers.
 """
 
+import logging
+from typing import Optional, TYPE_CHECKING
 from autobyteus.tools.base_tool import BaseTool
+from autobyteus.tools.tool_config import ToolConfig
+from autobyteus.tools.tool_config_schema import ToolConfigSchema, ToolConfigParameter, ParameterType
 from brui_core.ui_integrator import UIIntegrator
 from autobyteus.utils.html_cleaner import clean, CleaningMode
+
+if TYPE_CHECKING:
+    from autobyteus.tools.tool_config_schema import ToolConfigSchema
+
+logger = logging.getLogger(__name__)
 
 class WebPageReader(BaseTool, UIIntegrator):
     """
@@ -24,17 +33,52 @@ class WebPageReader(BaseTool, UIIntegrator):
             Defaults to CleaningMode.THOROUGH.
     """
 
-    def __init__(self, cleaning_mode=CleaningMode.THOROUGH):
+    def __init__(self, config: Optional[ToolConfig] = None):
         """
         Initialize the WebPageReader with a specified content cleanup level.
 
         Args:
-            cleaning_mode (CleaningMode, optional): The level of cleanup to apply to
-                the HTML content. Defaults to CleaningMode.THOROUGH.
+            config (ToolConfig, optional): Configuration containing cleanup level and other parameters.
         """
         BaseTool.__init__(self)
         UIIntegrator.__init__(self)
+        
+        # Extract configuration with defaults
+        cleaning_mode = CleaningMode.THOROUGH  # Default
+        if config:
+            cleaning_mode_value = config.get('cleaning_mode')
+            if cleaning_mode_value:
+                if isinstance(cleaning_mode_value, str):
+                    try:
+                        cleaning_mode = CleaningMode(cleaning_mode_value.upper())
+                    except ValueError:
+                        cleaning_mode = CleaningMode.THOROUGH
+                elif isinstance(cleaning_mode_value, CleaningMode):
+                    cleaning_mode = cleaning_mode_value
+        
         self.cleaning_mode = cleaning_mode
+        logger.debug(f"WebPageReader initialized with cleaning_mode: {self.cleaning_mode}")
+
+    @classmethod
+    def get_config_schema(cls) -> 'ToolConfigSchema':
+        """
+        Return the configuration schema for this tool.
+        
+        Returns:
+            ToolConfigSchema: Schema describing the tool's configuration parameters.
+        """
+        schema = ToolConfigSchema()
+        
+        schema.add_parameter(ToolConfigParameter(
+            name="cleaning_mode",
+            param_type=ParameterType.ENUM,
+            description="Level of HTML content cleanup to apply to the webpage content. BASIC removes only dangerous elements, THOROUGH removes most formatting for clean text extraction.",
+            required=False,
+            default_value="THOROUGH",
+            enum_values=["BASIC", "THOROUGH"]
+        ))
+        
+        return schema
 
     @classmethod
     def tool_usage_xml(cls):

@@ -1,4 +1,3 @@
-
 import logging
 from typing import Dict, Optional, List, AsyncGenerator
 import google.generativeai as genai
@@ -52,7 +51,7 @@ class GeminiLLM(BaseLLM):
                 history.append({"role": msg.role.value, "parts": [msg.content]})
             self.chat_session = model.start_chat(history=history)
 
-    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> CompleteResponse:
+    async def _send_user_message_to_llm(self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs) -> CompleteResponse:
         self.add_user_message(user_message)
         try:
             self._ensure_chat_session()

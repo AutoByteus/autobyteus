@@ -2,74 +2,164 @@
 
 import os
 import pytest
+import tempfile
+import shutil
+from unittest.mock import patch, MagicMock, Mock # Added Mock
 from autobyteus.tools.pdf_downloader import PDFDownloader
+from autobyteus.tools.tool_config import ToolConfig
+from autobyteus.tools.tool_config_schema import ParameterType
+
+# Added mock_agent_context fixture
+@pytest.fixture
+def mock_agent_context():
+    mock_context = Mock()
+    mock_context.agent_id = "test_agent_123"
+    return mock_context
+
+@pytest.fixture
+def temp_dir():
+    temp_dir_path = tempfile.mkdtemp() # Renamed to avoid conflict
+    yield temp_dir_path
+    shutil.rmtree(temp_dir_path, ignore_errors=True)
 
 @pytest.mark.asyncio
-async def test_execute_success():
+async def test_pdf_downloader_default_config():
     downloader = PDFDownloader()
-    url = 'https://watermark.silverchair.com/jamasurgery_engelman_2019_sc_190001.pdf?token=AQECAHi208BE49Ooan9kkhW_Ercy7Dm3ZL_9Cf3qfKAc485ysgAAAykwggMlBgkqhkiG9w0BBwagggMWMIIDEgIBADCCAwsGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMYk9AY6wZthMN4DUvAgEQgIIC3OgazfrWt_ZWddRl0mdzhaWrm3WQimEw9zfDMy8dK8m_01TnhqCbCBXKADJcORSoLVo4ElQ3y40XVj6X7PCLWK4DnfoJx7Rd0UAy4_QHvG3jiXtuyN1wwne4zhLoWy6sAY8sBYxSivqbgmKxCq7-7KvhxjEiYlr5dENOr81xbgG3ISLrjm44cD2pH_rXLoR-qzTBLC-gC3HFKjA4NCXdogJM3evtgFRP8R-rWLdkYI7nO-RKUj4sCllh-frJXWeVSQ8fmkAbCxRmhDuqZyz-5-HGywFDCTzb9C0fk9nWm8zsmBBZzJa1O70oka5uRgxKaXbc-GGcG4CbUIHQl4g2ap-SBZC73WmhAKD4m-6O_7jXWqmSFo-RgRMXrNDval2tNauFjSUFiTgHkmjloXugHWrzEIV3wbh_ZZYyIqcPLbDJqrvezLGudvPt10JEm4vIhFoL4sP8Bd9K8Bx11Odzd-UoX8b50dxuCLSkzDWBVoVu8RvesZNqIZVMTLn5YiTI9j7NqgF_Ls8ZRek1-J-kEiafyNmYG3IRA9j2B3G8Hfi7L0HalZTnTarfL8zFLpuI3l6b9yAXo9so_xnIkO_xxxhtbtjM-8ZN7jA1pM3kio5Dn3GyA2BwP67UcHOaLWrijAq0GRTo-p-ElDll57dlzmI9yPz0XmWWZs98wnnThoGQ1HY9qAdnL2G08KWlchsrYdlXoRRRLProFTp3aQp8DXLnQt0LGlQI2iAIbAhFNhsQW4-G19T0JRwIp9q3tPl1eduQmE1z2vzYl8oQC8Ty4bkI4jL7HmmpAaT3VWfi8H93WVP4jk-XSTzhz2-Rn0tPxKIiYeCmSErCN7QM5oTIf0W7vtH8xllJZc6gYmaU7-B8aDR63-2Y_SgvC9X60wznmNwdMmg7izLfye7KkHIoMStzrmnwne2iqRS5tYtkdx3Lb2IsVwlbK_LDwCPqz9ja4JwsoB_m40VuE6h-YA'  # This is a real, publicly available PDF for testing
-    
-    result = downloader.execute(url=url)
-    
-    assert "PDF successfully downloaded and saved to" in result
-    
-    # Extract the file path from the result
-    file_path = result.split("saved to ")[-1].strip()
-    
-    # Check if the file exists
-    assert os.path.exists(file_path)
-    
-    # Check if the file is not empty
-    assert os.path.getsize(file_path) > 0
-    
-    # Clean up: remove the downloaded file
-    # os.remove(file_path)
+    assert downloader.download_folder == downloader.default_download_folder
 
 @pytest.mark.asyncio
-async def test_execute_invalid_url():
-    downloader = PDFDownloader()
-    url = 'https://example.com/nonexistent.pdf'  # This URL should not exist
-    
-    result = downloader.execute(url=url)
-    
-    assert "Error downloading PDF" in result
+async def test_pdf_downloader_with_custom_config(temp_dir):
+    config = ToolConfig(params={'custom_download_folder': temp_dir})
+    downloader = PDFDownloader(config=config)
+    assert downloader.download_folder == temp_dir
 
 @pytest.mark.asyncio
-async def test_execute_non_pdf_url():
-    downloader = PDFDownloader()
-    url = 'https://example.com'  # This URL exists but is not a PDF
+async def test_get_config_schema(): # Removed mock_agent_context
+    schema = PDFDownloader.get_config_schema()
+    assert len(schema) == 1
     
-    result = downloader.execute(url=url)
-    
-    assert "The URL does not point to a PDF file" in result
+    param = schema.get_parameter('custom_download_folder')
+    assert param is not None
+    assert param.param_type == ParameterType.DIRECTORY_PATH
+    assert not param.required
+    assert param.default_value is None
 
 @pytest.mark.asyncio
-async def test_execute_missing_url():
-    downloader = PDFDownloader()
+async def test_tool_usage_xml(): # Removed mock_agent_context
+    usage = PDFDownloader.tool_usage_xml()
     
-    with pytest.raises(ValueError) as excinfo:
-        downloader.execute()
-    
-    assert "The 'url' keyword argument must be specified" in str(excinfo.value)
+    assert 'PDFDownloader: Downloads a PDF file from a given URL.' in usage
+    assert '<command name="PDFDownloader">' in usage
+    assert '<arg name="url">https://example.com/file.pdf</arg>' in usage
 
 @pytest.mark.asyncio
-async def test_execute_custom_folder():
+async def test_execute_missing_url(mock_agent_context): # Added mock_agent_context
     downloader = PDFDownloader()
-    url = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
-    custom_folder = 'test_downloads'
     
-    result = downloader.execute(url=url, folder=custom_folder)
+    with pytest.raises(ValueError, match="The 'url' keyword argument must be specified."):
+        await downloader.execute(mock_agent_context) # Added mock_agent_context
+
+@pytest.mark.asyncio
+async def test_execute_success_mock(temp_dir, mock_agent_context): # Added mock_agent_context
+    config = ToolConfig(params={'custom_download_folder': temp_dir}) # Tool configured with temp_dir
+    downloader = PDFDownloader(config=config)
     
-    assert "PDF successfully downloaded and saved to" in result
-    assert custom_folder in result
+    url = 'https://example.com/test.pdf'
+    mock_pdf_data = b'%PDF-1.4 fake pdf content'
     
-    # Extract the file path from the result
-    file_path = result.split("saved to ")[-1].strip()
+    with patch('requests.get') as mock_get:
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_response.headers = {'Content-Type': 'application/pdf'}
+        mock_response.iter_content = MagicMock(return_value=[mock_pdf_data])
+        mock_get.return_value = mock_response
+        
+        result = await downloader.execute(mock_agent_context, url=url) # Added mock_agent_context
+        
+        assert "PDF successfully downloaded and saved to" in result
+        assert temp_dir in result
+        
+        # Verify file was created
+        files = os.listdir(temp_dir)
+        assert len(files) == 1
+        assert files[0].endswith('.pdf')
+
+@pytest.mark.asyncio
+async def test_execute_invalid_content_type(mock_agent_context): # Added mock_agent_context
+    downloader = PDFDownloader()
+    url = 'https://example.com/not-a-pdf.html'
     
-    # Check if the file exists in the custom folder
-    assert os.path.exists(file_path)
-    assert custom_folder in file_path
+    with patch('requests.get') as mock_get:
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_response.headers = {'Content-Type': 'text/html'}
+        mock_get.return_value = mock_response
+        
+        # Tool's _execute wraps this specific error in ValueError
+        with pytest.raises(ValueError, match="The URL does not point to a PDF file"):
+             await downloader.execute(mock_agent_context, url=url) # Added mock_agent_context
+        # The execute method catches this ValueError and returns a string message.
+        # Let's test that string message if the intent is to check the friendly output.
+        # If the intent is to check the raised exception, then the above is fine.
+        # The source code's _execute method catches ValueError and returns its string.
+        # Let's adjust to check the returned message, as per PDFDownloader._execute
+        result = await downloader.execute(mock_agent_context, url=url)
+        assert "The URL does not point to a PDF file" in result
+
+
+@pytest.mark.asyncio
+async def test_execute_network_error(mock_agent_context): # Added mock_agent_context
+    downloader = PDFDownloader()
+    url = 'https://nonexistent.example.com/test.pdf'
     
-    # Clean up: remove the downloaded file and the custom folder
-    os.remove(file_path)
-    os.rmdir(custom_folder)
+    with patch('requests.get') as mock_get:
+        mock_get.side_effect = Exception("Network error")
+        
+        result = await downloader.execute(mock_agent_context, url=url) # Added mock_agent_context
+        
+        assert "Error downloading PDF: Network error" in result
+
+@pytest.mark.asyncio
+async def test_execute_custom_folder_parameter(temp_dir, mock_agent_context): # Added mock_agent_context
+    downloader = PDFDownloader() # Default config, folder passed via execute
+    url = 'https://example.com/test.pdf'
+    
+    with patch('requests.get') as mock_get:
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_response.headers = {'Content-Type': 'application/pdf'}
+        mock_response.iter_content = MagicMock(return_value=[b'fake pdf data'])
+        mock_get.return_value = mock_response
+        
+        result = await downloader.execute(mock_agent_context, url=url, folder=temp_dir) # Added mock_agent_context
+        
+        assert temp_dir in result
+        assert "PDF successfully downloaded and saved to" in result
+        # Verify file was created in custom folder
+        files = os.listdir(temp_dir)
+        assert len(files) == 1
+        assert files[0].endswith('.pdf')
+
+
+def test_get_name():
+    assert PDFDownloader.get_name() == "PDFDownloader"
+
+@pytest.mark.asyncio
+async def test_execute_io_error(temp_dir, mock_agent_context): # Added mock_agent_context
+    config = ToolConfig(params={'custom_download_folder': temp_dir})
+    downloader = PDFDownloader(config=config)
+    
+    url = 'https://example.com/test.pdf'
+    
+    with patch('requests.get') as mock_get, \
+         patch('builtins.open', side_effect=IOError("Permission denied")):
+        
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_response.headers = {'Content-Type': 'application/pdf'}
+        mock_response.iter_content = MagicMock(return_value=[b'fake pdf data'])
+        mock_get.return_value = mock_response
+        
+        result = await downloader.execute(mock_agent_context, url=url) # Added mock_agent_context
+        
+        assert "Error saving PDF: Permission denied" in result

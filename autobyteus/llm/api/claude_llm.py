@@ -1,4 +1,3 @@
-
 from typing import Dict, Optional, List, AsyncGenerator, Tuple
 import anthropic
 import os
@@ -45,7 +44,7 @@ class ClaudeLLM(BaseLLM):
             total_tokens=input_tokens + output_tokens
         )
     
-    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> CompleteResponse:
+    async def _send_user_message_to_llm(self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs) -> CompleteResponse:
         self.add_user_message(user_message)
 
         try:
@@ -76,7 +75,7 @@ class ClaudeLLM(BaseLLM):
             raise ValueError(f"Error in Claude API call: {str(e)}")
     
     async def _stream_user_message_to_llm(
-        self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs
+        self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs
     ) -> AsyncGenerator[ChunkResponse, None]:
         self.add_user_message(user_message)
         complete_response = ""

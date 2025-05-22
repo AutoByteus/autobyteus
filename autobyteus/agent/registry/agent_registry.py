@@ -1,114 +1,148 @@
 # file: autobyteus/autobyteus/agent/registry/agent_registry.py
+import asyncio
 import logging
-from typing import Dict, List, Optional
+import uuid 
+import random
+from typing import Dict, List, Optional, cast, Any 
 
 from autobyteus.utils.singleton import SingletonMeta
 from autobyteus.agent.factory.agent_factory import AgentFactory
-from .agent_definition import AgentDefinition
+from autobyteus.agent.agent import Agent 
+from autobyteus.agent.agent_runtime import AgentRuntime
+from autobyteus.agent.registry.agent_definition import AgentDefinition 
+from autobyteus.agent.registry.agent_definition_registry import AgentDefinitionRegistry
+from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace 
+
+from autobyteus.llm.llm_factory import LLMFactory
+from autobyteus.tools.registry import ToolRegistry, default_tool_registry
+from autobyteus.tools.tool_config import ToolConfig
+from autobyteus.llm.models import LLMModel 
+
 
 logger = logging.getLogger(__name__)
 
 class AgentRegistry(metaclass=SingletonMeta):
     """
-    Manages AgentDefinitions (role, description, tools, initial_user_message, agent_class),
-    populated exclusively via programmatic registration. Uses AgentFactory to create agent instances.
+    A singleton registry that creates, stores, and retrieves active agent instances
+    (represented by Agent).
     """
-    _definitions: Dict[str, AgentDefinition] = {}
 
-    def __init__(self, agent_factory: AgentFactory):
+    def __init__(self, agent_factory: AgentFactory, definition_registry: AgentDefinitionRegistry):
         """
-        Initializes the AgentRegistry with an AgentFactory.
-
+        Initializes the AgentRegistry.
         Args:
-            agent_factory: The AgentFactory instance used to create agent instances.
+            agent_factory: The AgentFactory instance used to create agent runtimes.
+            definition_registry: An instance of AgentDefinitionRegistry.
         """
         self.agent_factory = agent_factory
-        logger.info("AgentRegistry initialized with AgentFactory.")
+        self.definition_registry = definition_registry 
+        self._active_agents: Dict[str, Agent] = {} 
+        logger.info("AgentRegistry initialized. Ready to create and manage Agent instances.")
 
-    def register_agent(self, definition: AgentDefinition):
+    def create_agent(self, 
+                     definition: AgentDefinition,
+                     llm_model: LLMModel,
+                     workspace: Optional[BaseAgentWorkspace] = None,
+                     llm_config_override: Optional[Dict[str, Any]] = None,
+                     tool_config_override: Optional[Dict[str, ToolConfig]] = None,
+                     auto_execute_tools: bool = True 
+                     ) -> Agent: 
         """
-        Registers an agent definition (role, description, tools, initial_user_message, agent_class) programmatically.
-
-        Args:
-            definition: The AgentDefinition object to register.
-
-        Raises:
-            ValueError: If the definition is invalid. Overwrites existing definitions with the same role.
+        Creates a new agent based on the provided AgentDefinition, stores it,
+        and returns its facade (Agent class). The agent_id is automatically generated
+        using the agent's name, role, and a random number.
+        The `llm_model` must be provided.
+        Allows overriding LLM config, tool configs, and tool execution mode at instantiation.
         """
-        if not isinstance(definition, AgentDefinition):
-            raise ValueError("Attempted to register an object that is not an AgentDefinition.")
-
-        role = definition.role
-        if role in self._definitions:
-            logger.warning(f"Overwriting existing agent definition for role: '{role}'")
-        AgentRegistry._definitions[role] = definition
-        logger.info(f"Successfully registered agent definition: '{role}'")
-
-    def get_agent_definition(self, role: str) -> Optional[AgentDefinition]:
-        """
-        Retrieves the definition for a specific agent role.
-
-        Args:
-            role: The unique role of the agent definition to retrieve.
-
-        Returns:
-            The AgentDefinition object if found, otherwise None.
-        """
-        definition = self._definitions.get(role)
-        if not definition:
-            logger.debug(f"Agent definition not found for role: '{role}'")
-        return definition
-
-    def create_agent(self, role: str, agent_id: str):
-        """
-        Creates an agent instance using the AgentFactory based on the agent definition.
-
-        Args:
-            role: The role of the agent to create.
-            agent_id: The unique identifier for the agent instance.
-
-        Returns:
-            The agent instance if the definition exists, otherwise None.
-
-        Raises:
-            ValueError: If the agent definition is not found.
-        """
-        definition = self.get_agent_definition(role)
-        if not definition:
-            logger.error(f"Cannot create agent: No definition found for role '{role}'")
-            raise ValueError(f"No agent definition found for role '{role}'")
+        if definition is None:
+            msg = "AgentDefinition cannot be None."
+            logger.error(f"Cannot create agent: {msg}")
+            raise ValueError(msg)
         
-        logger.info(f"Creating agent instance for role '{role}' with id '{agent_id}' using AgentFactory")
-        return self.agent_factory.create_agent(agent_id)
+        if not isinstance(definition, AgentDefinition):
+            msg = f"Expected AgentDefinition instance, got {type(definition).__name__}."
+            logger.error(f"Cannot create agent: {msg}")
+            raise TypeError(msg)
+        
+        if not isinstance(llm_model, LLMModel):
+            msg = f"An 'llm_model' of type LLMModel must be specified. Got {type(llm_model)}."
+            logger.error(f"Cannot create agent: {msg}")
+            raise TypeError(msg)
 
-    def list_agents(self) -> List[AgentDefinition]:
-        """
-        Returns a list of all registered agent definitions.
+        if workspace is not None and not isinstance(workspace, BaseAgentWorkspace):
+            raise TypeError(f"Expected BaseAgentWorkspace or None for workspace, got {type(workspace).__name__}")
 
-        Returns:
-            A list of AgentDefinition objects.
-        """
-        return list(self._definitions.values())
+        # Generate agent_id using name, role, and random number
+        random_number = random.randint(1000, 9999)
+        final_agent_id = f"{definition.name}_{definition.role}_{random_number}"
+        
+        # Handle collisions by generating new random numbers
+        while final_agent_id in self._active_agents:
+            logger.warning(f"Generated agent_id {final_agent_id} collided, regenerating with new random number.")
+            random_number = random.randint(1000, 9999)
+            final_agent_id = f"{definition.name}_{definition.role}_{random_number}"
+        
+        logger.info(f"Generated agent_id '{final_agent_id}' for definition '{definition.name}' with role '{definition.role}'")
 
-    def list_agent_roles(self) -> List[str]:
-        """
-        Returns a list of the roles of all registered agents.
+        tool_exec_mode_log = "Automatic" if auto_execute_tools else "Requires Approval"
+        logger.info(f"Attempting to create agent runtime for definition_name '{definition.name}' "
+                    f"with agent_id '{final_agent_id}'. "
+                    f"Workspace provided: {workspace is not None}. "
+                    f"LLM Model: {llm_model.value}. "
+                    f"LLM Config Override Keys: {list(llm_config_override.keys()) if llm_config_override else 'None'}. "
+                    f"Tool Config Override Keys: {list(tool_config_override.keys()) if tool_config_override else 'None'}. "
+                    f"Tool Execution Mode: {tool_exec_mode_log}.")
+        
+        runtime_instance: AgentRuntime = self.agent_factory.create_agent_runtime(
+            agent_id=final_agent_id, 
+            definition=definition,
+            llm_model=llm_model,
+            workspace=workspace,
+            llm_config_override=llm_config_override,
+            tool_config_override=tool_config_override,
+            auto_execute_tools_override=auto_execute_tools               
+        )
+        
+        agent_instance = Agent(runtime=runtime_instance) 
+        
+        self._active_agents[final_agent_id] = agent_instance 
+        logger.info(f"Agent for agent_id '{final_agent_id}' (from definition '{definition.name}') " 
+                    f"created and stored successfully. Workspace ID (if any): '{workspace.workspace_id if workspace else 'N/A'}'")
 
-        Returns:
-            A list of agent role strings.
-        """
-        return list(self._definitions.keys())
+        return agent_instance 
 
-    def get_all_definitions(self) -> Dict[str, AgentDefinition]:
-        """Returns the internal dictionary of definitions."""
-        return dict(AgentRegistry._definitions)
+    def get_agent(self, agent_id: str) -> Optional[Agent]: 
+        agent_instance = self._active_agents.get(agent_id) 
+        if agent_instance is None:
+            logger.debug(f"Agent with ID '{agent_id}' not found in registry.") 
+        return agent_instance 
 
-default_agent_registry = AgentRegistry(agent_factory=AgentFactory(
-    role="default",
-    agent_type="group_aware",
-    tool_factory=ToolFactory(),
-    llm_factory=LLMFactory(),
-    prompt_builder=PromptBuilder(),
-    llm_model=LLMModel(),
-    tool_names=[]
-))
+    async def remove_agent(self, agent_id: str, shutdown_timeout: float = 10.0) -> bool:
+        agent_instance = self._active_agents.pop(agent_id, None) 
+
+        if agent_instance: 
+            logger.info(f"Removing Agent for ID '{agent_id}'. Attempting graceful shutdown.") 
+            try:
+                await agent_instance.stop(timeout=shutdown_timeout) 
+                logger.info(f"Agent '{agent_id}' stopped successfully during removal.")
+            except Exception as e:
+                logger.error(f"Error stopping agent '{agent_id}' during removal: {e}", exc_info=True)
+            return True
+        else:
+            logger.warning(f"Agent with ID '{agent_id}' not found for removal.") 
+            return False
+            
+    def list_active_agent_ids(self) -> List[str]:
+        return list(self._active_agents.keys())
+
+default_definition_registry_instance = AgentDefinitionRegistry()
+
+default_agent_factory = AgentFactory(
+    tool_registry=default_tool_registry, 
+    llm_factory=LLMFactory()
+)
+
+default_agent_registry = AgentRegistry(
+    agent_factory=default_agent_factory,
+    definition_registry=default_definition_registry_instance
+)

@@ -1,8 +1,13 @@
 import asyncio
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from autobyteus.tools.base_tool import BaseTool
+from autobyteus.tools.tool_config import ToolConfig
+from autobyteus.tools.tool_config_schema import ToolConfigSchema, ToolConfigParameter, ParameterType
 from autobyteus.events.event_emitter import EventEmitter
 from autobyteus.events.event_types import EventType
+
+if TYPE_CHECKING:
+    from autobyteus.tools.tool_config_schema import ToolConfigSchema
 
 class Timer(BaseTool, EventEmitter):
     """
@@ -19,16 +24,55 @@ class Timer(BaseTool, EventEmitter):
         _task (Optional[asyncio.Task]): The asyncio task for the running timer.
     """
 
-    def __init__(self):
+    def __init__(self, config: Optional[ToolConfig] = None):
         """
         Initialize the Timer.
         """
         BaseTool.__init__(self)
         EventEmitter.__init__(self)
-        self.duration: int = 0
-        self.interval: int = 60  # Default to 60 seconds if not specified
+        
+        # Extract configuration with defaults
+        self.duration: int = 300  # Default 5 minutes
+        self.interval: int = 60   # Default 60 seconds
+        
+        if config:
+            self.duration = config.get('duration', 300)
+            self.interval = config.get('interval', 60)
+        
         self._is_running: bool = False
         self._task: Optional[asyncio.Task] = None
+
+    @classmethod
+    def get_config_schema(cls) -> 'ToolConfigSchema':
+        """
+        Return the configuration schema for this tool.
+        
+        Returns:
+            ToolConfigSchema: Schema describing the tool's configuration parameters.
+        """
+        schema = ToolConfigSchema()
+        
+        schema.add_parameter(ToolConfigParameter(
+            name="duration",
+            param_type=ParameterType.INTEGER,
+            description="Duration of the timer in seconds.",
+            required=False,
+            default_value=300,
+            min_value=1,
+            max_value=86400  # Max 24 hours
+        ))
+        
+        schema.add_parameter(ToolConfigParameter(
+            name="interval",
+            param_type=ParameterType.INTEGER,
+            description="Interval at which to emit timer events, in seconds.",
+            required=False,
+            default_value=60,
+            min_value=1,
+            max_value=3600  # Max 1 hour
+        ))
+        
+        return schema
 
     @classmethod
     def tool_usage_xml(cls):

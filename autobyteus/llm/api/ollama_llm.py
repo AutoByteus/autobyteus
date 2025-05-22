@@ -24,7 +24,7 @@ class OllamaLLM(BaseLLM):
         super().__init__(model=model or LLMModel.OLLAMA_LLAMA_3_2, system_message=system_message, custom_config=custom_config)
         logger.info(f"OllamaLLM initialized with model: {self.model}")
 
-    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> CompleteResponse:
+    async def _send_user_message_to_llm(self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs) -> CompleteResponse:
         self.add_user_message(user_message)
         try:
             response: ChatResponse = await self.client.chat(
@@ -71,7 +71,7 @@ class OllamaLLM(BaseLLM):
             raise
 
     async def _stream_user_message_to_llm(
-        self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs
+        self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs
     ) -> AsyncGenerator[ChunkResponse, None]:
         self.add_user_message(user_message)
         accumulated_main = ""

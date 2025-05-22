@@ -1,221 +1,243 @@
+# file: autobyteus/autobyteus/agent/agent_runtime.py
 import asyncio
 import logging
-from typing import List, Optional
-from autobyteus.agent.agent_instance import AgentInstance
-from autobyteus.events.event_emitter import EventEmitter
-from autobyteus.events.event_types import EventType
+import traceback 
+from typing import Dict, Optional, Any, AsyncIterator, Type, cast
+
+from autobyteus.agent.context import AgentContext 
+from autobyteus.agent.events import END_OF_STREAM_SENTINEL, AgentEventQueues
+from autobyteus.agent.context import AgentStatusManager 
+from autobyteus.agent.events import (
+    BaseEvent,
+    AgentProcessingEvent, 
+    AgentStartedEvent,
+    AgentStoppedEvent,
+    AgentErrorEvent,
+)
+from autobyteus.agent.handlers.event_handler_registry import EventHandlerRegistry
 from autobyteus.agent.status import AgentStatus
-from autobyteus.conversation.user_message import UserMessage
-from autobyteus.agent.tool_invocation import ToolInvocation
+# MODIFIED: Removed EventEmitter import as AgentRuntime will no longer inherit from it.
+# from autobyteus.events.event_emitter import EventEmitter 
+from autobyteus.events.event_types import EventType as ExternalEventType
 
 logger = logging.getLogger(__name__)
 
-class AgentRuntime(EventEmitter):
+class AgentRuntime: # MODIFIED: Removed EventEmitter inheritance
     """
-    Runtime engine for executing an AgentInstance.
-    
-    This class handles event processing, message queuing, and execution flow
-    for a given agent configuration (AgentInstance).
+    The active execution engine for an agent.
+    Manages the agent's lifecycle, event loop, and dispatches events to handlers.
+    Agent status management is delegated to an AgentStatusManager.
+    It owns the AgentContext and EventHandlerRegistry.
+    AgentRuntime itself no longer directly emits external events.
     """
-    
-    def __init__(self, agent_instance: AgentInstance):
-        super().__init__()
-        self.instance = agent_instance
-        self.status = AgentStatus.NOT_STARTED
-        self._run_task = None
-        self._queues_initialized = False
-        self.task_completed = None
+
+    def __init__(self,
+                 context: AgentContext, 
+                 event_handler_registry: EventHandlerRegistry):
         
-        # Subscribe to tool invocation events from all parsers
-        for parser in self.instance.response_parsers:
-            parser.subscribe(self, EventType.TOOL_INVOCATION, self.handle_tool_invocation_event)
+        # Initialize attributes
+        self.context: AgentContext = context 
+        self.event_handler_registry: EventHandlerRegistry = event_handler_registry
+        
+        self._main_loop_task: Optional[asyncio.Task] = None
+        self._is_running_flag: bool = False 
+        self._stop_requested: asyncio.Event = asyncio.Event()
+
+        # MODIFIED: Removed super().__init__() call for EventEmitter
             
-        logger.info(f"Agent runtime initialized for role: {self.instance.role}, id: {self.instance.agent_id}")
+        self.status_manager: AgentStatusManager = AgentStatusManager(context) 
+        
+        logger.info(f"AgentRuntime initialized for agent_id '{self.context.agent_id}'. Definition: '{self.context.definition.name}'")
+        registered_handlers_info = [cls.__name__ for cls in self.event_handler_registry.get_all_registered_event_types()]
+        logger.debug(f"AgentRuntime '{self.context.agent_id}' configured with event_handler_registry for event types: {registered_handlers_info}")
 
-    def _initialize_queues(self):
-        if not self._queues_initialized:
-            self.tool_result_messages = asyncio.Queue()
-            self.user_messages = asyncio.Queue()
-            self.pending_tool_invocations = asyncio.Queue()
-            self._queues_initialized = True
-            logger.info(f"Queues initialized for agent {self.instance.role}")
+    def start_execution_loop(self) -> None:
+        if self.is_running: 
+            logger.warning(f"AgentRuntime for '{self.context.agent_id}' is already running. Ignoring start request.")
+            return
 
-    def _initialize_task_completed(self):
-        if self.task_completed is None:
-            self.task_completed = asyncio.Event()
-            logger.info(f"task_completed Event initialized for agent {self.instance.role}")
+        self._is_running_flag = True 
+        self._stop_requested.clear()
+        
+        self.status_manager.notify_runtime_starting()
+            
+        self._main_loop_task = asyncio.create_task(self._execution_loop(), name=f"agent_runtime_loop_{self.context.agent_id}")
+        logger.info(f"AgentRuntime for '{self.context.agent_id}' execution loop task created.")
 
-    def get_task_completed(self):
-        if self.task_completed is None:
-            raise RuntimeError("task_completed Event accessed before initialization")
-        return self.task_completed
+    async def _enqueue_fallback_sentinels(self):
+        """Enqueues END_OF_STREAM_SENTINEL to all output queues as a fallback."""
+        logger.debug(f"AgentRuntime '{self.context.agent_id}' enqueuing fallback sentinels to output queues.")
+        queues_to_signal = [
+            "assistant_output_chunk_queue",
+            "assistant_final_message_queue",
+            "tool_interaction_log_queue"
+        ]
+        for queue_name in queues_to_signal:
+            try:
+                await self.context.queues.enqueue_end_of_stream_sentinel_to_output_queue(queue_name)
+            except Exception as e:
+                logger.error(f"AgentRuntime '{self.context.agent_id}' failed to enqueue fallback sentinel to '{queue_name}': {e}", exc_info=True)
 
-    async def run(self):
+
+    async def stop_execution_loop(self, timeout: float = 10.0) -> None:
+        if not self._is_running_flag and not self._main_loop_task : 
+            logger.warning(f"AgentRuntime for '{self.context.agent_id}' is not running or already stopped. Ignoring stop request.")
+            if self._is_running_flag: self._is_running_flag = False 
+            return
+        
+        if self._stop_requested.is_set():
+             logger.info(f"AgentRuntime for '{self.context.agent_id}' stop already in progress.")
+             if self._main_loop_task and not self._main_loop_task.done():
+                 try:
+                     await asyncio.wait_for(self._main_loop_task, timeout=timeout)
+                 except asyncio.TimeoutError:
+                      logger.warning(f"AgentRuntime for '{self.context.agent_id}' timed out waiting for already stopping loop to complete.")
+                 except asyncio.CancelledError:
+                     pass 
+             await self._enqueue_fallback_sentinels()
+             await self.context.queues.graceful_shutdown(timeout=max(1.0, timeout / 2))
+             await self.context.llm_instance.cleanup()
+             self._is_running_flag = False
+             self.status_manager.notify_final_shutdown_complete()
+             return
+
+        logger.info(f"AgentRuntime for '{self.context.agent_id}' execution loop stop requested (timeout: {timeout}s).")
+        self._stop_requested.set() 
+
+        await self.context.queues.enqueue_internal_system_event(AgentStoppedEvent())
+        logger.debug(f"AgentRuntime '{self.context.agent_id}' enqueued AgentStoppedEvent for logging during shutdown request.")
+
+        if self._main_loop_task and not self._main_loop_task.done():
+            try:
+                await asyncio.wait_for(self._main_loop_task, timeout=timeout)
+                logger.info(f"AgentRuntime for '{self.context.agent_id}' execution loop stopped gracefully after processing remaining events.")
+            except asyncio.TimeoutError:
+                logger.warning(f"AgentRuntime for '{self.context.agent_id}' execution loop timed out during stop. Forcing cancellation.")
+                self._main_loop_task.cancel()
+                try:
+                    await self._main_loop_task 
+                except asyncio.CancelledError:
+                    logger.info(f"AgentRuntime for '{self.context.agent_id}' execution loop task was cancelled.")
+            except Exception as e: 
+                logger.error(f"Exception during AgentRuntime '{self.context.agent_id}' stop's wait_for: {e}", exc_info=True)
+                self.status_manager.notify_error_occurred() 
+
+        await self._enqueue_fallback_sentinels()
+        await self.context.queues.graceful_shutdown(timeout=max(1.0, timeout / 2)) 
+        await self.context.llm_instance.cleanup() 
+        
+        self._is_running_flag = False 
+        self._main_loop_task = None 
+
+        self.status_manager.notify_final_shutdown_complete()
+        
+        logger.info(f"AgentRuntime for '{self.context.agent_id}' stop_execution_loop completed. Final status: {self.context.status.value}")
+
+
+    async def _execution_loop(self) -> None:
+        await self.context.queues.enqueue_internal_system_event(AgentStartedEvent())
+        logger.info(f"Agent '{self.context.agent_id}' execution loop task starting, AgentStartedEvent enqueued.")
+
         try:
-            logger.info(f"Starting execution for agent: {self.instance.role}")
-            self._initialize_queues()
-            self._initialize_task_completed()
+            while not self._stop_requested.is_set():
+                try:
+                    queue_event_tuple = await asyncio.wait_for(
+                        self.context.queues.get_next_input_event(),
+                        timeout=0.5 
+                    )
+                except asyncio.TimeoutError:
+                    if self.context.status == AgentStatus.RUNNING and \
+                       all(q.empty() for _, q in self.context.queues._input_queues if q is not None): 
+                         self.status_manager.notify_processing_complete_queues_empty() 
+                    continue 
 
-            user_message_handler = asyncio.create_task(self.handle_user_messages())
-            tool_result_handler = asyncio.create_task(self.handle_tool_result_messages())
-            tool_invocation_handler = asyncio.create_task(self.handle_tool_invocation_queue())
+                if queue_event_tuple is None: 
+                    if self._stop_requested.is_set(): break
+                    logger.debug(f"Agent '{self.context.agent_id}' get_next_input_event returned None, continuing loop.")
+                    continue
 
-            # Once everything is ready, set the status to RUNNING
-            self.status = AgentStatus.RUNNING
+                _queue_name, event_obj = queue_event_tuple
+                
+                if not isinstance(event_obj, BaseEvent): 
+                    logger.warning(f"Agent '{self.context.agent_id}' received non-BaseEvent object from queue '{_queue_name}': {type(event_obj)}. Skipping.")
+                    continue
 
-            await asyncio.gather(user_message_handler, tool_result_handler, tool_invocation_handler)
+                if self.context.status == AgentStatus.IDLE and isinstance(event_obj, AgentProcessingEvent):
+                    self.status_manager.notify_processing_event_dequeued()
 
+                await self._dispatch_event(event_obj)
+                
+                if self.context.status == AgentStatus.RUNNING and \
+                   isinstance(event_obj, AgentProcessingEvent) and \
+                   all(q.empty() for _, q in self.context.queues._input_queues if q is not None): 
+                     self.status_manager.notify_processing_complete_queues_empty()
+
+
+        except asyncio.CancelledError:
+            logger.info(f"Agent '{self.context.agent_id}' execution loop was cancelled.")
         except Exception as e:
-            logger.error(f"Error in agent {self.instance.role} execution: {str(e)}")
-            self.status = AgentStatus.ERROR
+            logger.error(f"Fatal error in Agent '{self.context.agent_id}' execution loop: {e}", exc_info=True)
+            self.status_manager.notify_error_occurred() 
+            await self.context.queues.enqueue_internal_system_event(
+                AgentErrorEvent(error_message=str(e), exception_details=traceback.format_exc())
+            )
         finally:
-            self.status = AgentStatus.ENDED
-            await self.cleanup()
+            logger.info(f"Agent '{self.context.agent_id}' execution loop is exiting. Stop requested: {self._stop_requested.is_set()}")
+            
+            if not self._stop_requested.is_set() and self.context.status != AgentStatus.ERROR : 
+                logger.warning(f"Agent '{self.context.agent_id}' execution loop ended unexpectedly. Notifying status manager.")
+                self.status_manager.notify_runtime_stopping_or_loop_ended_unexpectedly() 
+                await self.context.queues.enqueue_internal_system_event(AgentStoppedEvent())
+            
+            self._is_running_flag = False 
+            logger.info(f"Agent '{self.context.agent_id}' execution loop has finished.")
 
-    async def handle_user_messages(self):
-        logger.info(f"Agent {self.instance.role} started handling user messages")
-        while not self.task_completed.is_set() and self.status == AgentStatus.RUNNING:
+
+    async def _dispatch_event(self, event: BaseEvent) -> None:
+        event_class = type(event)
+        handler = self.event_handler_registry.get_handler(event_class)
+
+        if handler:
+            event_class_name = event_class.__name__
+            handler_class_name = type(handler).__name__
+            
+            if isinstance(event, AgentErrorEvent): 
+                pass 
+            elif isinstance(event, AgentStoppedEvent): 
+                pass
+
             try:
-                user_message: UserMessage = await asyncio.wait_for(self.user_messages.get(), timeout=1.0)
-                logger.info(f"Agent {self.instance.role} handling user message")
-                response = await self.instance.llm.send_user_message(user_message)
-                await self.process_llm_response(response)
-            except asyncio.TimeoutError:
-                continue
-            except asyncio.CancelledError:
-                logger.info(f"User message handler for agent {self.instance.role} cancelled")
-                break
+                logger.debug(f"Agent '{self.context.agent_id}' dispatching event type '{event_class_name}' to {handler_class_name}.")
+                await handler.handle(event, self.context) 
+                logger.debug(f"Agent '{self.context.agent_id}' event '{event_class_name}' handled successfully by {handler_class_name}.")
+
+                if isinstance(event, AgentStartedEvent):
+                    self.status_manager.notify_agent_started_event_handled() 
+
             except Exception as e:
-                logger.error(f"Error handling user message for agent {self.instance.role}: {str(e)}")
-
-    async def receive_user_message(self, message: UserMessage):
-        """
-        This method gracefully waits for the agent to become RUNNING
-        if it's in the process of starting up, ensuring the queues are
-        initialized before we put a message into them.
-        """
-        logger.info(f"Agent {self.instance.agent_id} received user message")
-
-        # If the agent is not started (or ended), begin the start process
-        if self.status in [AgentStatus.NOT_STARTED, AgentStatus.ENDED]:
-            self.start()
-
-        # If the agent is still starting, wait until it transitions to RUNNING
-        while self.status == AgentStatus.STARTING:
-            await asyncio.sleep(0.1)
-
-        if self.status != AgentStatus.RUNNING:
-            logger.error(f"Agent is not in a running state: {self.status}")
-            return
-
-        # Now that we are running, safely place the message in the queue
-        await self.user_messages.put(message)
-
-    async def handle_tool_result_messages(self):
-        logger.info(f"Agent {self.instance.role} started handling tool result messages")
-        while not self.task_completed.is_set() and self.status == AgentStatus.RUNNING:
-            try:
-                message = await asyncio.wait_for(self.tool_result_messages.get(), timeout=1.0)
-                logger.info(f"Agent {self.instance.role} handling tool result message: {message}")
-                tool_result_message = UserMessage(content=f"Tool execution result: {message}")
-                response = await self.instance.llm.send_user_message(tool_result_message)
-                await self.process_llm_response(response)
-            except asyncio.TimeoutError:
-                continue
-            except asyncio.CancelledError:
-                logger.info(f"Tool result handler for agent {self.instance.role} cancelled")
-                break
-            except Exception as e:
-                logger.error(f"Error handling tool result for agent {self.instance.role}: {str(e)}")
-
-    async def handle_tool_invocation_queue(self):
-        """Handle pending tool invocations from the queue."""
-        logger.info(f"Agent {self.instance.role} started handling tool invocations")
-        while not self.task_completed.is_set() and self.status == AgentStatus.RUNNING:
-            try:
-                tool_invocation: ToolInvocation = await asyncio.wait_for(
-                    self.pending_tool_invocations.get(), timeout=1.0
+                error_msg = f"Agent '{self.context.agent_id}' error handling event type '{event_class_name}' with {handler_class_name}: {e}"
+                logger.error(error_msg, exc_info=True)
+                self.status_manager.notify_error_occurred() 
+                await self.context.queues.enqueue_internal_system_event(
+                    AgentErrorEvent(error_message=error_msg, exception_details=traceback.format_exc())
                 )
-                logger.info(f"Agent {self.instance.role} handling tool invocation: {tool_invocation.name}")
-                await self.execute_tool(tool_invocation)
-            except asyncio.TimeoutError:
-                continue
-            except asyncio.CancelledError:
-                logger.info(f"Tool invocation handler for agent {self.instance.role} cancelled")
-                break
-            except Exception as e:
-                logger.error(f"Error handling tool invocation for agent {self.instance.role}: {str(e)}")
-
-    async def process_llm_response(self, response: str) -> None:
-        self.emit(EventType.ASSISTANT_RESPONSE, response=response)
-        
-        # Run all response parsers on the response
-        for parser in self.instance.response_parsers:
-            await parser.parse_response(response)
-        
-        # If no parsers or none found commands, log the response
-        if not self.instance.response_parsers:
-            logger.info(f"Assistant response for agent {self.instance.role}: {response}")
-
-    def handle_tool_invocation_event(self, tool_invocation: ToolInvocation, **kwargs):
-        """Handle tool invocation events from the response parsers."""
-        if self.status != AgentStatus.RUNNING:
-            logger.warning(f"Received tool invocation event while agent {self.instance.role} is not running")
-            return
-        
-        logger.info(f"Agent {self.instance.role} received tool invocation event for {tool_invocation.name}")
-        # Put the tool invocation in the queue for processing
-        asyncio.create_task(self.pending_tool_invocations.put(tool_invocation))
-
-    async def execute_tool(self, tool_invocation):
-        name = tool_invocation.name
-        arguments = tool_invocation.arguments
-        logger.info(f"Agent {self.instance.role} attempting to execute tool: {name}")
-
-        tool = next((t for t in self.instance.tools if t.get_name() == name), None)
-        if tool:
-            try:
-                result = await tool.execute(**arguments)
-                logger.info(f"Tool '{name}' executed successfully by agent {self.instance.role}. Result: {result}")
-                await self.tool_result_messages.put(result)
-            except Exception as e:
-                error_message = str(e)
-                logger.error(f"Error executing tool '{name}' by agent {self.instance.role}: {error_message}")
-                await self.tool_result_messages.put(f"Error: {error_message}")
         else:
-            logger.warning(f"Tool '{name}' not found for agent {self.instance.role}.")
+            logger.warning(f"Agent '{self.context.agent_id}' no handler registered for event type '{event_class.__name__}'. Event: {event}")
 
-    def start(self):
-        """
-        Starts the agent by creating a task that runs the main loop (run).
-        Sets the AgentStatus to STARTING to prevent message enqueuing before
-        the system is fully initialized.
-        """
-        if self.status in [AgentStatus.NOT_STARTED, AgentStatus.ENDED]:
-            logger.info(f"Starting agent {self.instance.role}")
-            self.status = AgentStatus.STARTING
-            self._run_task = asyncio.create_task(self.run())
-        elif self.status == AgentStatus.STARTING:
-            logger.info(f"Agent {self.instance.role} is already in STARTING state.")
-        elif self.status == AgentStatus.RUNNING:
-            logger.info(f"Agent {self.instance.role} is already running.")
-        else:
-            logger.warning(f"Agent {self.instance.role} is in an unexpected state: {self.status}")
 
-    def stop(self):
-        if self._run_task and not self._run_task.done():
-            self._run_task.cancel()
+    @property
+    def status(self) -> AgentStatus:
+        # self.context should be initialized by now
+        current_status = self.context.status
+        if current_status is None: 
+            logger.error(f"AgentRuntime '{self.context.agent_id}': context.status is None, which is unexpected. Defaulting to ERROR.")
+            return AgentStatus.ERROR
+        return current_status
+        
+    @property
+    def is_running(self) -> bool:
+        # self._is_running_flag and self._main_loop_task should be initialized
+        return self._is_running_flag and \
+               self._main_loop_task is not None and \
+               not self._main_loop_task.done()
 
-    async def cleanup(self):
-        while not self.tool_result_messages.empty():
-            self.tool_result_messages.get_nowait()
-        while not self.user_messages.empty():
-            self.user_messages.get_nowait()
-        while not self.pending_tool_invocations.empty():
-            self.pending_tool_invocations.get_nowait()
-        await self.instance.llm.cleanup()
-        logger.info(f"Cleanup completed for agent: {self.instance.role}")
-
-    def on_task_completed(self, *args, **kwargs):
-        logger.info(f"Task completed event received for agent: {self.instance.role}")
-        self.task_completed.set()

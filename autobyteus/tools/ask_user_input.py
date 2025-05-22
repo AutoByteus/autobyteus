@@ -3,6 +3,8 @@
 import logging
 from autobyteus.tools.base_tool import BaseTool
 
+logger = logging.getLogger(__name__)
+
 class AskUserInput(BaseTool):
     """
     A tool that allows a large language model to request input from the user.
@@ -10,7 +12,6 @@ class AskUserInput(BaseTool):
 
     def __init__(self):
         super().__init__()
-        self.logger = logging.getLogger(__name__)
 
     @classmethod
     def tool_usage_xml(cls):
@@ -61,22 +62,22 @@ class AskUserInput(BaseTool):
         if not request:
             raise ValueError("The 'request' keyword argument must be specified.")
 
-        self.logger.info(f"LLM requesting user input: {request}")
+        logger.info(f"LLM requesting user input: {request}")
 
         try:
             print(f"LLM: {request}")
             user_input = input("User: ")
 
-            self.logger.info("User input received.")
+            logger.info("User input received.")
             return user_input
 
         except KeyboardInterrupt:
-            self.logger.warning("User interrupted the input process.")
+            logger.warning("User interrupted the input process.")
             return "[Input process interrupted by user]"
         except EOFError:
-            self.logger.warning("EOF error occurred during input.")
+            logger.warning("EOF error occurred during input.")
             return "[EOF error occurred]"
         except Exception as e:
             error_message = f"An error occurred while getting user input: {str(e)}"
-            self.logger.error(error_message)
+            logger.error(error_message)
             return f"[Error: {error_message}]"

@@ -1,4 +1,3 @@
-
 from typing import Dict, Optional, List, AsyncGenerator
 import logging
 import os
@@ -31,7 +30,7 @@ class GroqLLM(BaseLLM):
         except Exception as e:
             raise ValueError(f"Failed to initialize Groq client: {str(e)}")
     
-    async def _send_user_message_to_llm(self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs) -> CompleteResponse:
+    async def _send_user_message_to_llm(self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs) -> CompleteResponse:
         self.add_user_message(user_message)
         try:
             # Placeholder for sending message to Groq API
@@ -53,7 +52,7 @@ class GroqLLM(BaseLLM):
             raise ValueError(f"Error in Groq API call: {str(e)}")
     
     async def _stream_user_message_to_llm(
-        self, user_message: str, file_paths: Optional[List[str]] = None, **kwargs
+        self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs
     ) -> AsyncGenerator[ChunkResponse, None]:
         self.add_user_message(user_message)
         complete_response = ""
