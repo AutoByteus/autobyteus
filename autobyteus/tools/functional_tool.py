@@ -10,7 +10,7 @@ from autobyteus.agent.context import AgentContext
 logger = logging.getLogger(__name__)
 
 _TYPE_MAPPING = {
-    str: ParameterType.STRING,
+    # str is handled specially below for path inference
     int: ParameterType.INTEGER,
     float: ParameterType.FLOAT,
     bool: ParameterType.BOOLEAN,
@@ -18,30 +18,50 @@ _TYPE_MAPPING = {
     dict: ParameterType.STRING, 
 }
 
-def _get_parameter_type_from_hint(py_type: Any) -> ParameterType:
+_FILE_PATH_NAMES = {"path", "filepath", "file_path", "filename"}
+_DIR_PATH_NAMES = {"folder", "dir", "directory", "dir_path", "directory_path", "save_dir", "output_dir"}
+
+def _get_parameter_type_from_hint(py_type: Any, param_name: str) -> ParameterType:
     origin_type = get_origin(py_type)
-    
+    actual_type = py_type
+
     if origin_type is Union: 
         args = get_args(py_type)
         non_none_type_args = [arg for arg in args if arg is not type(None)]
         if len(non_none_type_args) == 1: 
-            return _get_parameter_type_from_hint(non_none_type_args[0])
+            actual_type = non_none_type_args[0]
+            # Re-evaluate origin for the unwrapped type (e.g. Optional[List[str]])
+            origin_type = get_origin(actual_type) 
         else:
-            logger.warning(f"Complex Union type hint {py_type} encountered. Defaulting to STRING.")
+            logger.warning(f"Complex Union type hint {py_type} for param '{param_name}' encountered. Defaulting to STRING.")
             return ParameterType.STRING
-            
+    
+    # Handle specific types like List, Dict first
     if origin_type is list or origin_type is List: 
-        logger.debug(f"Type hint {py_type} (origin: {origin_type}) mapped to ParameterType.STRING (as JSON string).")
+        logger.debug(f"Type hint {py_type} (origin: {origin_type}) for param '{param_name}' mapped to ParameterType.STRING (as JSON string).")
         return ParameterType.STRING 
     if origin_type is dict or origin_type is Dict: 
-        logger.debug(f"Type hint {py_type} (origin: {origin_type}) mapped to ParameterType.STRING (as JSON string).")
+        logger.debug(f"Type hint {py_type} (origin: {origin_type}) for param '{param_name}' mapped to ParameterType.STRING (as JSON string).")
         return ParameterType.STRING
 
-    mapped_type = _TYPE_MAPPING.get(py_type)
+    # Handle string types with path name heuristics
+    if actual_type is str:
+        param_name_lower = param_name.lower()
+        if param_name_lower in _FILE_PATH_NAMES:
+            logger.debug(f"Param '{param_name}' with type 'str' inferred as FILE_PATH due to name.")
+            return ParameterType.FILE_PATH
+        if param_name_lower in _DIR_PATH_NAMES:
+            logger.debug(f"Param '{param_name}' with type 'str' inferred as DIRECTORY_PATH due to name.")
+            return ParameterType.DIRECTORY_PATH
+        logger.debug(f"Param '{param_name}' with type 'str' inferred as STRING.")
+        return ParameterType.STRING
+
+    # General mapping for other simple types
+    mapped_type = _TYPE_MAPPING.get(actual_type)
     if mapped_type:
         return mapped_type
 
-    logger.warning(f"Unmapped type hint {py_type}. Defaulting to ParameterType.STRING.")
+    logger.warning(f"Unmapped type hint {py_type} (actual_type: {actual_type}) for param '{param_name}'. Defaulting to ParameterType.STRING.")
     return ParameterType.STRING
 
 
@@ -66,11 +86,23 @@ def tool(name: Optional[str] = None, description: Optional[str] = None):
 
         for param_name, param_obj in sig.parameters.items():
             if param_name == "context":
-                is_agent_context_param = (param_obj.annotation == AgentContext or 
-                                          (param_obj.annotation == inspect.Parameter.empty and param_name == "context"))
-                if is_agent_context_param:
+                # Revised check for AgentContext parameter
+                is_special_context_param = False
+                if param_obj.annotation is AgentContext: # Annotation is the actual AgentContext class
+                    is_special_context_param = True
+                elif isinstance(param_obj.annotation, str) and \
+                     param_obj.annotation in ('AgentContext', 'autobyteus.agent.context.AgentContext'): # Annotation is a string like 'AgentContext'
+                    is_special_context_param = True
+                elif param_obj.annotation == inspect.Parameter.empty: # Annotation is empty (untyped context parameter)
+                    is_special_context_param = True
+                
+                if is_special_context_param:
                     expects_context_param = True
-                    logger.debug(f"Tool '{tool_name_to_register}': Parameter '{param_name}' recognized as AgentContext. Will be injected, not part of schema.")
+                    logger.debug(
+                        f"Tool '{tool_name_to_register}': Parameter '{param_name}' "
+                        f"(annotation: '{param_obj.annotation}') recognized as AgentContext. "
+                        "Will be injected, not part of schema."
+                    )
                     continue 
             
             func_param_names_for_call.append(param_name)
@@ -78,14 +110,15 @@ def tool(name: Optional[str] = None, description: Optional[str] = None):
             param_type_hint = param_obj.annotation
             if param_type_hint == inspect.Parameter.empty:
                 logger.warning(f"Tool '{tool_name_to_register}': Parameter '{param_name}' has no type hint. Defaulting to ParameterType.STRING.")
-                parameter_type_enum = ParameterType.STRING
+                # Pass param_name for potential heuristic even with no type hint, though str is primary for path names
+                parameter_type_enum = _get_parameter_type_from_hint(str, param_name) # Treat as str for name heuristic
             else:
-                parameter_type_enum = _get_parameter_type_from_hint(param_type_hint)
+                parameter_type_enum = _get_parameter_type_from_hint(param_type_hint, param_name)
             
             is_required = (param_obj.default == inspect.Parameter.empty)
             
-            origin_type = get_origin(param_type_hint)
-            if origin_type is Union:
+            origin_type_check = get_origin(param_type_hint) # Use param_type_hint directly for Optional check
+            if origin_type_check is Union:
                 args = get_args(param_type_hint)
                 if type(None) in args: 
                     is_required = False 

@@ -73,8 +73,16 @@ def test_pdf_downloader_tool_usage_xml_output():
     assert definition is not None
     xml_output = definition.usage_xml
     assert f'<command name="{TOOL_NAME_PDF_DOWNLOADER}">' in xml_output
-    assert '<arg name="url" type="string"' in xml_output
-    assert '<arg name="folder" type="directory_path" required="false"' in xml_output # folder is optional
+    # For 'url' parameter - check a basic part. Its full XML includes description and required="true"
+    # Example of a more complete check for 'url', assuming its description is "Parameter 'url' for tool 'PDFDownloader'."
+    # expected_url_arg_xml = '<arg name="url" type="string" description="Parameter \'url\' for tool \'PDFDownloader\'." required="true"'
+    # assert expected_url_arg_xml in xml_output
+    assert '<arg name="url" type="string"' in xml_output # Simplified check for brevity
+    
+    # For 'folder' parameter - construct the expected substring carefully
+    # The description "Parameter 'folder' for tool 'PDFDownloader'." will contain literal single quotes.
+    expected_folder_arg_xml = '<arg name="folder" type="directory_path" description="Parameter \'folder\' for tool \'PDFDownloader\'." required="false"'
+    assert expected_folder_arg_xml in xml_output
     assert '</command>' in xml_output
 
 def test_pdf_downloader_tool_usage_json_output():
@@ -170,4 +178,3 @@ async def test_pdf_dl_invalid_content_type(pdf_downloader_tool_instance: BaseToo
         result = await pdf_downloader_tool_instance.execute(mock_agent_context_pdf_dl, url=url)
     assert "The URL does not point to a PDF file. Content-Type: text/html" == result
     mock_response.close.assert_called_once()
-
