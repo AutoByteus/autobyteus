@@ -1,81 +1,113 @@
 # File: autobyteus/tools/browser/session_aware/browser_session_aware_webpage_screenshot_taker.py
 
 import os
-from typing import Optional, TYPE_CHECKING
+import logging # Added
+from typing import Optional, TYPE_CHECKING, Any
 from autobyteus.tools.browser.session_aware.browser_session_aware_tool import BrowserSessionAwareTool
 from autobyteus.tools.browser.session_aware.shared_browser_session import SharedBrowserSession
-from autobyteus.tools.tool_config import ToolConfig
-from autobyteus.tools.tool_config_schema import ToolConfigSchema, ToolConfigParameter, ParameterType
+from autobyteus.tools.tool_config import ToolConfig # For instantiation config
+from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType # Updated
 
 if TYPE_CHECKING:
-    from autobyteus.tools.tool_config_schema import ToolConfigSchema
+    from autobyteus.agent.context import AgentContext # Not used by perform_action directly
+
+logger = logging.getLogger(__name__) # Added
 
 class BrowserSessionAwareWebPageScreenshotTaker(BrowserSessionAwareTool):
-    def __init__(self, config: Optional[ToolConfig] = None):
+    """
+    A session-aware tool to take a screenshot of the current page in a shared browser session.
+    Screenshot settings (full_page, image_format) can be configured at instantiation.
+    """
+    def __init__(self, config: Optional[ToolConfig] = None): # Instantiation config
         super().__init__()
         
-        # Extract configuration with defaults
-        self.full_page = True  # Default
-        self.image_format = "png"  # Default
+        self.full_page: bool = True 
+        self.image_format: str = "png" 
         
         if config:
             self.full_page = config.get('full_page', True)
-            self.image_format = config.get('image_format', 'png').lower()
-
-    def get_name(self) -> str:
-        return "WebPageScreenshotTaker"
+            self.image_format = str(config.get('image_format', 'png')).lower()
+            if self.image_format not in ["png", "jpeg"]:
+                logger.warning(f"Invalid image_format '{self.image_format}' in config. Defaulting to 'png'.")
+                self.image_format = "png"
+        logger.debug(f"BrowserSessionAwareWebPageScreenshotTaker initialized. Full page: {self.full_page}, Format: {self.image_format}")
 
     @classmethod
-    def get_config_schema(cls) -> 'ToolConfigSchema':
-        """
-        Return the configuration schema for this tool.
-        
-        Returns:
-            ToolConfigSchema: Schema describing the tool's configuration parameters.
-        """
-        schema = ToolConfigSchema()
-        
-        schema.add_parameter(ToolConfigParameter(
+    def get_name(cls) -> str: # Ensure registered name is as expected
+        return "WebPageScreenshotTaker" # Was "WebPageScreenshotTaker" in its tool_usage_xml
+
+    @classmethod
+    def get_description(cls) -> str:
+        return ("Takes a screenshot of the current page in a shared browser session. "
+                "Saves it to the specified local file path and returns the absolute path of the saved screenshot. "
+                "Screenshot options (full page, image format) can be set at tool instantiation.")
+
+    @classmethod
+    def get_argument_schema(cls) -> Optional[ParameterSchema]:
+        schema = ParameterSchema()
+        # webpage_url is required by BrowserSessionAwareTool base class
+        schema.add_parameter(ParameterDefinition(
+            name="webpage_url", 
+            param_type=ParameterType.STRING,
+            description="URL of the webpage. Required if no browser session is active or to ensure context. Screenshot is of current page.",
+            required=True 
+        ))
+        schema.add_parameter(ParameterDefinition(
+            name="file_name", # Argument for the output file name/path
+            param_type=ParameterType.FILE_PATH,
+            description="The local file path (including filename and extension, e.g., 'session_screenshots/page.png') where the screenshot will be saved.",
+            required=True
+        ))
+        return schema
+
+    @classmethod
+    def get_config_schema(cls) -> Optional[ParameterSchema]: # For instantiation
+        schema = ParameterSchema()
+        schema.add_parameter(ParameterDefinition(
             name="full_page",
             param_type=ParameterType.BOOLEAN,
-            description="Whether to capture the full scrollable page content or just the visible viewport.",
+            description="Default for whether to capture the full scrollable page or just the viewport.",
             required=False,
             default_value=True
         ))
-        
-        schema.add_parameter(ToolConfigParameter(
+        schema.add_parameter(ParameterDefinition(
             name="image_format",
             param_type=ParameterType.ENUM,
-            description="Image format for the screenshot file.",
+            description="Default image format for screenshots (png or jpeg).",
             required=False,
             default_value="png",
             enum_values=["png", "jpeg"]
         ))
-        
         return schema
 
-    @classmethod
-    def tool_usage_xml(cls):
+    async def perform_action(
+        self, 
+        shared_session: SharedBrowserSession, 
+        file_name: str, # Argument from schema
+        webpage_url: str # Consumed by base class _execute, available here if needed
+    ) -> str: # Updated signature
         """
-        Return an XML string describing the usage of the WebPageScreenshotTaker tool.
-
-        Returns:
-            str: An XML description of how to use the WebPageScreenshotTaker tool.
+        Takes a screenshot of the current page in the shared session.
+        'file_name' and 'webpage_url' are validated by BaseTool.execute().
         """
-        return '''WebPageScreenshotTaker: Takes a screenshot of a given webpage and saves it to the specified file. Usage:
-<command name="WebPageScreenshotTaker">
-  <arg name="webpage_url">url_to_screenshot</arg>
-  <arg name="file_name">screenshot_file_name</arg>
-</command>
-where "url_to_screenshot" is a string containing the URL of the webpage to take a screenshot of, and "screenshot_file_name" is the name of the file to save the screenshot (including extension, e.g., 'screenshot.png'). Optionally, "screenshot_file_name" can include a relative path (e.g., 'images/screenshot.png').
-Returns the absolute file path of the saved screenshot.
-'''
+        logger.info(f"BrowserSessionAwareWebPageScreenshotTaker performing action. Saving to '{file_name}'. Current page: {shared_session.page.url}")
 
-    async def perform_action(self, shared_session: SharedBrowserSession, **kwargs):
-        file_name = kwargs.get('file_name')
-        if not file_name:
-            raise ValueError("The 'file_name' keyword argument must be specified.")
+        # Ensure parent directory for file_name exists
+        output_dir = os.path.dirname(file_name)
+        if output_dir: # If file_name includes a directory
+            os.makedirs(output_dir, exist_ok=True)
+            
+        try:
+            # Use instance configured format and full_page setting
+            await shared_session.page.screenshot(
+                path=file_name, 
+                full_page=self.full_page, 
+                type=self.image_format # type: ignore
+            )
+            absolute_file_path = os.path.abspath(file_name)
+            logger.info(f"Screenshot of {shared_session.page.url} saved successfully to {absolute_file_path}")
+            return absolute_file_path
+        except Exception as e:
+            logger.error(f"Error taking screenshot in shared session for page {shared_session.page.url}, saving to '{file_name}': {e}", exc_info=True)
+            raise RuntimeError(f"Failed to take screenshot in shared session: {str(e)}")
 
-        await shared_session.page.screenshot(path=file_name, full_page=self.full_page, type=self.image_format)
-        absolute_path = os.path.abspath(file_name)
-        return absolute_path

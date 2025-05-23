@@ -1,75 +1,156 @@
 import pytest
-from unittest.mock import Mock, AsyncMock, patch # Added Mock, AsyncMock, patch
+from unittest.mock import Mock, AsyncMock, patch
 from autobyteus.tools.browser.standalone.google_search_ui import GoogleSearch
-from autobyteus.tools.tool_config_schema import ParameterType # For schema test
+from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType # Updated
+from autobyteus.tools.tool_config import ToolConfig # For testing instantiation
+from autobyteus.utils.html_cleaner import CleaningMode
 
-# Added mock_agent_context fixture
+
 @pytest.fixture
 def mock_agent_context():
     mock_context = Mock()
-    mock_context.agent_id = "test_agent_123"
+    mock_context.agent_id = "test_agent_google"
     return mock_context
 
 @pytest.fixture
-def google_search_tool(): # Renamed fixture
+def google_search_tool_default(): # Default instantiation
     return GoogleSearch()
 
+@pytest.fixture
+def google_search_tool_custom_config(): # With custom instantiation config
+    config = ToolConfig(params={'cleaning_mode': CleaningMode.BASIC.name}) # Pass enum name as string
+    return GoogleSearch(config=config)
+
+def test_get_name(google_search_tool_default: GoogleSearch):
+    assert google_search_tool_default.get_name() == "GoogleSearch"
+
+def test_get_description(google_search_tool_default: GoogleSearch):
+    desc = google_search_tool_default.get_description()
+    assert "Searches Google" in desc
+    assert "cleaned HTML search results" in desc
+
+def test_get_config_schema_for_instantiation(google_search_tool_default: GoogleSearch):
+    schema = google_search_tool_default.get_config_schema()
+    assert isinstance(schema, ParameterSchema)
+    param = schema.get_parameter("cleaning_mode")
+    assert isinstance(param, ParameterDefinition)
+    assert param.param_type == ParameterType.ENUM
+    assert param.default_value == "THOROUGH"
+    assert "BASIC" in param.enum_values
+    assert "THOROUGH" in param.enum_values
+
+def test_get_argument_schema_for_execution(google_search_tool_default: GoogleSearch):
+    schema = google_search_tool_default.get_argument_schema()
+    assert isinstance(schema, ParameterSchema)
+    param = schema.get_parameter("query")
+    assert isinstance(param, ParameterDefinition)
+    assert param.name == "query"
+    assert param.param_type == ParameterType.STRING
+    assert param.required is True
+
+def test_tool_usage_xml_output(google_search_tool_default: GoogleSearch):
+    xml_output = google_search_tool_default.tool_usage_xml()
+    assert '<command name="GoogleSearch">' in xml_output
+    assert '<arg name="query" type="string" description="The search query string." required="true" />' in xml_output
+
+def test_tool_usage_json_output(google_search_tool_default: GoogleSearch):
+    json_output = google_search_tool_default.tool_usage_json()
+    assert json_output["name"] == "GoogleSearch"
+    input_schema = json_output["inputSchema"]
+    assert "query" in input_schema["properties"]
+
 @pytest.mark.asyncio
-async def test_google_search(google_search_tool, mock_agent_context, tmp_path): # Added mock_agent_context, tmp_path
+async def test_execute_missing_query_arg(google_search_tool_default: GoogleSearch, mock_agent_context):
+    with pytest.raises(ValueError, match="Invalid arguments for tool 'GoogleSearch'"):
+        await google_search_tool_default.execute(mock_agent_context) # No 'query'
+
+@pytest.mark.asyncio
+async def test_google_search_execute_successful(google_search_tool_default: GoogleSearch, mock_agent_context, tmp_path):
     search_query = "The Shawshank Redemption movie poster"
     
-    # Mock Playwright interactions
-    mock_page = AsyncMock()
-    mock_textarea = AsyncMock()
-    mock_search_result_div = AsyncMock()
+    mock_playwright_page = AsyncMock()
+    mock_textarea_locator = AsyncMock()
+    mock_search_results_div_locator = AsyncMock()
 
-    # Configure mocks
-    mock_page.locator.return_value = mock_textarea
-    mock_page.wait_for_selector.return_value = mock_search_result_div
-    mock_search_result_div.inner_html.return_value = "<html><body>Mocked Search Results for Shawshank</body></html>"
+    # Configure mock returns
+    mock_playwright_page.locator.return_value = mock_textarea_locator # For query input
+    # wait_for_selector for search results div
+    mock_playwright_page.wait_for_selector.return_value = mock_search_results_div_locator 
+    mock_search_results_div_locator.inner_html.return_value = "<html><body>Mocked Search Results for Shawshank Redemption</body></html>"
     
-    # Patch the UIIntegrator's initialize and close methods, and the page property
-    with patch.object(GoogleSearch, 'initialize', AsyncMock()) as mock_initialize, \
-         patch.object(GoogleSearch, 'close', AsyncMock()) as mock_close, \
-         patch.object(GoogleSearch, 'page', new_callable=lambda: mock_page): # Patch page property directly
-        
-        # Call execute
-        search_results = await google_search_tool.execute(mock_agent_context, query=search_query) # Added mock_agent_context
+    # Patch the UIIntegrator methods directly on the instance for this test
+    # or on the class if these are always the same mocks.
+    # For GoogleSearch, initialize and close are part of its lifecycle.
+    # The `page` attribute is provided by UIIntegrator.
+    with patch.object(google_search_tool_default, 'initialize', AsyncMock()) as mock_init, \
+         patch.object(google_search_tool_default, 'close', AsyncMock()) as mock_close, \
+         patch.object(google_search_tool_default, 'page', new_callable=lambda: mock_playwright_page): # Make page a property mock
+
+        search_results_html = await google_search_tool_default.execute(mock_agent_context, query=search_query)
     
-    # Assertions
-    mock_initialize.assert_called_once()
-    mock_page.goto.assert_called_once_with('https://www.google.com/')
-    mock_page.locator.assert_called_once_with(google_search_tool.text_area_selector)
-    mock_textarea.click.assert_called_once()
-    mock_page.type.assert_called_once_with(google_search_tool.text_area_selector, search_query)
-    mock_page.keyboard.press.assert_called_once_with('Enter')
-    mock_page.wait_for_load_state.assert_called_once()
-    mock_page.wait_for_selector.assert_called_once_with('#search', state="visible", timeout=10000)
-    mock_search_result_div.inner_html.assert_called_once()
+    mock_init.assert_called_once()
+    mock_playwright_page.goto.assert_called_once_with('https://www.google.com/')
+    mock_playwright_page.locator.assert_called_once_with(google_search_tool_default.text_area_selector)
+    mock_textarea_locator.click.assert_called_once()
+    mock_playwright_page.type.assert_called_once_with(google_search_tool_default.text_area_selector, search_query)
+    mock_playwright_page.keyboard.press.assert_called_once_with('Enter')
+    mock_playwright_page.wait_for_load_state.assert_called_once_with("networkidle", timeout=15000)
+    mock_playwright_page.wait_for_selector.assert_called_once_with('#search', state="visible", timeout=10000)
+    mock_search_results_div_locator.inner_html.assert_called_once() # Check that inner_html was called
     mock_close.assert_called_once()
 
-    assert "here is the google search result html" in search_results
-    assert "<GoogleSearchResultStart>" in search_results
-    assert "Mocked Search Results for Shawshank" in search_results # Check if cleaned content is present
-    assert "</GoogleSearchResultEnd>" in search_results
+    assert "here is the google search result html" in search_results_html
+    assert "<GoogleSearchResultStart>" in search_results_html
+    # Default cleaning is THOROUGH, so HTML tags should be mostly gone
+    assert "Mocked Search Results for Shawshank Redemption" in search_results_html 
+    assert "<html" not in search_results_html.lower() # Check cleaning effect
+    assert "</GoogleSearchResultEnd>" in search_results_html
        
-    # Save the page content to a file (optional for test logic if asserting content)
-    file_name = tmp_path / "shawshank_search_test.html"
+    file_name = tmp_path / "shawshank_search_test_results.html"
     with open(file_name, "w", encoding="utf-8") as file:
-        file.write(search_results)
-    print(f"Search results saved to {file_name}")
+        file.write(search_results_html)
+    # print(f"Search results saved to {file_name}") # For debugging if needed
 
-def test_tool_usage(google_search_tool): # Changed from test_google_search to test_tool_usage
-    usage_xml = google_search_tool.tool_usage_xml() # Call tool_usage_xml
-    assert 'GoogleSearch: Searches the internet for information.' in usage_xml
-    assert '<command name="GoogleSearch">' in usage_xml
-    assert '<arg name="query">search query</arg>' in usage_xml
+@pytest.mark.asyncio
+async def test_google_search_custom_cleaning_mode(google_search_tool_custom_config: GoogleSearch, mock_agent_context):
+    # google_search_tool_custom_config is initialized with CleaningMode.BASIC
+    assert google_search_tool_custom_config.cleaning_mode == CleaningMode.BASIC
+    search_query = "test query"
 
-def test_get_config_schema(google_search_tool):
-    schema = google_search_tool.get_config_schema()
-    assert schema is not None
-    cleaning_mode_param = schema.get_parameter("cleaning_mode")
-    assert cleaning_mode_param is not None
-    assert cleaning_mode_param.param_type == ParameterType.ENUM
-    assert cleaning_mode_param.default_value == "THOROUGH"
-    assert "BASIC" in cleaning_mode_param.enum_values
+    mock_playwright_page = AsyncMock()
+    mock_playwright_page.locator.return_value = AsyncMock()
+    mock_playwright_page.wait_for_selector.return_value.inner_html.return_value = "<html><body><script>alert('XSS')</script><b>Allowed Content</b></body></html>"
+
+    with patch.object(google_search_tool_custom_config, 'initialize', AsyncMock()), \
+         patch.object(google_search_tool_custom_config, 'close', AsyncMock()), \
+         patch.object(google_search_tool_custom_config, 'page', new_callable=lambda: mock_playwright_page):
+
+        # Mock the 'clean' function to verify it's called with the correct mode
+        with patch('autobyteus.tools.browser.standalone.google_search_ui.clean') as mock_clean_func:
+            mock_clean_func.return_value = "Cleaned with BASIC mode" # Mock its output
+            
+            await google_search_tool_custom_config.execute(mock_agent_context, query=search_query)
+            
+            # Assert that clean was called with CleaningMode.BASIC
+            mock_clean_func.assert_called_once_with(
+                "<html><body><script>alert('XSS')</script><b>Allowed Content</b></body></html>",
+                mode=CleaningMode.BASIC
+            )
+
+@pytest.mark.asyncio
+async def test_google_search_playwright_error(google_search_tool_default: GoogleSearch, mock_agent_context):
+    search_query = "error test"
+    
+    mock_playwright_page = AsyncMock()
+    # Simulate an error during Playwright operations, e.g., page.goto fails
+    mock_playwright_page.goto = AsyncMock(side_effect=Exception("Playwright navigation failed"))
+
+    with patch.object(google_search_tool_default, 'initialize', AsyncMock()), \
+         patch.object(google_search_tool_default, 'close', AsyncMock()) as mock_close, \
+         patch.object(google_search_tool_default, 'page', new_callable=lambda: mock_playwright_page):
+
+        with pytest.raises(RuntimeError, match="GoogleSearch failed for query 'error test': Playwright navigation failed"):
+            await google_search_tool_default.execute(mock_agent_context, query=search_query)
+        
+        mock_close.assert_called_once() # Ensure close is called even on error
+

@@ -1,4 +1,4 @@
-# file: autobyteus/autobyteus/tools/tool_config_schema.py
+# file: autobyteus/autobyteus/tools/parameter_schema.py
 import logging
 from typing import Dict, Any, List, Optional, Union, Type
 from dataclasses import dataclass, field
@@ -13,13 +13,21 @@ class ParameterType(str, Enum):
     FLOAT = "float"
     BOOLEAN = "boolean"
     ENUM = "enum"
-    FILE_PATH = "file_path"
+    FILE_PATH = "file_path" 
     DIRECTORY_PATH = "directory_path"
 
+    def to_json_schema_type(self) -> str:
+        """Maps parameter type to JSON schema type."""
+        if self == ParameterType.FLOAT:
+            return "number"
+        if self in [ParameterType.FILE_PATH, ParameterType.DIRECTORY_PATH, ParameterType.ENUM]:
+            return "string"
+        return self.value
+
 @dataclass
-class ToolConfigParameter:
+class ParameterDefinition:
     """
-    Represents a single configuration parameter for a tool.
+    Represents a single parameter definition for a tool's arguments or configuration.
     """
     name: str
     param_type: ParameterType
@@ -29,42 +37,32 @@ class ToolConfigParameter:
     enum_values: Optional[List[str]] = None
     min_value: Optional[Union[int, float]] = None
     max_value: Optional[Union[int, float]] = None
-    pattern: Optional[str] = None  # For string validation
+    pattern: Optional[str] = None
     
     def __post_init__(self):
-        """Validate parameter definition after initialization."""
         if not self.name or not isinstance(self.name, str):
-            raise ValueError("Parameter name must be a non-empty string")
+            raise ValueError("ParameterDefinition name must be a non-empty string")
         
         if not self.description or not isinstance(self.description, str):
-            raise ValueError(f"Parameter '{self.name}' must have a non-empty description")
+            raise ValueError(f"ParameterDefinition '{self.name}' must have a non-empty description")
         
         if self.param_type == ParameterType.ENUM and not self.enum_values:
-            raise ValueError(f"Parameter '{self.name}' of type ENUM must specify enum_values")
+            raise ValueError(f"ParameterDefinition '{self.name}' of type ENUM must specify enum_values")
         
         if self.required and self.default_value is not None:
-            logger.warning(f"Parameter '{self.name}' is marked as required but has a default value")
+            logger.debug(f"ParameterDefinition '{self.name}' is marked as required but has a default value. This is acceptable.")
 
     def validate_value(self, value: Any) -> bool:
-        """
-        Validate that a value conforms to this parameter's constraints.
-        
-        Args:
-            value: The value to validate.
-            
-        Returns:
-            bool: True if valid, False otherwise.
-        """
         if value is None:
             return not self.required
         
-        # Type validation
         if self.param_type == ParameterType.STRING:
             if not isinstance(value, str):
                 return False
             if self.pattern:
                 import re
-                return bool(re.match(self.pattern, value))
+                if not re.match(self.pattern, value):
+                    return False 
         
         elif self.param_type == ParameterType.INTEGER:
             if not isinstance(value, int):
@@ -75,11 +73,11 @@ class ToolConfigParameter:
                 return False
         
         elif self.param_type == ParameterType.FLOAT:
-            if not isinstance(value, (int, float)):
+            if not isinstance(value, (float, int)):
                 return False
-            if self.min_value is not None and value < self.min_value:
+            if self.min_value is not None and float(value) < self.min_value:
                 return False
-            if self.max_value is not None and value > self.max_value:
+            if self.max_value is not None and float(value) > self.max_value:
                 return False
         
         elif self.param_type == ParameterType.BOOLEAN:
@@ -97,7 +95,6 @@ class ToolConfigParameter:
         return True
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert parameter to dictionary representation for JSON serialization."""
         return {
             "name": self.name,
             "type": self.param_type.value,
@@ -110,58 +107,67 @@ class ToolConfigParameter:
             "pattern": self.pattern,
         }
 
-@dataclass
-class ToolConfigSchema:
-    """
-    Describes the complete configuration schema for a tool.
-    """
-    parameters: List[ToolConfigParameter] = field(default_factory=list)
-    
-    def add_parameter(self, parameter: ToolConfigParameter) -> None:
-        """Add a parameter to the schema."""
-        if not isinstance(parameter, ToolConfigParameter):
-            raise TypeError("parameter must be a ToolConfigParameter instance")
+    def to_json_schema_property_dict(self) -> Dict[str, Any]:
+        prop_dict: Dict[str, Any] = {
+            "type": self.param_type.to_json_schema_type(),
+            "description": self.description,
+        }
+        if self.default_value is not None:
+            prop_dict["default"] = self.default_value
+        if self.param_type == ParameterType.ENUM and self.enum_values:
+            prop_dict["enum"] = self.enum_values
+        if self.min_value is not None:
+            if self.param_type in [ParameterType.INTEGER, ParameterType.FLOAT]:
+                prop_dict["minimum"] = self.min_value
+        if self.max_value is not None:
+            if self.param_type in [ParameterType.INTEGER, ParameterType.FLOAT]:
+                prop_dict["maximum"] = self.max_value
+        if self.pattern and self.param_type in [ParameterType.STRING, ParameterType.FILE_PATH, ParameterType.DIRECTORY_PATH]:
+            prop_dict["pattern"] = self.pattern
         
-        # Check for duplicates
+        return prop_dict
+
+@dataclass
+class ParameterSchema:
+    """
+    Describes a schema for a set of parameters, either for tool arguments or instantiation configuration.
+    """
+    parameters: List[ParameterDefinition] = field(default_factory=list)
+    
+    def add_parameter(self, parameter: ParameterDefinition) -> None:
+        if not isinstance(parameter, ParameterDefinition):
+            raise TypeError("parameter must be a ParameterDefinition instance")
+        
         if any(p.name == parameter.name for p in self.parameters):
             raise ValueError(f"Parameter '{parameter.name}' already exists in schema")
         
         self.parameters.append(parameter)
 
-    def get_parameter(self, name: str) -> Optional[ToolConfigParameter]:
-        """Get a parameter by name."""
+    def get_parameter(self, name: str) -> Optional[ParameterDefinition]:
         return next((p for p in self.parameters if p.name == name), None)
 
     def validate_config(self, config_data: Dict[str, Any]) -> tuple[bool, List[str]]:
         """
-        Validate a configuration dictionary against this schema.
-        
-        Args:
-            config_data: The configuration to validate.
-            
-        Returns:
-            tuple: (is_valid, list_of_error_messages)
+        Validate a configuration data dictionary against this schema.
         """
         errors = []
         
-        # Check required parameters
         for param in self.parameters:
             if param.required and param.name not in config_data:
-                errors.append(f"Required parameter '{param.name}' is missing")
-            elif param.name in config_data:
-                if not param.validate_value(config_data[param.name]):
-                    errors.append(f"Invalid value for parameter '{param.name}': {config_data[param.name]}")
+                errors.append(f"Required parameter '{param.name}' is missing.")
         
-        # Check for unknown parameters
-        schema_param_names = {p.name for p in self.parameters}
-        for key in config_data:
-            if key not in schema_param_names:
-                errors.append(f"Unknown parameter '{key}'")
-        
+        for key, value in config_data.items():
+            param_def = self.get_parameter(key)
+            if not param_def:
+                errors.append(f"Unknown parameter '{key}' provided.")
+                continue
+            
+            if not param_def.validate_value(value):
+                errors.append(f"Invalid value for parameter '{param_def.name}': '{value}'. Expected type: {param_def.param_type.value}.")
+
         return len(errors) == 0, errors
 
     def get_defaults(self) -> Dict[str, Any]:
-        """Get default values for all parameters that have them."""
         return {
             param.name: param.default_value 
             for param in self.parameters 
@@ -169,20 +175,46 @@ class ToolConfigSchema:
         }
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert schema to dictionary representation for JSON serialization."""
         return {
             "parameters": [param.to_dict() for param in self.parameters]
         }
 
+    def to_json_schema_dict(self) -> Dict[str, Any]:
+        if not self.parameters:
+             return {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+
+        properties = {
+            param.name: param.to_json_schema_property_dict()
+            for param in self.parameters
+        }
+        required = [
+            param.name for param in self.parameters if param.required
+        ]
+        
+        return {
+            "type": "object",
+            "properties": properties,
+            "required": required,
+        }
+
     @classmethod
-    def from_dict(cls, schema_data: Dict[str, Any]) -> 'ToolConfigSchema':
-        """Create a ToolConfigSchema from dictionary representation."""
+    def from_dict(cls, schema_data: Dict[str, Any]) -> 'ParameterSchema':
         schema = cls()
         
         for param_data in schema_data.get("parameters", []):
-            param = ToolConfigParameter(
+            param_type_value = param_data["type"]
+            try:
+                param_type_enum = ParameterType(param_type_value)
+            except ValueError:
+                raise ValueError(f"Invalid parameter type string '{param_type_value}' in schema data.")
+
+            param = ParameterDefinition(
                 name=param_data["name"],
-                param_type=ParameterType(param_data["type"]),
+                param_type=param_type_enum,
                 description=param_data["description"],
                 required=param_data.get("required", False),
                 default_value=param_data.get("default_value"),

@@ -1,124 +1,108 @@
 """
 File: autobyteus/tools/browser/standalone/webpage_reader.py
-
 This module provides a WebPageReader tool for reading and cleaning HTML content from webpages.
-
-The WebPageReader class allows users to retrieve and clean the HTML content of a specified webpage
-using Playwright. It inherits from BaseTool and UIIntegrator, providing a seamless integration
-with web browsers.
 """
 
 import logging
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, Any
 from autobyteus.tools.base_tool import BaseTool
-from autobyteus.tools.tool_config import ToolConfig
-from autobyteus.tools.tool_config_schema import ToolConfigSchema, ToolConfigParameter, ParameterType
-from brui_core.ui_integrator import UIIntegrator
+from autobyteus.tools.tool_config import ToolConfig # For instantiation config
+from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType # Updated
+from brui_core.ui_integrator import UIIntegrator # Inherits from UIIntegrator
 from autobyteus.utils.html_cleaner import clean, CleaningMode
 
 if TYPE_CHECKING:
-    from autobyteus.tools.tool_config_schema import ToolConfigSchema
+    from autobyteus.agent.context import AgentContext # Added
 
 logger = logging.getLogger(__name__)
 
 class WebPageReader(BaseTool, UIIntegrator):
     """
     A class that reads and cleans the HTML content from a given webpage using Playwright.
-
     This tool allows users to specify the level of content cleanup to be applied to the
-    retrieved HTML content.
-
-    Attributes:
-        cleaning_mode (CleaningMode): The level of cleanup to apply to the HTML content.
-            Defaults to CleaningMode.THOROUGH.
+    retrieved HTML content via instantiation configuration.
     """
 
     def __init__(self, config: Optional[ToolConfig] = None):
-        """
-        Initialize the WebPageReader with a specified content cleanup level.
-
-        Args:
-            config (ToolConfig, optional): Configuration containing cleanup level and other parameters.
-        """
         BaseTool.__init__(self)
-        UIIntegrator.__init__(self)
+        UIIntegrator.__init__(self) # Initialize UIIntegrator
         
-        # Extract configuration with defaults
-        cleaning_mode = CleaningMode.THOROUGH  # Default
+        cleaning_mode_to_use = CleaningMode.THOROUGH
         if config:
-            cleaning_mode_value = config.get('cleaning_mode')
+            cleaning_mode_value = config.get('cleaning_mode') # From instantiation config
             if cleaning_mode_value:
                 if isinstance(cleaning_mode_value, str):
                     try:
-                        cleaning_mode = CleaningMode(cleaning_mode_value.upper())
+                        cleaning_mode_to_use = CleaningMode(cleaning_mode_value.upper())
                     except ValueError:
-                        cleaning_mode = CleaningMode.THOROUGH
+                        logger.warning(f"Invalid cleaning_mode string '{cleaning_mode_value}' in config for WebPageReader. Using THOROUGH.")
+                        cleaning_mode_to_use = CleaningMode.THOROUGH
                 elif isinstance(cleaning_mode_value, CleaningMode):
-                    cleaning_mode = cleaning_mode_value
+                    cleaning_mode_to_use = cleaning_mode_value
+                else:
+                     logger.warning(f"Invalid type for cleaning_mode in config for WebPageReader. Using THOROUGH.")
         
-        self.cleaning_mode = cleaning_mode
+        self.cleaning_mode = cleaning_mode_to_use
         logger.debug(f"WebPageReader initialized with cleaning_mode: {self.cleaning_mode}")
 
     @classmethod
-    def get_config_schema(cls) -> 'ToolConfigSchema':
-        """
-        Return the configuration schema for this tool.
-        
-        Returns:
-            ToolConfigSchema: Schema describing the tool's configuration parameters.
-        """
-        schema = ToolConfigSchema()
-        
-        schema.add_parameter(ToolConfigParameter(
-            name="cleaning_mode",
-            param_type=ParameterType.ENUM,
-            description="Level of HTML content cleanup to apply to the webpage content. BASIC removes only dangerous elements, THOROUGH removes most formatting for clean text extraction.",
-            required=False,
-            default_value="THOROUGH",
-            enum_values=["BASIC", "THOROUGH"]
-        ))
-        
-        return schema
+    def get_description(cls) -> str:
+        return "Reads and cleans the HTML content from a given webpage URL using Playwright."
 
     @classmethod
-    def tool_usage_xml(cls):
-        """
-        Return an XML string describing the usage of the WebPageReader tool.
+    def get_argument_schema(cls) -> Optional[ParameterSchema]:
+        """Schema for arguments passed to the execute method."""
+        schema = ParameterSchema()
+        schema.add_parameter(ParameterDefinition(
+            name="url", # Renamed from 'webpage_url' in previous context for consistency with other standalone tools
+            param_type=ParameterType.STRING,
+            description="The URL of the webpage to read content from.",
+            required=True
+        ))
+        # cleaning_mode for execute could be added if runtime override is desired for this specific execution
+        return schema
+        
+    @classmethod
+    def get_config_schema(cls) -> Optional[ParameterSchema]: # For instantiation config
+        """Schema for parameters to configure the WebPageReader instance itself."""
+        schema = ParameterSchema()
+        schema.add_parameter(ParameterDefinition(
+            name="cleaning_mode",
+            param_type=ParameterType.ENUM,
+            description="Level of HTML content cleanup for webpage content. BASIC or THOROUGH.",
+            required=False,
+            default_value="THOROUGH", # Default for instantiation
+            enum_values=[mode.name for mode in CleaningMode]
+        ))
+        return schema
 
-        Returns:
-            str: An XML description of how to use the WebPageReader tool.
-        """
-        return '''WebPageReader: Reads the HTML content from a given webpage. Usage:
-<command name="WebPageReader">
-  <arg name="url">webpage_url</arg>
-</command>
-where "webpage_url" is a string containing the URL of the webpage to read the content from.
-'''
-
-    async def _execute(self, **kwargs):
+    async def _execute(self, context: 'AgentContext', url: str) -> str: # Updated signature
         """
         Read and clean the HTML content from the webpage at the given URL using Playwright.
-
-        Args:
-            **kwargs: Keyword arguments containing the URL. The URL should be specified as 'url'.
-
-        Returns:
-            str: The cleaned HTML content of the webpage.
-
-        Raises:
-            ValueError: If the 'url' keyword argument is not specified.
+        'url' is validated by BaseTool.execute().
         """
-        url = kwargs.get('url')
-        if not url:
-            raise ValueError("The 'url' keyword argument must be specified.")
+        logger.info(f"WebPageReader executing for agent {context.agent_id} with URL: '{url}'")
 
-        await self.initialize()
-        await self.page.goto(url, timeout=0)
-        page_content = await self.page.content()
-        cleaned_content = clean(page_content, mode=self.cleaning_mode)
-        await self.close()
-        return f'''here is the html of the web page
-                <WebPageContentStart>
-                    {cleaned_content}
-                </WebPageContentEnd>
-                '''
+        try:
+            await self.initialize() # Initialize Playwright page
+            if not self.page:
+                 logger.error("Playwright page not initialized in WebPageReader.")
+                 raise RuntimeError("Playwright page not available for WebPageReader.")
+
+            # Using timeout=0 means no timeout, wait indefinitely. Consider a configurable timeout.
+            await self.page.goto(url, timeout=60000, wait_until="domcontentloaded") # Added timeout, wait_until
+            page_content = await self.page.content()
+            
+            cleaned_content = clean(page_content, mode=self.cleaning_mode)
+            
+            return f'''here is the html of the web page
+<WebPageContentStart>
+{cleaned_content}
+</WebPageContentEnd>
+'''
+        except Exception as e:
+            logger.error(f"Error reading webpage at URL '{url}': {e}", exc_info=True)
+            raise RuntimeError(f"WebPageReader failed for URL '{url}': {str(e)}")
+        finally:
+            await self.close() # Close Playwright page/context
+

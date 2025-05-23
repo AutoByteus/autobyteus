@@ -1,56 +1,120 @@
 import pytest
-from unittest.mock import AsyncMock, Mock # Added Mock
-
+from unittest.mock import AsyncMock, Mock, patch
 from autobyteus.tools.browser.session_aware.browser_session_aware_webpage_reader import BrowserSessionAwareWebPageReader
-from autobyteus.tools.tool_config_schema import ParameterType # For schema test
+from autobyteus.tools.browser.session_aware.shared_browser_session import SharedBrowserSession
+from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.tools.tool_config import ToolConfig
+from autobyteus.utils.html_cleaner import CleaningMode
+from autobyteus.agent.context import AgentContext
+from autobyteus.tools.registry import default_tool_registry
 
-# Added mock_agent_context fixture
+TOOL_NAME_SESSION_READER = "WebPageReader" # From tool's get_name()
+
 @pytest.fixture
-def mock_agent_context():
-    mock_context = Mock()
-    mock_context.agent_id = "test_agent_123"
+def mock_agent_context_session_reader():
+    mock_context = Mock(spec=AgentContext)
+    mock_context.agent_id = "test_agent_session_reader"
     return mock_context
 
 @pytest.fixture
-def webpage_reader_tool(): # Renamed fixture to avoid conflict with import
-    return BrowserSessionAwareWebPageReader()
+def mock_shared_browser_session_reader(): # Specific fixture name
+    session = AsyncMock(spec=SharedBrowserSession)
+    session.page = AsyncMock()
+    session.page.url = "https://mocked.page.url/reader"
+    return session
 
+@pytest.fixture
+def webpage_reader_session_tool_default(mock_agent_context_session_reader): # Default config (THOROUGH)
+    tool = BrowserSessionAwareWebPageReader()
+    tool.set_agent_id(mock_agent_context_session_reader.agent_id)
+    return tool
+
+@pytest.fixture
+def webpage_reader_session_tool_basic(mock_agent_context_session_reader): # BASIC config
+    config = ToolConfig(params={'cleaning_mode': CleaningMode.BASIC.name})
+    tool = BrowserSessionAwareWebPageReader(config=config)
+    tool.set_agent_id(mock_agent_context_session_reader.agent_id)
+    return tool
+
+# Definition Tests
+def test_session_reader_definition():
+    definition = default_tool_registry.get_tool_definition(TOOL_NAME_SESSION_READER)
+    assert definition is not None
+    assert definition.name == TOOL_NAME_SESSION_READER
+    assert "Reads and cleans the HTML content from the current page" in definition.description
+
+    arg_schema = definition.argument_schema
+    assert isinstance(arg_schema, ParameterSchema)
+    assert len(arg_schema.parameters) == 1 # Only webpage_url for session mgmt
+    assert arg_schema.get_parameter("webpage_url").required is True
+
+    config_schema = definition.config_schema # Instantiation config
+    assert isinstance(config_schema, ParameterSchema)
+    assert len(config_schema.parameters) == 1
+    cleaning_param = config_schema.get_parameter("cleaning_mode")
+    assert cleaning_param is not None
+    assert cleaning_param.default_value == "THOROUGH"
+
+# Test perform_action
 @pytest.mark.asyncio
-async def test_browser_session_aware_webpage_reader_execute(webpage_reader_tool, mock_agent_context): # Added mock_agent_context
-    # Mock the shared_browser_session_manager and shared_session
-    mock_shared_session = AsyncMock()
-    mock_shared_session.page.content = AsyncMock(return_value="<html><body>Test Content</body></html>")
+async def test_perform_action_reads_and_cleans_content(
+    webpage_reader_session_tool_default: BrowserSessionAwareWebPageReader, 
+    mock_shared_browser_session_reader: SharedBrowserSession
+):
+    mock_html_content = "<html><head><title>Test</title></head><body><p>Hello Reader!</p><script>bad</script></body></html>"
+    mock_shared_browser_session_reader.page.content.return_value = mock_html_content
     
-    mock_session_manager = Mock()
-    mock_session_manager.get_shared_browser_session.return_value = mock_shared_session
-    mock_session_manager.create_shared_browser_session = AsyncMock() # Needed if session is not found
-
-    webpage_reader_tool.shared_browser_session_manager = mock_session_manager
-
-    # Test with webpage_url for session creation if needed by base class
-    result_content = await webpage_reader_tool.execute(
-        mock_agent_context, # Added mock_agent_context
-        webpage_url="https://www.xiaohongshu.com/explore" # Changed url to webpage_url
+    # Tool is THOROUGH by default
+    result_content = await webpage_reader_session_tool_default.perform_action(
+        mock_shared_browser_session_reader, 
+        webpage_url="http://dummy.url/forperformaction" # Passed by base class
     )
     
-    # Basic assertion, assuming default THOROUGH cleaning will simplify HTML
-    assert "Test Content" in result_content 
-    assert "<html" not in result_content.lower() # Example of thorough cleaning
-    assert "<body" not in result_content.lower() # Example of thorough cleaning
+    assert "Test Hello Reader!" in result_content # Approx. text after THOROUGH
+    assert "<html" not in result_content.lower()
+    assert "<script" not in result_content.lower()
+    mock_shared_browser_session_reader.page.content.assert_called_once()
 
-def test_tool_usage_xml(webpage_reader_tool):
-    usage_xml = webpage_reader_tool.tool_usage_xml()
-    assert 'WebPageReader: Reads and cleans the HTML content from a given webpage.' in usage_xml
-    assert '<command name="WebPageReader">' in usage_xml
-    assert '<arg name="webpage_url">url_to_read</arg>' in usage_xml
+@pytest.mark.asyncio
+async def test_perform_action_with_basic_cleaning(
+    webpage_reader_session_tool_basic: BrowserSessionAwareWebPageReader, # Instance with BASIC cleaning
+    mock_shared_browser_session_reader: SharedBrowserSession
+):
+    assert webpage_reader_session_tool_basic.cleaning_mode == CleaningMode.BASIC
+    raw_html = "<html><body><script>alert('XSS')</script><b>Allowed Content</b></body></html>"
+    mock_shared_browser_session_reader.page.content.return_value = raw_html
 
-def test_get_config_schema(webpage_reader_tool):
-    schema = webpage_reader_tool.get_config_schema()
-    assert schema is not None
-    cleaning_mode_param = schema.get_parameter("cleaning_mode")
-    assert cleaning_mode_param is not None
-    assert cleaning_mode_param.name == "cleaning_mode"
-    assert cleaning_mode_param.param_type == ParameterType.ENUM
-    assert cleaning_mode_param.default_value == "THOROUGH"
-    assert "BASIC" in cleaning_mode_param.enum_values
-    assert "THOROUGH" in cleaning_mode_param.enum_values
+    with patch('autobyteus.tools.browser.session_aware.browser_session_aware_webpage_reader.clean') as mock_clean_func:
+        mock_clean_func.return_value = "Cleaned with BASIC (session)"
+        
+        result = await webpage_reader_session_tool_basic.perform_action(
+            mock_shared_browser_session_reader,
+            webpage_url="http://dummy.url"
+        )
+        
+        mock_clean_func.assert_called_once_with(raw_html, CleaningMode.BASIC)
+        assert result == "Cleaned with BASIC (session)"
+
+# Test full .execute()
+@pytest.mark.asyncio
+async def test_full_execute_with_session_mocking(
+    webpage_reader_session_tool_default: BrowserSessionAwareWebPageReader, 
+    mock_agent_context_session_reader: AgentContext,
+    mock_shared_browser_session_reader: SharedBrowserSession
+):
+    mock_session_manager_instance = AsyncMock()
+    mock_session_manager_instance.get_shared_browser_session.return_value = mock_shared_browser_session_reader
+    # Mock page content for the session
+    mock_shared_browser_session_reader.page.content.return_value = "<p>Session Page Content</p>"
+
+    with patch('autobyteus.tools.browser.session_aware.browser_session_aware_tool.SharedBrowserSessionManager', return_value=mock_session_manager_instance):
+        webpage_reader_session_tool_default.shared_browser_session_manager = mock_session_manager_instance
+
+        result = await webpage_reader_session_tool_default.execute(
+            mock_agent_context_session_reader,
+            webpage_url="https://example.com/session_reader_target" # Required by schema
+        )
+
+    assert "Session Page Content" in result # After THOROUGH cleaning by default
+    mock_shared_browser_session_reader.page.content.assert_called_once()
+

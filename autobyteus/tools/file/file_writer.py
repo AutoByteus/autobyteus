@@ -1,62 +1,31 @@
-"""
-This module provides the FileWriter tool, a utility to write files.
-
-Classes:
-    FileWriter: Tool for writing files.
-"""
-
 import os
-from autobyteus.tools.base_tool import BaseTool
+import logging
+from typing import TYPE_CHECKING
 
-class FileWriter(BaseTool):
+from autobyteus.tools import tool
+
+if TYPE_CHECKING:
+    from autobyteus.agent.context import AgentContext
+
+logger = logging.getLogger(__name__)
+
+@tool(name="FileWriter")
+async def file_writer(context: 'AgentContext', path: str, content: str) -> str:
     """
-    A tool that allows for writing files. If the specified directory does not exist,
-    it will create the necessary directories.
+    Creates or overwrites a file with specified content.
+    'path' is the path where the file will be written.
+    'content' is the string content to write.
+    Creates parent directories if they don't exist.
+    Raises IOError if file writing fails.
     """
-
-    @classmethod
-    def tool_usage_xml(cls):
-        """
-        Return an XML string describing the usage of the FileWriter tool.
-
-        Returns:
-            str: An XML description of how to use the FileWriter tool.
-        """
-        return '''FileWriter: Creates a file with specified content. Usage:
-    <command name="FileWriter">
-    <arg name="path">file_path</arg>
-    <arg name="content">file_content</arg>
-    </command>
-    where "file_path" is the path to create the file and "file_content" is the content to write to the file.
-    '''
-
-    def _execute(self, **kwargs):
-        """
-        Write the content to a file at the specified path.
-
-        Args:
-            **kwargs: Keyword arguments containing the path of the file to be written
-                      and the content to be written.
-                      The path should be specified as 'path'.
-                      The content should be specified as 'content'.
-
-        Returns:
-            str: A message indicating the file was created successfully.
-
-        Raises:
-            ValueError: If the 'path' or 'content' keyword argument is not specified.
-        """
-        path = kwargs.get('path')
-        content = kwargs.get('content')
-
-        if not path:
-            raise ValueError("The 'path' keyword argument must be specified.")
-        if content is None:
-            raise ValueError("The 'content' keyword argument must be specified.")
-
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-
-        with open(path, 'w') as file:
+    logger.debug(f"Functional FileWriter tool for agent {context.agent_id}, path: {path}")
+    try:
+        dir_path = os.path.dirname(path)
+        if dir_path: # Only if path includes a directory part
+            os.makedirs(dir_path, exist_ok=True)
+        with open(path, 'w', encoding='utf-8') as file:
             file.write(content)
-
-        return f"File created at {path}"
+        return f"File created/updated at {path}"
+    except Exception as e:
+        logger.error(f"Error writing file {path} for agent {context.agent_id}: {e}", exc_info=True)
+        raise IOError(f"Could not write file at {path}: {str(e)}")

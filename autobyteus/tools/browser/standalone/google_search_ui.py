@@ -1,130 +1,135 @@
 """
 File: autobyteus/tools/browser/google_search_ui.py
-
 This module provides a GoogleSearch tool for performing Google searches using Playwright.
-
-The GoogleSearch class allows users to search Google and retrieve cleaned search results.
-It inherits from BaseTool and UIIntegrator, providing a seamless integration with web browsers.
-
-Classes:
-    GoogleSearch: A tool for performing Google searches and retrieving cleaned results.
 """
 
 import asyncio
-import re
 import logging
-from typing import Optional, TYPE_CHECKING
-from bs4 import BeautifulSoup
+from typing import Optional, TYPE_CHECKING, Any
 from autobyteus.tools.base_tool import BaseTool
-from autobyteus.tools.tool_config import ToolConfig
-from autobyteus.tools.tool_config_schema import ToolConfigSchema, ToolConfigParameter, ParameterType
-from brui_core.ui_integrator import UIIntegrator
-
+from autobyteus.tools.tool_config import ToolConfig # For instantiation config
+from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType # Updated
+from brui_core.ui_integrator import UIIntegrator # GoogleSearch is also a UIIntegrator
 from autobyteus.utils.html_cleaner import clean, CleaningMode
 
 if TYPE_CHECKING:
-    from autobyteus.tools.tool_config_schema import ToolConfigSchema
+    from autobyteus.agent.context import AgentContext # Added
 
 logger = logging.getLogger(__name__)
 
-class GoogleSearch(BaseTool, UIIntegrator):
+class GoogleSearch(BaseTool, UIIntegrator): # Multiple inheritance
     """
     A tool that allows for performing a Google search using Playwright and retrieving the search results.
-
-    This class inherits from BaseTool and UIIntegrator. Upon initialization via the UIIntegrator's
-    initialize method, self.page becomes available as a Playwright page object for interaction
-    with the web browser.
-
-    Attributes:
-        text_area_selector (str): The CSS selector for the Google search text area.
-        cleaning_mode (CleaningMode): The level of cleanup to apply to the HTML content.
+    Inherits from BaseTool for tool framework compatibility and UIIntegrator for Playwright integration.
     """
 
     def __init__(self, config: Optional[ToolConfig] = None):
-        """
-        Initialize the GoogleSearch tool with a specified content cleanup level.
-
-        Args:
-            config (ToolConfig, optional): Configuration containing cleanup level and other parameters.
-        """
         BaseTool.__init__(self)
-        UIIntegrator.__init__(self)
+        UIIntegrator.__init__(self) # Initialize UIIntegrator
 
         self.text_area_selector = 'textarea[name="q"]'
         
-        # Extract configuration with defaults
-        cleaning_mode = CleaningMode.THOROUGH  # Default
+        cleaning_mode_to_use = CleaningMode.THOROUGH 
         if config:
-            cleaning_mode_value = config.get('cleaning_mode')
+            cleaning_mode_value = config.get('cleaning_mode') # From instantiation config
             if cleaning_mode_value:
                 if isinstance(cleaning_mode_value, str):
                     try:
-                        cleaning_mode = CleaningMode(cleaning_mode_value.upper())
+                        cleaning_mode_to_use = CleaningMode(cleaning_mode_value.upper())
                     except ValueError:
-                        cleaning_mode = CleaningMode.THOROUGH
+                        logger.warning(f"Invalid cleaning_mode string '{cleaning_mode_value}' in config. Using THOROUGH.")
+                        cleaning_mode_to_use = CleaningMode.THOROUGH
                 elif isinstance(cleaning_mode_value, CleaningMode):
-                    cleaning_mode = cleaning_mode_value
+                    cleaning_mode_to_use = cleaning_mode_value
+                else:
+                    logger.warning(f"Invalid type for cleaning_mode in config. Using THOROUGH.")
         
-        self.cleaning_mode = cleaning_mode
+        self.cleaning_mode = cleaning_mode_to_use
         logger.debug(f"GoogleSearch initialized with cleaning_mode: {self.cleaning_mode}")
 
     @classmethod
-    def get_config_schema(cls) -> 'ToolConfigSchema':
-        """
-        Return the configuration schema for this tool.
-        
-        Returns:
-            ToolConfigSchema: Schema describing the tool's configuration parameters.
-        """
-        schema = ToolConfigSchema()
-        
-        schema.add_parameter(ToolConfigParameter(
-            name="cleaning_mode",
-            param_type=ParameterType.ENUM,
-            description="Level of HTML content cleanup to apply to search results. BASIC removes only dangerous elements, THOROUGH removes most formatting for clean text extraction.",
-            required=False,
-            default_value="THOROUGH",
-            enum_values=["BASIC", "THOROUGH"]
+    def get_description(cls) -> str:
+        return "Searches Google for a given query and returns cleaned HTML search results."
+
+    @classmethod
+    def get_argument_schema(cls) -> Optional[ParameterSchema]:
+        """Schema for arguments passed to the execute method."""
+        schema = ParameterSchema()
+        schema.add_parameter(ParameterDefinition(
+            name="query",
+            param_type=ParameterType.STRING,
+            description="The search query string.",
+            required=True
         ))
-        
+        # cleaning_mode for execute can be added if runtime override is desired
         return schema
 
     @classmethod
-    def tool_usage_xml(cls):
+    def get_config_schema(cls) -> Optional[ParameterSchema]: # For instantiation config
+        """Schema for parameters to configure the GoogleSearch instance itself."""
+        schema = ParameterSchema()
+        schema.add_parameter(ParameterDefinition(
+            name="cleaning_mode",
+            param_type=ParameterType.ENUM,
+            description="Level of HTML content cleanup for search results. BASIC or THOROUGH.",
+            required=False,
+            default_value="THOROUGH", # Default for instantiation
+            enum_values=[mode.name for mode in CleaningMode]
+        ))
+        return schema
+
+    async def _execute(self, context: 'AgentContext', query: str) -> str: # Updated signature
         """
-        Return an XML string describing the usage of the GoogleSearch tool.
-
-        Returns:
-            str: An XML description of how to use the GoogleSearch tool.
+        Performs a Google search for the given query.
+        'query' is validated by BaseTool.execute().
         """
-        return '''GoogleSearch: Searches the internet for information. Usage:
-    <command name="GoogleSearch">
-    <arg name="query">search query</arg>
-    </command>
-    where "search query" is a string.
-    '''
+        logger.info(f"GoogleSearch executing for agent {context.agent_id} with query: '{query}'")
 
-    async def _execute(self, **kwargs):
-        query = kwargs.get('query')
-        if not query:
-            raise ValueError("The 'query' keyword argument must be specified.")
+        try:
+            await self.initialize() # Initialize Playwright page from UIIntegrator
+            if not self.page: # Should be set by initialize()
+                 logger.error("Playwright page not initialized in GoogleSearch.")
+                 raise RuntimeError("Playwright page not available for Google Search.")
 
-        await self.initialize()
-        await self.page.goto('https://www.google.com/')
+            await self.page.goto('https://www.google.com/')
 
-        textarea = self.page.locator(self.text_area_selector)
-        await textarea.click()
-        await self.page.type(self.text_area_selector, query)
-        await self.page.keyboard.press('Enter')
-        await self.page.wait_for_load_state()
+            textarea = self.page.locator(self.text_area_selector)
+            await textarea.click()
+            await self.page.type(self.text_area_selector, query) # Use page.type for better control
+            await self.page.keyboard.press('Enter')
+            
+            # Wait for search results to load. Prefer more specific selectors if possible.
+            await self.page.wait_for_load_state("networkidle", timeout=15000) # Wait for network to be idle
+            
+            search_result_div_selector = '#search' # Standard Google search results container
+            try:
+                search_result_div = await self.page.wait_for_selector(
+                    search_result_div_selector, 
+                    state="visible", 
+                    timeout=10000
+                )
+            except Exception as e_selector: # More specific Playwright timeout error is better
+                logger.warning(f"Could not find primary search result selector '{search_result_div_selector}'. "
+                               f"Falling back to page content. Error: {e_selector}")
+                # Fallback or alternative selectors can be tried here if #search fails
+                # For now, just log and proceed to get full content if selector fails
+                page_html_content = await self.page.content()
+            else:
+                # Give a brief moment for dynamic content within #search to settle if needed
+                await asyncio.sleep(1) # Reduced sleep, networkidle should handle most.
+                page_html_content = await search_result_div.inner_html()
 
-        search_result_div = await self.page.wait_for_selector('#search', state="visible", timeout=10000)
-        await asyncio.sleep(2)
-        search_result = await search_result_div.inner_html()
-        cleaned_search_result = clean(search_result, mode=self.cleaning_mode)
-        await self.close()
-        return f'''here is the google search result html
-                  <GoogleSearchResultStart>
-                        {cleaned_search_result}
-                  </GoogleSearchResultEnd>
-                '''
+            cleaned_search_result = clean(page_html_content, mode=self.cleaning_mode)
+            
+            return f'''here is the google search result html
+<GoogleSearchResultStart>
+{cleaned_search_result}
+</GoogleSearchResultEnd>
+'''
+        except Exception as e:
+            logger.error(f"Error during Google search for query '{query}': {e}", exc_info=True)
+            # Propagate the error to be handled by BaseTool or agent
+            raise RuntimeError(f"GoogleSearch failed for query '{query}': {str(e)}")
+        finally:
+            await self.close() # Close Playwright page/context from UIIntegrator
+

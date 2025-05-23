@@ -1,72 +1,129 @@
 import pytest
-import os # Added os for abspath
-from unittest.mock import AsyncMock, Mock # Added Mock
-
+import os
+from unittest.mock import AsyncMock, Mock, patch
 from autobyteus.tools.browser.session_aware.browser_session_aware_webpage_screenshot_taker import BrowserSessionAwareWebPageScreenshotTaker
-from autobyteus.tools.tool_config_schema import ParameterType # For schema test
+from autobyteus.tools.browser.session_aware.shared_browser_session import SharedBrowserSession
+from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.tools.tool_config import ToolConfig
+from autobyteus.agent.context import AgentContext
+from autobyteus.tools.registry import default_tool_registry
 
-# Added mock_agent_context fixture
+TOOL_NAME_SESSION_SS_TAKER = "WebPageScreenshotTaker" # From tool's get_name()
+
 @pytest.fixture
-def mock_agent_context():
-    mock_context = Mock()
-    mock_context.agent_id = "test_agent_123"
+def mock_agent_context_session_ss():
+    mock_context = Mock(spec=AgentContext)
+    mock_context.agent_id = "test_agent_session_ss"
     return mock_context
 
 @pytest.fixture
-def screenshot_taker_tool(): # Renamed fixture
-    return BrowserSessionAwareWebPageScreenshotTaker()
+def mock_shared_browser_session_ss(): # Specific fixture
+    session = AsyncMock(spec=SharedBrowserSession)
+    session.page = AsyncMock()
+    session.page.url = "https://mocked.page.url/ss_taker"
+    return session
+
+@pytest.fixture
+def ss_taker_session_tool_default(mock_agent_context_session_ss): # Default config
+    tool = BrowserSessionAwareWebPageScreenshotTaker()
+    tool.set_agent_id(mock_agent_context_session_ss.agent_id)
+    return tool
+
+@pytest.fixture
+def ss_taker_session_tool_custom(mock_agent_context_session_ss): # Custom config
+    config = ToolConfig(params={'full_page': False, 'image_format': 'jpeg'})
+    tool = BrowserSessionAwareWebPageScreenshotTaker(config=config)
+    tool.set_agent_id(mock_agent_context_session_ss.agent_id)
+    return tool
+
+# Definition Tests
+def test_session_ss_taker_definition():
+    definition = default_tool_registry.get_tool_definition(TOOL_NAME_SESSION_SS_TAKER)
+    assert definition is not None
+    assert definition.name == TOOL_NAME_SESSION_SS_TAKER
+    assert "Takes a screenshot of the current page in a shared browser session" in definition.description
+
+    arg_schema = definition.argument_schema
+    assert isinstance(arg_schema, ParameterSchema)
+    assert len(arg_schema.parameters) == 2 # webpage_url, file_name
+    assert arg_schema.get_parameter("webpage_url").required is True
+    assert arg_schema.get_parameter("file_name").required is True
+
+    config_schema = definition.config_schema # Instantiation config
+    assert isinstance(config_schema, ParameterSchema)
+    assert len(config_schema.parameters) == 2 # full_page, image_format
+    assert config_schema.get_parameter("full_page").default_value is True
+    assert config_schema.get_parameter("image_format").default_value == "png"
+
+# Test perform_action
+@pytest.mark.asyncio
+async def test_perform_action_default_settings(
+    ss_taker_session_tool_default: BrowserSessionAwareWebPageScreenshotTaker, 
+    mock_shared_browser_session_ss: SharedBrowserSession,
+    tmp_path
+):
+    file_to_save = str(tmp_path / "session_ss_default.png")
+    
+    # Tool instance has full_page=True, image_format="png" by default
+    returned_path = await ss_taker_session_tool_default.perform_action(
+        mock_shared_browser_session_ss, 
+        file_name=file_to_save,
+        webpage_url="http://dummy.url/forperformaction" # Passed by base class
+    )
+    
+    assert returned_path == os.path.abspath(file_to_save)
+    mock_shared_browser_session_ss.page.screenshot.assert_called_once_with(
+        path=file_to_save,
+        full_page=True,
+        type="png"
+    )
+    assert os.path.isdir(os.path.dirname(file_to_save)) # Check dir was created by tool
 
 @pytest.mark.asyncio
-async def test_browser_session_aware_webpage_screenshot_taker_execute(screenshot_taker_tool, mock_agent_context, tmp_path): # Added mock_agent_context, tmp_path
-    # Mock the shared_browser_session_manager and shared_session
-    mock_shared_session = AsyncMock()
-    # Mock the screenshot method
-    mock_shared_session.page.screenshot = AsyncMock()
+async def test_perform_action_custom_settings(
+    ss_taker_session_tool_custom: BrowserSessionAwareWebPageScreenshotTaker, # Custom config instance
+    mock_shared_browser_session_ss: SharedBrowserSession,
+    tmp_path
+):
+    file_to_save = str(tmp_path / "session_ss_custom.jpeg")
+    # Tool instance has full_page=False, image_format="jpeg"
+    assert ss_taker_session_tool_custom.full_page is False
+    assert ss_taker_session_tool_custom.image_format == "jpeg"
 
-    mock_session_manager = Mock()
-    mock_session_manager.get_shared_browser_session.return_value = mock_shared_session
-    mock_session_manager.create_shared_browser_session = AsyncMock()
-
-    screenshot_taker_tool.shared_browser_session_manager = mock_session_manager
-    
-    # Use tmp_path for a temporary file
-    file_name_arg = "screenshot.png" 
-    temp_file_path = tmp_path / file_name_arg # Save to temp dir
-
-    result = await screenshot_taker_tool.execute(
-        mock_agent_context, # Added mock_agent_context
-        webpage_url="https://www.xiaohongshu.com/explore", # Changed url to webpage_url
-        file_name=str(temp_file_path) # Changed file_path to file_name, pass full path for saving
+    returned_path = await ss_taker_session_tool_custom.perform_action(
+        mock_shared_browser_session_ss, 
+        file_name=file_to_save,
+        webpage_url="http://dummy.url"
+    )
+    assert returned_path == os.path.abspath(file_to_save)
+    mock_shared_browser_session_ss.page.screenshot.assert_called_once_with(
+        path=file_to_save,
+        full_page=False,
+        type="jpeg"
     )
 
-    expected_path = os.path.abspath(str(temp_file_path))
-    assert result == expected_path
-    # Check if screenshot method was called correctly
-    mock_shared_session.page.screenshot.assert_called_once_with(
-        path=str(temp_file_path), 
-        full_page=screenshot_taker_tool.full_page, # from tool's default
-        type=screenshot_taker_tool.image_format # from tool's default
-    )
+# Test full .execute()
+@pytest.mark.asyncio
+async def test_full_execute_with_session_mocking(
+    ss_taker_session_tool_default: BrowserSessionAwareWebPageScreenshotTaker, 
+    mock_agent_context_session_ss: AgentContext,
+    mock_shared_browser_session_ss: SharedBrowserSession,
+    tmp_path
+):
+    file_to_save_execute = str(tmp_path / "session_ss_execute.png")
 
-def test_tool_usage_xml(screenshot_taker_tool):
-    usage_xml = screenshot_taker_tool.tool_usage_xml()
-    assert 'WebPageScreenshotTaker: Takes a screenshot of a given webpage' in usage_xml
-    assert '<command name="WebPageScreenshotTaker">' in usage_xml
-    assert '<arg name="webpage_url">url_to_screenshot</arg>' in usage_xml
-    assert '<arg name="file_name">screenshot_file_name</arg>' in usage_xml
-
-def test_get_config_schema(screenshot_taker_tool):
-    schema = screenshot_taker_tool.get_config_schema()
-    assert schema is not None
+    mock_session_manager_instance = AsyncMock()
+    mock_session_manager_instance.get_shared_browser_session.return_value = mock_shared_browser_session_ss
     
-    full_page_param = schema.get_parameter("full_page")
-    assert full_page_param is not None
-    assert full_page_param.param_type == ParameterType.BOOLEAN
-    assert full_page_param.default_value is True
+    with patch('autobyteus.tools.browser.session_aware.browser_session_aware_tool.SharedBrowserSessionManager', return_value=mock_session_manager_instance):
+        ss_taker_session_tool_default.shared_browser_session_manager = mock_session_manager_instance
 
-    image_format_param = schema.get_parameter("image_format")
-    assert image_format_param is not None
-    assert image_format_param.param_type == ParameterType.ENUM
-    assert image_format_param.default_value == "png"
-    assert "png" in image_format_param.enum_values
-    assert "jpeg" in image_format_param.enum_values
+        result_path = await ss_taker_session_tool_default.execute(
+            mock_agent_context_session_ss,
+            webpage_url="https://example.com/session_ss_target", # Required by schema
+            file_name=file_to_save_execute
+        )
+
+    assert result_path == os.path.abspath(file_to_save_execute)
+    mock_shared_browser_session_ss.page.screenshot.assert_called_once()
+

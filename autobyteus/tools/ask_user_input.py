@@ -1,83 +1,39 @@
-# File: autobyteus/tools/ask_user_input.py
-
+import asyncio
 import logging
-from autobyteus.tools.base_tool import BaseTool
+from typing import TYPE_CHECKING
+
+from autobyteus.tools import tool # Main @tool decorator
+
+if TYPE_CHECKING:
+    from autobyteus.agent.context import AgentContext
 
 logger = logging.getLogger(__name__)
 
-class AskUserInput(BaseTool):
+@tool(name="AskUserInput") # Explicit name matching the old class name
+async def ask_user_input(context: 'AgentContext', request: str) -> str: # Function name can be ask_user_input
     """
-    A tool that allows a large language model to request input from the user.
+    Requests input from the user based on a given prompt and returns the user's textual response.
+    'request' is the prompt or question to present to the user.
     """
+    logger.info(f"Functional AskUserInput tool (agent {context.agent_id}) requesting user input: {request}")
 
-    def __init__(self):
-        super().__init__()
+    try:
+        loop = asyncio.get_event_loop()
+        user_input_str = await loop.run_in_executor(
+            None, 
+            lambda: input(f"LLM Agent ({context.agent_id}): {request}\nUser: ")
+        )
+        
+        logger.info(f"User input received for agent {context.agent_id}: '{user_input_str[:50]}...'")
+        return user_input_str
 
-    @classmethod
-    def tool_usage_xml(cls):
-        """
-        Return an XML string describing the usage of the AskUserInput tool.
-
-        Returns:
-            str: An XML description of how to use the AskUserInput tool.
-        """
-        return '''AskUserInput: Requests input from the user based on a given context or prompt. 
-    <command name="AskUserInput">
-    <arg name="request">[Your request here]</arg>
-    </command>
-
-    Examples:
-    1. When needing to request user for search input:
-    <command name="AskUserInput">
-    <arg name="request">What would you like to search for?</arg>
-    </command>
-
-    2. When needing to request user for form input:
-    <command name="AskUserInput">
-    <arg name="request">Please enter your full name:</arg>
-    </command>
-
-    3. When needing to request user for a choice:
-    <command name="AskUserInput">
-    <arg name="request">Select an option (1, 2, or 3):</arg>
-    </command>
-    '''
-
-    async def _execute(self, **kwargs):
-        """
-        Present the LLM's request to the user, capture their input, and return it.
-
-        Args:
-            **kwargs: Keyword arguments containing the LLM's request.
-                      'request': The request or prompt from the LLM to present to the user.
-
-        Returns:
-            str: The user's input in response to the LLM's request.
-
-        Raises:
-            ValueError: If the 'request' keyword argument is not specified.
-        """
-        request = kwargs.get('request')
-
-        if not request:
-            raise ValueError("The 'request' keyword argument must be specified.")
-
-        logger.info(f"LLM requesting user input: {request}")
-
-        try:
-            print(f"LLM: {request}")
-            user_input = input("User: ")
-
-            logger.info("User input received.")
-            return user_input
-
-        except KeyboardInterrupt:
-            logger.warning("User interrupted the input process.")
-            return "[Input process interrupted by user]"
-        except EOFError:
-            logger.warning("EOF error occurred during input.")
-            return "[EOF error occurred]"
-        except Exception as e:
-            error_message = f"An error occurred while getting user input: {str(e)}"
-            logger.error(error_message)
-            return f"[Error: {error_message}]"
+    except KeyboardInterrupt:
+        logger.warning(f"User interrupted input process for agent {context.agent_id}.")
+        return "[Input process interrupted by user]"
+    except EOFError:
+        logger.warning(f"EOF error during input for agent {context.agent_id}.")
+        return "[EOF error occurred during input]"
+    except Exception as e:
+        error_message = f"An error occurred while getting user input: {str(e)}"
+        logger.error(error_message, exc_info=True)
+        return f"[Error getting user input: {error_message}]"

@@ -1,124 +1,88 @@
-# File: autobyteus/tools/pdf_downloader.py
-
+ # This was top-level, keep it there.
 import os
-import requests
 import logging
+import asyncio 
+import requests 
 from datetime import datetime
-from typing import Optional, TYPE_CHECKING
-from autobyteus.tools.base_tool import BaseTool
-from autobyteus.tools.tool_config import ToolConfig
-from autobyteus.tools.tool_config_schema import ToolConfigSchema, ToolConfigParameter, ParameterType
+from typing import TYPE_CHECKING, Optional
+
+from autobyteus.tools import tool
 from autobyteus.utils.file_utils import get_default_download_folder
 
 if TYPE_CHECKING:
-    from autobyteus.tools.tool_config_schema import ToolConfigSchema
+    from autobyteus.agent.context import AgentContext
 
 logger = logging.getLogger(__name__)
 
-class PDFDownloader(BaseTool):
+@tool(name="PDFDownloader")
+async def pdf_downloader( # function name can be pdf_downloader
+    context: 'AgentContext', 
+    url: str, 
+    folder: Optional[str] = None
+) -> str:
     """
-    A tool that downloads a PDF file from a given URL and saves it locally.
+    Downloads a PDF file from a given URL and saves it locally.
+    'url' is the URL of the PDF.
+    'folder' (optional) is a custom directory to save the PDF. If not given,
+    uses the system's default download folder. Validates Content-Type.
     """
+    logger.debug(f"Functional PDFDownloader tool for agent {context.agent_id}, URL: {url}, Folder: {folder}")
+    
+    current_download_folder = folder if folder else get_default_download_folder()
 
-    def __init__(self, config: Optional[ToolConfig] = None):
-        super().__init__()
+    try:
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(None, lambda: requests.get(url, stream=True, timeout=30))
+        response.raise_for_status()
+
+        content_type = response.headers.get('Content-Type', '').lower()
+        if 'application/pdf' not in content_type:
+            response.close()
+            raise ValueError(f"The URL does not point to a PDF file. Content-Type: {content_type}")
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename_from_header = None
+        if 'Content-Disposition' in response.headers:
+            import re
+            match = re.search(r'filename=[\'"]?([^\'"\s]+)[\'"]?', response.headers['Content-Disposition'])
+            if match: filename_from_header = match.group(1)
         
-        # Extract configuration with defaults
-        custom_download_folder = None
-        if config:
-            custom_download_folder = config.get('custom_download_folder')
-        
-        self.default_download_folder = get_default_download_folder()
-        self.download_folder = custom_download_folder or self.default_download_folder
-        
-        logger.debug(f"PDFDownloader initialized with download_folder: {self.download_folder}")
-
-    @classmethod
-    def get_config_schema(cls) -> 'ToolConfigSchema':
-        """
-        Return the configuration schema for this tool.
-        
-        Returns:
-            ToolConfigSchema: Schema describing the tool's configuration parameters.
-        """
-        schema = ToolConfigSchema()
-        
-        schema.add_parameter(ToolConfigParameter(
-            name="custom_download_folder",
-            param_type=ParameterType.DIRECTORY_PATH,
-            description="Custom directory path where downloaded PDF files will be saved. If not specified, uses the default download folder.",
-            required=False,
-            default_value=None
-        ))
-        
-        return schema
-
-    @classmethod
-    def tool_usage_xml(cls):
-        """
-        Return an XML string describing the usage of the PDFDownloader tool.
-
-        Returns:
-            str: An XML description of how to use the PDFDownloader tool.
-        """
-        return '''PDFDownloader: Downloads a PDF file from a given URL. Usage:
-    <command name="PDFDownloader">
-    <arg name="url">https://example.com/file.pdf</arg>
-    </command>
-    '''
-
-    async def _execute(self, **kwargs):
-        """
-        Download a PDF file from the given URL and save it locally.
-
-        Args:
-            **kwargs: Keyword arguments containing the URL.
-                      'url': The URL of the PDF file to download.
-                      'folder' (optional): Custom download folder path.
-
-        Returns:
-            str: A message indicating the result of the download operation.
-
-        Raises:
-            ValueError: If the 'url' keyword argument is not specified.
-        """
-        url = kwargs.get('url')
-        custom_folder = kwargs.get('folder')
-        download_folder = custom_folder or self.download_folder
-
-        if not url:
-            raise ValueError("The 'url' keyword argument must be specified.")
-
-        logger.info(f"Attempting to download PDF from {url}")
-
-        try:
-            response = requests.get(url, stream=True)
-            response.raise_for_status()
-
-            content_type = response.headers.get('Content-Type', '').lower()
-            if 'application/pdf' not in content_type:
-                raise ValueError(f"The URL does not point to a PDF file. Content-Type: {content_type}")
-
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        if filename_from_header and filename_from_header.lower().endswith(".pdf"):
+            import string
+            valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
+            filename_from_header = ''.join(c for c in filename_from_header if c in valid_chars)[:200]
+            filename = f"{timestamp}_{filename_from_header}"
+        else:
             filename = f"downloaded_pdf_{timestamp}.pdf"
-            save_path = os.path.join(download_folder, filename)
 
-            os.makedirs(download_folder, exist_ok=True)
-            with open(save_path, 'wb') as file:
+        save_path = os.path.join(current_download_folder, filename)
+        os.makedirs(current_download_folder, exist_ok=True)
+        
+        def download_and_save_sync():
+            with open(save_path, 'wb') as file_handle:
                 for chunk in response.iter_content(chunk_size=8192):
-                    file.write(chunk)
+                    file_handle.write(chunk)
+            response.close()
+        
+        await loop.run_in_executor(None, download_and_save_sync)
 
-            logger.info(f"PDF successfully downloaded and saved to {save_path}")
-            return f"PDF successfully downloaded and saved to {save_path}"
-        except requests.exceptions.RequestException as e:
-            error_message = f"Error downloading PDF: {str(e)}"
-            logger.error(error_message)
-            return error_message
-        except ValueError as e:
-            error_message = str(e)
-            logger.error(error_message)
-            return error_message
-        except IOError as e:
-            error_message = f"Error saving PDF: {str(e)}"
-            logger.error(error_message)
-            return error_message
+        logger.info(f"PDF successfully downloaded and saved to {save_path}")
+        return f"PDF successfully downloaded and saved to {save_path}"
+    except requests.exceptions.Timeout:
+        logger.error(f"Timeout downloading PDF from {url}", exc_info=True)
+        return f"Error downloading PDF: Timeout occurred for URL {url}"
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error downloading PDF from {url}: {str(e)}", exc_info=True)
+        return f"Error downloading PDF: {str(e)}"
+    except ValueError as e:
+        logger.error(f"Content type error for PDF from {url}: {str(e)}", exc_info=True)
+        return str(e)
+    except IOError as e:
+        logger.error(f"Error saving PDF to {current_download_folder}: {str(e)}", exc_info=True)
+        return f"Error saving PDF: {str(e)}"
+    except Exception as e:
+        logger.error(f"Unexpected error downloading PDF from {url}: {str(e)}", exc_info=True)
+        return f"An unexpected error occurred: {str(e)}"
+    finally:
+        if 'response' in locals() and hasattr(response, 'close') and response.raw and not response.raw.closed:
+             response.close()

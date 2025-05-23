@@ -1,58 +1,29 @@
-# File: /home/ryan-ai/miniHDD/Learning/chatgpt/autobyteus/autobyteus/tools/file_reader.py
-"""
-This module provides the FileReader tool, a utility to read files.
-
-Classes:
-    FileReader: Tool for reading files.
-"""
-
 import os
-from autobyteus.tools.base_tool import BaseTool
+import logging
+from typing import TYPE_CHECKING
 
-class FileReader(BaseTool):
+from autobyteus.tools import tool
+
+if TYPE_CHECKING:
+    from autobyteus.agent.context import AgentContext
+
+logger = logging.getLogger(__name__)
+
+@tool(name="FileReader") # Keep registered name "FileReader"
+async def file_reader(context: 'AgentContext', path: str) -> str: # function name can be same
     """
-    A tool that allows for reading files. If the specified file does not exist,
-    it will raise a FileNotFoundError.
+    Reads content from a specified file.
+    'path' is the absolute or relative path to the file.
+    Raises FileNotFoundError if the file does not exist.
+    Raises IOError if file reading fails for other reasons.
     """
-
-    @classmethod
-    def tool_usage_xml(cls):
-        """
-        Return an XML string describing the usage of the FileReader tool.
-
-        Returns:
-            str: An XML description of how to use the FileReader tool.
-        """
-        return '''FileReader: Reads content from a specified file. Usage:
-    <command name="FileReader">
-    <arg name="path">file_path</arg>
-    </command>
-    where "file_path" is the path to the file to be read.
-    '''
-
-    async def _execute(self, **kwargs):
-        """
-        Read the content of the file at the specified path.
-
-        Args:
-            **kwargs: Keyword arguments containing the path of the file to be read. 
-                      The path should be specified as 'path'.
-
-        Returns:
-            str: The content of the file.
-
-        Raises:
-            ValueError: If the 'path' keyword argument is not specified.
-            FileNotFoundError: If the specified file does not exist.
-        """
-        path = kwargs.get('path')
-
-        if not path:
-            raise ValueError("The 'path' keyword argument must be specified.")
-
-        if not os.path.exists(path):
-            raise FileNotFoundError(f"The file at {path} does not exist.")
-
-        with open(path, 'r') as file:
+    logger.debug(f"Functional FileReader tool for agent {context.agent_id}, path: {path}")
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"The file at {path} does not exist.")
+    try:
+        with open(path, 'r', encoding='utf-8') as file:
             content = file.read()
         return content
+    except Exception as e:
+        logger.error(f"Error reading file {path} for agent {context.agent_id}: {e}", exc_info=True)
+        raise IOError(f"Could not read file at {path}: {str(e)}")
