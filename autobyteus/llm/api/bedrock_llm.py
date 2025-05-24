@@ -11,8 +11,14 @@ from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 
 class BedrockLLM(BaseLLM):
-    def __init__(self, model: LLMModel = None, system_message: str = None, custom_config: LLMConfig = None):
-        super().__init__(model=model or LLMModel.BEDROCK_CLAUDE_3_5_SONNET_API, system_message=system_message, custom_config=custom_config)
+    def __init__(self, model: LLMModel = None, llm_config: LLMConfig = None):
+        # Provide defaults if not specified
+        if model is None:
+            model = LLMModel.BEDROCK_CLAUDE_3_5_SONNET_API
+        if llm_config is None:
+            llm_config = LLMConfig()
+            
+        super().__init__(model=model, llm_config=llm_config)
         self.client = self.initialize()
     
     @classmethod

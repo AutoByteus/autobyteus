@@ -15,8 +15,14 @@ from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 logger = logging.getLogger(__name__)
 
 class OpenAILLM(BaseLLM):
-    def __init__(self, model: LLMModel = None, system_message: str = None, custom_config: LLMConfig = None):
-        super().__init__(model=model or LLMModel.GPT_3_5_TURBO_API, system_message=system_message, custom_config=custom_config)
+    def __init__(self, model: LLMModel = None, llm_config: LLMConfig = None):
+        # Provide defaults if not specified
+        if model is None:
+            model = LLMModel.GPT_3_5_TURBO_API
+        if llm_config is None:
+            llm_config = LLMConfig()
+            
+        super().__init__(model=model, llm_config=llm_config)
         self.initialize()  # Class method called after super()
         self.max_tokens = 8000
         logger.info(f"OpenAILLM initialized with model: {self.model}")

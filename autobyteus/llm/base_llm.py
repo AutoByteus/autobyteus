@@ -13,25 +13,31 @@ from autobyteus.llm.user_message import LLMUserMessage
 class BaseLLM(ABC):
     DEFAULT_SYSTEM_MESSAGE = "You are a helpful assistant"
 
-    def __init__(self, model: LLMModel, system_message: Optional[str] = None, custom_config: LLMConfig = None):
+    def __init__(self, model: LLMModel, llm_config: LLMConfig):
         """
         Base class for all LLMs. Provides core messaging functionality
         and extension support.
 
         Args:
             model (LLMModel): An LLMModel enum value.
-            system_message (str, optional): An initial system message.
-            custom_config (LLMConfig, optional): A custom config overriding the default.
+            llm_config (LLMConfig): Configuration for the LLM including system message, 
+                                   rate limits, token limits, etc.
         """
+        if not isinstance(model, LLMModel):
+            raise TypeError(f"Expected LLMModel, got {type(model)}")
+        if not isinstance(llm_config, LLMConfig):
+            raise TypeError(f"Expected LLMConfig, got {type(llm_config)}")
+            
         self.model = model
-        self.config = custom_config if custom_config else model.default_config
+        self.config = llm_config
         self._extension_registry = ExtensionRegistry()
 
         # Register TokenUsageTrackingExtension by default
         self._token_usage_extension: TokenUsageTrackingExtension = self.register_extension(TokenUsageTrackingExtension)
 
         self.messages: List[Message] = []
-        self.system_message = system_message if system_message is not None else self.DEFAULT_SYSTEM_MESSAGE
+        # Use system_message from config, with fallback to default if not provided
+        self.system_message = self.config.system_message or self.DEFAULT_SYSTEM_MESSAGE
         self.add_system_message(self.system_message)
 
     @property

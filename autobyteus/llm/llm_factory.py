@@ -232,30 +232,27 @@ class LLMFactory:
         models.append(model)
 
     @staticmethod
-    def create_llm(model: str, custom_config: Optional[LLMConfig] = None) -> BaseLLM:
+    def create_llm(model_identifier: str, llm_config: Optional[LLMConfig] = None) -> BaseLLM:
         """
-        Create an LLM instance for the specified model name.
+        Create an LLM instance for the specified model identifier.
         
         Args:
-            model (str): The model name to create an instance for.
-                         This corresponds to the original enum name.
-            custom_config (Optional[LLMConfig]): Optional custom configuration for the LLM.
+            model_identifier (str): The model name or value to create an instance for.
+            llm_config (Optional[LLMConfig]): Configuration for the LLM. If None,
+                                             the model's default configuration is used.
         
         Returns:
             BaseLLM: An instance of the LLM.
         
         Raises:
             ValueError: If the model is not supported.
-        
-        Note:
-            Although the parameter is named 'model', it refers to the model's name, not its value.
         """
         LLMFactory.ensure_initialized()
         for models in LLMFactory._models_by_provider.values():
             for model_instance in models:
-                if model_instance.value == model or model_instance.name == model:
-                    return model_instance.create_llm(custom_config)
-        raise ValueError(f"Unsupported model: {model}")
+                if model_instance.value == model_identifier or model_instance.name == model_identifier:
+                    return model_instance.create_llm(llm_config)
+        raise ValueError(f"Unsupported model: {model_identifier}")
 
     @staticmethod
     def get_all_models() -> List[str]:
@@ -309,4 +306,3 @@ class LLMFactory:
                 if model_instance.name == model_name:
                     return model_instance.canonical_name
         return None
-

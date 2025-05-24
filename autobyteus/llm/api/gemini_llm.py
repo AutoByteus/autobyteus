@@ -12,7 +12,7 @@ from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 logger = logging.getLogger(__name__)
 
 class GeminiLLM(BaseLLM):
-    def __init__(self, model: LLMModel = None, system_message: str = None, custom_config: LLMConfig = None):
+    def __init__(self, model: LLMModel = None, llm_config: LLMConfig = None):
         self.generation_config = {
             "temperature": 0,
             "top_p": 0.95,
@@ -20,7 +20,14 @@ class GeminiLLM(BaseLLM):
             "max_output_tokens": 8192,
             "response_mime_type": "text/plain",
         }
-        super().__init__(model=model or LLMModel.GEMINI_1_5_FLASH_API, system_message=system_message, custom_config=custom_config)
+        
+        # Provide defaults if not specified
+        if model is None:
+            model = LLMModel.GEMINI_1_5_FLASH_API
+        if llm_config is None:
+            llm_config = LLMConfig()
+            
+        super().__init__(model=model, llm_config=llm_config)
         self.client = self.initialize()
         self.chat_session = None
 

@@ -11,17 +11,15 @@ import uuid
 logger = logging.getLogger(__name__)
 
 class AutobyteusLLM(BaseLLM):
-    def __init__(
-        self,
-        model: LLMModel = None,
-        system_message: str = None,
-        custom_config: LLMConfig = None
-    ):
-        super().__init__(
-            model=model,
-            system_message=system_message,
-            custom_config=custom_config
-        )
+    def __init__(self, model: LLMModel = None, llm_config: LLMConfig = None):
+        # Provide defaults if not specified
+        if model is None:
+            # This should be set by the factory/caller, but providing a fallback
+            raise ValueError("AutobyteusLLM requires a model to be specified")
+        if llm_config is None:
+            llm_config = LLMConfig()
+            
+        super().__init__(model=model, llm_config=llm_config)
         self.client = AutobyteusClient()
         self.conversation_id = str(uuid.uuid4())
         logger.info(f"AutobyteusLLM initialized with model: {self.model} and conversation ID: {self.conversation_id}")

@@ -16,12 +16,19 @@ logger = logging.getLogger(__name__)
 class OllamaLLM(BaseLLM):
     DEFAULT_OLLAMA_HOST = 'http://localhost:11434'
 
-    def __init__(self, model: LLMModel = None, system_message: str = None, custom_config: LLMConfig = None):
+    def __init__(self, model: LLMModel = None, llm_config: LLMConfig = None):
         self.ollama_host = os.getenv('OLLAMA_HOST', self.DEFAULT_OLLAMA_HOST)
         logging.info(f"Initializing Ollama with host: {self.ollama_host}")
         
         self.client = AsyncClient(host=self.ollama_host)
-        super().__init__(model=model or LLMModel.OLLAMA_LLAMA_3_2, system_message=system_message, custom_config=custom_config)
+        
+        # Provide defaults if not specified
+        if model is None:
+            model = LLMModel.OLLAMA_LLAMA_3_2
+        if llm_config is None:
+            llm_config = LLMConfig()
+            
+        super().__init__(model=model, llm_config=llm_config)
         logger.info(f"OllamaLLM initialized with model: {self.model}")
 
     async def _send_user_message_to_llm(self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs) -> CompleteResponse:

@@ -15,7 +15,7 @@ from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 logger = logging.getLogger(__name__)
 
 class GrokLLM(BaseLLM):
-    def __init__(self, model: LLMModel = None, system_message: str = None, custom_config: LLMConfig = None):
+    def __init__(self, model: LLMModel = None, llm_config: LLMConfig = None):
         grok_api_key = os.getenv("GROK_API_KEY")
         if not grok_api_key:
             logger.error("GROK_API_KEY environment variable is not set.")
@@ -24,8 +24,13 @@ class GrokLLM(BaseLLM):
         self.client = OpenAI(api_key=grok_api_key, base_url="https://api.x.ai/v1")
         logger.info("Grok API key and base URL set successfully")
         
-        # Use the provided model or default to the Grok model
-        super().__init__(model=model or LLMModel.GROK_2_1212_API, system_message=system_message, custom_config=custom_config)
+        # Provide defaults if not specified
+        if model is None:
+            model = LLMModel.GROK_2_1212_API
+        if llm_config is None:
+            llm_config = LLMConfig()
+            
+        super().__init__(model=model, llm_config=llm_config)
         self.max_tokens = 8000
 
     def _create_token_usage(self, usage_data: Optional[CompletionUsage]) -> Optional[TokenUsage]:

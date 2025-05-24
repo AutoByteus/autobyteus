@@ -144,7 +144,7 @@ class LLMModel(metaclass=LLMModelMeta):
             BaseLLM: An instance of the LLM.
         """
         config_to_use = llm_config if llm_config is not None else self.default_config
-        # The llm_class constructor now expects llm_config as its second argument.
+        # The llm_class constructor now expects model and llm_config as parameters
         return self.llm_class(model=self, llm_config=config_to_use)
 
     def __repr__(self):
