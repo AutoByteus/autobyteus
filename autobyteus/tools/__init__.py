@@ -25,7 +25,6 @@ from .messaging.send_message_to import send_message_to
 # General Class-based tools
 from .image_downloader import ImageDownloader
 from .timer import Timer
-from .mcp_remote_tool import McpRemoteTool # Note: McpRemoteTool is not auto-registered
 
 # Standalone Browser tools
 from .browser.standalone.google_search_ui import GoogleSearch

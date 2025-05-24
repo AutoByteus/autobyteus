@@ -4,11 +4,14 @@ import logging
 import uuid
 import datetime
 import traceback 
-from typing import AsyncIterator, Dict, Any, Optional
+from typing import AsyncIterator, Dict, Any, Optional, TYPE_CHECKING
 
 from autobyteus.agent.events import AgentEventQueues, END_OF_STREAM_SENTINEL 
 from .stream_events import StreamEvent, StreamEventType 
 from .queue_streamer import stream_queue_items 
+
+if TYPE_CHECKING:
+    from autobyteus.agent.agent import Agent # ADDED IMPORT
 
 logger = logging.getLogger(__name__)
 
@@ -19,21 +22,24 @@ class AgentOutputStreams:
     or any other consumer of agent output streams.
     """
 
-    def __init__(self, queues: AgentEventQueues, agent_id: Optional[str] = None):
+    def __init__(self, agent: 'Agent'): # MODIFIED CONSTRUCTOR
         """
         Initializes AgentOutputStreams.
 
         Args:
-            queues: The AgentEventQueues instance from which to stream data.
-            agent_id: Optional agent_id, used for enriching StreamEvent objects.
+            agent: The Agent instance from which to stream data. # MODIFIED ARGUMENT
         """
-        if not isinstance(queues, AgentEventQueues):
-            raise TypeError("queues must be an instance of AgentEventQueues.")
+        # Defer direct Agent import for runtime check if not in TYPE_CHECKING block
+        # to prevent potential circular dependencies if this module is imported early by agent module.
+        # However, direct import at top level is usually fine if Agent doesn't import AgentOutputStreams.
+        from autobyteus.agent.agent import Agent as ConcreteAgent # Local import for runtime check
+        if not isinstance(agent, ConcreteAgent): # MODIFIED VALIDATION
+            raise TypeError(f"AgentOutputStreams requires an Agent instance, got {type(agent).__name__}.")
         
-        self._queues = queues
-        self._agent_id = agent_id
+        self._queues: AgentEventQueues = agent.get_event_queues() # MODIFIED INITIALIZATION
+        self._agent_id: str = agent.agent_id # MODIFIED INITIALIZATION
         self._sentinel = END_OF_STREAM_SENTINEL 
-        logger.info(f"AgentOutputStreams initialized for agent_id '{self._agent_id if self._agent_id else 'N/A'}'.")
+        logger.info(f"AgentOutputStreams initialized for agent_id '{self._agent_id}'.") # MODIFIED Log
 
     async def stream_assistant_output_chunks(self) -> AsyncIterator[str]:
         """

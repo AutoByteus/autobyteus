@@ -2,7 +2,7 @@
 import asyncio
 import logging
 import uuid
-from typing import List, Dict, Optional, Any, cast, Tuple
+from typing import List, Dict, Optional, Any, cast, Tuple, Union 
 
 from autobyteus.agent.registry.agent_definition import AgentDefinition
 from autobyteus.agent.factory.agent_factory import AgentFactory
@@ -13,6 +13,8 @@ from autobyteus.agent.message.send_message_to import SendMessageTo
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.agent.streaming.agent_output_streams import AgentOutputStreams
 from autobyteus.llm.models import LLMModel 
+from autobyteus.llm.utils.llm_config import LLMConfig 
+from autobyteus.tools.tool_config import ToolConfig # Added for type hint
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +40,14 @@ class AgentGroup:
             agent_runtime_configs: Optional. A dictionary where keys are agent definition names
                                and values are dictionaries specifying runtime overrides, e.g.,
                                { "agent_def_name": {
-                                    "llm_model": LLMModelInstance,
-                                    "llm_config_override": {"temperature": 0.5}, // Key changed
-                                    "auto_execute_tools_override": True/False (defaults to True if not set)
+                                    "llm_model_name": "GPT_4O_API", 
+                                    "custom_llm_config": LLMConfig(temperature=0.5) or {"temperature": 0.5}, # Key RENAMED
+                                    "custom_tool_config": {"ToolName": ToolConfig(...)}, # Key RENAMED
+                                    "auto_execute_tools_override": True/False
                                  }
                                }.
-                               The 'llm_model' is now mandatory if the agent requires an LLM.
+                               If "custom_llm_config" is a dict, it will be converted to LLMConfig.
+                               The 'llm_model_name' (string) is mandatory if the agent requires an LLM.
         """
         if not agent_factory or not isinstance(agent_factory, AgentFactory):
             raise TypeError("agent_factory must be an instance of AgentFactory.")
@@ -86,13 +90,37 @@ class AgentGroup:
             agent_id = f"{self.group_id}_{def_name}_{uuid.uuid4().hex[:6]}"
             
             runtime_overrides = self._agent_runtime_configs.get(def_name, {})
-            llm_model_for_agent: Optional[LLMModel] = runtime_overrides.get("llm_model")
-            # Key changed from "llm_config_params_override" to "llm_config_override"
-            config_override: Optional[Dict[str, Any]] = runtime_overrides.get("llm_config_override")
+            llm_model_name_for_agent: Optional[str] = runtime_overrides.get("llm_model_name")
+            
+            raw_custom_llm_config = runtime_overrides.get("custom_llm_config") # Use new key
+            llm_config_for_factory: Optional[LLMConfig] = None
+            if isinstance(raw_custom_llm_config, LLMConfig):
+                llm_config_for_factory = raw_custom_llm_config
+            elif isinstance(raw_custom_llm_config, dict):
+                logger.debug(f"AgentGroup '{self.group_id}' converting custom_llm_config dict to LLMConfig object for agent '{def_name}'.")
+                llm_config_for_factory = LLMConfig.from_dict(raw_custom_llm_config)
+            elif raw_custom_llm_config is not None:
+                logger.warning(f"AgentGroup '{self.group_id}': custom_llm_config for agent '{def_name}' is of "
+                               f"unexpected type {type(raw_custom_llm_config)}. Expected LLMConfig or dict. Ignoring this config.")
+
+            # Extract custom_tool_config
+            raw_custom_tool_config = runtime_overrides.get("custom_tool_config") # Use new key
+            tool_config_for_factory: Optional[Dict[str, ToolConfig]] = None
+            if isinstance(raw_custom_tool_config, dict):
+                # Basic check, assumes values are ToolConfig. AgentFactory will do stricter check.
+                if all(isinstance(k, str) and isinstance(v, ToolConfig) for k, v in raw_custom_tool_config.items()):
+                     tool_config_for_factory = raw_custom_tool_config
+                else:
+                    logger.warning(f"AgentGroup '{self.group_id}': custom_tool_config for agent '{def_name}' is a dict but contains invalid items. Expected Dict[str, ToolConfig]. Ignoring.")
+            elif raw_custom_tool_config is not None:
+                 logger.warning(f"AgentGroup '{self.group_id}': custom_tool_config for agent '{def_name}' is of "
+                               f"unexpected type {type(raw_custom_tool_config)}. Expected Dict[str, ToolConfig]. Ignoring this config.")
+
+
             auto_execute_tools_override: bool = runtime_overrides.get("auto_execute_tools_override", True)
 
-            if llm_model_for_agent is None:
-                logger.warning(f"LLM model not specified in agent_runtime_configs for agent definition '{def_name}'. "
+            if llm_model_name_for_agent is None:
+                logger.warning(f"LLM model name not specified in agent_runtime_configs for agent definition '{def_name}'. "
                                f"If this agent requires an LLM, its creation will fail in AgentFactory.")
 
             modified_tool_names = list(original_definition.tool_names)
@@ -113,9 +141,10 @@ class AgentGroup:
                 agent_runtime = self.agent_factory.create_agent_runtime(
                     agent_id=agent_id,
                     definition=effective_definition,
-                    llm_model=llm_model_for_agent,
+                    llm_model_name=llm_model_name_for_agent,
                     workspace=None, 
-                    llm_config_override=config_override, # Pass renamed parameter
+                    custom_llm_config=llm_config_for_factory, # Pass renamed param
+                    custom_tool_config=tool_config_for_factory, # Pass renamed param
                     auto_execute_tools_override=auto_execute_tools_override
                 )
                 agent_instance = Agent(runtime=agent_runtime)
@@ -125,10 +154,13 @@ class AgentGroup:
                     temp_coordinator_agent = agent_instance
                 
                 tool_exec_mode_log = "Automatic" if auto_execute_tools_override else "Requires Approval"
-                llm_model_log = llm_model_for_agent.value if llm_model_for_agent else "None (may fail if LLM needed)"
+                llm_model_log = llm_model_name_for_agent if llm_model_name_for_agent else "None (may fail if LLM needed)"
+                custom_llm_config_provided_log = "Yes" if llm_config_for_factory else "No"
+                custom_tool_config_provided_log = "Yes" if tool_config_for_factory else "No"
                 logger.debug(f"Agent '{agent_id}' (Role: {original_definition.role}) created for group '{self.group_id}'. "
-                             f"SendMessageTo tool ensured. LLM Model: {llm_model_log}, "
-                             f"Config Overridden: {'Yes' if config_override else 'No'}. " # Updated log
+                             f"SendMessageTo tool ensured. LLM Model Name: {llm_model_log}, "
+                             f"Custom LLM Config Provided: {custom_llm_config_provided_log}. "
+                             f"Custom Tool Config Provided: {custom_tool_config_provided_log}. "
                              f"Tool Execution Mode: {tool_exec_mode_log}.")
 
             except Exception as e:
@@ -203,8 +235,7 @@ class AgentGroup:
         output_stream_listener_task = None
 
         try:
-            coordinator_queues = self.coordinator_agent.get_event_queues()
-            output_streams = AgentOutputStreams(coordinator_queues, self.coordinator_agent.agent_id)
+            output_streams = AgentOutputStreams(self.coordinator_agent) 
             
             async def listen_for_final_output():
                 nonlocal final_response_aggregator
@@ -258,3 +289,4 @@ class AgentGroup:
     @property
     def is_running(self) -> bool:
         return self._is_running and any(agent.is_running for agent in self.agents)
+

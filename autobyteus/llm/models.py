@@ -1,14 +1,71 @@
 import logging
-from typing import TYPE_CHECKING, Type, Optional
+from typing import TYPE_CHECKING, Type, Optional, List, Iterator
+
 from autobyteus.llm.providers import LLMProvider
 from autobyteus.llm.utils.llm_config import LLMConfig
 
 if TYPE_CHECKING:
     from autobyteus.llm.base_llm import BaseLLM
+    from autobyteus.llm.llm_factory import LLMFactory
 
 logger = logging.getLogger(__name__)
 
-class LLMModel:
+class LLMModelMeta(type):
+    """
+    Metaclass for LLMModel to make it iterable and support item access like Enums.
+    It also ensures that LLMFactory is initialized before iteration or item access.
+    """
+    def __iter__(cls) -> Iterator['LLMModel']:
+        """
+        Allows iteration over LLMModel instances (e.g., `for model in LLMModel:`).
+        Ensures that the LLMFactory has initialized and registered all models.
+        """
+        # Import LLMFactory locally to prevent circular import issues at module load time.
+        from autobyteus.llm.llm_factory import LLMFactory
+        LLMFactory.ensure_initialized()
+
+        for attr_name in dir(cls):
+            if not attr_name.startswith('_'):  # Skip private/dunder attributes
+                attr_value = getattr(cls, attr_name)
+                if isinstance(attr_value, cls):  # Check if it's an LLMModel instance
+                    yield attr_value
+
+    def __getitem__(cls, name: str) -> 'LLMModel':
+        """
+        Allows dictionary-like access to LLMModel instances (e.g., `LLMModel['GPT_4o_API']`).
+        Ensures that the LLMFactory has initialized and registered all models.
+        """
+        # Import LLMFactory locally to prevent circular import issues at module load time.
+        from autobyteus.llm.llm_factory import LLMFactory
+        LLMFactory.ensure_initialized()
+
+        if hasattr(cls, name):
+            attribute = getattr(cls, name)
+            if isinstance(attribute, cls):  # Check if it's an LLMModel instance
+                return attribute
+        
+        # If the name is not found or the attribute is not an LLMModel instance, raise KeyError.
+        # Use the new __iter__ to get names for the error message.
+        available_models = [m.name for m in cls] 
+        raise KeyError(f"Model '{name}' not found. Available models are: {available_models}")
+
+    def __len__(cls) -> int:
+        """
+        Allows getting the number of registered models (e.g., `len(LLMModel)`).
+        """
+        # Import LLMFactory locally.
+        from autobyteus.llm.llm_factory import LLMFactory
+        LLMFactory.ensure_initialized()
+        
+        count = 0
+        for attr_name in dir(cls):
+            if not attr_name.startswith('_'):
+                attr_value = getattr(cls, attr_name)
+                if isinstance(attr_value, cls):
+                    count += 1
+        return count
+
+class LLMModel(metaclass=LLMModelMeta):
     """
     Represents a single model's metadata:
       - name (str): A human-readable label, e.g. "GPT-4 Official" 
@@ -19,6 +76,7 @@ class LLMModel:
       - default_config (LLMConfig): Default configuration (token limit, etc.)
 
     Each model also exposes a create_llm() method to instantiate the underlying class.
+    Supports Enum-like access via `LLMModel['MODEL_NAME']` and iteration `for model in LLMModel:`.
     """
 
     def __init__(
@@ -34,7 +92,7 @@ class LLMModel:
         if hasattr(LLMModel, name):
             existing_model = getattr(LLMModel, name)
             if isinstance(existing_model, LLMModel):
-                raise ValueError(f"Model with name '{name}' already exists")
+                logger.warning(f"Model with name '{name}' is being redefined. This is expected during reinitialization.")
             
         self._name = name
         self._value = value
@@ -43,7 +101,7 @@ class LLMModel:
         self.llm_class = llm_class
         self.default_config = default_config if default_config else LLMConfig()
 
-        # Set this instance as a class attribute
+        # Set this instance as a class attribute, making LLMModel.MODEL_NAME available.
         logger.debug(f"Setting LLMModel class attribute: {name}")
         setattr(LLMModel, name, self)
 
@@ -51,6 +109,8 @@ class LLMModel:
     def name(self) -> str:
         """
         A friendly or descriptive name for this model (could appear in UI).
+        This is the key used for `LLMModel['MODEL_NAME']` access.
+        Example: "GPT_4o_API"
         """
         return self._name
 
@@ -58,6 +118,7 @@ class LLMModel:
     def value(self) -> str:
         """
         The underlying unique identifier for this model (e.g. an API model string).
+        Example: "gpt-4o"
         """
         return self._value
 
@@ -66,16 +127,25 @@ class LLMModel:
         """
         A standardized, shorter reference name for this model.
         Useful for prompt engineering and cross-referencing similar models.
+        Example: "gpt-4o"
         """
         return self._canonical_name
 
-    def create_llm(self, custom_config: Optional[LLMConfig] = None) -> "BaseLLM":
+    def create_llm(self, llm_config: Optional[LLMConfig] = None) -> "BaseLLM":
         """
         Instantiate the LLM class for this model, applying
-        an optional custom_config override if supplied.
+        an optional llm_config override if supplied.
+
+        Args:
+            llm_config (Optional[LLMConfig]): Specific configuration to use.
+                                              If None, model's default_config is used.
+        
+        Returns:
+            BaseLLM: An instance of the LLM.
         """
-        config_to_use = custom_config if custom_config else self.default_config
-        return self.llm_class(model=self, custom_config=config_to_use)
+        config_to_use = llm_config if llm_config is not None else self.default_config
+        # The llm_class constructor now expects llm_config as its second argument.
+        return self.llm_class(model=self, llm_config=config_to_use)
 
     def __repr__(self):
         return (
@@ -83,3 +153,6 @@ class LLMModel:
             f"canonical_name='{self._canonical_name}', "
             f"provider='{self.provider.name}', llm_class='{self.llm_class.__name__}')"
         )
+    
+    # __class_getitem__ is now handled by the metaclass LLMModelMeta's __getitem__
+    # No need to define it here anymore.

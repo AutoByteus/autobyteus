@@ -17,7 +17,7 @@ from autobyteus.llm.llm_factory import LLMFactory
 from autobyteus.tools.registry import ToolRegistry, default_tool_registry
 from autobyteus.tools.tool_config import ToolConfig
 from autobyteus.llm.models import LLMModel 
-
+from autobyteus.llm.utils.llm_config import LLMConfig # Added for type hint
 
 logger = logging.getLogger(__name__)
 
@@ -41,18 +41,19 @@ class AgentRegistry(metaclass=SingletonMeta):
 
     def create_agent(self, 
                      definition: AgentDefinition,
-                     llm_model: LLMModel,
+                     llm_model_name: str, 
                      workspace: Optional[BaseAgentWorkspace] = None,
-                     llm_config_override: Optional[Dict[str, Any]] = None,
-                     tool_config_override: Optional[Dict[str, ToolConfig]] = None,
+                     custom_llm_config: Optional[LLMConfig] = None, # RENAMED and TYPE CHANGED
+                     custom_tool_config: Optional[Dict[str, ToolConfig]] = None, # RENAMED
                      auto_execute_tools: bool = True 
                      ) -> Agent: 
         """
         Creates a new agent based on the provided AgentDefinition, stores it,
         and returns its facade (Agent class). The agent_id is automatically generated
         using the agent's name, role, and a random number.
-        The `llm_model` must be provided.
-        Allows overriding LLM config, tool configs, and tool execution mode at instantiation.
+        The `llm_model_name` (string) must be provided.
+        Allows overriding LLM config (as LLMConfig object), tool configs, 
+        and tool execution mode at instantiation.
         """
         if definition is None:
             msg = "AgentDefinition cannot be None."
@@ -64,13 +65,24 @@ class AgentRegistry(metaclass=SingletonMeta):
             logger.error(f"Cannot create agent: {msg}")
             raise TypeError(msg)
         
-        if not isinstance(llm_model, LLMModel):
-            msg = f"An 'llm_model' of type LLMModel must be specified. Got {type(llm_model)}."
+        if not llm_model_name or not isinstance(llm_model_name, str): 
+            msg = f"An 'llm_model_name' (string) must be specified. Got {type(llm_model_name)}."
             logger.error(f"Cannot create agent: {msg}")
             raise TypeError(msg)
 
         if workspace is not None and not isinstance(workspace, BaseAgentWorkspace):
             raise TypeError(f"Expected BaseAgentWorkspace or None for workspace, got {type(workspace).__name__}")
+        
+        # Validate new custom_llm_config type
+        if custom_llm_config is not None and not isinstance(custom_llm_config, LLMConfig):
+            raise TypeError(f"custom_llm_config must be an LLMConfig instance or None. Got {type(custom_llm_config)}")
+        
+        if custom_tool_config is not None and not (
+            isinstance(custom_tool_config, dict) and 
+            all(isinstance(k, str) and isinstance(v, ToolConfig) for k, v in custom_tool_config.items())
+        ):
+            raise TypeError("custom_tool_config must be a Dict[str, ToolConfig] or None.")
+
 
         # Generate agent_id using name, role, and random number
         random_number = random.randint(1000, 9999)
@@ -88,19 +100,19 @@ class AgentRegistry(metaclass=SingletonMeta):
         logger.info(f"Attempting to create agent runtime for definition_name '{definition.name}' "
                     f"with agent_id '{final_agent_id}'. "
                     f"Workspace provided: {workspace is not None}. "
-                    f"LLM Model: {llm_model.value}. "
-                    f"LLM Config Override Keys: {list(llm_config_override.keys()) if llm_config_override else 'None'}. "
-                    f"Tool Config Override Keys: {list(tool_config_override.keys()) if tool_config_override else 'None'}. "
+                    f"LLM Model Name: {llm_model_name}. " 
+                    f"Custom LLM Config provided: {custom_llm_config is not None}. "
+                    f"Custom Tool Config Keys: {list(custom_tool_config.keys()) if custom_tool_config else 'None'}. "
                     f"Tool Execution Mode: {tool_exec_mode_log}.")
         
         runtime_instance: AgentRuntime = self.agent_factory.create_agent_runtime(
             agent_id=final_agent_id, 
             definition=definition,
-            llm_model=llm_model,
+            llm_model_name=llm_model_name, 
             workspace=workspace,
-            llm_config_override=llm_config_override,
-            tool_config_override=tool_config_override,
-            auto_execute_tools_override=auto_execute_tools               
+            custom_llm_config=custom_llm_config, # Pass renamed param
+            custom_tool_config=custom_tool_config, # Pass renamed param          
+            auto_execute_tools_override=auto_execute_tools # Name already fine
         )
         
         agent_instance = Agent(runtime=runtime_instance) 
@@ -146,3 +158,4 @@ default_agent_registry = AgentRegistry(
     agent_factory=default_agent_factory,
     definition_registry=default_definition_registry_instance
 )
+

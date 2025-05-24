@@ -1,11 +1,13 @@
 # file: autobyteus/agent/factory/agent_factory.py
 import logging
 from typing import List, Union, Optional, Dict, cast, Type, TYPE_CHECKING, Any
+from dataclasses import fields as dataclass_fields 
 
 from autobyteus.llm.llm_factory import LLMFactory
 from autobyteus.tools.registry import ToolRegistry, default_tool_registry
 from autobyteus.tools.tool_config import ToolConfig
-from autobyteus.llm.models import LLMModel, LLMConfig
+from autobyteus.llm.models import LLMModel
+from autobyteus.llm.utils.llm_config import LLMConfig, TokenPricingConfig 
 from autobyteus.agent.context import AgentContext 
 from autobyteus.agent.events import AgentEventQueues 
 from autobyteus.agent.events import ( 
@@ -95,32 +97,40 @@ class AgentFactory:
     def create_agent_context(self, 
                              agent_id: str, 
                              definition: AgentDefinition, 
-                             llm_model: LLMModel,
+                             llm_model_name: str, 
                              workspace: Optional[BaseAgentWorkspace] = None,
-                             llm_config_override: Optional[Dict[str, Any]] = None,
-                             tool_config_override: Optional[Dict[str, ToolConfig]] = None,
+                             custom_llm_config: Optional[LLMConfig] = None, # RENAMED
+                             custom_tool_config: Optional[Dict[str, ToolConfig]] = None, # RENAMED
                              auto_execute_tools_override: bool = True 
                              ) -> AgentContext: 
         logger.debug(f"Creating AgentContext for agent_id '{agent_id}' using definition '{definition.name}'. "
                      f"Workspace: {workspace is not None}. "
-                     f"LLM Model: {llm_model.value if llm_model else 'None (Error if None)'}. "
-                     f"LLM Config Override Keys: {list(llm_config_override.keys()) if llm_config_override else 'None'}. "
-                     f"Tool Config Override Keys: {list(tool_config_override.keys()) if tool_config_override else 'None'}. "
+                     f"LLM Model Name: {llm_model_name if llm_model_name else 'None (Error if None)'}. "
+                     f"Custom LLM Config provided: {custom_llm_config is not None}. "
+                     f"Custom Tool Config Keys: {list(custom_tool_config.keys()) if custom_tool_config else 'None'}. "
                      f"Auto Execute Tools Override: {auto_execute_tools_override}.")
 
         if not isinstance(definition, AgentDefinition):
             raise TypeError(f"Expected AgentDefinition, got {type(definition).__name__}")
-        if not isinstance(llm_model, LLMModel):
-            raise TypeError(f"An 'llm_model' of type LLMModel must be specified. Got {type(llm_model)}")
+        if not llm_model_name or not isinstance(llm_model_name, str): 
+            raise TypeError(f"An 'llm_model_name' (string) must be specified. Got {type(llm_model_name)}")
         if workspace is not None and not isinstance(workspace, BaseAgentWorkspace):
              raise TypeError(f"Expected BaseAgentWorkspace or None for workspace, got {type(workspace).__name__}")
+        if custom_llm_config is not None and not isinstance(custom_llm_config, LLMConfig): 
+            raise TypeError(f"custom_llm_config must be an LLMConfig instance or None. Got {type(custom_llm_config)}")
+        if custom_tool_config is not None and not (
+            isinstance(custom_tool_config, dict) and
+            all(isinstance(k, str) and isinstance(v, ToolConfig) for k, v in custom_tool_config.items())
+        ):
+            raise TypeError("custom_tool_config must be a Dict[str, ToolConfig] or None.")
+
 
         try:
             tool_instances_dict = {}
             for tool_name in definition.tool_names:
-                # Get tool-specific config if provided
-                tool_config = tool_config_override.get(tool_name) if tool_config_override else None
-                tool_instance = self.tool_registry.create_tool(tool_name, tool_config)
+                # Use custom_tool_config here
+                tool_config_for_tool = custom_tool_config.get(tool_name) if custom_tool_config else None
+                tool_instance = self.tool_registry.create_tool(tool_name, tool_config_for_tool)
                 tool_instances_dict[tool_name] = tool_instance
                 
             logger.debug(f"Tools created for AgentContext '{agent_id}': {list(tool_instances_dict.keys())}")
@@ -129,38 +139,35 @@ class AgentFactory:
             raise ValueError(f"Failed to create tools for AgentContext {agent_id} from definition '{definition.name}': {e}") from e
 
         try:
-            final_llm_model: LLMModel = llm_model 
-            model_source = "direct parameter"
+            try:
+                llm_model_instance = LLMModel[llm_model_name]
+            except KeyError:
+                valid_model_names = [m.name for m in LLMModel]
+                logger.error(f"Invalid llm_model_name '{llm_model_name}' for retrieving default_config. Must be one of {valid_model_names}.")
+                raise ValueError(f"Invalid llm_model_name '{llm_model_name}' for retrieving default_config. Valid names are: {valid_model_names}")
             
-            logger.info(f"LLM model for agent '{agent_id}': '{final_llm_model.value}' (Source: {model_source})")
+            config_source_log = f"base from model '{llm_model_name}' ({llm_model_instance.default_config.temperature if llm_model_instance.default_config else 'N/A'} temp)"
 
-            base_config_params = {}
-            if hasattr(final_llm_model, 'default_config') and final_llm_model.default_config is not None:
-                 if isinstance(final_llm_model.default_config, LLMConfig):
-                    base_config_params = final_llm_model.default_config.to_dict()
-                 elif isinstance(final_llm_model.default_config, dict): 
-                    base_config_params = final_llm_model.default_config.copy()
-                 else:
-                    logger.warning(f"Model '{final_llm_model.value}' has an unexpected default_config type: {type(final_llm_model.default_config)}. Initializing with empty config.")
-            
-            merged_config_data = base_config_params
-            config_source_log = f"base from model '{final_llm_model.value}'"
-            
-            if llm_config_override: 
-                merged_config_data.update(llm_config_override)
-                config_source_log += ", updated by explicit overrides"
+            if llm_model_instance.default_config:
+                final_llm_config = LLMConfig.from_dict(llm_model_instance.default_config.to_dict())
+            else: 
+                logger.warning(f"LLMModel '{llm_model_name}' does not have a default_config. Initializing LLMConfig with class defaults.")
+                final_llm_config = LLMConfig()
 
-            merged_config_data['system_message'] = definition.system_prompt
-            config_source_log += ", system_prompt from AgentDefinition applied"
+            if custom_llm_config: # Use renamed custom_llm_config
+                logger.debug(f"Applying custom LLMConfig for agent '{agent_id}'. Custom temp: {custom_llm_config.temperature}")
+                final_llm_config.merge_with(custom_llm_config)
+                config_source_log += ", merged with custom LLMConfig object"
             
-            final_llm_config = LLMConfig(**merged_config_data)
+            final_llm_config.system_message = definition.system_prompt
+            config_source_log += f", system_prompt from AgentDefinition ('{definition.system_prompt[:30]}...') applied"
             
             llm_instance = self.llm_factory.create_llm(
-                model_identifier=final_llm_model.name, 
+                model_identifier=llm_model_name, 
                 custom_config=final_llm_config
             )
             logger.debug(f"LLM instance created for AgentContext '{agent_id}'. "
-                         f"Final LLM Config based on: {config_source_log}. Config details: {final_llm_config.to_dict()}")
+                         f"Final LLM Config based on: {config_source_log}. Config details (sample): temp={final_llm_config.temperature}, sys_msg='{final_llm_config.system_message[:50]}...'")
         except Exception as e:
             logger.error(f"Error creating LLM for AgentContext '{agent_id}': {e}", exc_info=True)
             raise ValueError(f"Failed to create LLM for AgentContext {agent_id}: {e}") from e
@@ -181,10 +188,10 @@ class AgentFactory:
     def create_agent_runtime(self, 
                              agent_id: str, 
                              definition: AgentDefinition,
-                             llm_model: LLMModel,
+                             llm_model_name: str, 
                              workspace: Optional[BaseAgentWorkspace] = None,
-                             llm_config_override: Optional[Dict[str, Any]] = None,
-                             tool_config_override: Optional[Dict[str, ToolConfig]] = None,
+                             custom_llm_config: Optional[LLMConfig] = None, # RENAMED
+                             custom_tool_config: Optional[Dict[str, ToolConfig]] = None, # RENAMED
                              auto_execute_tools_override: bool = True 
                              ) -> 'AgentRuntime': 
         from autobyteus.agent.agent_runtime import AgentRuntime 
@@ -192,15 +199,16 @@ class AgentFactory:
         agent_context = self.create_agent_context(
             agent_id, 
             definition, 
-            llm_model=llm_model,
+            llm_model_name=llm_model_name, 
             workspace=workspace,
-            llm_config_override=llm_config_override,
-            tool_config_override=tool_config_override,
+            custom_llm_config=custom_llm_config, # Pass renamed
+            custom_tool_config=custom_tool_config, # Pass renamed
             auto_execute_tools_override=auto_execute_tools_override 
         )
         event_handler_registry = self._get_default_event_handler_registry()
         
         tool_exec_mode_log = "Automatic" if auto_execute_tools_override else "Requires Approval"
         logger.debug(f"Instantiating AgentRuntime for agent_id: '{agent_id}' with definition: '{definition.name}'. "
-                     f"LLM Model: {llm_model.value}. Workspace provided: {workspace is not None}. Tool Execution Mode: {tool_exec_mode_log}")
+                     f"LLM Model Name: {llm_model_name}. Workspace provided: {workspace is not None}. Tool Execution Mode: {tool_exec_mode_log}")
         return AgentRuntime(context=agent_context, event_handler_registry=event_handler_registry)
+

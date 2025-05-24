@@ -34,12 +34,14 @@ class AgenticWorkflow:
             agent_runtime_configs: Optional. Runtime configurations for agents within the group,
                                    passed to AgentGroup. Example:
                                    { "agent_def_name": {
-                                        "llm_model": LLMModelInstance,
-                                        "llm_config_override": {"temperature": 0.5}, // Key is "llm_config_override"
+                                        "llm_model_name": "GPT_4O_API", 
+                                        "custom_llm_config": LLMConfig(temperature=0.5) or {"temperature": 0.5}, # RENAMED KEY
+                                        "custom_tool_config": {"ToolName": ToolConfig(...)}, # RENAMED KEY
                                         "auto_execute_tools_override": True/False
                                      }
                                    }
-                                   The 'llm_model' is mandatory in the config if the agent needs an LLM.
+                                   If "custom_llm_config" is a dict, AgentGroup will convert it to LLMConfig.
+                                   The 'llm_model_name' (string) is mandatory in the config if the agent needs an LLM.
             input_param_name: The key to use in `process(**kwargs)` to find the initial
                               input string for the coordinator. Defaults to "input".
         """
@@ -101,3 +103,4 @@ class AgenticWorkflow:
                 f"group_id='{self.agent_group.group_id}', "
                 f"coordinator='{self.agent_group.coordinator_definition_name}', "
                 f"is_running={self.is_running}>")
+
