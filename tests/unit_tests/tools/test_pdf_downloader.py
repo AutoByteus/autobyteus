@@ -33,7 +33,7 @@ def pdf_downloader_tool_instance(mock_agent_context_pdf_dl: AgentContext) -> Bas
     return tool_instance
 
 @pytest.fixture
-def temp_dir_for_functional_pdf_downloader() -> str:
+def temp_dir_for_functional_pdf_downloader() -> str: # type: ignore
     temp_dir_path = tempfile.mkdtemp(prefix="pdf_dl_func_test_")
     yield temp_dir_path
     shutil.rmtree(temp_dir_path, ignore_errors=True)

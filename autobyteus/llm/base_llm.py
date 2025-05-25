@@ -157,16 +157,16 @@ class BaseLLM(ABC):
         for extension in self._extension_registry.get_all():
             await extension.after_invoke(user_message.content, user_message.image_urls, response, **kwargs)
 
-    async def send_user_message(self, user_message: LLMUserMessage, **kwargs) -> str:
+    async def send_user_message(self, user_message: LLMUserMessage, **kwargs) -> CompleteResponse:
         """
-        Sends a user message to the LLM and returns the LLM's response.
+        Sends a user message to the LLM and returns the complete LLM response.
 
         Args:
             user_message (LLMUserMessage): The user message object.
             **kwargs: Additional arguments for LLM-specific usage.
 
         Returns:
-            str: The response from the LLM.
+            CompleteResponse: The complete response from the LLM including content and usage.
         """
         await self._execute_before_hooks(user_message, **kwargs)
         response = await self._send_user_message_to_llm(
@@ -175,18 +175,18 @@ class BaseLLM(ABC):
             **kwargs
         )
         await self._execute_after_hooks(user_message, response, **kwargs)
-        return response.content
+        return response
 
-    async def stream_user_message(self, user_message: LLMUserMessage, **kwargs) -> AsyncGenerator[str, None]:
+    async def stream_user_message(self, user_message: LLMUserMessage, **kwargs) -> AsyncGenerator[ChunkResponse, None]:
         """
-        Streams the LLM response token by token.
+        Streams the LLM response as ChunkResponse objects.
 
         Args:
             user_message (LLMUserMessage): The user message object.
             **kwargs: Additional arguments for LLM-specific usage.
 
         Yields:
-            AsyncGenerator[str, None]: Tokens from the LLM response.
+            AsyncGenerator[ChunkResponse, None]: ChunkResponse objects from the LLM.
         """
         await self._execute_before_hooks(user_message, **kwargs)
 
@@ -201,7 +201,7 @@ class BaseLLM(ABC):
             accumulated_content += chunk.content
             if chunk.is_complete:
                 final_chunk = chunk
-            yield chunk.content
+            yield chunk
 
         # Create a CompleteResponse from the accumulated content and final chunk's usage
         complete_response = CompleteResponse(

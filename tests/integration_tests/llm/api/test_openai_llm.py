@@ -6,17 +6,18 @@ from autobyteus.llm.models import LLMModel
 from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.user_message import LLMUserMessage
+from autobyteus.llm.utils.llm_config import LLMConfig # Added import
 
 @pytest.fixture
 def set_openai_env(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "")  # Replace with a valid API key for testing
+    monkeypatch.setenv("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY", "")) # Use actual env var or placeholder
 
 @pytest.fixture
 def openai_llm(set_openai_env):
     openai_api_key = os.getenv("OPENAI_API_KEY")
     if not openai_api_key:
         pytest.skip("OpenAI API key not set. Skipping OpenAILLM tests.")
-    return OpenAILLM(model=LLMModel.GPT_4o_API)
+    return OpenAILLM(model=LLMModel.GPT_4o_API, llm_config=LLMConfig())
 
 @pytest.mark.asyncio
 async def test_openai_llm_response(openai_llm):
@@ -33,17 +34,16 @@ async def test_openai_llm_streaming(openai_llm):
     received_tokens = []
     complete_response = ""
     
-    async for token in openai_llm._stream_user_message_to_llm(user_message):
-        # Verify each token is a string
-        assert isinstance(token, ChunkResponse)
-        if token.content:
-            assert isinstance(token.content, str)
-            received_tokens.append(token.content)
-            complete_response += token.content
+    async for chunk in openai_llm._stream_user_message_to_llm(user_message):
+        assert isinstance(chunk, ChunkResponse) # Verify each chunk is a ChunkResponse
+        if chunk.content:
+            assert isinstance(chunk.content, str)
+            received_tokens.append(chunk.content)
+            complete_response += chunk.content
         
-        if token.is_complete:
-            if token.usage:
-                assert isinstance(token.usage, TokenUsage)
+        if chunk.is_complete:
+            if chunk.usage:
+                assert isinstance(chunk.usage, TokenUsage)
     
     # Verify we received tokens
     assert len(received_tokens) > 0
@@ -63,14 +63,27 @@ async def test_send_user_message(openai_llm):
     """Test the public API send_user_message"""
     user_message_text = "Can you summarize the following text?"
     user_message = LLMUserMessage(content=user_message_text)
-    response = await openai_llm.send_user_message(user_message)
-    assert isinstance(response, str)
-    assert len(response) > 0
+    response_obj = await openai_llm.send_user_message(user_message) # Changed variable name
+    
+    assert isinstance(response_obj, CompleteResponse) # Assert it's the CompleteResponse object
+    assert isinstance(response_obj.content, str)
+    assert len(response_obj.content) > 0
 
     # Verify message history was updated correctly
     assert len(openai_llm.messages) == 3  # System message + User message + Assistant message
-    assert openai_llm.messages[1].content[0]["text"] == user_message_text  # Content is now structured for multimodal support
-    assert openai_llm.messages[2].content == response
+    # Content is now structured for multimodal support, so it's a list of dicts
+    # Access the text content from the first element in the list.
+    # Note: `llm.messages[1].content` is the `Union[str, List[Dict]]` passed to `add_user_message`.
+    # For multimodal inputs, it will be a list of dicts.
+    # For simple text inputs, it can be a string. For OpenAI, it's always a list of dicts for `_send_user_message_to_llm`
+    # if `image_urls` are considered or if `content` is implicitly converted.
+    # The `LLMUserMessage` itself has `content: str`. This needs careful handling.
+    # I will verify the expected structure of `llm.messages[1].content` for OpenAI.
+    # Based on `openai_llm.py`'s `_send_user_message_to_llm` and `add_user_message`, `content` is always a list of dicts
+    # when processing image_urls or even plain text with content.
+    assert isinstance(openai_llm.messages[1].content, list)
+    assert openai_llm.messages[1].content[0]["text"] == user_message_text
+    assert openai_llm.messages[2].content == response_obj.content # Access content attribute
 
 @pytest.mark.asyncio
 async def test_stream_user_message(openai_llm):
@@ -80,11 +93,11 @@ async def test_stream_user_message(openai_llm):
     received_tokens = []
     complete_response = ""
     
-    async for token in openai_llm.stream_user_message(user_message):
-        # Verify each token is a string
-        assert isinstance(token, str)
-        received_tokens.append(token)
-        complete_response += token
+    async for chunk in openai_llm.stream_user_message(user_message): # Iterate over ChunkResponse
+        assert isinstance(chunk, ChunkResponse) # Verify each chunk is a ChunkResponse
+        assert isinstance(chunk.content, str)
+        received_tokens.append(chunk.content)
+        complete_response += chunk.content
     
     # Verify we received tokens
     assert len(received_tokens) > 0
@@ -95,7 +108,8 @@ async def test_stream_user_message(openai_llm):
     
     # Verify message history was updated correctly
     assert len(openai_llm.messages) == 3  # System message + User message + Assistant message
-    assert openai_llm.messages[1].content[0]["text"] == user_message_text  # Content is now structured for multimodal support
+    assert isinstance(openai_llm.messages[1].content, list)
+    assert openai_llm.messages[1].content[0]["text"] == user_message_text
     assert openai_llm.messages[2].content == complete_response
 
     # Cleanup

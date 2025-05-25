@@ -20,7 +20,6 @@ from .pdf_downloader import pdf_downloader
 from .bash.bash_executor import bash_executor
 from .file.file_reader import file_reader
 from .file.file_writer import file_writer
-from .messaging.send_message_to import send_message_to
 
 # General Class-based tools
 from .image_downloader import ImageDownloader

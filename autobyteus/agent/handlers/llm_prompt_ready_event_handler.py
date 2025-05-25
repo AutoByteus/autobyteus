@@ -7,6 +7,7 @@ from autobyteus.agent.handlers.base_event_handler import AgentEventHandler
 from autobyteus.agent.events import LLMPromptReadyEvent, LLMCompleteResponseReceivedEvent # MODIFIED IMPORT
 from autobyteus.agent.events import END_OF_STREAM_SENTINEL
 from autobyteus.llm.user_message import LLMUserMessage # MODIFIED IMPORT
+from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext # MODIFIED IMPORT
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 class LLMPromptReadyEventHandler(AgentEventHandler):
     """
     Handles LLMPromptReadyEvents by sending the prepared LLMUserMessage to the LLM,
-    streaming the response chunks to `assistant_output_chunk_queue`, and then
+    streaming the ChunkResponse objects to `assistant_output_chunk_queue`, and then
     enqueuing an LLMCompleteResponseReceivedEvent with the full aggregated response.
     """
 
@@ -34,19 +35,13 @@ class LLMPromptReadyEventHandler(AgentEventHandler):
         complete_response_text = ""
         chunk_queue = context.queues.assistant_output_chunk_queue
         try:
-            async for chunk_item in context.llm_instance.stream_user_message(llm_user_message):
-                
-                current_chunk_content = ""
-                if hasattr(chunk_item, 'content') and isinstance(chunk_item.content, str): 
-                    current_chunk_content = chunk_item.content
-                elif isinstance(chunk_item, str):
-                    current_chunk_content = chunk_item
-                else:
-                    logger.warning(f"Agent '{context.agent_id}' received unexpected chunk type: {type(chunk_item)} during LLM stream. Converting to string: {str(chunk_item)[:100]}")
-                    current_chunk_content = str(chunk_item)
+            async for chunk_response in context.llm_instance.stream_user_message(llm_user_message):
+                if not isinstance(chunk_response, ChunkResponse):
+                    logger.warning(f"Agent '{context.agent_id}' received unexpected chunk type: {type(chunk_response)} during LLM stream. Expected ChunkResponse.")
+                    continue
 
-                complete_response_text += current_chunk_content
-                await chunk_queue.put(current_chunk_content)
+                complete_response_text += chunk_response.content
+                await chunk_queue.put(chunk_response)
             
             await chunk_queue.put(END_OF_STREAM_SENTINEL)
             logger.debug(f"Agent '{context.agent_id}' LLM stream completed. Full response length: {len(complete_response_text)}. Sentinel placed in chunk queue.")

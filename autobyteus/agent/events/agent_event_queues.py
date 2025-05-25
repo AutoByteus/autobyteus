@@ -13,6 +13,7 @@ if TYPE_CHECKING:
         ToolExecutionApprovalEvent,
         BaseEvent
     )
+    from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +33,9 @@ class AgentEventQueues:
         self.tool_execution_approval_queue: asyncio.Queue['ToolExecutionApprovalEvent'] = asyncio.Queue(maxsize=queue_size)
         self.internal_system_event_queue: asyncio.Queue[Any] = asyncio.Queue(maxsize=queue_size)
 
-        self.assistant_output_chunk_queue: asyncio.Queue[Union[str, object]] = asyncio.Queue(maxsize=queue_size)
-        self.assistant_final_message_queue: asyncio.Queue[Union[str, object]] = asyncio.Queue(maxsize=queue_size)
+        # Updated output queue types to use proper response objects
+        self.assistant_output_chunk_queue: asyncio.Queue[Union['ChunkResponse', object]] = asyncio.Queue(maxsize=queue_size)
+        self.assistant_final_message_queue: asyncio.Queue[Union['CompleteResponse', object]] = asyncio.Queue(maxsize=queue_size)
         self.tool_interaction_log_queue: asyncio.Queue[Union[str, object]] = asyncio.Queue(maxsize=queue_size)
 
         self._input_queues: List[Tuple[str, asyncio.Queue[Any]]] = [
@@ -50,7 +52,7 @@ class AgentEventQueues:
             "assistant_final_message_queue": self.assistant_final_message_queue,
             "tool_interaction_log_queue": self.tool_interaction_log_queue,
         }
-        logger.info("AgentEventQueues initialized with refactored output queues.")
+        logger.info("AgentEventQueues initialized with updated output queue types.")
 
     async def enqueue_user_message(self, event: 'UserMessageReceivedEvent') -> None:
         await self.user_message_input_queue.put(event)

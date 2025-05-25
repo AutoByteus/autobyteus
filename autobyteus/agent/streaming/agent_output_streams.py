@@ -7,6 +7,7 @@ import traceback
 from typing import AsyncIterator, Dict, Any, Optional, TYPE_CHECKING
 
 from autobyteus.agent.events import AgentEventQueues, END_OF_STREAM_SENTINEL 
+from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 from .stream_events import StreamEvent, StreamEventType 
 from .queue_streamer import stream_queue_items 
 
@@ -41,26 +42,32 @@ class AgentOutputStreams:
         self._sentinel = END_OF_STREAM_SENTINEL 
         logger.info(f"AgentOutputStreams initialized for agent_id '{self._agent_id}'.") # MODIFIED Log
 
-    async def stream_assistant_output_chunks(self) -> AsyncIterator[str]:
+    async def stream_assistant_output_chunks(self) -> AsyncIterator[ChunkResponse]:
         """
-        Streams assistant output chunks (raw strings) directly from the
+        Streams assistant output chunks (ChunkResponse objects) directly from the
         `assistant_output_chunk_queue`.
         """
         source_name = f"agent_{self._agent_id}_assistant_chunks"
         logger.debug(f"AgentOutputStreams: Starting stream for {source_name}.")
         async for item in stream_queue_items(self._queues.assistant_output_chunk_queue, self._sentinel, source_name):
-            yield item
+            if isinstance(item, ChunkResponse):
+                yield item
+            else:
+                logger.warning(f"Expected ChunkResponse but got {type(item)} in {source_name}. Skipping.")
         logger.debug(f"AgentOutputStreams: Finished stream for {source_name}.")
 
-    async def stream_assistant_final_messages(self) -> AsyncIterator[str]:
+    async def stream_assistant_final_messages(self) -> AsyncIterator[CompleteResponse]:
         """
-        Streams assistant final messages (raw strings) directly from the
+        Streams assistant final messages (CompleteResponse objects) directly from the
         `assistant_final_message_queue`.
         """
         source_name = f"agent_{self._agent_id}_assistant_final_messages"
         logger.debug(f"AgentOutputStreams: Starting stream for {source_name}.")
         async for item in stream_queue_items(self._queues.assistant_final_message_queue, self._sentinel, source_name):
-            yield item
+            if isinstance(item, CompleteResponse):
+                yield item
+            else:
+                logger.warning(f"Expected CompleteResponse but got {type(item)} in {source_name}. Skipping.")
         logger.debug(f"AgentOutputStreams: Finished stream for {source_name}.")
 
     async def stream_tool_interaction_logs(self) -> AsyncIterator[str]:
@@ -83,15 +90,53 @@ class AgentOutputStreams:
         agent_id_str = self._agent_id or "unknown_agent"
         logger.info(f"AgentOutputStreams (agent_id: {agent_id_str}): Starting unified agent event stream.")
 
-        async def _wrap_string_stream_to_events( # Renamed for clarity
-            string_stream_func: callable, # Pass the function that returns the raw stream iterator
+        async def _wrap_chunk_stream_to_events(
+            chunk_stream_func: callable,
             event_type: StreamEventType, 
             data_key: str,
-            source_description: str # For logging the wrapped source
+            source_description: str
         ) -> AsyncIterator[StreamEvent]:
             stream_identity = f"unified_event_wrapper_for_{source_description}_agent_{agent_id_str}"
             logger.debug(f"Starting event wrapping for {stream_identity}.")
-            async for raw_item_str in string_stream_func(): # Call the function to get the iterator
+            async for chunk_response in chunk_stream_func():
+                if isinstance(chunk_response, ChunkResponse):
+                    yield StreamEvent(
+                        agent_id=self._agent_id,
+                        event_type=event_type,
+                        data={data_key: chunk_response.content, "usage": chunk_response.usage, "is_complete": chunk_response.is_complete}
+                    )
+                else:
+                    logger.warning(f"Expected ChunkResponse in unified stream for {source_description}, got {type(chunk_response)}")
+            logger.debug(f"Event wrapping finished for {stream_identity}.")
+
+        async def _wrap_complete_stream_to_events(
+            complete_stream_func: callable,
+            event_type: StreamEventType, 
+            data_key: str,
+            source_description: str
+        ) -> AsyncIterator[StreamEvent]:
+            stream_identity = f"unified_event_wrapper_for_{source_description}_agent_{agent_id_str}"
+            logger.debug(f"Starting event wrapping for {stream_identity}.")
+            async for complete_response in complete_stream_func():
+                if isinstance(complete_response, CompleteResponse):
+                    yield StreamEvent(
+                        agent_id=self._agent_id,
+                        event_type=event_type,
+                        data={data_key: complete_response.content, "usage": complete_response.usage}
+                    )
+                else:
+                    logger.warning(f"Expected CompleteResponse in unified stream for {source_description}, got {type(complete_response)}")
+            logger.debug(f"Event wrapping finished for {stream_identity}.")
+
+        async def _wrap_string_stream_to_events(
+            string_stream_func: callable,
+            event_type: StreamEventType, 
+            data_key: str,
+            source_description: str
+        ) -> AsyncIterator[StreamEvent]:
+            stream_identity = f"unified_event_wrapper_for_{source_description}_agent_{agent_id_str}"
+            logger.debug(f"Starting event wrapping for {stream_identity}.")
+            async for raw_item_str in string_stream_func():
                 yield StreamEvent(
                     agent_id=self._agent_id,
                     event_type=event_type,
@@ -101,22 +146,28 @@ class AgentOutputStreams:
 
         # Map source names to their corresponding stream functions and event creation params
         stream_sources_config = {
-            "assistant_chunks": { # Using descriptive keys
+            "assistant_chunks": { 
                 "func": self.stream_assistant_output_chunks, 
-                "type": StreamEventType.ASSISTANT_CHUNK, "key": "chunk"
+                "type": StreamEventType.ASSISTANT_CHUNK, 
+                "key": "chunk",
+                "wrapper": _wrap_chunk_stream_to_events
             },
-            "assistant_final_messages": { # Using descriptive keys
+            "assistant_final_messages": { 
                 "func": self.stream_assistant_final_messages, 
-                "type": StreamEventType.ASSISTANT_FINAL_MESSAGE, "key": "message"
+                "type": StreamEventType.ASSISTANT_FINAL_MESSAGE, 
+                "key": "message",
+                "wrapper": _wrap_complete_stream_to_events
             },
-            "tool_interaction_logs": { # Using descriptive keys
+            "tool_interaction_logs": { 
                 "func": self.stream_tool_interaction_logs, 
-                "type": StreamEventType.TOOL_INTERACTION_LOG_ENTRY, "key": "log_line"
+                "type": StreamEventType.TOOL_INTERACTION_LOG_ENTRY, 
+                "key": "log_line",
+                "wrapper": _wrap_string_stream_to_events
             },
         }
         
         active_iterators: Dict[str, AsyncIterator[StreamEvent]] = {
-            name: _wrap_string_stream_to_events(
+            name: config["wrapper"](
                 config["func"], config["type"], config["key"], name # type: ignore
             ).__aiter__() for name, config in stream_sources_config.items()
         }

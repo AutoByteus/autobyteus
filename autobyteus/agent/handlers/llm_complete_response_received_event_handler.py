@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from autobyteus.agent.handlers.base_event_handler import AgentEventHandler
 from autobyteus.agent.events import LLMCompleteResponseReceivedEvent # MODIFIED IMPORT
 from autobyteus.agent.events import END_OF_STREAM_SENTINEL # MODIFIED IMPORT
+from autobyteus.llm.utils.response_types import CompleteResponse
 
 from autobyteus.agent.llm_response_processor import default_llm_response_processor_registry
 
@@ -31,7 +32,7 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
        `LLMResponseProcessor` handles the non-error response:
         a. The `complete_response_text` is considered the final output for this interaction leg.
         b. This text (whether it's a final answer or an error message) is published to the
-           `assistant_final_message_queue`, followed by an `END_OF_STREAM_SENTINEL`.
+           `assistant_final_message_queue` as a CompleteResponse, followed by an `END_OF_STREAM_SENTINEL`.
     """
     def __init__(self):
         logger.info("LLMCompleteResponseReceivedEventHandler initialized.")
@@ -106,6 +107,9 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
             )
 
         if not any_processor_took_action:
+            # Create a CompleteResponse object to put in the queue
+            final_response = CompleteResponse(content=complete_response_text)
+            
             if is_error_response:
                 logger.info(
                     f"Agent '{context.agent_id}' publishing a received error message to the "
@@ -118,8 +122,8 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
                     f"to assistant_final_message_queue: '{complete_response_text[:100]}...'"
                 )
             
-            await final_message_queue.put(complete_response_text)
+            await final_message_queue.put(final_response)
             await final_message_queue.put(END_OF_STREAM_SENTINEL)
             logger.debug(
-                f"Agent '{context.agent_id}' placed response and sentinel into assistant_final_message_queue."
+                f"Agent '{context.agent_id}' placed CompleteResponse and sentinel into assistant_final_message_queue."
             )

@@ -14,6 +14,7 @@ from autobyteus.agent.message.agent_input_user_message import AgentInputUserMess
 from autobyteus.agent.streaming.agent_output_streams import AgentOutputStreams
 from autobyteus.llm.models import LLMModel 
 from autobyteus.llm.utils.llm_config import LLMConfig 
+from autobyteus.llm.utils.response_types import CompleteResponse
 from autobyteus.tools.tool_config import ToolConfig # Added for type hint
 
 logger = logging.getLogger(__name__)
@@ -240,8 +241,11 @@ class AgentGroup:
             async def listen_for_final_output():
                 nonlocal final_response_aggregator
                 try:
-                    async for message_part in output_streams.stream_assistant_final_messages():
-                        final_response_aggregator += message_part
+                    async for complete_response in output_streams.stream_assistant_final_messages():
+                        if isinstance(complete_response, CompleteResponse):
+                            final_response_aggregator += complete_response.content
+                        else:
+                            logger.warning(f"Expected CompleteResponse but got {type(complete_response)} in coordinator final message stream.")
                     logger.info(f"Coordinator '{self.coordinator_agent.agent_id}' final message stream ended. "
                                 f"Aggregated Response Length: {len(final_response_aggregator)}")
                 except Exception as e_stream:
@@ -289,4 +293,3 @@ class AgentGroup:
     @property
     def is_running(self) -> bool:
         return self._is_running and any(agent.is_running for agent in self.agents)
-

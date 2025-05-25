@@ -39,6 +39,9 @@ from autobyteus.agent.handlers import (
     ApprovedToolInvocationEventHandler, 
 )
 from autobyteus.agent.handlers.llm_prompt_ready_event_handler import LLMPromptReadyEventHandler
+from autobyteus.tools.base_tool import BaseTool 
+# Import for the new System Prompt Processor system
+from autobyteus.agent.system_prompt_processor import default_system_prompt_processor_registry, BaseSystemPromptProcessor
 
 
 if TYPE_CHECKING:
@@ -52,8 +55,10 @@ class AgentFactory:
     Factory class for creating agents.
     This factory primarily creates AgentRuntime objects based on the 
     new architecture (AgentContext, AgentRuntime).
-    It relies on ToolRegistry and LLMFactory for creating tools and LLM instances.
+    It relies on ToolRegistry, LLMFactory, and SystemPromptProcessorRegistry.
     """
+    # _TOOLS_PLACEHOLDER is no longer needed here, it's internal to ToolDescriptionInjectorProcessor
+
     def __init__(self,
                  tool_registry: ToolRegistry,
                  llm_factory: LLMFactory): 
@@ -71,7 +76,8 @@ class AgentFactory:
             
         self.tool_registry = tool_registry
         self.llm_factory = llm_factory
-        logger.info("AgentFactory initialized with ToolRegistry and LLMFactory.")
+        self.system_prompt_processor_registry = default_system_prompt_processor_registry # Added registry
+        logger.info("AgentFactory initialized with ToolRegistry, LLMFactory, and SystemPromptProcessorRegistry.")
 
     def _get_default_event_handler_registry(self) -> EventHandlerRegistry:
         registry = EventHandlerRegistry()
@@ -99,8 +105,8 @@ class AgentFactory:
                              definition: AgentDefinition, 
                              llm_model_name: str, 
                              workspace: Optional[BaseAgentWorkspace] = None,
-                             custom_llm_config: Optional[LLMConfig] = None, # RENAMED
-                             custom_tool_config: Optional[Dict[str, ToolConfig]] = None, # RENAMED
+                             custom_llm_config: Optional[LLMConfig] = None,
+                             custom_tool_config: Optional[Dict[str, ToolConfig]] = None,
                              auto_execute_tools_override: bool = True 
                              ) -> AgentContext: 
         logger.debug(f"Creating AgentContext for agent_id '{agent_id}' using definition '{definition.name}'. "
@@ -125,46 +131,78 @@ class AgentFactory:
             raise TypeError("custom_tool_config must be a Dict[str, ToolConfig] or None.")
 
 
+        tool_instances_dict: Dict[str, BaseTool] = {} 
         try:
-            tool_instances_dict = {}
             for tool_name in definition.tool_names:
-                # Use custom_tool_config here
                 tool_config_for_tool = custom_tool_config.get(tool_name) if custom_tool_config else None
                 tool_instance = self.tool_registry.create_tool(tool_name, tool_config_for_tool)
-                tool_instances_dict[tool_name] = tool_instance
+                tool_instances_dict[tool_name] = tool_instance 
                 
             logger.debug(f"Tools created for AgentContext '{agent_id}': {list(tool_instances_dict.keys())}")
         except Exception as e:
             logger.error(f"Error creating tools for AgentContext '{agent_id}': {e}")
             raise ValueError(f"Failed to create tools for AgentContext {agent_id} from definition '{definition.name}': {e}") from e
 
+        # --- System Prompt Processing using new SystemPromptProcessor system ---
+        current_system_prompt = definition.system_prompt # Start with the template from definition
+        processor_names_to_apply = definition.system_prompt_processor_names
+        
+        if not processor_names_to_apply:
+            logger.debug(f"Agent '{agent_id}': No system prompt processors configured in agent definition. Using system prompt as is.")
+        else:
+            logger.debug(f"Agent '{agent_id}': Applying system prompt processors: {processor_names_to_apply}")
+            for processor_name in processor_names_to_apply:
+                processor_instance = self.system_prompt_processor_registry.get_processor(processor_name)
+                if processor_instance:
+                    try:
+                        logger.debug(f"Agent '{agent_id}': Applying system prompt processor '{processor_name}' (class: {processor_instance.__class__.__name__}).")
+                        current_system_prompt = processor_instance.process(
+                            system_prompt=current_system_prompt,
+                            tool_instances=tool_instances_dict,
+                            agent_id=agent_id
+                        )
+                        logger.info(f"Agent '{agent_id}': System prompt processor '{processor_name}' applied successfully.")
+                    except Exception as e:
+                        logger.error(f"Agent '{agent_id}': Error applying system prompt processor '{processor_name}': {e}. "
+                                     f"Continuing with prompt from before this processor.", exc_info=True)
+                        # current_system_prompt remains as it was before this failed processor
+                else:
+                    logger.warning(f"Agent '{agent_id}': System prompt processor name '{processor_name}' not found in registry. Skipping this processor.")
+        
+        processed_system_prompt = current_system_prompt # Final prompt after all processors
+        # --- End System Prompt Processing ---
+
         try:
             try:
                 llm_model_instance = LLMModel[llm_model_name]
             except KeyError:
-                valid_model_names = [m.name for m in LLMModel]
+                valid_model_names = [m.name for m in LLMModel] # Needs LLMFactory to be initialized
                 logger.error(f"Invalid llm_model_name '{llm_model_name}' for retrieving default_config. Must be one of {valid_model_names}.")
                 raise ValueError(f"Invalid llm_model_name '{llm_model_name}' for retrieving default_config. Valid names are: {valid_model_names}")
             
-            config_source_log = f"base from model '{llm_model_name}' ({llm_model_instance.default_config.temperature if llm_model_instance.default_config else 'N/A'} temp)"
+            config_source_log_parts = []
 
             if llm_model_instance.default_config:
                 final_llm_config = LLMConfig.from_dict(llm_model_instance.default_config.to_dict())
+                config_source_log_parts.append(f"base from model '{llm_model_name}'")
             else: 
                 logger.warning(f"LLMModel '{llm_model_name}' does not have a default_config. Initializing LLMConfig with class defaults.")
                 final_llm_config = LLMConfig()
+                config_source_log_parts.append("LLMConfig class defaults")
 
-            if custom_llm_config: # Use renamed custom_llm_config
+            if custom_llm_config:
                 logger.debug(f"Applying custom LLMConfig for agent '{agent_id}'. Custom temp: {custom_llm_config.temperature}")
                 final_llm_config.merge_with(custom_llm_config)
-                config_source_log += ", merged with custom LLMConfig object"
+                config_source_log_parts.append("merged with custom LLMConfig object")
             
-            final_llm_config.system_message = definition.system_prompt
-            config_source_log += f", system_prompt from AgentDefinition ('{definition.system_prompt[:30]}...') applied"
+            final_llm_config.system_message = processed_system_prompt 
+            config_source_log_parts.append(f"system_prompt (processed, '{processed_system_prompt[:30]}...') applied")
             
+            config_source_log = ", ".join(config_source_log_parts)
+
             llm_instance = self.llm_factory.create_llm(
                 model_identifier=llm_model_name, 
-                custom_config=final_llm_config
+                llm_config=final_llm_config
             )
             logger.debug(f"LLM instance created for AgentContext '{agent_id}'. "
                          f"Final LLM Config based on: {config_source_log}. Config details (sample): temp={final_llm_config.temperature}, sys_msg='{final_llm_config.system_message[:50]}...'")
@@ -190,8 +228,8 @@ class AgentFactory:
                              definition: AgentDefinition,
                              llm_model_name: str, 
                              workspace: Optional[BaseAgentWorkspace] = None,
-                             custom_llm_config: Optional[LLMConfig] = None, # RENAMED
-                             custom_tool_config: Optional[Dict[str, ToolConfig]] = None, # RENAMED
+                             custom_llm_config: Optional[LLMConfig] = None, 
+                             custom_tool_config: Optional[Dict[str, ToolConfig]] = None, 
                              auto_execute_tools_override: bool = True 
                              ) -> 'AgentRuntime': 
         from autobyteus.agent.agent_runtime import AgentRuntime 
@@ -201,8 +239,8 @@ class AgentFactory:
             definition, 
             llm_model_name=llm_model_name, 
             workspace=workspace,
-            custom_llm_config=custom_llm_config, # Pass renamed
-            custom_tool_config=custom_tool_config, # Pass renamed
+            custom_llm_config=custom_llm_config, 
+            custom_tool_config=custom_tool_config, 
             auto_execute_tools_override=auto_execute_tools_override 
         )
         event_handler_registry = self._get_default_event_handler_registry()
