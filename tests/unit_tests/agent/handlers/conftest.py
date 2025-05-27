@@ -16,13 +16,51 @@ from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
 from autobyteus.agent.tool_invocation import ToolInvocation
 from autobyteus.agent.context.agent_status_manager import AgentStatusManager
 from autobyteus.events.event_emitter import EventEmitter
+# Added imports for LLMModel, LLMProvider, LLMConfig, TokenPricingConfig
+from autobyteus.llm.models import LLMModel
+from autobyteus.llm.providers import LLMProvider
+from autobyteus.llm.utils.llm_config import LLMConfig, TokenPricingConfig
 
 
 @pytest.fixture
 def mock_llm_instance():
     llm = MagicMock(spec=BaseLLM)
-    llm.stream_user_message = AsyncMock(return_value=AsyncMock()) # Make it an async generator
+    # Explicitly mock all async methods of BaseLLM as AsyncMocks if they are regular coroutines
+    # For async generator methods, use MagicMock
+    llm._execute_before_hooks = AsyncMock()
+    llm._execute_after_hooks = AsyncMock()
+    llm._send_user_message_to_llm = AsyncMock() # Abstract method, assume regular async def
+    llm._stream_user_message_to_llm = MagicMock() # Abstract method, assume async generator
+    llm.send_user_message = AsyncMock()
+    llm.stream_user_message = MagicMock() # Public stream_user_message is an async generator function
     llm.cleanup = AsyncMock()
+    
+    # Configure llm.model to mimic LLMModel for BaseLLM.__init__
+    mock_model_obj = MagicMock(spec=LLMModel)
+    mock_model_obj.name = "mock-model-name"
+    mock_model_obj.value = "mock-model-value"
+    mock_model_obj.provider = LLMProvider.OPENAI # Provide a concrete LLMProvider enum
+    
+    # Ensure default_config is a valid LLMConfig with TokenPricingConfig for TokenUsageTrackingExtension
+    mock_llm_config = MagicMock(spec=LLMConfig)
+    mock_llm_config.system_message = "Mock system message."
+    # CRITICAL FIX: Use a real instance of TokenPricingConfig here, not a MagicMock
+    mock_llm_config.pricing_config = TokenPricingConfig(input_token_pricing=0.0, output_token_pricing=0.0)
+    mock_model_obj.default_config = mock_llm_config
+    
+    llm.model = mock_model_obj
+
+    # Configure llm.config as expected by BaseLLM.__init__
+    llm.config = mock_llm_config # Use the same mock config object
+
+    # Ensure add_system_message, add_user_message, add_assistant_message are mocked
+    # BaseLLM's __init__ calls add_system_message
+    llm.messages = [] # BaseLLM's internal messages list, initialized as empty
+    llm.add_system_message = MagicMock(wraps=llm.add_system_message) # Wrap to allow BaseLLM's init to call it, but still track
+    llm.add_user_message = MagicMock(wraps=llm.add_user_message)
+    llm.add_assistant_message = MagicMock(wraps=llm.add_assistant_message)
+    llm.latest_token_usage = MagicMock() # Property accessed by TokenUsageTrackingExtension
+
     return llm
 
 @pytest.fixture
@@ -61,6 +99,7 @@ def mock_event_queues():
     queues.internal_system_event_queue = AsyncMock(spec=asyncio.Queue)
     
     queues.assistant_output_chunk_queue = AsyncMock(spec=asyncio.Queue)
+    queues.assistant_output_chunk_queue.full = MagicMock(return_value=False) # Default to not full
     queues.assistant_final_message_queue = AsyncMock(spec=asyncio.Queue)
     queues.tool_interaction_log_queue = AsyncMock(spec=asyncio.Queue)
 
@@ -95,7 +134,13 @@ def mock_agent_status_manager(mock_agent_context_for_status_manager, mock_emitte
     # For now, let's assume context is passed in.
     # The AgentStatusManager constructor sets context.status.
     # We need to mock context.status to be settable.
-    status_manager = AgentStatusManager(context=mock_agent_context_for_status_manager, emitter=mock_emitter)
+    status_manager = AgentStatusManager(context=mock_agent_context_for_status_manager) # Removed emitter
+    # If AgentStatusManager now inherits EventEmitter and needs to emit, ensure its own emit is mockable or real.
+    # For testing handlers, usually the emitter it USES is mocked, not the manager itself if it IS the emitter.
+    # If status_manager itself is the emitter, and we need to check its emissions, then it should be an AsyncMock or MagicMock.
+    # Let's assume for now that status_manager uses an internal emitter or we are not testing its emissions here.
+    # Update: AgentStatusManager now inherits from EventEmitter. We might need to mock its `emit` method.
+    status_manager.emit = AsyncMock() # Mock the emit method of the status_manager instance
     return status_manager
 
 @pytest.fixture
@@ -137,24 +182,19 @@ def agent_context(mock_agent_definition, mock_event_queues, mock_llm_instance, m
     )
     context.status = AgentStatus.IDLE 
     
-    mock_emitter_instance = MagicMock(spec=EventEmitter)
+    # mock_emitter_instance = MagicMock(spec=EventEmitter)
     mock_status_manager_instance = MagicMock(spec=AgentStatusManager)
-    mock_status_manager_instance.emitter = mock_emitter_instance
+    # mock_status_manager_instance.emitter = mock_emitter_instance # AgentStatusManager is now the emitter
+    mock_status_manager_instance.emit = AsyncMock() # Mock its emit method
     context.status_manager = mock_status_manager_instance
 
-    # MODIFICATION: Explicitly mock methods on the real AgentContext instance
+
+    # Explicitly mock methods on the real AgentContext instance
     # that we want to assert calls on.
     context.add_message_to_history = MagicMock(wraps=context.add_message_to_history)
     context.get_tool = MagicMock(wraps=context.get_tool)
     context.store_pending_tool_invocation = MagicMock(wraps=context.store_pending_tool_invocation)
     context.retrieve_pending_tool_invocation = MagicMock(wraps=context.retrieve_pending_tool_invocation)
-    # Using `wraps` means the original method will still be called, but the MagicMock
-    # wrapper will record the call, allowing assertions like assert_called_once_with.
-    # If we don't want the original method to run (e.g., if it has side effects we don't want in a unit test),
-    # then we would just assign `MagicMock()` without `wraps`.
-    # For `add_message_to_history`, `store_pending_tool_invocation`, `retrieve_pending_tool_invocation`,
-    # `wraps` is generally fine as their internal logic is simple and might be useful to keep.
-    # For `get_tool`, `wraps` is also good as it will return the actual tool or None.
 
     return context
 

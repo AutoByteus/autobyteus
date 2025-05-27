@@ -46,20 +46,6 @@ class StreamEvent(BaseModel):
     class Config:
         # Pydantic V2 configuration
         populate_by_name = True 
-        # For Pydantic V1, use `allow_population_by_field_name = True`
-        # Add json_encoders for AwareDatetime if needed for specific serialization targets,
-        # but Pydantic handles datetime objects well by default (ISO format).
-        # Example:
-        # json_encoders = {
-        #     datetime.datetime: lambda dt: dt.isoformat()
-        # }
-        # Pydantic V2 uses `model_config` dictionary for these.
-        # Example for V2 (if needed, though defaults are often fine):
-        # model_config = {
-        #     "json_encoders": {
-        #         datetime.datetime: lambda dt: dt.isoformat()
-        #     }
-        # }
 
     def __repr__(self) -> str:
         return (f"<StreamEvent event_id='{self.event_id}', agent_id='{self.agent_id}', "

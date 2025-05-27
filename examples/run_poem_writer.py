@@ -7,278 +7,226 @@ import sys
 import os
 
 # Ensure the autobyteus package is discoverable if running script from examples dir directly
-# This assumes the script is in autobyteus/examples and the package root is autobyteus/
 SCRIPT_DIR = Path(__file__).resolve().parent
 PACKAGE_ROOT = SCRIPT_DIR.parent
-sys.path.insert(0, str(PACKAGE_ROOT)) # Add project root (e.g., 'autobyteus_project/') to path
+sys.path.insert(0, str(PACKAGE_ROOT))
+
+# Load environment variables from .env file in the project root
+try:
+    from dotenv import load_dotenv
+    env_file_path = PACKAGE_ROOT / ".env"
+    if env_file_path.exists():
+        load_dotenv(env_file_path)
+        print(f"Loaded environment variables from: {env_file_path}")
+    else:
+        print(f"No .env file found at: {env_file_path}")
+except ImportError:
+    print("Warning: python-dotenv not installed. Environment variables from .env file will not be loaded.")
+    print("Install with: pip install python-dotenv")
+except Exception as e:
+    print(f"Error loading .env file: {e}")
 
 try:
     from autobyteus.agent.registry.agent_definition import AgentDefinition
-    from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
     from autobyteus.llm.models import LLMModel
     from autobyteus.agent.registry.agent_registry import default_agent_registry
     from autobyteus.agent.agent import Agent
-    from autobyteus.agent.status import AgentStatus 
-    from autobyteus.agent.streaming.agent_output_streams import AgentOutputStreams
+    from autobyteus.cli import agent_cli
+
+    # MODIFIED: Import the file_writer tool
+    from autobyteus.tools import file_writer
+
 except ImportError as e:
     print(f"Error importing autobyteus components: {e}")
     print("Please ensure that the autobyteus library is installed and accessible in your PYTHONPATH.")
     print(f"Attempted to add to sys.path: {str(PACKAGE_ROOT.parent)}")
     sys.exit(1)
 
-# Configure basic logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+# Logger for this script
 logger = logging.getLogger("run_poem_writer")
 
-async def listen_to_tool_logs(agent_id: str, streams: AgentOutputStreams):
-    """Listens to and prints tool interaction logs from the agent."""
-    # Using print for immediate visibility for example script
-    # Consider directing to logger if script becomes more complex or used in automation
-    print(f"\n[{agent_id} TOOL_LOG_STREAM_START]", flush=True)
-    try:
-        async for log_entry in streams.stream_tool_interaction_logs():
-            print(f"[{agent_id} TOOL_LOG] {log_entry}", flush=True)
-    except asyncio.CancelledError:
-        print(f"\n[{agent_id} TOOL_LOG_STREAM_CANCELLED]", flush=True)
-        logger.info(f"[{agent_id}] Tool log listener cancelled.")
-    except Exception as e:
-        print(f"\n[{agent_id} TOOL_LOG_STREAM_ERROR]", flush=True)
-        logger.error(f"[{agent_id}] Error in tool log listener: {e}", exc_info=True)
-    finally:
-        logger.info(f"[{agent_id}] Tool log listener stopped.")
-
-async def listen_to_assistant_output(agent_id: str, streams: AgentOutputStreams):
-    """Listens to and prints assistant output chunks from the agent."""
-    print(f"\n[{agent_id} ASSISTANT_OUTPUT_STREAM_START]", flush=True)
-    try:
-        async for chunk in streams.stream_assistant_output_chunks():
-            if isinstance(chunk, str):
-                print(chunk, end="", flush=True)
-            else:
-                print(str(chunk), end="", flush=True) 
-                logger.warning(f"[{agent_id}] Received non-string chunk: {type(chunk)}")
-        # Newline after stream finishes if no error/cancellation message prints one
-        print(flush=True) 
-    except asyncio.CancelledError:
-        print(f"\n[{agent_id} ASSISTANT_OUTPUT_STREAM_CANCELLED]", flush=True)
-        logger.info(f"[{agent_id}] Assistant output listener cancelled.")
-    except Exception as e:
-        print(f"\n[{agent_id} ASSISTANT_OUTPUT_STREAM_ERROR]", flush=True)
-        logger.error(f"[{agent_id}] Error in assistant output listener: {e}", exc_info=True)
-    finally:
-        # Ensure a final newline if the stream ended abruptly or without one.
-        print(flush=True)
-        logger.info(f"[{agent_id}] Assistant output listener stopped.")
-
-
-async def main(args: argparse.Namespace):
-    """Main function to run the PoemWriterAgent interactively."""
-
+def setup_logging(args: argparse.Namespace):
+    """
+    Configure logging to send agent module logs to file and other logs to console.
+    """
+    # Basic console logging configuration for non-agent modules
+    console_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(console_formatter)
+    
+    # Configure root logger with console handler
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)  # Default level
+    root_logger.addHandler(console_handler)
+    
+    # Set debug level if requested
     if args.debug:
-        logging.getLogger("autobyteus").setLevel(logging.DEBUG)
+        root_logger.setLevel(logging.DEBUG)
         logger.setLevel(logging.DEBUG)
         logger.debug("Debug logging enabled.")
+    
+    # Configure agent module file logging if enabled
+    if args.enable_agent_file_logging:
+        log_file_path = Path(args.agent_log_file).resolve()
+        
+        # Ensure log directory exists
+        log_file_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Create file handler for agent logs
+        agent_file_handler = logging.FileHandler(log_file_path, mode='w')  # Overwrite on each run
+        agent_file_formatter = logging.Formatter(
+            '%(asctime)s - %(levelname)s - %(name)s:%(lineno)d - %(message)s'
+        )
+        agent_file_handler.setFormatter(agent_file_formatter)
+        
+        # Configure agent module logger to use file handler
+        agent_logger = logging.getLogger("autobyteus.agent")
+        agent_logger.setLevel(logging.DEBUG if args.debug else logging.INFO)
+        agent_logger.addHandler(agent_file_handler)
+        
+        # Prevent agent logs from propagating to root logger (console)
+        agent_logger.propagate = False
+        
+        logger.info(f"Agent module logs will be written to: {log_file_path}")
+        logger.info("Agent logs are now separated from console output for better interactive experience.")
+    else:
+        # If file logging is disabled, ensure agent logs still go to console with appropriate level
+        agent_logger = logging.getLogger("autobyteus.agent")
+        if args.debug:
+            agent_logger.setLevel(logging.DEBUG)
+        else:
+            agent_logger.setLevel(logging.INFO)
+
+async def main(args: argparse.Namespace):
+    """Main function to run the PoemWriterAgent interactively using agent_cli.run()."""
 
     output_dir_path = Path(args.output_dir).resolve()
     if not output_dir_path.exists():
         logger.info(f"Output directory '{output_dir_path}' does not exist. Creating it.")
         output_dir_path.mkdir(parents=True, exist_ok=True)
     
-    # The poem_output_path is still part of the system prompt, 
-    # so the agent will attempt to write to this fixed location.
-    # In an interactive loop, this means it might overwrite the file.
     poem_output_path = (output_dir_path / args.poem_filename).resolve()
     logger.info(f"Agent is instructed to save poems to: {poem_output_path} (will be overwritten on subsequent poems).")
 
+    # System prompt uses the tool's registered name, which should match file_writer.get_name()
+    # For the LLM's understanding, it needs the actual name the tool is registered with.
+    # The {{tools}} placeholder will be filled by ToolDescriptionInjectorProcessor using registered tool info.
+    
     system_prompt = (
-        f"You are an excellent poet. When given a topic, you must write a creative poem. "
-        f"After writing the poem, you MUST use the 'WriteFileTool' to save your complete poem. "
-        f"The 'WriteFileTool' requires two arguments: 'file_path' and 'content'. "
-        f"You MUST save the poem to the following absolute file path: '{poem_output_path.as_posix()}'. "
-        f"Do not ask for confirmation before using the tool. Execute the tool call directly. "
-        f"Respond only with the poem and the tool call, nothing else."
+        f"You are an excellent poet. When given a topic, you must write a creative poem.\n"
+        f"After writing the poem, you MUST use the '{file_writer.get_name()}' (described in the 'Tools' section below) to save your complete poem.\n"
+        f"When using the '{file_writer.get_name()}', you MUST use the absolute file path '{poem_output_path.as_posix()}' for its 'file_path' argument.\n"
+        f"Do not ask for confirmation before using the tool. Execute the tool call directly.\n"
+        f"Respond only with the poem and the tool call, nothing else.\n\n"
+        f"You have access to the following tools:\n"
+        f"{{{{tools}}}}"
     )
 
-    poem_writer_def_name = "InteractivePoemWriterAgent" # Renamed for clarity
+    poem_writer_def_name = "InteractivePoemWriterAgent"
     poem_writer_def = AgentDefinition(
         name=poem_writer_def_name,
         role="CreativePoetInteractive",
         description="An agent that writes poems on specified topics and saves them to disk, interactively.",
         system_prompt=system_prompt,
-        tool_names=["WriteFileTool"]
+        # MODIFIED: Use the imported tool's name
+        tool_names=[file_writer.get_name()] 
     )
-    logger.info(f"AgentDefinition created: {poem_writer_def.name}")
+    logger.info(f"AgentDefinition created: {poem_writer_def.name} using tool name '{file_writer.get_name()}'")
 
     try:
-        if args.llm_model not in [m.name for m in LLMModel]:
-            logger.error(f"Invalid LLM model name: {args.llm_model}. Available models: {[m.name for m in LLMModel]}")
-            return
-    except Exception as e: 
-        logger.error(f"Error validating LLM model name {args.llm_model}: {e}", exc_info=True)
-        return
+        _ = LLMModel[args.llm_model]
+    except KeyError:
+        logger.error(f"LLM Model '{args.llm_model}' not found in autobyteus.llm.models.LLMModel enum.")
+        logger.info(f"Available models: {[m.name for m in LLMModel]}")
+        sys.exit(1)
 
     agent: Agent = default_agent_registry.create_agent(
         definition=poem_writer_def,
-        llm_model_name=args.llm_model,
+        llm_model_name=args.llm_model, 
         auto_execute_tools=True,
     )
     logger.info(f"Agent instance created: {agent.agent_id}")
-
-    tool_log_listener_task = None
-    assistant_output_listener_task = None
+    
+    if args.enable_agent_file_logging:
+        logger.info("Agent module logs are being written to file. Console should now be cleaner for interactive use.")
     
     try:
-        output_streams = AgentOutputStreams(agent) 
-        tool_log_listener_task = asyncio.create_task(
-            listen_to_tool_logs(agent.agent_id, output_streams),
-            name=f"tool_log_listener_{agent.agent_id}"
+        logger.info(f"Starting interactive session for agent {agent.agent_id} via agent_cli.run()...")
+        await agent_cli.run(
+            agent=agent,
+            show_tool_logs=not args.no_tool_logs, 
+            initial_prompt=args.topic,
+            initial_prompt_wait_time=args.initial_topic_wait_time
         )
-        assistant_output_listener_task = asyncio.create_task(
-            listen_to_assistant_output(agent.agent_id, output_streams),
-            name=f"assistant_output_listener_{agent.agent_id}"
-        )
-
-        agent.start()
-        logger.info(f"Agent {agent.agent_id} starting... Type '/quit' or '/exit' to stop.")
-        
-        # Brief pause to let agent fully start and listeners to attach if there are startup messages.
-        await asyncio.sleep(0.2) 
-
-        # Handle initial topic if provided
-        if args.topic:
-            logger.info(f"Processing initial topic: '{args.topic}'")
-            initial_message = AgentInputUserMessage(content=args.topic)
-            print(f"You (initial topic): {args.topic}", flush=True) # Echo the initial topic
-            await agent.post_user_message(initial_message)
-            # Wait for a short while to let the agent process the initial topic
-            # This is a simple way to let one interaction play out before prompting again
-            await asyncio.sleep(args.initial_topic_wait_time) 
-
-
-        # Interactive loop
-        while True:
-            try:
-                # Use asyncio.to_thread to run input() in a separate thread
-                user_input_text = await asyncio.to_thread(input, "You: ")
-            except RuntimeError as e:
-                if "cannot be called from a running event loop" in str(e):
-                    # Fallback for environments where to_thread might have issues (e.g. older Python in some setups)
-                    # This is less ideal as it uses the default executor.
-                    loop = asyncio.get_running_loop()
-                    user_input_text = await loop.run_in_executor(None, input, "You: ")
-                else:
-                    raise
-
-            if user_input_text.lower() in ["/quit", "/exit"]:
-                logger.info("Exit command received. Shutting down...")
-                break
-            if not user_input_text.strip():
-                continue
-
-            message = AgentInputUserMessage(content=user_input_text)
-            await agent.post_user_message(message)
-            # No explicit wait here, streams will show output as it comes.
-
-        logger.info("Interactive loop ended.")
+        logger.info(f"Interactive session for agent {agent.agent_id} finished.")
 
     except KeyboardInterrupt:
-        logger.info("KeyboardInterrupt received. Shutting down...")
+        logger.info("KeyboardInterrupt received during interactive session. agent_cli.run should handle shutdown.")
     except Exception as e:
-        logger.error(f"An error occurred during the script execution: {e}", exc_info=True)
+        logger.error(f"An error occurred during the agent interaction: {e}", exc_info=True)
     finally:
-        logger.info("Initiating shutdown sequence...")
-        listener_tasks_to_cancel = []
-        if tool_log_listener_task and not tool_log_listener_task.done():
-            logger.debug("Cancelling tool log listener task...")
-            tool_log_listener_task.cancel()
-            listener_tasks_to_cancel.append(tool_log_listener_task)
-        
-        if assistant_output_listener_task and not assistant_output_listener_task.done():
-            logger.debug("Cancelling assistant output listener task...")
-            assistant_output_listener_task.cancel()
-            listener_tasks_to_cancel.append(assistant_output_listener_task)
-
-        if listener_tasks_to_cancel:
-            logger.debug(f"Waiting for {len(listener_tasks_to_cancel)} listener tasks to cancel...")
-            results = await asyncio.gather(*listener_tasks_to_cancel, return_exceptions=True)
-            for i, result in enumerate(results):
-                task_name = listener_tasks_to_cancel[i].get_name() # Tasks were named at creation
-                if isinstance(result, asyncio.CancelledError):
-                    logger.info(f"Listener task '{task_name}' successfully cancelled.")
-                elif isinstance(result, Exception):
-                    logger.error(f"Error during cancellation/shutdown of listener task '{task_name}': {result}", exc_info=result)
-                else:
-                    logger.info(f"Listener task '{task_name}' completed.")
-        
-        if 'agent' in locals() and agent and agent.is_running:
-            logger.info(f"Stopping agent {agent.agent_id}...")
-            await agent.stop(timeout=20)
-            logger.info(f"Agent {agent.agent_id} stopped. Final status: {agent.get_status()}")
-        elif 'agent' in locals() and agent:
-             logger.info(f"Agent {agent.agent_id} was not running or already stopped. Final status: {agent.get_status()}")
-        else:
-            logger.info("Agent was not running or instance not available.")
-        
-        if args.output_dir_is_temporary and output_dir_path.exists():
-             try:
-                 if poem_output_path.exists():
-                     poem_output_path.unlink()
-                 if not any(output_dir_path.iterdir()):
-                     output_dir_path.rmdir()
-                     logger.info(f"Temporary output directory '{output_dir_path}' and its contents cleaned up.")
-                 else:
-                     logger.info(f"Temporary output directory '{output_dir_path}' was not empty, not removed. Contains other files.")
-             except Exception as e_cleanup:
-                 logger.warning(f"Error during temporary directory cleanup: {e_cleanup}")
+        logger.info("Poem writer script specific cleanup...")
+        if hasattr(args, 'output_dir_is_temporary') and args.output_dir_is_temporary:
+            if output_dir_path.exists():
+                 try:
+                     if poem_output_path.exists(): 
+                         poem_output_path.unlink()
+                     if not any(output_dir_path.iterdir()): 
+                         output_dir_path.rmdir()
+                         logger.info(f"Temporary output directory '{output_dir_path}' and its contents cleaned up.")
+                     else:
+                         logger.info(f"Temporary output directory '{output_dir_path}' was not empty. Poem file removed if existed, directory kept.")
+                 except Exception as e_cleanup:
+                     logger.warning(f"Error during temporary directory cleanup: {e_cleanup}")
 
     logger.info("Poem writer script finished.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the PoemWriterAgent interactively to generate and save poems.")
-    parser.add_argument(
-        "--topic",
-        type=str,
-        default=None, # Made optional for interactive mode
-        help="Optional: The initial topic for the first poem."
-    )
-    parser.add_argument(
-        "--initial-topic-wait-time",
-        type=float,
-        default=5.0,
-        help="Time in seconds to wait after processing an initial topic before prompting for new input."
-    )
-    parser.add_argument(
-        "--output-dir",
-        type=str,
-        default=None, 
-        help="Directory to save the poem(s). Defaults to a temporary directory."
-    )
-    parser.add_argument(
-        "--poem-filename",
-        type=str,
-        default="poem_interactive.txt", # Changed default filename
-        help="Filename for the saved poem. Will be overwritten for each new poem."
-    )
-    parser.add_argument(
-        "--llm-model",
-        type=str,
-        default="GPT_4O_API", 
-        help=f"The LLM model to use (e.g., {', '.join([m.name for m in LLMModel])})."
-    )
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Enable debug logging for autobyteus components and this script."
-    )
+    parser.add_argument("--topic", type=str, default=None, help="Optional: The initial topic for the first poem.")
+    parser.add_argument("--initial-topic-wait-time", type=float, default=3.0, help="Time in seconds to wait after processing an initial topic. Used by agent_cli.run.")
+    parser.add_argument("--output-dir", type=str, default=None, help="Directory to save the poem(s). Defaults to a temporary directory.")
+    parser.add_argument("--poem-filename", type=str, default="poem_interactive.txt", help="Filename for the saved poem.")
+    parser.add_argument("--llm-model", type=str, default="GPT_4o_API", help=f"The LLM model to use. Call --help-models for list.")
+    parser.add_argument("--help-models", action="store_true", help="Display available LLM models and exit.")
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging.")
+    parser.add_argument("--no-tool-logs", action="store_true", help="Disable display of tool logs in the interactive session.")
+    
+    # New logging configuration arguments
+    parser.add_argument("--enable-agent-file-logging", action="store_true", default=True, 
+                       help="Enable file logging for agent module to reduce console clutter. (Default: True)")
+    parser.add_argument("--disable-agent-file-logging", action="store_true", 
+                       help="Disable file logging for agent module, send all logs to console.")
+    parser.add_argument("--agent-log-file", type=str, default="./agent_logs.txt", 
+                       help="Path to the log file for agent module logs. (Default: ./agent_logs.txt)")
+
+    if "--help-models" in sys.argv:
+        try:
+            from autobyteus.llm.llm_factory import LLMFactory 
+            LLMFactory.ensure_initialized()
+            print("Available LLM Models:")
+            model_names = [m.name for m in LLMModel] if LLMModel else []
+            for model_name in sorted(model_names): print(f"  - {model_name}")
+        except ImportError as e_llm: print(f"Could not import LLM components to list models: {e_llm}")
+        except Exception as e_llm_init: print(f"Error initializing LLM components to list models: {e_llm_init}")
+        sys.exit(0)
 
     parsed_args = parser.parse_args()
-
+    
+    # Handle conflicting logging arguments
+    if parsed_args.disable_agent_file_logging:
+        parsed_args.enable_agent_file_logging = False
+    
+    # Setup logging configuration before any other operations
+    setup_logging(parsed_args)
+    
     temp_dir_obj = None
     if parsed_args.output_dir is None:
         try:
-            temp_dir_obj = tempfile.TemporaryDirectory(prefix="poem_writer_interactive_") # Changed prefix
-            parsed_args.output_dir = temp_dir_obj.name
+            _temp_dir_manager = tempfile.TemporaryDirectory(prefix="poem_writer_interactive_") 
+            parsed_args.output_dir = _temp_dir_manager.name
             parsed_args.output_dir_is_temporary = True 
+            temp_dir_obj = _temp_dir_manager 
             logger.info(f"Using temporary directory for output: {parsed_args.output_dir}")
         except Exception as e:
             logger.error(f"Failed to create temporary directory: {e}. Please specify --output-dir.", exc_info=True)
@@ -288,16 +236,12 @@ if __name__ == "__main__":
 
     try:
         asyncio.run(main(parsed_args))
-    except KeyboardInterrupt: # This handles Ctrl+C at the asyncio.run level if not caught earlier
-        logger.info("Script interrupted by user (KeyboardInterrupt at top level). Shutting down...")
+    except KeyboardInterrupt: 
+        logger.info("Script interrupted by user (KeyboardInterrupt at top level).")
     except Exception as e_global:
         logger.error(f"Unhandled global exception in script: {e_global}", exc_info=True)
     finally:
-        if temp_dir_obj:
-            try:
-                temp_dir_obj.cleanup()
-                logger.info(f"Successfully cleaned up temporary directory: {temp_dir_obj.name}")
-            except Exception as e_temp_cleanup:
-                logger.warning(f"Could not cleanup temporary directory {temp_dir_obj.name}: {e_temp_cleanup}")
+        if temp_dir_obj: 
+            try: temp_dir_obj.cleanup(); logger.info(f"Successfully cleaned up temporary directory: {temp_dir_obj.name}")
+            except Exception as e_temp_cleanup: logger.warning(f"Could not cleanup temporary directory {temp_dir_obj.name}: {e_temp_cleanup}")
         logger.info("Exiting script.")
-

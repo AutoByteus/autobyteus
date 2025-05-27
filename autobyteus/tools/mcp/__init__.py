@@ -17,27 +17,28 @@ logger = logging.getLogger(__name__)
 logger.info("AutoByteUs MCP integration package initialized. Expects 'mcp' library to be available.")
 
 # Import from types.py for data classes
+# CORRECTED: Removed McpConfig, StdioServerParametersConfig, SseTransportConfig, StreamableHttpConfig
 from .types import (
-    McpConfig,
-    StdioServerParametersConfig,
-    SseTransportConfig,
-    StreamableHttpConfig,
+    BaseMcpConfig,
+    StdioMcpServerConfig,
+    SseMcpServerConfig,
+    StreamableHttpMcpServerConfig,
     McpTransportType
 )
 # Import McpConfigService from config_service.py
 from .config_service import McpConfigService
 
 from .connection_manager import McpConnectionManager
-from .schema_mapper import McpSchemaMapper # Updated import
+from .schema_mapper import McpSchemaMapper 
 from .tool import GenericMcpTool
 from .registrar import McpToolRegistrar
 
 __all__ = [
     # Types from types.py
-    "McpConfig",
-    "StdioServerParametersConfig",
-    "SseTransportConfig",
-    "StreamableHttpConfig",
+    "BaseMcpConfig",
+    "StdioMcpServerConfig",
+    "SseMcpServerConfig",
+    "StreamableHttpMcpServerConfig",
     "McpTransportType",
     # Service from config_service.py
     "McpConfigService",

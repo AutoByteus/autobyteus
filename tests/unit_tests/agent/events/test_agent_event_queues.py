@@ -153,13 +153,17 @@ class TestAgentEventQueues:
         # Get second event
         queue_name2, event2 = await queues.get_next_input_event()
 
-        # Check that both events were retrieved and they are the correct ones, order might vary
-        retrieved_events = {(queue_name1, event1), (queue_name2, event2)}
-        expected_events = {
-            ("tool_result_input_queue", dummy_tool_result_event),
-            ("user_message_input_queue", dummy_user_message_event)
-        }
-        assert retrieved_events == expected_events
+        # Check that both events were retrieved and they are the correct ones, order might vary.
+        # Use list containment for unhashable event objects.
+        results = [(queue_name1, event1), (queue_name2, event2)]
+
+        expected_tool_result_tuple = ("tool_result_input_queue", dummy_tool_result_event)
+        expected_user_message_tuple = ("user_message_input_queue", dummy_user_message_event)
+
+        assert len(results) == 2
+        assert expected_tool_result_tuple in results
+        assert expected_user_message_tuple in results
+        
         assert queues.user_message_input_queue.empty()
         assert queues.tool_result_input_queue.empty()
 
@@ -220,32 +224,27 @@ class TestAgentEventQueues:
     async def test_get_next_input_event_task_cancellation(self, queues: AgentEventQueues, dummy_user_message_event, caplog):
         caplog.set_level(logging.INFO)
         
-        # Mock create_task to control the task
-        original_create_task = asyncio.create_task
+        # Mock the .get() method of the specific queue instance to simulate cancellation
+        # when it's awaited by the task created in get_next_input_event.
+        user_message_queue_get_mock = AsyncMock(side_effect=asyncio.CancelledError("Simulated cancellation by mock"))
+        queues.user_message_input_queue.get = user_message_queue_get_mock
+        
+        # Enqueue an event - this event won't actually be 'gotten' by the mocked get,
+        # but the queue needs to be populated for get_next_input_event to create a task for it.
+        await queues.enqueue_user_message(dummy_user_message_event)
+        
+        iam_event = InterAgentMessageReceivedEvent(inter_agent_message=MagicMock(spec=InterAgentMessage))
+        await queues.enqueue_inter_agent_message(iam_event)
 
-        def controlled_create_task(coro, *, name=None):
-            task = original_create_task(coro, name=name)
-            if name == "user_message_input_queue": # Target one specific queue's task
-                 # Cancel it almost immediately after it's created and potentially started waiting
-                async def cancel_after_short_delay(t):
-                    await asyncio.sleep(0.001)
-                    t.cancel()
-                original_create_task(cancel_after_short_delay(task))
-            return task
+        # Expect the second event (iam_event) to be picked up because the first queue's get() call is cancelled.
+        queue_name, event = await queues.get_next_input_event()
 
-        with patch('asyncio.create_task', side_effect=controlled_create_task):
-            # Enqueue an event that would be picked by the cancelled task, and another for fallback
-            await queues.enqueue_user_message(dummy_user_message_event)
-            
-            iam_event = InterAgentMessageReceivedEvent(inter_agent_message=MagicMock(spec=InterAgentMessage))
-            await queues.enqueue_inter_agent_message(iam_event)
-
-            # Expect the second event to be picked up
-            queue_name, event = await queues.get_next_input_event()
-
-            assert f"Task for queue user_message_input_queue was cancelled" in caplog.text
-            assert queue_name == "inter_agent_message_input_queue"
-            assert event == iam_event
+        assert f"Task for queue user_message_input_queue was cancelled" in caplog.text
+        assert queue_name == "inter_agent_message_input_queue"
+        assert event == iam_event
+        
+        # Verify the mock was called
+        user_message_queue_get_mock.assert_called_once()
 
     # Removed the test_get_next_input_event_re_queue_logic test case
     # as it was complex to mock reliably and caused fixture errors.

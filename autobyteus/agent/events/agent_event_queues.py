@@ -1,7 +1,7 @@
 # file: autobyteus/autobyteus/agent/events/agent_event_queues.py
 import asyncio
 import logging
-from typing import Any, AsyncIterator, Union, Tuple, Optional, List, TYPE_CHECKING, Dict
+from typing import Any, AsyncIterator, Union, Tuple, Optional, List, TYPE_CHECKING, Dict, Set
 
 # Import specific event types for queue annotations where possible
 if TYPE_CHECKING:
@@ -87,52 +87,121 @@ class AgentEventQueues:
             logger.warning(f"Attempted to enqueue END_OF_STREAM_SENTINEL to unknown output queue: {queue_name}. Available: {list(self._output_queues_map.keys())}")
 
     async def get_next_input_event(self) -> Optional[Tuple[str, 'BaseEvent']]:
-        tasks = [
+        logger.debug(f"get_next_input_event: Checking queue sizes before creating tasks...")
+        for name, q_obj in self._input_queues:
+            if q_obj is not None:
+                logger.debug(f"get_next_input_event: Queue '{name}' qsize: {q_obj.qsize()}")
+
+        # Create tasks to get an item from each input queue
+        created_tasks: List[asyncio.Task] = [
             asyncio.create_task(queue.get(), name=name)
             for name, queue in self._input_queues if queue is not None
         ]
 
-        if not tasks:
+        if not created_tasks:
+            logger.warning("get_next_input_event: No input queues available to create tasks from. Returning None.")
             return None
-
-        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-        event_tuple: Optional[Tuple[str, 'BaseEvent']] = None
-
-        for task in done:
-            queue_name = task.get_name()
-            try:
-                event_result: Any = task.result() # Get result first
-                # It's crucial that items in these queues are indeed BaseEvent instances
-                # This check assumes BaseEvent is defined and accessible for isinstance
-                from autobyteus.agent.events.agent_events import BaseEvent as AgentBaseEvent # Local import for check
-                if isinstance(event_result, AgentBaseEvent):
-                    event: 'BaseEvent' = event_result # type: ignore
-                    if event_tuple is None: 
-                        event_tuple = (queue_name, event)
-                        logger.debug(f"Dequeued event from {queue_name}: {type(event).__name__}")
-                    else:
-                        original_queue = next((q for n, q in self._input_queues if n == queue_name), None)
-                        if original_queue:
-                            original_queue.put_nowait(event) 
-                            logger.warning(f"Re-queued event from {queue_name} as another event was processed first in the same wait cycle.")
-                else:
-                    logger.error(f"Dequeued item from {queue_name} is not a BaseEvent subclass: {type(event_result)}. Event: {event_result!r}")
-
-            except asyncio.CancelledError:
-                logger.info(f"Task for queue {queue_name} was cancelled during get_next_input_event.")
-            except TypeError as e: 
-                 logger.error(f"Type error processing event from queue {queue_name}: {e}. Event: {task.result()!r}", exc_info=True)
-            except Exception as e:
-                logger.error(f"Error getting event from queue {queue_name}: {e}", exc_info=True)
         
-        for task in pending:
-            if not task.done():
-                task.cancel()
-                try:
-                    await task 
-                except asyncio.CancelledError:
-                    pass 
+        logger.debug(f"get_next_input_event: Created {len(created_tasks)} tasks for queues: {[t.get_name() for t in created_tasks]}. Awaiting asyncio.wait...")
+        
+        event_tuple: Optional[Tuple[str, 'BaseEvent']] = None
+        done_tasks_from_wait: Set[asyncio.Task] = set()
+        # pending_tasks_from_wait will contain tasks not in done_tasks_from_wait from the original created_tasks list
 
+        try:
+            # Wait for at least one of the tasks to complete
+            done_tasks_from_wait, pending_tasks_from_wait = await asyncio.wait(
+                created_tasks, return_when=asyncio.FIRST_COMPLETED
+            )
+            
+            logger.debug(f"get_next_input_event: asyncio.wait returned. Done tasks: {len(done_tasks_from_wait)}, Pending tasks: {len(pending_tasks_from_wait)}.")
+            
+            if done_tasks_from_wait:
+                for i, task_in_done in enumerate(done_tasks_from_wait):
+                    logger.debug(f"get_next_input_event: Processing done task #{i+1} (name: {task_in_done.get_name()})")
+            
+            for task in done_tasks_from_wait:
+                queue_name = task.get_name()
+                try:
+                    event_result: Any = task.result() 
+                    logger.debug(f"get_next_input_event: Task for queue '{queue_name}' completed. Result type: {type(event_result).__name__}, Result: {str(event_result)[:100]}")
+                    
+                    from autobyteus.agent.events.agent_events import BaseEvent as AgentBaseEvent 
+                    if isinstance(event_result, AgentBaseEvent):
+                        event: 'BaseEvent' = event_result 
+                        if event_tuple is None: 
+                            event_tuple = (queue_name, event)
+                            logger.debug(f"get_next_input_event: Dequeued event from {queue_name}: {type(event).__name__}")
+                        else:
+                            # This case should be rare with FIRST_COMPLETED if events are handled one by one
+                            original_queue = next((q for n, q in self._input_queues if n == queue_name), None)
+                            if original_queue:
+                                original_queue.put_nowait(event) 
+                                logger.warning(f"get_next_input_event: Re-queued event from {queue_name} (type {type(event).__name__}) as another event was processed first in the same wait cycle.")
+                    else:
+                        logger.error(f"get_next_input_event: Dequeued item from {queue_name} is not a BaseEvent subclass: {type(event_result)}. Event: {event_result!r}")
+
+                except asyncio.CancelledError:
+                     logger.info(f"get_next_input_event: Task for queue {queue_name} (from done set) was cancelled during result processing.")
+                except Exception as e: 
+                    logger.error(f"get_next_input_event: Error processing result from task for queue {queue_name} (from done set): {e}", exc_info=True)
+            
+            # Cancel tasks that were pending after asyncio.wait returned
+            # These are tasks that didn't complete to satisfy FIRST_COMPLETED
+            # This cancellation is part of normal operation, not necessarily due to external cancellation of get_next_input_event
+            if pending_tasks_from_wait:
+                logger.debug(f"get_next_input_event: Cancelling {len(pending_tasks_from_wait)} pending tasks from asyncio.wait.")
+                for task_in_pending in pending_tasks_from_wait:
+                    if not task_in_pending.done():
+                        task_in_pending.cancel()
+                        # These tasks are locally managed; awaiting them here is for this specific call's cleanup.
+                        # If get_next_input_event itself is cancelled, the broader 'finally' block handles created_tasks.
+                        try:
+                            await task_in_pending 
+                        except asyncio.CancelledError:
+                            pass # Expected
+
+        except asyncio.CancelledError:
+            logger.info("get_next_input_event: Coroutine itself was cancelled (e.g., by AgentRuntime timeout). All created tasks will be cancelled in finally.")
+            raise # Propagate CancelledError to allow AgentRuntime's wait_for to handle it.
+        
+        finally:
+            # This block executes whether get_next_input_event exits normally,
+            # via an exception, or due to being cancelled.
+            # Its purpose is to ensure that ALL tasks created by *this specific invocation*
+            # of get_next_input_event are cleaned up (cancelled and awaited).
+            logger.debug(f"get_next_input_event: Entering finally block. Cleaning up {len(created_tasks)} originally created tasks.")
+            
+            cleanup_awaits = []
+            for task_to_clean in created_tasks:
+                if not task_to_clean.done():
+                    logger.debug(f"get_next_input_event (finally): Task '{task_to_clean.get_name()}' is not done, cancelling.")
+                    task_to_clean.cancel()
+                    cleanup_awaits.append(task_to_clean)
+                else:
+                    # If task is done, ensure its result/exception is retrieved to avoid "never retrieved" warnings.
+                    # This is particularly for tasks that might have completed but weren't the one selected by FIRST_COMPLETED,
+                    # or if an error occurred after asyncio.wait but before this finally block.
+                    # However, if it was in done_tasks_from_wait, its result was already accessed.
+                    # This part is delicate; excessive result() calls can error if already retrieved or if it errored.
+                    # Let's only focus on awaiting tasks that were added to cleanup_awaits (i.e., were just cancelled).
+                    logger.debug(f"get_next_input_event (finally): Task '{task_to_clean.get_name()}' is already done.")
+
+            if cleanup_awaits:
+                logger.debug(f"get_next_input_event (finally): Awaiting {len(cleanup_awaits)} cancelled tasks.")
+                # Allow exceptions during gather (e.g., if a task doesn't handle CancelledError cleanly)
+                # but don't let them stop the cleanup of other tasks.
+                results = await asyncio.gather(*cleanup_awaits, return_exceptions=True)
+                for i, result in enumerate(results):
+                    task_name_for_log = cleanup_awaits[i].get_name()
+                    if isinstance(result, Exception) and not isinstance(result, asyncio.CancelledError):
+                        logger.warning(f"get_next_input_event (finally): Exception during cleanup of task '{task_name_for_log}': {result!r}")
+                    elif isinstance(result, asyncio.CancelledError):
+                         logger.debug(f"get_next_input_event (finally): Task '{task_name_for_log}' confirmed cancelled.")
+            
+            logger.debug(f"get_next_input_event: Finished finally block task cleanup.")
+
+        logger.debug(f"get_next_input_event: Returning event_tuple: {type(event_tuple[1]).__name__ if event_tuple else 'None'}")
         return event_tuple
 
     async def graceful_shutdown(self, timeout: float = 5.0):

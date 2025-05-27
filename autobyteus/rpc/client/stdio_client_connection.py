@@ -112,7 +112,7 @@ class StdioClientConnection(AbstractClientConnection):
                 if not line_bytes: 
                     logger.info(f"StdioServer '{self.server_id}' stdout EOF reached. Process likely terminated.")
                     if self._is_connected: 
-                        self._handle_unexpected_disconnect()
+                        await self._handle_unexpected_disconnect()
                     break
                 
                 line_str = line_bytes.decode().strip()
@@ -145,9 +145,9 @@ class StdioClientConnection(AbstractClientConnection):
         finally:
             logger.info(f"Stdio read_loop for '{self.server_id}' exiting.")
             if self._is_connected:
-                self._handle_unexpected_disconnect(log_warning=False) 
+                await self._handle_unexpected_disconnect(log_warning=False) 
 
-    def _handle_unexpected_disconnect(self, log_warning=True):
+    async def _handle_unexpected_disconnect(self, log_warning=True):
         """Handles unexpected disconnection by failing pending futures."""
         if log_warning:
             logger.warning(f"StdioClientConnection to '{self.server_id}'  unexpectedly disconnected or process terminated.")

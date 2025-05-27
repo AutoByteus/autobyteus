@@ -3,6 +3,7 @@ import logging
 from typing import Dict, Any, List, Optional, Union, Type
 from dataclasses import dataclass, field
 from enum import Enum
+import re # For pattern validation
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +16,8 @@ class ParameterType(str, Enum):
     ENUM = "enum"
     FILE_PATH = "file_path" 
     DIRECTORY_PATH = "directory_path"
+    OBJECT = "object"  # New type
+    ARRAY = "array"    # New type
 
     def to_json_schema_type(self) -> str:
         """Maps parameter type to JSON schema type."""
@@ -22,7 +25,10 @@ class ParameterType(str, Enum):
             return "number"
         if self in [ParameterType.FILE_PATH, ParameterType.DIRECTORY_PATH, ParameterType.ENUM]:
             return "string"
-        return self.value
+        # For OBJECT and ARRAY, their value is already the correct JSON schema type
+        if self in [ParameterType.OBJECT, ParameterType.ARRAY, ParameterType.STRING, ParameterType.INTEGER, ParameterType.BOOLEAN]:
+            return self.value
+        return self.value # Fallback, should be covered by above
 
 @dataclass
 class ParameterDefinition:
@@ -38,6 +44,7 @@ class ParameterDefinition:
     min_value: Optional[Union[int, float]] = None
     max_value: Optional[Union[int, float]] = None
     pattern: Optional[str] = None
+    array_item_schema: Optional[Dict[str, Any]] = None # New field for ARRAY type: JSON schema for items
     
     def __post_init__(self):
         if not self.name or not isinstance(self.name, str):
@@ -49,23 +56,32 @@ class ParameterDefinition:
         if self.param_type == ParameterType.ENUM and not self.enum_values:
             raise ValueError(f"ParameterDefinition '{self.name}' of type ENUM must specify enum_values")
         
+        if self.param_type == ParameterType.ARRAY and self.array_item_schema is None:
+            # Allow array_item_schema to be None, implying an array of any type or schema not specified here.
+            # For stricter validation, this could raise an error or default to e.g. {"type": "string"}
+            logger.debug(f"ParameterDefinition '{self.name}' of type ARRAY has no array_item_schema. Will be represented as a generic array.")
+
+        if self.param_type != ParameterType.ARRAY and self.array_item_schema is not None:
+            raise ValueError(f"ParameterDefinition '{self.name}': array_item_schema should only be provided if param_type is ARRAY.")
+
         if self.required and self.default_value is not None:
             logger.debug(f"ParameterDefinition '{self.name}' is marked as required but has a default value. This is acceptable.")
 
     def validate_value(self, value: Any) -> bool:
-        if value is None:
-            return not self.required
-        
+        # Handles None for optional parameters. If required, None is invalid unless explicitly allowed by schema (not current design).
+        if value is None: # If value is None
+            return not self.required # Valid if not required, invalid if required
+
         if self.param_type == ParameterType.STRING:
             if not isinstance(value, str):
                 return False
             if self.pattern:
-                import re
                 if not re.match(self.pattern, value):
                     return False 
         
         elif self.param_type == ParameterType.INTEGER:
-            if not isinstance(value, int):
+            if not isinstance(value, int): # Booleans are instances of int, disallow them if strict integer is needed
+                if isinstance(value, bool): return False
                 return False
             if self.min_value is not None and value < self.min_value:
                 return False
@@ -73,7 +89,7 @@ class ParameterDefinition:
                 return False
         
         elif self.param_type == ParameterType.FLOAT:
-            if not isinstance(value, (float, int)):
+            if not isinstance(value, (float, int)): # Allow integers to be valid floats
                 return False
             if self.min_value is not None and float(value) < self.min_value:
                 return False
@@ -85,17 +101,29 @@ class ParameterDefinition:
                 return False
         
         elif self.param_type == ParameterType.ENUM:
-            if not isinstance(value, str) or value not in self.enum_values:
+            if not isinstance(value, str) or value not in (self.enum_values or []):
                 return False
         
         elif self.param_type in [ParameterType.FILE_PATH, ParameterType.DIRECTORY_PATH]:
             if not isinstance(value, str):
                 return False
         
+        elif self.param_type == ParameterType.OBJECT:
+            if not isinstance(value, dict):
+                return False
+            # Deeper validation of object properties against a schema is not done here yet.
+            # Could be added if ParameterDefinition included a properties_schema.
+        
+        elif self.param_type == ParameterType.ARRAY:
+            if not isinstance(value, list):
+                return False
+            # Deeper validation of array items against array_item_schema is not done here yet.
+            # Could be added for more robustness.
+
         return True
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        data = {
             "name": self.name,
             "type": self.param_type.value,
             "description": self.description,
@@ -106,6 +134,9 @@ class ParameterDefinition:
             "max_value": self.max_value,
             "pattern": self.pattern,
         }
+        if self.param_type == ParameterType.ARRAY and self.array_item_schema is not None:
+            data["array_item_schema"] = self.array_item_schema
+        return data
 
     def to_json_schema_property_dict(self) -> Dict[str, Any]:
         prop_dict: Dict[str, Any] = {
@@ -114,16 +145,33 @@ class ParameterDefinition:
         }
         if self.default_value is not None:
             prop_dict["default"] = self.default_value
+        
         if self.param_type == ParameterType.ENUM and self.enum_values:
             prop_dict["enum"] = self.enum_values
+        
         if self.min_value is not None:
             if self.param_type in [ParameterType.INTEGER, ParameterType.FLOAT]:
                 prop_dict["minimum"] = self.min_value
+        
         if self.max_value is not None:
             if self.param_type in [ParameterType.INTEGER, ParameterType.FLOAT]:
                 prop_dict["maximum"] = self.max_value
+        
         if self.pattern and self.param_type in [ParameterType.STRING, ParameterType.FILE_PATH, ParameterType.DIRECTORY_PATH]:
             prop_dict["pattern"] = self.pattern
+            
+        if self.param_type == ParameterType.ARRAY:
+            if self.array_item_schema is not None:
+                prop_dict["items"] = self.array_item_schema
+            else:
+                # If no item schema, represent as generic array (items can be anything)
+                # An empty 'items: {}' or 'items: true' could also work depending on JSON Schema version/interpretation
+                prop_dict["items"] = True 
+                logger.debug(f"Parameter '{self.name}' is ARRAY type with no item schema; JSON schema 'items' will be generic.")
+
+
+        # For OBJECT type, prop_dict will be {"type": "object", "description": "..."}
+        # No "properties" are detailed here as per current design.
         
         return prop_dict
 
@@ -152,18 +200,25 @@ class ParameterSchema:
         """
         errors = []
         
-        for param in self.parameters:
-            if param.required and param.name not in config_data:
-                errors.append(f"Required parameter '{param.name}' is missing.")
+        # Check for missing required parameters
+        for param_def in self.parameters:
+            if param_def.required and param_def.name not in config_data:
+                # Check if there's a default_value, as that might satisfy "required" implicitly for some use cases
+                # However, JSON schema 'required' means the key must be present.
+                # For simplicity, if 'required' is True, we expect the key, regardless of default_value here.
+                errors.append(f"Required parameter '{param_def.name}' is missing.")
         
+        # Validate provided parameters
         for key, value in config_data.items():
             param_def = self.get_parameter(key)
             if not param_def:
-                errors.append(f"Unknown parameter '{key}' provided.")
-                continue
+                # Allow additional properties by default, don't treat as error.
+                # If strict validation against only defined params is needed, this behavior could change.
+                logger.debug(f"Unknown parameter '{key}' provided. It will be ignored by schema-based processing but passed through if possible.")
+                continue # Skip validation for unknown parameters
             
             if not param_def.validate_value(value):
-                errors.append(f"Invalid value for parameter '{param_def.name}': '{value}'. Expected type: {param_def.param_type.value}.")
+                errors.append(f"Invalid value for parameter '{param_def.name}': '{str(value)[:50]}...'. Expected type compatible with {param_def.param_type.value}.")
 
         return len(errors) == 0, errors
 
@@ -171,7 +226,7 @@ class ParameterSchema:
         return {
             param.name: param.default_value 
             for param in self.parameters 
-            if param.default_value is not None
+            if param.default_value is not None # Only include actual default values
         }
 
     def to_dict(self) -> Dict[str, Any]:
@@ -183,7 +238,7 @@ class ParameterSchema:
         if not self.parameters:
              return {
                 "type": "object",
-                "properties": {},
+                "properties": {}, # No properties if no parameters
                 "required": []
             }
 
@@ -199,6 +254,7 @@ class ParameterSchema:
             "type": "object",
             "properties": properties,
             "required": required,
+            # "additionalProperties": False, # Set this if you want to disallow unspecified parameters
         }
 
     @classmethod
@@ -210,7 +266,7 @@ class ParameterSchema:
             try:
                 param_type_enum = ParameterType(param_type_value)
             except ValueError:
-                raise ValueError(f"Invalid parameter type string '{param_type_value}' in schema data.")
+                raise ValueError(f"Invalid parameter type string '{param_type_value}' in schema data for parameter '{param_data.get('name')}'.")
 
             param = ParameterDefinition(
                 name=param_data["name"],
@@ -222,6 +278,7 @@ class ParameterSchema:
                 min_value=param_data.get("min_value"),
                 max_value=param_data.get("max_value"),
                 pattern=param_data.get("pattern"),
+                array_item_schema=param_data.get("array_item_schema") # Deserialize new field
             )
             schema.add_parameter(param)
         

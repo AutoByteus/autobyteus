@@ -3,12 +3,12 @@
 Components related to agent output streaming, including event models, stream consumers, and streamer utilities.
 """
 from .stream_events import StreamEventType, StreamEvent
-from .agent_output_streams import AgentOutputStreams
-from .queue_streamer import stream_queue_items 
+from .agent_event_stream import AgentEventStream     
+from .queue_streamer import stream_queue_items
 
 __all__ = [
     "StreamEventType",
     "StreamEvent",
-    "AgentOutputStreams",
+    "AgentEventStream",   # This is the main public class for all streaming
     "stream_queue_items", 
 ]

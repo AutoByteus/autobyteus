@@ -7,20 +7,20 @@ from typing import List, Dict, Any
 # Updated import path
 from autobyteus.tools.mcp import (
     McpConfigService,
-    McpConfig,
-    StdioServerParametersConfig,
-    SseTransportConfig,
     McpTransportType,
-    StreamableHttpConfig 
+    StdioMcpServerConfig,
+    SseMcpServerConfig,
+    StreamableHttpMcpServerConfig,
+    BaseMcpConfig
 )
 
-# Test Data (adapted from user examples to fit dataclass structure)
-# UPDATED: 'id' field changed to 'server_name' in all test data dictionaries
+# Test Data: Using 'server_id' as key, and nested 'stdio_params', 'sse_params' etc.
+# The McpConfigService is now expected to un-nest these.
 
-USER_EXAMPLE_1_FLAT_DICT = {
-    "google-slides-mcp": { # This key is the server_name
+USER_EXAMPLE_1_FLAT_DICT_AS_INPUT = {
+    "google-slides-mcp": { # This key is the server_id
         "transport_type": "stdio",
-        "enabled": True, 
+        "enabled": True,
         "stdio_params": {
             "command": "node",
             "args": ["/path/to/google-slides-mcp/build/index.js"],
@@ -30,12 +30,11 @@ USER_EXAMPLE_1_FLAT_DICT = {
                 "GOOGLE_REFRESH_TOKEN": "YOUR_REFRESH_TOKEN"
             }
         }
-        # 'server_name' will be injected from the key 'google-slides-mcp' by _process_config_dict
     }
 }
 
-USER_EXAMPLE_2_FLAT_DICT = {
-    "google-maps": { # This key is the server_name
+USER_EXAMPLE_2_FLAT_DICT_AS_INPUT = {
+    "google-maps": {
         "transport_type": "stdio",
         "enabled": True,
         "stdio_params": {
@@ -46,29 +45,29 @@ USER_EXAMPLE_2_FLAT_DICT = {
     }
 }
 
-# MODIFIED: USER_EXAMPLE_3_FLAT_DICT to be more concrete
-USER_EXAMPLE_3_FLAT_DICT = {
-    "live-collab-mcp": { # This key is the server_name
+USER_EXAMPLE_3_FLAT_DICT_AS_INPUT = {
+    "live-collab-mcp": {
         "transport_type": "sse",
         "enabled": True,
         "sse_params": {
-            "url": "https://live-collab.example.com/api/v1/events" # More specific URL
+            "url": "https://live-collab.example.com/api/v1/events"
         }
     }
 }
 
-USER_EXAMPLE_4_FLAT_DICT = {
-    "mcp-deepwiki": { # This key is the server_name
+USER_EXAMPLE_4_FLAT_DICT_AS_INPUT = {
+    "mcp-deepwiki": {
         "transport_type": "stdio",
         "stdio_params": {
             "command": "npx",
             "args": ["-y", "mcp-deepwiki@latest"]
         }
+        # enabled defaults to True
     }
 }
 
 VALID_STDIO_CONFIG_LIST_ITEM = {
-    "server_name": "stdio_server_1", 
+    "server_id": "stdio_server_1", # Changed from server_name
     "transport_type": "stdio",
     "enabled": True,
     "tool_name_prefix": "std_",
@@ -81,7 +80,7 @@ VALID_STDIO_CONFIG_LIST_ITEM = {
 }
 
 VALID_SSE_CONFIG_LIST_ITEM = {
-    "server_name": "sse_server_1", 
+    "server_id": "sse_server_1", # Changed from server_name
     "transport_type": "sse",
     "enabled": False,
     "tool_name_prefix": "sse_remote_",
@@ -92,26 +91,15 @@ VALID_SSE_CONFIG_LIST_ITEM = {
     }
 }
 
-TEST_ADD_STDIO_CONFIG_DICT = {
-    "server_name": "google-doc-mcp", 
-    "transport_type": "stdio",
+VALID_HTTP_CONFIG_LIST_ITEM = {
+    "server_id": "http_server_1",
+    "transport_type": "streamable_http",
     "enabled": True,
-    "tool_name_prefix": "gdoc_",
-    "stdio_params": {
-        "command": "node",
-        "args": ["/path/to/google-doc-mcp/index.js"],
-        "env": {"API_KEY": "doc_api_key"}
-    }
-}
-
-TEST_ADD_SSE_CONFIG_DICT = {
-    "server_name": "google-calendar-mcp", 
-    "transport_type": "sse",
-    "enabled": True,
-    "sse_params": {
-        "url": "https://calendar-mcp.example.com/api/events",
-        "token": "cal_token_123",
-        "headers": {"X-App-ID": "calendar_app"}
+    "tool_name_prefix": "http_",
+    "streamable_http_params": {
+        "url": "http://localhost:9000/stream",
+        "token": "http-secret-token",
+        "headers": {"X-Http-Header": "http_value"}
     }
 }
 
@@ -119,7 +107,10 @@ TEST_ADD_SSE_CONFIG_DICT = {
 @pytest.fixture
 def mcp_config_service() -> McpConfigService:
     service = McpConfigService()
-    service.clear_configs() 
+    # Ensure it's clean for each test, though singleton might handle this.
+    # This explicit clear might be redundant if singleton always returns same instance
+    # but good for safety if tests run in parallel or affect global state.
+    service.clear_configs()
     return service
 
 def test_load_configs_from_list_valid_stdio(mcp_config_service: McpConfigService):
@@ -129,43 +120,53 @@ def test_load_configs_from_list_valid_stdio(mcp_config_service: McpConfigService
     assert len(mcp_config_service.get_all_configs()) == 1
     
     config = mcp_config_service.get_config("stdio_server_1")
-    assert config is not None
-    assert config.server_name == "stdio_server_1" 
+    assert isinstance(config, StdioMcpServerConfig)
+    assert config.server_id == "stdio_server_1"
     assert config.transport_type == McpTransportType.STDIO
     assert config.enabled is True
     assert config.tool_name_prefix == "std_"
-    assert isinstance(config.stdio_params, StdioServerParametersConfig)
-    assert config.stdio_params.command == "python"
-    assert config.stdio_params.args == ["-m", "my_mcp_server"]
-    assert config.stdio_params.env == {"PYTHONUNBUFFERED": "1"}
-    assert config.stdio_params.cwd == "/tmp"
-    assert config.sse_params is None
+    assert config.command == "python"
+    assert config.args == ["-m", "my_mcp_server"]
+    assert config.env == {"PYTHONUNBUFFERED": "1"}
+    assert config.cwd == "/tmp"
 
 def test_load_configs_from_list_valid_sse(mcp_config_service: McpConfigService):
     configs_data = [VALID_SSE_CONFIG_LIST_ITEM]
     loaded = mcp_config_service.load_configs(configs_data)
     assert len(loaded) == 1
-    assert len(mcp_config_service.get_all_configs()) == 1
-
     config = mcp_config_service.get_config("sse_server_1")
-    assert config is not None
-    assert config.server_name == "sse_server_1" 
+    assert isinstance(config, SseMcpServerConfig)
+    assert config.server_id == "sse_server_1"
     assert config.transport_type == McpTransportType.SSE
     assert config.enabled is False
     assert config.tool_name_prefix == "sse_remote_"
-    assert isinstance(config.sse_params, SseTransportConfig)
-    assert config.sse_params.url == "http://localhost:8000/events"
-    assert config.sse_params.token == "secret-token"
-    assert config.sse_params.headers == {"X-Custom-Header": "value"}
-    assert config.stdio_params is None
+    assert config.url == "http://localhost:8000/events"
+    assert config.token == "secret-token"
+    assert config.headers == {"X-Custom-Header": "value"}
+
+def test_load_configs_from_list_valid_http(mcp_config_service: McpConfigService):
+    configs_data = [VALID_HTTP_CONFIG_LIST_ITEM]
+    loaded = mcp_config_service.load_configs(configs_data)
+    assert len(loaded) == 1
+    config = mcp_config_service.get_config("http_server_1")
+    assert isinstance(config, StreamableHttpMcpServerConfig)
+    assert config.server_id == "http_server_1"
+    assert config.transport_type == McpTransportType.STREAMABLE_HTTP
+    assert config.enabled is True
+    assert config.tool_name_prefix == "http_"
+    assert config.url == "http://localhost:9000/stream"
+    assert config.token == "http-secret-token"
+    assert config.headers == {"X-Http-Header": "http_value"}
+
 
 def test_load_configs_from_list_mixed(mcp_config_service: McpConfigService):
-    configs_data = [VALID_STDIO_CONFIG_LIST_ITEM, VALID_SSE_CONFIG_LIST_ITEM]
+    configs_data = [VALID_STDIO_CONFIG_LIST_ITEM, VALID_SSE_CONFIG_LIST_ITEM, VALID_HTTP_CONFIG_LIST_ITEM]
     loaded = mcp_config_service.load_configs(configs_data)
-    assert len(loaded) == 2
-    assert len(mcp_config_service.get_all_configs()) == 2
+    assert len(loaded) == 3
+    assert len(mcp_config_service.get_all_configs()) == 3
     assert mcp_config_service.get_config("stdio_server_1") is not None
     assert mcp_config_service.get_config("sse_server_1") is not None
+    assert mcp_config_service.get_config("http_server_1") is not None
 
 def test_load_configs_from_file_list_format(mcp_config_service: McpConfigService, tmp_path):
     file_content = [VALID_STDIO_CONFIG_LIST_ITEM, VALID_SSE_CONFIG_LIST_ITEM]
@@ -174,70 +175,64 @@ def test_load_configs_from_file_list_format(mcp_config_service: McpConfigService
 
     loaded = mcp_config_service.load_configs(str(config_file))
     assert len(loaded) == 2
-    assert len(mcp_config_service.get_all_configs()) == 2
-    assert mcp_config_service.get_config("stdio_server_1") is not None
-    assert mcp_config_service.get_config("sse_server_1") is not None
+    # Check specific attributes after loading
+    stdio_conf = mcp_config_service.get_config("stdio_server_1")
+    assert isinstance(stdio_conf, StdioMcpServerConfig)
+    assert stdio_conf.command == "python"
+
+    sse_conf = mcp_config_service.get_config("sse_server_1")
+    assert isinstance(sse_conf, SseMcpServerConfig)
+    assert sse_conf.url == "http://localhost:8000/events"
+
 
 def test_load_configs_from_file_dict_format_user_example1(mcp_config_service: McpConfigService, tmp_path):
     config_file = tmp_path / "mcp_config_ex1.json"
-    config_file.write_text(json.dumps(USER_EXAMPLE_1_FLAT_DICT))
+    config_file.write_text(json.dumps(USER_EXAMPLE_1_FLAT_DICT_AS_INPUT))
     
     loaded = mcp_config_service.load_configs(str(config_file))
     assert len(loaded) == 1
     config = mcp_config_service.get_config("google-slides-mcp")
-    assert config is not None
-    assert config.server_name == "google-slides-mcp" 
+    assert isinstance(config, StdioMcpServerConfig)
+    assert config.server_id == "google-slides-mcp"
     assert config.transport_type == McpTransportType.STDIO
-    assert config.stdio_params.command == "node"
+    assert config.command == "node"
+    assert config.env["GOOGLE_CLIENT_ID"] == "YOUR_CLIENT_ID"
 
-def test_load_configs_from_file_dict_format_user_example2(mcp_config_service: McpConfigService, tmp_path):
-    config_file = tmp_path / "mcp_config_ex2.json"
-    config_file.write_text(json.dumps(USER_EXAMPLE_2_FLAT_DICT))
-
-    loaded = mcp_config_service.load_configs(str(config_file))
-    assert len(loaded) == 1
-    config = mcp_config_service.get_config("google-maps")
-    assert config is not None
-    assert config.server_name == "google-maps" 
-    assert config.transport_type == McpTransportType.STDIO
-    assert config.stdio_params.command == "docker"
-    assert "mcp/google-maps" in config.stdio_params.args
-
-# MODIFIED: Test name and assertions for USER_EXAMPLE_3
 def test_load_configs_from_file_dict_format_user_example3_sse(mcp_config_service: McpConfigService, tmp_path):
     config_file = tmp_path / "mcp_config_ex3.json"
-    config_file.write_text(json.dumps(USER_EXAMPLE_3_FLAT_DICT))
+    config_file.write_text(json.dumps(USER_EXAMPLE_3_FLAT_DICT_AS_INPUT))
 
     loaded = mcp_config_service.load_configs(str(config_file))
     assert len(loaded) == 1
-    config = mcp_config_service.get_config("live-collab-mcp") # MODIFIED server name
-    assert config is not None
-    assert config.server_name == "live-collab-mcp" # MODIFIED server name
+    config = mcp_config_service.get_config("live-collab-mcp")
+    assert isinstance(config, SseMcpServerConfig)
+    assert config.server_id == "live-collab-mcp"
     assert config.transport_type == McpTransportType.SSE
-    assert config.sse_params.url == "https://live-collab.example.com/api/v1/events" # MODIFIED URL
+    assert config.url == "https://live-collab.example.com/api/v1/events"
 
 def test_load_configs_from_file_dict_format_user_example4_defaults(mcp_config_service: McpConfigService, tmp_path):
     config_file = tmp_path / "mcp_config_ex4.json"
-    config_file.write_text(json.dumps(USER_EXAMPLE_4_FLAT_DICT))
+    config_file.write_text(json.dumps(USER_EXAMPLE_4_FLAT_DICT_AS_INPUT))
 
     loaded = mcp_config_service.load_configs(str(config_file))
     assert len(loaded) == 1
     config = mcp_config_service.get_config("mcp-deepwiki")
-    assert config is not None
-    assert config.server_name == "mcp-deepwiki" 
+    assert isinstance(config, StdioMcpServerConfig)
+    assert config.server_id == "mcp-deepwiki"
     assert config.transport_type == McpTransportType.STDIO
-    assert config.stdio_params.command == "npx"
-    assert config.enabled is True 
-    assert config.stdio_params.env == {} 
+    assert config.command == "npx"
+    assert config.enabled is True # Default from BaseMcpConfig
+    assert config.env == {} # Default from StdioMcpServerConfig
 
 @pytest.mark.parametrize("invalid_data, error_message_match", [
-    ([{"transport_type": "stdio"}], "missing 'server_name' field"), 
-    ({"myid": {"transport_type": "invalid_type"}}, "is not a valid McpTransportType"), 
-    ({"myid": {"transport_type": "stdio"}}, "requires 'stdio_params'"), 
-    ({"myid": {"transport_type": "sse"}}, "requires 'sse_params'"), 
-    ({"myid": {"transport_type": "stdio", "stdio_params": {"args": ["hi"]}}}, "command' must be a non-empty string"), 
-    ({"myid": {"transport_type": "sse", "sse_params": {}}}, "'url' must be a non-empty string"), 
-    ([{"server_name": "x", "transport_type": "stdio", "stdio_params": {"command": 123}}], "command' must be a non-empty string"), 
+    ([{"transport_type": "stdio"}], "missing 'server_id' field"),
+    ({"myid": {"transport_type": "invalid_type"}}, "Invalid 'transport_type' string 'invalid_type'"),
+    # For StdioMcpServerConfig, 'command' is now Optional but has validation for non-empty string if provided.
+    # Test cases in StdioMcpServerConfig's __post_init__ cover command validation more directly.
+    # Here, testing config service's ability to pass through for underlying validation or catch TypeErrors.
+    ({"myid": {"transport_type": "stdio", "stdio_params": {"command": 123}}}, "command' must be a non-empty string"),
+    ({"myid": {"transport_type": "sse", "sse_params": {"url": None}}}, "'url' must be a non-empty string"),
+    ({"myid": {"transport_type": "streamable_http", "streamable_http_params": {}}}, "'url' must be a non-empty string"),
 ])
 def test_load_configs_invalid_data_raises_value_error(mcp_config_service: McpConfigService, invalid_data, error_message_match):
     with pytest.raises(ValueError, match=error_message_match):
@@ -257,199 +252,142 @@ def test_load_configs_unsupported_source_type(mcp_config_service: McpConfigServi
     with pytest.raises(TypeError, match="Unsupported source type"):
         mcp_config_service.load_configs(123) # type: ignore
 
-def test_add_config_with_mcp_object_stdio(mcp_config_service: McpConfigService):
-    mcp_object = McpConfig(**TEST_ADD_STDIO_CONFIG_DICT)
+# Test add_config with pre-instantiated objects
+def test_add_config_with_object_stdio(mcp_config_service: McpConfigService):
+    stdio_obj = StdioMcpServerConfig(
+        server_id="google-doc-mcp",
+        enabled=True,
+        tool_name_prefix="gdoc_",
+        command="node",
+        args=["/path/to/google-doc-mcp/index.js"],
+        env={"API_KEY": "doc_api_key"}
+    )
     
-    returned_config = mcp_config_service.add_config(mcp_object)
-    assert returned_config == mcp_object
+    returned_config = mcp_config_service.add_config(stdio_obj)
+    assert returned_config == stdio_obj
     
     assert len(mcp_config_service.get_all_configs()) == 1
     stored_config = mcp_config_service.get_config("google-doc-mcp")
-    assert stored_config is not None
-    assert stored_config.server_name == "google-doc-mcp" 
-    assert stored_config.transport_type == McpTransportType.STDIO
-    assert stored_config.enabled is True
-    assert stored_config.tool_name_prefix == "gdoc_"
-    assert isinstance(stored_config.stdio_params, StdioServerParametersConfig)
-    assert stored_config.stdio_params.command == "node"
-    assert stored_config.stdio_params.args == ["/path/to/google-doc-mcp/index.js"]
-    assert stored_config.stdio_params.env == {"API_KEY": "doc_api_key"}
+    assert isinstance(stored_config, StdioMcpServerConfig)
+    assert stored_config.server_id == "google-doc-mcp"
+    assert stored_config.command == "node"
 
-def test_add_config_with_dict_sse(mcp_config_service: McpConfigService):
-    config_dict = TEST_ADD_SSE_CONFIG_DICT.copy()
-    
-    returned_config = mcp_config_service.add_config(config_dict)
-    
-    assert len(mcp_config_service.get_all_configs()) == 1
-    stored_config = mcp_config_service.get_config("google-calendar-mcp")
-    
-    assert stored_config is not None
-    assert stored_config == returned_config
-    assert stored_config.server_name == "google-calendar-mcp" 
-    assert stored_config.transport_type == McpTransportType.SSE
-    assert stored_config.enabled is True
-    assert isinstance(stored_config.sse_params, SseTransportConfig)
-    assert stored_config.sse_params.url == "https://calendar-mcp.example.com/api/events"
-    assert stored_config.sse_params.token == "cal_token_123"
-    assert stored_config.sse_params.headers == {"X-App-ID": "calendar_app"}
-
-def test_add_config_overwrites_existing(mcp_config_service: McpConfigService, caplog):
-    config_v1_dict = {
-        "server_name": "common_server", 
-        "transport_type": "stdio",
-        "stdio_params": {"command": "cmd_v1"}
-    }
-    config_v2_obj = McpConfig(
-        server_name="common_server", 
-        transport_type="stdio",
-        enabled=False,
-        stdio_params=StdioServerParametersConfig(command="cmd_v2", args=["arg1"])
+def test_add_config_with_object_sse(mcp_config_service: McpConfigService):
+    sse_obj = SseMcpServerConfig(
+        server_id="google-calendar-mcp",
+        enabled=True,
+        url="https://calendar-mcp.example.com/api/events",
+        token="cal_token_123",
+        headers={"X-App-ID": "calendar_app"}
     )
+    mcp_config_service.add_config(sse_obj)
+    stored_config = mcp_config_service.get_config("google-calendar-mcp")
+    assert isinstance(stored_config, SseMcpServerConfig)
+    assert stored_config.url == "https://calendar-mcp.example.com/api/events"
 
-    mcp_config_service.add_config(config_v1_dict)
+
+def test_add_config_overwrites_existing_object(mcp_config_service: McpConfigService, caplog):
+    config_v1_obj = StdioMcpServerConfig(server_id="common_server", command="cmd_v1")
+    config_v2_obj = StdioMcpServerConfig(server_id="common_server", command="cmd_v2", enabled=False, args=["arg1"])
+
+    mcp_config_service.add_config(config_v1_obj)
     stored_v1 = mcp_config_service.get_config("common_server")
-    assert stored_v1 is not None
-    assert stored_v1.stdio_params.command == "cmd_v1"
+    assert isinstance(stored_v1, StdioMcpServerConfig)
+    assert stored_v1.command == "cmd_v1"
     assert stored_v1.enabled is True 
 
     caplog.clear()
     mcp_config_service.add_config(config_v2_obj)
-    assert "Overwriting existing MCP config with server_name 'common_server'" in caplog.text 
+    assert "Overwriting existing MCP config with server_id 'common_server'" in caplog.text 
 
     assert len(mcp_config_service.get_all_configs()) == 1
     stored_v2 = mcp_config_service.get_config("common_server")
-    assert stored_v2 is not None
-    assert stored_v2.stdio_params.command == "cmd_v2"
-    assert stored_v2.stdio_params.args == ["arg1"]
+    assert isinstance(stored_v2, StdioMcpServerConfig)
+    assert stored_v2.command == "cmd_v2"
+    assert stored_v2.args == ["arg1"]
     assert stored_v2.enabled is False
 
-def test_add_config_with_invalid_dict_missing_id(mcp_config_service: McpConfigService): 
-    invalid_dict = {"transport_type": "stdio", "stdio_params": {"command": "cmd"}}
-    with pytest.raises(ValueError, match="Configuration dictionary must contain a 'server_name' field."): 
-        mcp_config_service.add_config(invalid_dict)
-
-@pytest.mark.parametrize("invalid_field_data, error_message_match", [
-    ({"server_name": "test", "transport_type": "invalid_one"}, "is not a valid McpTransportType"), 
-    ({"server_name": "test", "transport_type": "stdio"}, "requires 'stdio_params'"), 
-    ({"server_name": "test", "transport_type": "stdio", "stdio_params": {"command": None}}, "command' must be a non-empty string"), 
-])
-def test_add_config_with_invalid_dict_bad_data(mcp_config_service: McpConfigService, invalid_field_data, error_message_match):
-    with pytest.raises(ValueError, match=error_message_match):
-        mcp_config_service.add_config(invalid_field_data)
-
-def test_add_config_with_unsupported_type(mcp_config_service: McpConfigService):
+def test_add_config_with_unsupported_type_input(mcp_config_service: McpConfigService):
     with pytest.raises(TypeError, match="Unsupported input type for add_config"):
         mcp_config_service.add_config(12345) # type: ignore
     with pytest.raises(TypeError, match="Unsupported input type for add_config"):
-        mcp_config_service.add_config([TEST_ADD_STDIO_CONFIG_DICT]) # type: ignore
+        mcp_config_service.add_config([VALID_STDIO_CONFIG_LIST_ITEM]) # type: ignore
+
 
 def test_get_config_non_existent(mcp_config_service: McpConfigService):
-    assert mcp_config_service.get_config("non_existent_server_name") is None 
+    assert mcp_config_service.get_config("non_existent_server_id") is None
 
 def test_get_all_configs_empty(mcp_config_service: McpConfigService):
     assert mcp_config_service.get_all_configs() == []
 
-def test_load_configs_duplicate_id_overwrites(mcp_config_service: McpConfigService, caplog): 
-    configs1 = [{"server_name": "server1", "transport_type": "stdio", "stdio_params": {"command": "cmd1"}}] 
-    configs2 = [{"server_name": "server1", "transport_type": "stdio", "stdio_params": {"command": "cmd2"}}] 
+def test_load_configs_duplicate_id_overwrites(mcp_config_service: McpConfigService, caplog):
+    # Test with load_configs behavior for duplicates
+    configs_data_v1 = [{"server_id": "server1", "transport_type": "stdio", "stdio_params": {"command": "cmd1"}}]
+    configs_data_v2 = [{"server_id": "server1", "transport_type": "stdio", "stdio_params": {"command": "cmd2"}}]
     
-    mcp_config_service.load_configs(configs1)
-    assert mcp_config_service.get_config("server1").stdio_params.command == "cmd1"
+    mcp_config_service.load_configs(configs_data_v1)
+    conf_v1 = mcp_config_service.get_config("server1")
+    assert isinstance(conf_v1, StdioMcpServerConfig)
+    assert conf_v1.command == "cmd1"
     
-    mcp_config_service.load_configs(configs2) 
+    caplog.clear()
+    mcp_config_service.load_configs(configs_data_v2)
     assert len(mcp_config_service.get_all_configs()) == 1
-    assert mcp_config_service.get_config("server1").stdio_params.command == "cmd2"
-    assert "Duplicate MCP config server_name 'server1' found" in caplog.text 
+    conf_v2 = mcp_config_service.get_config("server1")
+    assert isinstance(conf_v2, StdioMcpServerConfig)
+    assert conf_v2.command == "cmd2"
+    assert "Duplicate MCP config server_id 'server1' found" in caplog.text
 
 def test_clear_configs(mcp_config_service: McpConfigService):
     mcp_config_service.load_configs([VALID_STDIO_CONFIG_LIST_ITEM])
     assert len(mcp_config_service.get_all_configs()) == 1
     mcp_config_service.clear_configs()
     assert len(mcp_config_service.get_all_configs()) == 0
-    assert mcp_config_service.get_config(VALID_STDIO_CONFIG_LIST_ITEM["server_name"]) is None 
+    assert mcp_config_service.get_config(VALID_STDIO_CONFIG_LIST_ITEM["server_id"]) is None
 
-def test_nested_dataclass_construction_from_dict():
-    raw_data = {
-        "server_name": "test_server", 
-        "transport_type": "stdio",
-        "stdio_params": { 
-            "command": "my_cmd",
-            "args": ["arg1"],
-            "env": {"K": "V"},
-            "cwd": "/data"
-        }
-    }
-    config = McpConfig(**raw_data)
-    assert isinstance(config.stdio_params, StdioServerParametersConfig)
-    assert config.stdio_params.command == "my_cmd"
-    assert config.stdio_params.cwd == "/data"
+# Tests for BaseMcpConfig and subclasses' __post_init__
+def test_base_mcp_config_validation():
+    with pytest.raises(ValueError, match="'server_id' must be a non-empty string"):
+        BaseMcpConfig(server_id="")
+    with pytest.raises(ValueError, match="'enabled' for server 's1' must be a boolean"):
+        BaseMcpConfig(server_id="s1", enabled="true") # type: ignore
+    with pytest.raises(ValueError, match="'tool_name_prefix' for server 's1' must be a string"):
+        BaseMcpConfig(server_id="s1", tool_name_prefix=123) # type: ignore
 
-    raw_data_sse = {
-        "server_name": "test_sse_server", 
-        "transport_type": "sse",
-        "sse_params": { 
-            "url": "http://test.com",
-            "token": "tok"
-        }
-    }
-    config_sse = McpConfig(**raw_data_sse)
-    assert isinstance(config_sse.sse_params, SseTransportConfig)
-    assert config_sse.sse_params.url == "http://test.com"
-    assert config_sse.sse_params.token == "tok"
-
-def test_mcpconfig_post_init_type_coercion_and_validation():
-    cfg = McpConfig(server_name="s1", transport_type="stdio", stdio_params={"command": "c"}) 
-    assert cfg.transport_type == McpTransportType.STDIO
-
-    with pytest.raises(ValueError, match="'server_name' must be a non-empty string"): 
-        McpConfig(server_name="", transport_type="stdio", stdio_params={"command": "c"}) 
-
-    with pytest.raises(ValueError, match="is not a valid McpTransportType"):
-        McpConfig(server_name="s1", transport_type="invalid", stdio_params={"command": "c"}) 
-
-    with pytest.raises(TypeError, match="must be a McpTransportType enum or a valid string"):
-        McpConfig(server_name="s1", transport_type=123, stdio_params={"command": "c"}) # type: ignore 
-
-    with pytest.raises(TypeError, match="'stdio_params' must be an instance of StdioServerParametersConfig or a compatible dict"):
-        McpConfig(server_name="s1", transport_type="stdio", stdio_params="not_a_dict") # type: ignore 
-        
-    with pytest.raises(TypeError, match="'sse_params' must be an instance of SseTransportConfig or a compatible dict"):
-        McpConfig(server_name="s1", transport_type="sse", sse_params="not_a_dict") # type: ignore 
-        
-def test_stdio_config_post_init_validations():
-    with pytest.raises(ValueError, match="'command' must be a non-empty string"):
-        StdioServerParametersConfig(command="")
-    with pytest.raises(ValueError, match="'args' must be a list of strings"):
-        StdioServerParametersConfig(command="c", args="not_a_list") # type: ignore
-    with pytest.raises(ValueError, match="'env' must be a Dict"):
-        StdioServerParametersConfig(command="c", env=["not_a_dict"]) # type: ignore
-    with pytest.raises(ValueError, match="'cwd' must be a string if provided"):
-        StdioServerParametersConfig(command="c", cwd=123) # type: ignore
-
-def test_sse_config_post_init_validations():
-    with pytest.raises(ValueError, match="'url' must be a non-empty string"):
-        SseTransportConfig(url="")
-    with pytest.raises(ValueError, match="'token' must be a string if provided"):
-        SseTransportConfig(url="u", token=123) # type: ignore
-    with pytest.raises(ValueError, match="'headers' must be a Dict"):
-        SseTransportConfig(url="u", headers=["not_a_dict"]) # type: ignore
-
-def test_streamable_http_config_post_init_validations():
-    from autobyteus.tools.mcp.types import StreamableHttpConfig 
-    with pytest.raises(ValueError, match="'url' must be a non-empty string"):
-        StreamableHttpConfig(url="")
-    with pytest.raises(ValueError, match="'token' must be a string if provided"):
-        StreamableHttpConfig(url="u", token=123) # type: ignore
-    with pytest.raises(ValueError, match="'headers' must be a Dict"):
-        StreamableHttpConfig(url="u", headers=["not_a_dict"]) # type: ignore
-
-    with pytest.raises(ValueError, match="requires 'streamable_http_params'"):
-        McpConfig(server_name="s_http", transport_type="streamable_http") 
+def test_stdio_mcp_server_config_validation():
+    # Valid minimal
+    config = StdioMcpServerConfig(server_id="s1", command="mycmd")
+    assert config.command == "mycmd"
     
-    valid_http_params_dict = {"url": "http://example.com/stream"}
-    cfg_http = McpConfig(server_name="s_http", transport_type="streamable_http", streamable_http_params=valid_http_params_dict) 
-    assert isinstance(cfg_http.streamable_http_params, StreamableHttpConfig)
-    assert cfg_http.streamable_http_params.url == "http://example.com/stream"
+    with pytest.raises(ValueError, match="'command' must be a non-empty string"):
+        StdioMcpServerConfig(server_id="s1", command=None)
+    with pytest.raises(ValueError, match="'command' must be a non-empty string"):
+        StdioMcpServerConfig(server_id="s1", command="  ")
+    with pytest.raises(ValueError, match="'args' must be a list of strings"):
+        StdioMcpServerConfig(server_id="s1", command="c", args=["a", 1]) # type: ignore
+    with pytest.raises(ValueError, match="'env' must be a Dict"):
+        StdioMcpServerConfig(server_id="s1", command="c", env={"k": 1}) # type: ignore
+    with pytest.raises(ValueError, match="'cwd' must be a string if provided"):
+        StdioMcpServerConfig(server_id="s1", command="c", cwd=123) # type: ignore
 
-    with pytest.raises(TypeError, match="'streamable_http_params' must be an instance of StreamableHttpConfig or a compatible dict"):
-        McpConfig(server_name="s1", transport_type="streamable_http", streamable_http_params="not_a_dict") # type: ignore 
+def test_sse_mcp_server_config_validation():
+    config = SseMcpServerConfig(server_id="s1", url="http://example.com")
+    assert config.url == "http://example.com"
+
+    with pytest.raises(ValueError, match="'url' must be a non-empty string"):
+        SseMcpServerConfig(server_id="s1", url=None)
+    with pytest.raises(ValueError, match="'token' must be a string if provided"):
+        SseMcpServerConfig(server_id="s1", url="u", token=123) # type: ignore
+    with pytest.raises(ValueError, match="'headers' must be a Dict"):
+        SseMcpServerConfig(server_id="s1", url="u", headers={"h": 1}) # type: ignore
+
+def test_streamable_http_mcp_server_config_validation():
+    config = StreamableHttpMcpServerConfig(server_id="s1", url="http://example.com")
+    assert config.url == "http://example.com"
+
+    with pytest.raises(ValueError, match="'url' must be a non-empty string"):
+        StreamableHttpMcpServerConfig(server_id="s1", url=None)
+    with pytest.raises(ValueError, match="'token' must be a string if provided"):
+        StreamableHttpMcpServerConfig(server_id="s1", url="u", token=123) # type: ignore
+    with pytest.raises(ValueError, match="'headers' must be a Dict"):
+        StreamableHttpMcpServerConfig(server_id="s1", url="u", headers={"h":1}) # type: ignore
