@@ -8,20 +8,28 @@ from .agent_events import (
     # Categorical Base Events
     LifecycleEvent,
     AgentProcessingEvent,
+    # Agent Phase-Specific Base Events
+    AgentPreparationEvent, 
+    AgentOperationalEvent, # NEW
     # Specific Lifecycle Events
     AgentStartedEvent,
     AgentStoppedEvent,
     AgentErrorEvent,
-    # Specific Agent Processing Events
+    # Agent Initialization Sequence Events (inheriting from AgentPreparationEvent)
+    CreateToolInstancesEvent, 
+    ProcessSystemPromptEvent,
+    FinalizeLLMConfigEvent,
+    CreateLLMInstanceEvent,
+    # Regular Agent Processing Events (now inheriting from AgentOperationalEvent)
     UserMessageReceivedEvent, 
     InterAgentMessageReceivedEvent, 
-    LLMPromptReadyEvent,
+    LLMUserMessageReadyEvent, 
     LLMCompleteResponseReceivedEvent,
     PendingToolInvocationEvent, 
     ToolResultEvent,
     ToolExecutionApprovalEvent,
-    ApprovedToolInvocationEvent, # Added new event
-    # General Purpose Event
+    ApprovedToolInvocationEvent,
+    # General Purpose Event (now inheriting from AgentOperationalEvent)
     GenericEvent
 )
 
@@ -31,16 +39,22 @@ __all__ = [
     "BaseEvent",
     "LifecycleEvent",
     "AgentProcessingEvent",
+    "AgentPreparationEvent", 
+    "AgentOperationalEvent", # NEW
     "AgentStartedEvent",
     "AgentStoppedEvent",
     "AgentErrorEvent",
+    "CreateToolInstancesEvent", 
+    "ProcessSystemPromptEvent",
+    "FinalizeLLMConfigEvent",
+    "CreateLLMInstanceEvent",
     "UserMessageReceivedEvent",
     "InterAgentMessageReceivedEvent",
-    "LLMPromptReadyEvent",
+    "LLMUserMessageReadyEvent", 
     "LLMCompleteResponseReceivedEvent",
     "PendingToolInvocationEvent",
     "ToolResultEvent",
     "ToolExecutionApprovalEvent",
-    "ApprovedToolInvocationEvent", # Added new event
+    "ApprovedToolInvocationEvent",
     "GenericEvent",
 ]

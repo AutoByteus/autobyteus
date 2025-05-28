@@ -111,6 +111,7 @@ async def main(args: argparse.Namespace):
     # System prompt uses the tool's registered name, which should match file_writer.get_name()
     # For the LLM's understanding, it needs the actual name the tool is registered with.
     # The {{tools}} placeholder will be filled by ToolDescriptionInjectorProcessor using registered tool info.
+    # The {{tool_examples}} placeholder will be filled by ToolUsageExampleInjectorProcessor with usage examples.
     
     system_prompt = (
         f"You are an excellent poet. When given a topic, you must write a creative poem.\n"
@@ -119,7 +120,8 @@ async def main(args: argparse.Namespace):
         f"Do not ask for confirmation before using the tool. Execute the tool call directly.\n"
         f"Respond only with the poem and the tool call, nothing else.\n\n"
         f"You have access to the following tools:\n"
-        f"{{{{tools}}}}"
+        f"{{{{tools}}}}\n\n"
+        f"{{{{tool_examples}}}}"
     )
 
     poem_writer_def_name = "InteractivePoemWriterAgent"

@@ -11,11 +11,12 @@ class AgentDefinition(metaclass=AgentDefinitionMeta):
     """
     Represents the static definition of an agent, containing its name, role,
     description, tools, system prompt, input processor configurations,
-    LLM response processor configurations, and system prompt processor configurations.
+    LLM response processor configurations, system prompt processor configurations,
+    and preferred tool communication format.
     Instances of this class are auto-registered with the default AgentDefinitionRegistry.
     """
     DEFAULT_LLM_RESPONSE_PROCESSORS = ["xml_tool_usage"] 
-    DEFAULT_SYSTEM_PROMPT_PROCESSORS = ["ToolDescriptionInjector"] # Default processor for {{tools}}
+    DEFAULT_SYSTEM_PROMPT_PROCESSORS = ["ToolDescriptionInjector", "ToolUsageExampleInjector"]
 
     def __init__(self,
                  name: str,
@@ -25,7 +26,8 @@ class AgentDefinition(metaclass=AgentDefinitionMeta):
                  tool_names: List[str],
                  input_processor_names: Optional[List[str]] = None,
                  llm_response_processor_names: Optional[List[str]] = None,
-                 system_prompt_processor_names: Optional[List[str]] = None): # New attribute
+                 system_prompt_processor_names: Optional[List[str]] = None,
+                 use_xml_tool_format: Optional[bool] = None): # New attribute
         """
         Initializes the AgentDefinition.
 
@@ -40,6 +42,9 @@ class AgentDefinition(metaclass=AgentDefinitionMeta):
                                           Defaults to `DEFAULT_LLM_RESPONSE_PROCESSORS`.
             system_prompt_processor_names: Optional list of names for system prompt processors.
                                            Defaults to `DEFAULT_SYSTEM_PROMPT_PROCESSORS`.
+            use_xml_tool_format: Optional boolean. If True, XML format is preferred for tool
+                                 descriptions and examples. If False, JSON format is preferred.
+                                 Defaults to True (XML preferred) if not specified.
 
         Raises:
             ValueError: If any essential parameters are invalid or if processor name lists
@@ -51,8 +56,7 @@ class AgentDefinition(metaclass=AgentDefinitionMeta):
             raise ValueError("AgentDefinition requires a non-empty string 'role'.")
         if not description or not isinstance(description, str):
             raise ValueError(f"AgentDefinition '{name}' requires a non-empty string 'description'.")
-        # system_prompt can now be a template, so allow it to be potentially shorter if it relies on processing
-        if not isinstance(system_prompt, str): # Still must be a string
+        if not isinstance(system_prompt, str): 
             raise ValueError(f"AgentDefinition '{name}' requires 'system_prompt' to be a string.")
         if not isinstance(tool_names, list) or not all(isinstance(t_name, str) for t_name in tool_names):
             raise ValueError(f"AgentDefinition '{name}' requires 'tool_names' to be a List[str].")
@@ -69,23 +73,28 @@ class AgentDefinition(metaclass=AgentDefinitionMeta):
                 raise ValueError(f"AgentDefinition '{name}' requires 'llm_response_processor_names' to be a List[str] if provided.") 
             self._llm_response_processor_names = llm_response_processor_names
         
-        self._system_prompt_processor_names = list(self.DEFAULT_SYSTEM_PROMPT_PROCESSORS) # New logic
+        self._system_prompt_processor_names = list(self.DEFAULT_SYSTEM_PROMPT_PROCESSORS) 
         if system_prompt_processor_names is not None:
             if not isinstance(system_prompt_processor_names, list) or not all(isinstance(p_name, str) for p_name in system_prompt_processor_names):
                 raise ValueError(f"AgentDefinition '{name}' requires 'system_prompt_processor_names' to be a List[str] if provided.")
             self._system_prompt_processor_names = system_prompt_processor_names
 
+        if use_xml_tool_format is not None and not isinstance(use_xml_tool_format, bool):
+            raise ValueError(f"AgentDefinition '{name}' requires 'use_xml_tool_format' to be a boolean if provided.")
+        self._use_xml_tool_format: bool = True if use_xml_tool_format is None else use_xml_tool_format
+
 
         self._name = name
         self._role = role
         self._description = description
-        self._system_prompt: str = system_prompt # This is now a template
+        self._system_prompt: str = system_prompt 
         self._tool_names = tool_names
 
         logger.debug(f"AgentDefinition initialized for name '{self.name}', role '{self.role}', "
                      f"input_processors: {self._input_processor_names}, "
                      f"llm_response_processors: {self._llm_response_processor_names}, "
-                     f"system_prompt_processors: {self._system_prompt_processor_names}.") # Added new log part
+                     f"system_prompt_processors: {self._system_prompt_processor_names}, "
+                     f"use_xml_tool_format: {self._use_xml_tool_format}.")
 
     @property
     def name(self) -> str:
@@ -117,8 +126,13 @@ class AgentDefinition(metaclass=AgentDefinitionMeta):
         return self._llm_response_processor_names
 
     @property
-    def system_prompt_processor_names(self) -> List[str]: # New property
+    def system_prompt_processor_names(self) -> List[str]: 
         return self._system_prompt_processor_names
+
+    @property
+    def use_xml_tool_format(self) -> bool: # New property
+        """Determines the preferred format for tool descriptions and examples (True for XML, False for JSON)."""
+        return self._use_xml_tool_format
 
     def __repr__(self) -> str:
         desc_repr = self.description[:67] + "..." if len(self.description) > 70 else self.description
@@ -131,16 +145,19 @@ class AgentDefinition(metaclass=AgentDefinitionMeta):
                 f"system_prompt_template='{prompt_repr}', tool_names={self.tool_names}, "
                 f"input_processor_names={self.input_processor_names}, "
                 f"llm_response_processor_names={self.llm_response_processor_names}, "
-                f"system_prompt_processor_names={self.system_prompt_processor_names})") # Added to repr
+                f"system_prompt_processor_names={self.system_prompt_processor_names}, "
+                f"use_xml_tool_format={self.use_xml_tool_format})")
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "name": self.name,
             "role": self.role,
             "description": self.description,
-            "system_prompt": self.system_prompt, # This is the template
+            "system_prompt": self.system_prompt, 
             "tool_names": self.tool_names,
             "input_processor_names": self.input_processor_names,
             "llm_response_processor_names": self.llm_response_processor_names,
-            "system_prompt_processor_names": self.system_prompt_processor_names, # Added to dict
+            "system_prompt_processor_names": self.system_prompt_processor_names,
+            "use_xml_tool_format": self.use_xml_tool_format, # Added to dict
         }
+

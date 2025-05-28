@@ -25,11 +25,45 @@ class AgentProcessingEvent(BaseEvent):
     """Base class for events related to the agent's internal data processing and task execution logic."""
 
 
+# --- Agent Initialization Sequence Events ---
+@dataclass
+class AgentPreparationEvent(AgentProcessingEvent):
+    """Base class for events that are part of the agent's preparation/initialization sequence."""
+    pass
+
+@dataclass
+class CreateToolInstancesEvent(AgentPreparationEvent): 
+    """Event to trigger the instantiation of tools for the agent."""
+    pass
+
+@dataclass
+class ProcessSystemPromptEvent(AgentPreparationEvent):
+    """Event to trigger the processing of the agent's system prompt template."""
+    pass
+
+@dataclass
+class FinalizeLLMConfigEvent(AgentPreparationEvent):
+    """Event to trigger the finalization of the LLMConfig after system prompt processing."""
+    pass
+
+@dataclass
+class CreateLLMInstanceEvent(AgentPreparationEvent):
+    """Event to trigger the instantiation of the BaseLLM for the agent."""
+    pass
+
+
+# --- Agent Operational Phase Events ---
+@dataclass
+class AgentOperationalEvent(AgentProcessingEvent): # NEW BASE CLASS
+    """Base class for events that occur during the agent's active operational phase (post-preparation)."""
+    pass
+
+
 # --- Specific Lifecycle Events ---
 
 @dataclass
 class AgentStartedEvent(LifecycleEvent):
-    """Event indicating the agent has started its main execution loop."""
+    """Event indicating the agent has started its main execution loop and is fully initialized (including LLM and tools)."""
     pass
 
 @dataclass
@@ -44,34 +78,36 @@ class AgentErrorEvent(LifecycleEvent):
     exception_details: Optional[str] = None 
 
 
+# --- Regular Agent Processing Events (now Operational) ---
+
 @dataclass
-class UserMessageReceivedEvent(AgentProcessingEvent): 
+class UserMessageReceivedEvent(AgentOperationalEvent): 
     """Event carrying an agent user message that has been received and needs initial processing."""
     agent_input_user_message: AgentInputUserMessage 
 
 @dataclass
-class InterAgentMessageReceivedEvent(AgentProcessingEvent): 
+class InterAgentMessageReceivedEvent(AgentOperationalEvent): 
     """Event carrying an InterAgentMessage received from another agent."""
     inter_agent_message: InterAgentMessage
 
 @dataclass
-class LLMPromptReadyEvent(AgentProcessingEvent): 
-    """Event indicating that an LLMUserMessage is prepared and ready for LLM processing."""
+class LLMUserMessageReadyEvent(AgentOperationalEvent): 
+    """Event indicating that an LLMUserMessage (derived from user/agent input) is prepared and ready for LLM processing."""
     llm_user_message: LLMUserMessage 
 
 @dataclass
-class LLMCompleteResponseReceivedEvent(AgentProcessingEvent): 
+class LLMCompleteResponseReceivedEvent(AgentOperationalEvent): 
     """Event indicating that a complete LLM response has been received and aggregated."""
     complete_response_text: str
     is_error: bool = False 
 
 @dataclass
-class PendingToolInvocationEvent(AgentProcessingEvent): 
+class PendingToolInvocationEvent(AgentOperationalEvent): 
     """Event requesting a tool to be invoked, indicating it's pending execution or approval."""
     tool_invocation: ToolInvocation 
 
 @dataclass
-class ToolResultEvent(AgentProcessingEvent): 
+class ToolResultEvent(AgentOperationalEvent): 
     """Event carrying the result of a tool execution."""
     tool_name: str
     result: Any
@@ -79,22 +115,22 @@ class ToolResultEvent(AgentProcessingEvent):
     error: Optional[str] = None
 
 @dataclass
-class ToolExecutionApprovalEvent(AgentProcessingEvent): 
+class ToolExecutionApprovalEvent(AgentOperationalEvent): 
     """Event carrying the approval or denial for a tool execution request."""
     tool_invocation_id: str 
     is_approved: bool
     reason: Optional[str] = None 
 
 @dataclass
-class ApprovedToolInvocationEvent(AgentProcessingEvent):
+class ApprovedToolInvocationEvent(AgentOperationalEvent):
     """Event indicating a tool invocation has been approved and is ready for execution."""
     tool_invocation: ToolInvocation
 
 
 @dataclass
-class GenericEvent(BaseEvent): 
+class GenericEvent(AgentOperationalEvent): # Assuming GenericEvent is primarily operational
     """
-    A generic event for miscellaneous purposes.
+    A generic event for miscellaneous purposes, typically during active operation.
     Its 'type_name' attribute can be used by a GenericEventHandler for sub-dispatch.
     """
     payload: Dict[str, Any]

@@ -7,6 +7,7 @@ from .processor_meta import SystemPromptProcessorMeta # Relative import
 
 if TYPE_CHECKING:
     from autobyteus.tools.base_tool import BaseTool
+    from autobyteus.agent.context import AgentContext # Added for context type hint
     # AgentDefinition might be needed if processors need more context from definition
     # from autobyteus.agent.registry.agent_definition import AgentDefinition 
 
@@ -33,7 +34,8 @@ class BaseSystemPromptProcessor(ABC, metaclass=SystemPromptProcessorMeta):
     def process(self,
                 system_prompt: str,
                 tool_instances: Dict[str, 'BaseTool'],
-                agent_id: str) -> str:
+                agent_id: str,
+                context: 'AgentContext') -> str: # Added context parameter
         """
         Processes the given system prompt string.
 
@@ -44,6 +46,8 @@ class BaseSystemPromptProcessor(ABC, metaclass=SystemPromptProcessorMeta):
                             tool information (e.g., descriptions, schemas).
             agent_id: The ID of the agent for whom the prompt is being processed,
                       useful for logging or context-specific behavior.
+            context: The agent's context, providing access to agent definition,
+                     state, and configuration.
 
         Returns:
             The processed (potentially modified) system prompt string.

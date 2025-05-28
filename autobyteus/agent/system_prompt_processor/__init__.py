@@ -11,6 +11,7 @@ from .base_processor import BaseSystemPromptProcessor
 
 # Import concrete processors here to ensure they are registered by the metaclass
 from .tool_description_injector_processor import ToolDescriptionInjectorProcessor
+from .tool_usage_example_injector_processor import ToolUsageExampleInjectorProcessor # Added new processor
 
 __all__ = [
     "SystemPromptProcessorDefinition",
@@ -18,5 +19,6 @@ __all__ = [
     "default_system_prompt_processor_registry",
     "SystemPromptProcessorMeta",
     "BaseSystemPromptProcessor",
-    "ToolDescriptionInjectorProcessor", # Added concrete processor
+    "ToolDescriptionInjectorProcessor", 
+    "ToolUsageExampleInjectorProcessor", # Added new processor to __all__
 ]

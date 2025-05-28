@@ -3,19 +3,19 @@ import logging
 from typing import TYPE_CHECKING
 
 from autobyteus.agent.handlers.base_event_handler import AgentEventHandler
-from autobyteus.agent.events import InterAgentMessageReceivedEvent, LLMPromptReadyEvent # MODIFIED IMPORT
+from autobyteus.agent.events import InterAgentMessageReceivedEvent, LLMUserMessageReadyEvent # RENAMED Event
 from autobyteus.agent.message.inter_agent_message import InterAgentMessage
 from autobyteus.llm.user_message import LLMUserMessage
 
 if TYPE_CHECKING:
-    from autobyteus.agent.context import AgentContext # MODIFIED IMPORT
+    from autobyteus.agent.context import AgentContext 
 
 logger = logging.getLogger(__name__)
 
 class InterAgentMessageReceivedEventHandler(AgentEventHandler):
     """
     Handles InterAgentMessageReceivedEvents by formatting the InterAgentMessage
-    into an LLMUserMessage and enqueuing an LLMPromptReadyEvent for LLM processing.
+    into an LLMUserMessage and enqueuing an LLMUserMessageReadyEvent for LLM processing.
     """
 
     def __init__(self):
@@ -29,7 +29,7 @@ class InterAgentMessageReceivedEventHandler(AgentEventHandler):
 
         Args:
             event: The InterAgentMessageReceivedEvent.
-            context: The agent's context.
+            context: The agent's composite context.
         """
         if not isinstance(event, InterAgentMessageReceivedEvent):
             logger.warning(
@@ -57,7 +57,8 @@ class InterAgentMessageReceivedEventHandler(AgentEventHandler):
             f"Please process this information and respond or act accordingly."
         )
         
-        context.add_message_to_history({
+        # Access conversation_history via context.state
+        context.state.add_message_to_history({
             "role": "user", 
             "content": content_for_llm,
             "sender_agent_id": inter_agent_msg.sender_agent_id, 
@@ -66,10 +67,11 @@ class InterAgentMessageReceivedEventHandler(AgentEventHandler):
 
         llm_user_message = LLMUserMessage(content=content_for_llm)
         
-        llm_prompt_ready_event = LLMPromptReadyEvent(llm_user_message=llm_user_message)
-        await context.queues.enqueue_internal_system_event(llm_prompt_ready_event)
+        llm_user_message_ready_event = LLMUserMessageReadyEvent(llm_user_message=llm_user_message) # RENAMED Event
+        # Access queues via context.state
+        await context.state.queues.enqueue_internal_system_event(llm_user_message_ready_event)
         
         logger.info(
             f"Agent '{context.agent_id}' processed InterAgentMessage from sender '{inter_agent_msg.sender_agent_id}' "
-            f"and enqueued LLMPromptReadyEvent."
+            f"and enqueued LLMUserMessageReadyEvent."
         )

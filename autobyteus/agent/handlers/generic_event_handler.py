@@ -3,10 +3,10 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from autobyteus.agent.handlers.base_event_handler import AgentEventHandler
-from autobyteus.agent.events import GenericEvent # MODIFIED IMPORT
+from autobyteus.agent.events import GenericEvent 
 
 if TYPE_CHECKING:
-    from autobyteus.agent.context import AgentContext # MODIFIED IMPORT
+    from autobyteus.agent.context import AgentContext # Composite AgentContext
 
 logger = logging.getLogger(__name__)
 
@@ -21,23 +21,26 @@ class GenericEventHandler(AgentEventHandler):
 
     async def handle(self,
                      event: GenericEvent, 
-                     context: 'AgentContext') -> None:
+                     context: 'AgentContext') -> None: # context is composite
         """
         Handles a GenericEvent.
 
         Args:
             event: The GenericEvent object to handle.
-            context: The AgentContext.
+            context: The composite AgentContext.
         """
-        if not isinstance(event, GenericEvent): # Type check for safety
+        if not isinstance(event, GenericEvent): 
             logger.warning(f"GenericEventHandler received a non-GenericEvent: {type(event)}. Skipping.")
             return
+        
+        agent_id = context.agent_id # Using convenience property
 
-        logger.info(f"Agent '{context.agent_id}' handling GenericEvent with type_name: '{event.type_name}'. Payload: {event.payload}")
+        logger.info(f"Agent '{agent_id}' handling GenericEvent with type_name: '{event.type_name}'. Payload: {event.payload}")
 
         if event.type_name == "example_custom_generic_event":
-            logger.info(f"Handling specific generic event 'example_custom_generic_event' for agent '{context.agent_id}'.")
+            logger.info(f"Handling specific generic event 'example_custom_generic_event' for agent '{agent_id}'.")
         elif event.type_name == "another_custom_event":
-            logger.info(f"Handling specific generic event 'another_custom_event' for agent '{context.agent_id}'.")
+            logger.info(f"Handling specific generic event 'another_custom_event' for agent '{agent_id}'.")
         else:
-            logger.warning(f"Agent '{context.agent_id}' received GenericEvent with unhandled type_name: '{event.type_name}'.")
+            logger.warning(f"Agent '{agent_id}' received GenericEvent with unhandled type_name: '{event.type_name}'.")
+

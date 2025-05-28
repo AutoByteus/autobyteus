@@ -8,7 +8,7 @@ from autobyteus.agent.events import ApprovedToolInvocationEvent, ToolResultEvent
 from autobyteus.agent.tool_invocation import ToolInvocation
 
 if TYPE_CHECKING:
-    from autobyteus.agent.context import AgentContext
+    from autobyteus.agent.context import AgentContext # Composite AgentContext
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class ApprovedToolInvocationEventHandler(AgentEventHandler):
 
     async def handle(self,
                      event: ApprovedToolInvocationEvent,
-                     context: 'AgentContext') -> None:
+                     context: 'AgentContext') -> None: # context is composite
         if not isinstance(event, ApprovedToolInvocationEvent):
             logger.warning(f"ApprovedToolInvocationEventHandler received non-ApprovedToolInvocationEvent: {type(event)}. Skipping.")
             return
@@ -31,38 +31,41 @@ class ApprovedToolInvocationEventHandler(AgentEventHandler):
         tool_invocation: ToolInvocation = event.tool_invocation
         tool_name = tool_invocation.name
         arguments = tool_invocation.arguments
-        invocation_id = tool_invocation.id # ID is already part of ToolInvocation
+        invocation_id = tool_invocation.id
 
-        tool_log_queue = context.queues.tool_interaction_log_queue
+        agent_id = context.agent_id # Access via context.agent_id (convenience property)
+        tool_log_queue = context.queues.tool_interaction_log_queue # Access via context.queues (convenience property)
 
-        logger.info(f"Agent '{context.agent_id}' handling ApprovedToolInvocationEvent for tool: '{tool_name}' (ID: {invocation_id}) with args: {arguments}")
+        logger.info(f"Agent '{agent_id}' handling ApprovedToolInvocationEvent for tool: '{tool_name}' (ID: {invocation_id}) with args: {arguments}")
 
         try:
             args_str = json.dumps(arguments)
         except TypeError:
             args_str = str(arguments)
-        log_msg_call = f"[APPROVED_TOOL_CALL] Agent_ID: {context.agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Arguments: {args_str}"
+        log_msg_call = f"[APPROVED_TOOL_CALL] Agent_ID: {agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Arguments: {args_str}"
         await tool_log_queue.put(log_msg_call)
 
-        tool_instance = context.get_tool(tool_name)
+        tool_instance = context.get_tool(tool_name) # CORRECTED: Use context.get_tool()
+        
         result_event: ToolResultEvent
 
         if not tool_instance:
-            error_message = f"Tool '{tool_name}' not found or configured for agent '{context.agent_id}'."
+            error_message = f"Tool '{tool_name}' not found or configured for agent '{agent_id}'."
             logger.error(error_message)
             result_event = ToolResultEvent(tool_name=tool_name, result=None, error=error_message, tool_invocation_id=invocation_id)
+            # Access add_message_to_history via context convenience method (which uses context.state)
             context.add_message_to_history({
                 "role": "tool",
                 "tool_call_id": invocation_id,
                 "name": tool_name,
                 "content": f"Error: Approved tool '{tool_name}' execution failed. Reason: {error_message}",
             })
-            log_msg_error = f"[APPROVED_TOOL_ERROR] Agent_ID: {context.agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Error: {error_message}"
+            log_msg_error = f"[APPROVED_TOOL_ERROR] Agent_ID: {agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Error: {error_message}"
             await tool_log_queue.put(log_msg_error)
         else:
             try:
-                logger.debug(f"Executing approved tool '{tool_name}' for agent '{context.agent_id}'. Invocation ID: {invocation_id}")
-                # Pass AgentContext as a keyword argument to tool_instance.execute
+                logger.debug(f"Executing approved tool '{tool_name}' for agent '{agent_id}'. Invocation ID: {invocation_id}")
+                # Pass composite AgentContext to tool_instance.execute
                 execution_result = await tool_instance.execute(context=context, **arguments)
                 
                 try:
@@ -70,10 +73,10 @@ class ApprovedToolInvocationEventHandler(AgentEventHandler):
                 except TypeError:
                     result_str_for_log = str(execution_result)
 
-                logger.info(f"Approved tool '{tool_name}' (ID: {invocation_id}) executed successfully by agent '{context.agent_id}'. Result: {result_str_for_log[:200]}...")
+                logger.info(f"Approved tool '{tool_name}' (ID: {invocation_id}) executed successfully by agent '{agent_id}'. Result: {result_str_for_log[:200]}...")
                 result_event = ToolResultEvent(tool_name=tool_name, result=execution_result, error=None, tool_invocation_id=invocation_id)
                 
-                history_content = str(execution_result) 
+                history_content = str(execution_result)
 
                 context.add_message_to_history({
                     "role": "tool",
@@ -81,12 +84,12 @@ class ApprovedToolInvocationEventHandler(AgentEventHandler):
                     "name": tool_name,
                     "content": history_content,
                 })
-                log_msg_result = f"[APPROVED_TOOL_RESULT] Agent_ID: {context.agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Outcome (first 200 chars): {result_str_for_log[:200]}"
+                log_msg_result = f"[APPROVED_TOOL_RESULT] Agent_ID: {agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Outcome (first 200 chars): {result_str_for_log[:200]}"
                 await tool_log_queue.put(log_msg_result)
 
             except Exception as e:
                 error_message = f"Error executing approved tool '{tool_name}' (ID: {invocation_id}): {str(e)}"
-                logger.error(f"Agent '{context.agent_id}' {error_message}", exc_info=True)
+                logger.error(f"Agent '{agent_id}' {error_message}", exc_info=True)
                 result_event = ToolResultEvent(tool_name=tool_name, result=None, error=error_message, tool_invocation_id=invocation_id)
                 context.add_message_to_history({
                     "role": "tool",
@@ -94,8 +97,8 @@ class ApprovedToolInvocationEventHandler(AgentEventHandler):
                     "name": tool_name,
                     "content": f"Error: Approved tool '{tool_name}' execution failed. Reason: {error_message}",
                 })
-                log_msg_exception = f"[APPROVED_TOOL_EXCEPTION] Agent_ID: {context.agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Exception: {error_message}"
+                log_msg_exception = f"[APPROVED_TOOL_EXCEPTION] Agent_ID: {agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Exception: {error_message}"
                 await tool_log_queue.put(log_msg_exception)
         
-        await context.queues.enqueue_tool_result(result_event)
-        logger.debug(f"Agent '{context.agent_id}' enqueued ToolResultEvent for approved tool '{tool_name}' (ID: {invocation_id}).")
+        await context.queues.enqueue_tool_result(result_event) # Access via context.queues
+        logger.debug(f"Agent '{agent_id}' enqueued ToolResultEvent for approved tool '{tool_name}' (ID: {invocation_id}).")

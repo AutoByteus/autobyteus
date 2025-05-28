@@ -223,7 +223,7 @@ def tool(
             _tool_reg_argument_schema = final_argument_schema_for_tool_def
             _tool_reg_config_schema = config_schema 
             _tool_reg_is_async = is_async_func
-            _tool_reg_original_func = func
+            _tool_reg_original_func = func # This stores the original, unbound function
             _tool_reg_func_param_names = func_param_names_for_call
             _tool_reg_expects_context = expects_context_param
 
@@ -261,11 +261,19 @@ def tool(
                 if self._tool_reg_expects_context:
                     call_args['context'] = context
                 
+                # Get the class of the current instance (self)
+                current_class = type(self)
+
                 if self._tool_reg_is_async:
-                    return await self._tool_reg_original_func(**call_args)
+                    # Call the original function via the class attribute to avoid implicit self binding
+                    return await current_class._tool_reg_original_func(**call_args)
                 else:
                     loop = asyncio.get_event_loop()
-                    return await loop.run_in_executor(None, lambda: self._tool_reg_original_func(**call_args))
+                    # Call the original function via the class attribute in the executor
+                    # Ensure 'current_class' is available in the lambda's scope correctly
+                    # or assign to a local variable before the lambda.
+                    original_func_to_call = current_class._tool_reg_original_func
+                    return await loop.run_in_executor(None, lambda: original_func_to_call(**call_args))
 
         NewToolClass.__name__ = dynamic_class_name_str
         NewToolClass.__qualname__ = dynamic_class_name_str 

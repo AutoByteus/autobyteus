@@ -4,6 +4,7 @@ import logging
 import argparse
 import signal
 import sys 
+from typing import Optional
 
 from autobyteus.agent.registry.agent_definition import AgentDefinition
 from autobyteus.agent.registry.agent_registry import default_definition_registry_instance, default_agent_registry
@@ -17,7 +18,6 @@ from autobyteus.rpc.transport_type import TransportType
 try:
     from autobyteus.agent.input_processor import PassthroughInputProcessor
 except ImportError:
-    # logging not configured yet at top level import time, print for early diagnostics
     print("WARNING: PassthroughInputProcessor not found, EchoAgentDefinition in server_main might fail if used.", file=sys.stderr)
 
 
@@ -38,7 +38,7 @@ try:
             description="A simple agent that echoes back user messages.",
             system_prompt="You are an echo agent. Repeat the user's message precisely.",
             tool_names=[], 
-            input_processor_names=["PassthroughInputProcessor"],
+            input_processor_names=["PassthroughInputProcessor"], # Assumes PassthroughInputProcessor is registered
             llm_response_processor_names=[] 
         )
         logger.info(f"Example AgentDefinition '{ECHO_AGENT_DEF.name}' created and auto-registered for server_main.")
@@ -56,10 +56,10 @@ server_endpoint_global: Optional[AgentServerEndpoint] = None
 async def main():
     global agent_global, server_endpoint_global
 
-    parser = argparse.ArgumentParser(description="AutoByteUs Agent RPC Server") # Title updated
+    parser = argparse.ArgumentParser(description="AutoByteUs Agent RPC Server") 
     parser.add_argument("--agent-def-name", type=str, required=True, help="Name of the AgentDefinition.")
     parser.add_argument("--agent-def-role", type=str, required=True, help="Role of the AgentDefinition.")
-    parser.add_argument("--llm-model-name", type=str, required=True, help="Name of the LLMModel (e.g., 'OPENAI_GPT35_TURBO').")
+    parser.add_argument("--llm-model-name", type=str, required=True, help="Name of the LLMModel (e.g., 'GPT_4o_API'). This is the string name for the model, not the enum member itself.")
     parser.add_argument("--server-config-id", type=str, required=True, help="ID of the AgentServerConfig.")
     
     args = parser.parse_args()
@@ -70,10 +70,13 @@ async def main():
         logger.error(f"AgentDefinition not found for name='{args.agent_def_name}', role='{args.agent_def_role}'.")
         sys.exit(1)
 
+    # The llm_model_name from args is already a string, which is what create_agent now expects.
+    # We still need to validate if it's a known model name for robustness,
+    # though create_agent (via AgentFactory -> AgentConfig) will also do this.
     try:
-        llm_model_enum_member = LLMModel[args.llm_model_name.upper()]
+        LLMModel[args.llm_model_name.upper()] # Validate if the name maps to a known LLMModel enum member
     except KeyError:
-        logger.error(f"LLMModel '{args.llm_model_name}' not found. Available: {[m.name for m in LLMModel]}")
+        logger.error(f"LLMModel name '{args.llm_model_name}' provided via --llm-model-name is not a recognized LLMModel. Available: {[m.name for m in LLMModel]}")
         sys.exit(1)
 
     server_config = default_agent_server_registry.get_config(args.server_config_id)
@@ -81,13 +84,14 @@ async def main():
         logger.error(f"AgentServerConfig not found for server_config_id='{args.server_config_id}'.")
         sys.exit(1)
     
-    # Transport type check moved to AgentServerEndpoint or specific handlers.
-    # server_main can now launch either stdio or sse based on config.
-
     try:
+        # UPDATED: Pass llm_model_name directly as a string.
+        # AgentRegistry.create_agent -> AgentFactory.create_agent_runtime -> AgentFactory.create_agent_context
+        # -> AgentConfig now takes llm_model_name: str.
         agent = default_agent_registry.create_agent(
             definition=agent_definition,
-            llm_model=llm_model_enum_member
+            llm_model_name=args.llm_model_name # Pass the string name
+            # custom_llm_config, custom_tool_config, etc., can be added here if needed
         )
         agent_global = agent
     except Exception as e:
@@ -105,7 +109,7 @@ async def main():
         agent.start()
         
         logger.info(f"Starting AgentServerEndpoint for agent '{agent.agent_id}' with config '{server_config.server_id}' (Transport: {server_config.transport_type.value})...")
-        await server_endpoint.start(server_config) # This will block if SSE server runs in foreground, or manage task if stdio
+        await server_endpoint.start(server_config) 
 
         logger.info(f"Agent '{agent.agent_id}' is now hosted and listening via RPC ({server_config.transport_type.value}).")
         await shutdown_event.wait()
@@ -129,34 +133,48 @@ async def initiate_shutdown_from_signal():
     shutdown_event.set()
 
 if __name__ == "__main__":
+    # Ensure input processors are available if EchoAgentDefinition needs them
+    # This try-except is more for robustness during development/examples.
     try:
-        import autobyteus.agent.input_processor 
+        # This import ensures that processors like PassthroughInputProcessor are registered
+        # if EchoAgentDefinition (or others used by server_main) depends on them.
+        from autobyteus.agent import input_processor # type: ignore
     except ImportError as e_proc:
-        logger.warning(f"Could not import autobyteus.agent.input_processor: {e_proc}. Some agent definitions might fail.")
+        logger.warning(f"Could not import autobyteus.agent.input_processor: {e_proc}. "
+                       "Make sure custom input processors are correctly installed and registered if used by agent definitions.")
 
-    # Example STDIO server config
+
+    # Example STDIO server config (remains for testing server_main directly)
     stdio_cfg_id = "default_stdio_server_cfg"
     if not default_agent_server_registry.get_config(stdio_cfg_id):
         example_stdio_cfg = AgentServerConfig(
             server_id=stdio_cfg_id,
             transport_type=TransportType.STDIO,
-            stdio_command=["python", "-m", "autobyteus.rpc.server_main"] 
+            # stdio_command is usually for launching this script itself as a subprocess.
+            # For direct execution of server_main.py, this specific command isn't directly used
+            # but a valid config is needed if --server-config-id=default_stdio_server_cfg is passed.
+            stdio_command=["python", "-m", "autobyteus.rpc.server_main",
+                           "--agent-def-name", "EchoAgent", 
+                           "--agent-def-role", "echo_responder",
+                           "--llm-model-name", "GPT_4O_API", # Example model name
+                           "--server-config-id", stdio_cfg_id
+                          ] 
         )
         default_agent_server_registry.register_config(example_stdio_cfg)
-        logger.info(f"Registered example '{stdio_cfg_id}'.")
+        logger.info(f"Registered example STDIOServerConfig '{stdio_cfg_id}'.")
 
     # Example SSE server config
     sse_cfg_id = "default_sse_server_cfg"
     if not default_agent_server_registry.get_config(sse_cfg_id):
         example_sse_cfg = AgentServerConfig(
-            server_id=sse_cfg_id,
+            server_id=sse_cfg_id, # This ID is for the server config itself
             transport_type=TransportType.SSE,
-            sse_base_url="http://localhost:8765", # Example port
-            sse_request_endpoint="/rpc",
-            sse_events_endpoint="/events"
+            sse_base_url="http://localhost:8765", 
+            sse_request_endpoint="/invoke_rpc", # Changed from /rpc to avoid clash with potential future global /rpc
+            sse_events_endpoint="/agent_events" # Changed from /events
         )
         default_agent_server_registry.register_config(example_sse_cfg)
-        logger.info(f"Registered example '{sse_cfg_id}'.")
+        logger.info(f"Registered example SseServerConfig '{sse_cfg_id}'.")
 
     loop = asyncio.get_event_loop()
     for sig_name_str in ('SIGINT', 'SIGTERM'):
@@ -164,18 +182,17 @@ if __name__ == "__main__":
         if sig_enum_member:
             try:
                 loop.add_signal_handler(sig_enum_member, lambda s=sig_name_str: asyncio.create_task(initiate_shutdown_from_signal()))
-            except (ValueError, RuntimeError, NotImplementedError) as e:
-                 logger.warning(f"Could not set signal handler for {sig_name_str}: {e}.")
+            except (ValueError, RuntimeError, NotImplementedError) as e: # Might fail on Windows for SIGTERM
+                 logger.warning(f"Could not set signal handler for {sig_name_str} on this platform: {e}.")
     try:
         loop.run_until_complete(main())
     except KeyboardInterrupt:
-        logger.info("KeyboardInterrupt received in main loop. Shutting down.")
-        if not shutdown_event.is_set(): # Check if already initiated by signal handler
-            # Ensure running in the loop if not already
+        logger.info("KeyboardInterrupt received in main. Shutting down.")
+        if not shutdown_event.is_set(): 
             if loop.is_running():
                 asyncio.ensure_future(initiate_shutdown_from_signal(), loop=loop)
-            else:
+            else: # Should not happen if loop was running
                 loop.run_until_complete(initiate_shutdown_from_signal())
-
     finally:
-        logger.info("Asyncio loop tasks are being finalized.")
+        logger.info("Asyncio loop in server_main is finalizing.")
+

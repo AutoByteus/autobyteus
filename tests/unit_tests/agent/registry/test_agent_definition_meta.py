@@ -18,20 +18,12 @@ def fresh_registry_for_meta_tests(monkeypatch):
     attempts to register with a fresh, isolated AgentDefinitionRegistry instance.
     It also clears this fresh registry before each test.
     """
-    # Create a fresh registry instance for tests
     test_registry = AgentDefinitionRegistry()
-
-    # Patch the location where AgentDefinitionMeta imports default_definition_registry_instance.
-    # This is the actual source of the 'default_definition_registry_instance' name.
     monkeypatch.setattr(
         'autobyteus.agent.registry.agent_registry.default_definition_registry_instance',
         test_registry
     )
-    
-    # Yield the test_registry so tests can access it if needed for assertions
     yield test_registry
-    
-    # Teardown: clear the test_registry after the test if needed, though a new one is made each time.
     test_registry.clear()
 
 
@@ -46,16 +38,30 @@ def test_agent_definition_auto_registers(fresh_registry_for_meta_tests: AgentDef
             role="TestRole",
             description="Auto-registers",
             system_prompt="Behave.",
-            tool_names=["tool_x"]
+            tool_names=["tool_x"],
+            use_xml_tool_format=False # Explicitly set for test
         )
     
     assert len(registry) == 1
     retrieved_def = registry.get("AutoRegAgent", "TestRole")
     assert retrieved_def is definition
+    assert retrieved_def.use_xml_tool_format is False # Verify new attribute
     
     expected_log_part = "Auto-registered AgentDefinition instance: 'AutoRegAgent' (Role: 'TestRole')"
     assert expected_log_part in caplog.text
     assert f"with key 'AutoRegAgent{AgentDefinitionRegistry._KEY_SEPARATOR}TestRole'" in caplog.text
+    
+    # Test default for use_xml_tool_format
+    definition_default_xml = AgentDefinition(
+        name="AutoRegAgentDefault",
+        role="TestRoleDefault",
+        description="Auto-registers",
+        system_prompt="Behave.",
+        tool_names=["tool_y"]
+        # use_xml_tool_format uses default True
+    )
+    assert definition_default_xml.use_xml_tool_format is True
+    assert registry.get("AutoRegAgentDefault", "TestRoleDefault") is definition_default_xml
 
 
 def test_multiple_agent_definitions_auto_register(fresh_registry_for_meta_tests: AgentDefinitionRegistry):
@@ -63,11 +69,14 @@ def test_multiple_agent_definitions_auto_register(fresh_registry_for_meta_tests:
     registry = fresh_registry_for_meta_tests
     
     def1 = AgentDefinition("AgentOne", "RoleA", "d1", "p1", [])
-    def2 = AgentDefinition("AgentTwo", "RoleB", "d2", "p2", [])
+    def2 = AgentDefinition("AgentTwo", "RoleB", "d2", "p2", [], use_xml_tool_format=False)
     
     assert len(registry) == 2
     assert registry.get("AgentOne", "RoleA") is def1
+    assert registry.get("AgentOne", "RoleA").use_xml_tool_format is True # Default
     assert registry.get("AgentTwo", "RoleB") is def2
+    assert registry.get("AgentTwo", "RoleB").use_xml_tool_format is False
+
 
 def test_auto_registration_on_init_failure(fresh_registry_for_meta_tests: AgentDefinitionRegistry):
     """
@@ -77,85 +86,70 @@ def test_auto_registration_on_init_failure(fresh_registry_for_meta_tests: AgentD
     registry = fresh_registry_for_meta_tests
     
     with pytest.raises(ValueError, match="AgentDefinition requires a non-empty string 'name'"):
-        # This will fail in AgentDefinition.__init__
         AgentDefinition(name="", role="InvalidRole", description="d", system_prompt="p", tool_names=[])
         
     assert len(registry) == 0, "Registry should be empty if __init__ failed before registration."
 
-@patch('autobyteus.agent.registry.agent_definition_meta.logger') # Patch logger inside AgentDefinitionMeta
+    # Test invalid type for use_xml_tool_format
+    with pytest.raises(ValueError, match="requires 'use_xml_tool_format' to be a boolean if provided"):
+        AgentDefinition(name="ValidName", role="ValidRole", description="d", system_prompt="p", tool_names=[], use_xml_tool_format="not_a_bool") # type: ignore
+    assert len(registry) == 0
+
+
+@patch('autobyteus.agent.registry.agent_definition_meta.logger') 
 def test_auto_registration_failure_if_registry_register_fails(
     mock_meta_logger: MagicMock, 
     fresh_registry_for_meta_tests: AgentDefinitionRegistry
 ):
-    """
-    Test graceful handling if the registry's register method itself fails.
-    The instance should still be created and returned.
-    """
     registry = fresh_registry_for_meta_tests
-    
-    # Mock the register method of our test_registry to raise an error
     simulated_error = RuntimeError("Simulated registry.register() failure")
-    
-    # Ensure the mocked register is on the correct registry instance that the meta will use
+    original_register_method = registry.register 
     registry.register = MagicMock(side_effect=simulated_error)
-
 
     definition = None
     try:
         definition = AgentDefinition("FailRegAgent", "TestRole", "d", "p", [])
-    except Exception: # pragma: no cover
+    except Exception: 
         pytest.fail("AgentDefinition instantiation should not fail if only registration fails.")
+    finally:
+        registry.register = original_register_method 
 
-    assert definition is not None, "AgentDefinition instance should still be created."
+    assert definition is not None
     assert definition.name == "FailRegAgent"
-    # The registry.register was mocked to fail, so the item count should reflect that.
-    # If register fails, the item is not added.
-    assert len(registry._definitions) == 0, "Registry's internal definitions dict should be empty." 
+    assert len(registry._definitions) == 0
     
     mock_meta_logger.error.assert_called_once()
-    
-    # Extract the logged message and exception from the call_args
-    # call_args is a tuple, first element is args, second is kwargs
-    # For logger.error(msg, exc_info=True), msg is args[0], and exc_info=True implies the exception is logged.
-    # We need to check the first positional argument of the logger call for the message.
     logged_message = mock_meta_logger.error.call_args[0][0]
     logged_exc_info = mock_meta_logger.error.call_args.kwargs.get('exc_info', False)
-
     assert "An unexpected error occurred during auto-registration of AgentDefinition 'FailRegAgent'" in logged_message
-    assert str(simulated_error) in logged_message # Check if the original error message is part of the log
-    assert logged_exc_info is True # Check that exc_info=True was used
+    assert str(simulated_error) in logged_message 
+    assert logged_exc_info is True 
 
 
 @patch('autobyteus.agent.registry.agent_definition_meta.logger')
 def test_auto_registration_skipped_if_default_registry_is_none(mock_meta_logger: MagicMock, monkeypatch):
-    """
-    Test that registration is skipped and an error is logged if the default
-    registry instance is None when AgentDefinitionMeta tries to use it.
-    """
-    # Make the default_definition_registry_instance (as imported by the metaclass) None
     monkeypatch.setattr(
         'autobyteus.agent.registry.agent_registry.default_definition_registry_instance',
         None
     )
-    
     definition = AgentDefinition("NoRegAgent", "NoRegRole", "d", "p", [])
-
     assert definition is not None
     assert definition.name == "NoRegAgent"
     
-    # Check for the specific error log about the registry being None
     error_logged = False
     for call_arg_list in mock_meta_logger.error.call_args_list:
-        if "Default AgentDefinitionRegistry instance (default_definition_registry_instance) is None" in call_arg_list[0][0]:
+        args, _ = call_arg_list
+        if "Default AgentDefinitionRegistry instance (default_definition_registry_instance) is None" in args[0]:
             error_logged = True
             break
     assert error_logged, "Expected log for None default_definition_registry_instance was not found."
 
 
 def test_metaclass_does_not_interfere_with_definition_attributes(fresh_registry_for_meta_tests):
-    """Ensure standard attribute access and class properties are unaffected."""
     registry = fresh_registry_for_meta_tests
-    
+    custom_sys_procs = ["CustomSysProc"]
+    custom_llm_resp_procs = ["CustomRespProc"]
+
     definition = AgentDefinition(
         name="AttrAgent",
         role="AttrRole",
@@ -163,7 +157,9 @@ def test_metaclass_does_not_interfere_with_definition_attributes(fresh_registry_
         system_prompt="Prompt",
         tool_names=["tool_y"],
         input_processor_names=["proc1"],
-        llm_response_processor_names=["resp_proc1"]
+        llm_response_processor_names=custom_llm_resp_procs,
+        system_prompt_processor_names=custom_sys_procs,
+        use_xml_tool_format=False
     )
     
     assert definition.name == "AttrAgent"
@@ -172,8 +168,15 @@ def test_metaclass_does_not_interfere_with_definition_attributes(fresh_registry_
     assert definition.system_prompt == "Prompt"
     assert definition.tool_names == ["tool_y"]
     assert definition.input_processor_names == ["proc1"]
-    assert definition.llm_response_processor_names == ["resp_proc1"]
-    assert AgentDefinition.DEFAULT_LLM_RESPONSE_PROCESSORS == ["xml_tool_usage"]
+    assert definition.llm_response_processor_names == custom_llm_resp_procs
+    assert definition.system_prompt_processor_names == custom_sys_procs
+    assert definition.use_xml_tool_format is False # Check new attribute
     
-    assert len(registry) == 1
+    default_def = AgentDefinition("DefaultProcAgent", "RoleDef", "d", "p", [])
+    assert default_def.llm_response_processor_names == AgentDefinition.DEFAULT_LLM_RESPONSE_PROCESSORS
+    assert default_def.system_prompt_processor_names == AgentDefinition.DEFAULT_SYSTEM_PROMPT_PROCESSORS
+    assert default_def.use_xml_tool_format is True # Check default
+    
+    assert len(registry) == 2
     assert registry.get("AttrAgent", "AttrRole") is definition
+    assert registry.get("DefaultProcAgent", "RoleDef") is default_def

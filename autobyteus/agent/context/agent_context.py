@@ -1,182 +1,173 @@
 # file: autobyteus/autobyteus/agent/context/agent_context.py
 import logging
-from typing import List, Dict, Any, Optional
+from typing import TYPE_CHECKING, List, Dict, Any, Optional
 
-# Imports will need to change based on new locations
-from autobyteus.agent.registry.agent_definition import AgentDefinition
-from autobyteus.agent.events.agent_event_queues import AgentEventQueues # MODIFIED IMPORT
-from autobyteus.llm.base_llm import BaseLLM
-from autobyteus.tools.base_tool import BaseTool
-from autobyteus.agent.status import AgentStatus
-from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace 
-from autobyteus.agent.tool_invocation import ToolInvocation # Added for type hinting
+# Forward references for type hinting within this module
+if TYPE_CHECKING:
+    from .agent_config import AgentConfig 
+    from .agent_runtime_state import AgentRuntimeState 
+    from autobyteus.agent.registry.agent_definition import AgentDefinition
+    from autobyteus.llm.base_llm import BaseLLM
+    from autobyteus.tools.base_tool import BaseTool
+    from autobyteus.agent.events.agent_event_queues import AgentEventQueues
+    from autobyteus.agent.status import AgentStatus
+    from autobyteus.agent.tool_invocation import ToolInvocation
+    from autobyteus.llm.utils.llm_config import LLMConfig
+    from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
+    from autobyteus.agent.context.agent_status_manager import AgentStatusManager # For status_manager property
+    from autobyteus.tools.tool_config import ToolConfig # For custom_tool_config property
+
 
 logger = logging.getLogger(__name__)
 
 class AgentContext:
     """
-    Represents the complete operational context for a single agent instance.
-    It serves as a central data object for event handlers and the agent runtime.
+    Represents the complete operational context for a single agent instance,
+    composed of static configuration (AgentConfig) and dynamic runtime state
+    (AgentRuntimeState). Tool instances are now accessed via AgentRuntimeState.
 
-    The AgentContext encapsulates:
-    1.  A reference to the agent's static blueprint (`definition: AgentDefinition`).
-    2.  Instantiated operational components:
-        - LLM instance (`llm_instance`)
-        - Tool instances (`tool_instances`)
-        - Communication channels (`queues`)
-        - Workspace (`workspace`)
-    3.  Dynamic, instance-specific runtime state and configuration:
-        - Current operational status (`status`), managed externally by AgentStatusManager.
-        - Conversation history (`conversation_history`).
-        - Mode for tool execution (`auto_execute_tools` - True for automatic, False for approval-based).
-        - Pending tool approvals (`pending_tool_approvals`).
-        - Other custom data (`custom_data`).
-    
-    While it holds a reference to the static AgentDefinition, the AgentContext itself
-    is primarily concerned with the live, operational aspects of an agent instance.
+    It serves as the primary data object passed to event handlers and used by
+    the agent runtime.
     """
-    def __init__(self,
-                 agent_id: str,
-                 definition: AgentDefinition,
-                 queues: AgentEventQueues,
-                 llm_instance: BaseLLM,
-                 tool_instances: Dict[str, BaseTool],
-                 auto_execute_tools: bool, 
-                 workspace: Optional[BaseAgentWorkspace] = None, 
-                 conversation_history: Optional[List[Dict[str, Any]]] = None,
-                 custom_data: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: 'AgentConfig', state: 'AgentRuntimeState'):
         """
         Initializes the AgentContext.
 
         Args:
-            agent_id: The unique identifier for this agent instance.
-            definition: The static AgentDefinition (blueprint) for this agent.
-            queues: The AgentEventQueues instance for this agent's communication.
-            llm_instance: The instantiated LLM model for this agent.
-            tool_instances: A dictionary of instantiated tools, keyed by tool name.
-            auto_execute_tools: Runtime flag. If True, tools are executed automatically.
-                                If False, tools require approval.
-            workspace: Optional. The agent's dedicated workspace environment.
-            conversation_history: Optional pre-filled conversation history.
-            custom_data: Optional dictionary for storing any other contextual data.
+            config: The static configuration for the agent.
+            state: The dynamic runtime state for the agent.
         """
-        if not agent_id or not isinstance(agent_id, str):
-            raise ValueError("AgentContext requires a non-empty string 'agent_id'.")
+        # Deferred imports for concrete type checking to avoid circular dependencies at module load time
+        from .agent_config import AgentConfig as AgentConfigClass 
+        from .agent_runtime_state import AgentRuntimeState as AgentRuntimeStateClass 
+
+        if not isinstance(config, AgentConfigClass):
+            raise TypeError(f"AgentContext 'config' must be an AgentConfig instance. Got {type(config)}")
+        if not isinstance(state, AgentRuntimeStateClass):
+            raise TypeError(f"AgentContext 'state' must be an AgentRuntimeState instance. Got {type(state)}")
         
-        if not isinstance(definition, AgentDefinition): # Ensure definition is correct type
-            raise TypeError(f"AgentContext 'definition' must be an AgentDefinition instance. Got {type(definition)}")
+        if config.agent_id != state.agent_id:
+            logger.warning(f"AgentContext created with mismatched agent_id in config ('{config.agent_id}') and state ('{state.agent_id}'). Using config's ID for logging context init.")
+            # state.agent_id = config.agent_id # Or raise error. Let state manage its own ID for now.
 
-        if not isinstance(queues, AgentEventQueues):
-            raise TypeError(f"AgentContext 'queues' must be an AgentEventQueues instance. Got {type(queues)}")
-
-        if not isinstance(llm_instance, BaseLLM):
-            raise TypeError(f"AgentContext 'llm_instance' must be a BaseLLM instance. Got {type(llm_instance)}")
+        self.config: 'AgentConfig' = config
+        self.state: 'AgentRuntimeState' = state
         
-        if not isinstance(tool_instances, dict) or not all(isinstance(k, str) and isinstance(v, BaseTool) for k, v in tool_instances.items()):
-            raise ValueError("AgentContext 'tool_instances' must be a Dict[str, BaseTool].")
+        logger.info(f"AgentContext composed for agent_id '{self.config.agent_id}'. Config and State linked.")
+
+    @property
+    def agent_id(self) -> str:
+        return self.config.agent_id
+
+    @property
+    def definition(self) -> 'AgentDefinition':
+        return self.config.definition
+
+    @property
+    def tool_instances(self) -> Dict[str, 'BaseTool']:
+        """Returns the dictionary of tool instances from runtime state, or an empty dict if not yet initialized."""
+        return self.state.tool_instances if self.state.tool_instances is not None else {}
+
+    @property
+    def auto_execute_tools(self) -> bool:
+        return self.config.auto_execute_tools
+    
+    @property
+    def llm_model_name(self) -> str: 
+        return self.config.llm_model_name
+
+    @property
+    def custom_llm_config(self) -> Optional['LLMConfig']: 
+        return self.config.custom_llm_config
+    
+    @property
+    def custom_tool_config(self) -> Optional[Dict[str, 'ToolConfig']]: 
+        """Convenience property to access custom_tool_config from AgentConfig."""
+        return self.config.custom_tool_config
+
+
+    @property
+    def llm_instance(self) -> Optional['BaseLLM']:
+        return self.state.llm_instance
+
+    @llm_instance.setter
+    def llm_instance(self, value: Optional['BaseLLM']):
+        self.state.llm_instance = value
+
+    @property
+    def queues(self) -> 'AgentEventQueues':
+        return self.state.queues
+
+    @property
+    def status(self) -> Optional['AgentStatus']:
+        return self.state.status
+
+    @status.setter
+    def status(self, value: Optional['AgentStatus']):
+        self.state.status = value
+
+    @property
+    def status_manager(self) -> Optional['AgentStatusManager']: 
+        """Returns the status manager reference from runtime state."""
+        return self.state.status_manager_ref
+
+
+    @property
+    def conversation_history(self) -> List[Dict[str, Any]]:
+        return self.state.conversation_history
+
+    @property
+    def pending_tool_approvals(self) -> Dict[str, 'ToolInvocation']:
+        return self.state.pending_tool_approvals
+
+    @property
+    def custom_data(self) -> Dict[str, Any]:
+        return self.state.custom_data
         
-        if workspace is not None and not isinstance(workspace, BaseAgentWorkspace):
-            raise TypeError(f"AgentContext 'workspace' must be an instance of BaseAgentWorkspace or None. Got {type(workspace)}")
+    @property
+    def workspace(self) -> Optional['BaseAgentWorkspace']:
+        return self.state.workspace
+    
+    # Properties for new fields in AgentRuntimeState related to init sequence
+    @property
+    def processed_system_prompt(self) -> Optional[str]:
+        return self.state.processed_system_prompt
+    
+    @processed_system_prompt.setter
+    def processed_system_prompt(self, value: Optional[str]):
+        self.state.processed_system_prompt = value
+
+    @property
+    def final_llm_config_for_creation(self) -> Optional['LLMConfig']:
+        return self.state.final_llm_config_for_creation
         
-        if not isinstance(auto_execute_tools, bool): 
-            raise TypeError(f"AgentContext 'auto_execute_tools' must be a boolean. Got {type(auto_execute_tools)}")
+    @final_llm_config_for_creation.setter
+    def final_llm_config_for_creation(self, value: Optional['LLMConfig']):
+        self.state.final_llm_config_for_creation = value
 
-        # Core Identifiers and Static Blueprint Reference
-        self.agent_id: str = agent_id
-        self.definition: AgentDefinition = definition 
-
-        # Instantiated Operational Components
-        self.queues: AgentEventQueues = queues 
-        self.llm_instance: BaseLLM = llm_instance
-        self.tool_instances: Dict[str, BaseTool] = tool_instances
-        self.workspace: Optional[BaseAgentWorkspace] = workspace 
-        
-        # Dynamic Runtime State and Configuration for this Instance
-        self.auto_execute_tools: bool = auto_execute_tools 
-        self.status: Optional[AgentStatus] = None # Initialized to None, set by AgentStatusManager
-        self.conversation_history: List[Dict[str, Any]] = conversation_history or []
-        self.pending_tool_approvals: Dict[str, ToolInvocation] = {} # For tool approval workflow
-        self.custom_data: Dict[str, Any] = custom_data or {}
-
-
-        workspace_info = f"workspace_id='{self.workspace.workspace_id}'" if self.workspace else "no workspace"
-        initial_status_log = self.status.value if self.status else "None (to be set by StatusManager)"
-        tool_execution_mode_log = "Automatic" if self.auto_execute_tools else "Requires Approval"
-        logger.info(f"AgentContext initialized for agent_id '{self.agent_id}' with definition_name '{self.definition.name}'. "
-                    f"Initial status: {initial_status_log}. Workspace: {workspace_info}. Tool Execution Mode: {tool_execution_mode_log}")
-        logger.debug(f"AgentContext tools: {list(self.tool_instances.keys())}")
+    # Methods that delegate to AgentRuntimeState or use AgentConfig
 
     def add_message_to_history(self, message: Dict[str, Any]) -> None:
-        """
-        Adds a message to the agent's conversation history.
-        The message should typically conform to a standard structure, e.g.,
-        `{"role": "user/assistant/tool", "content": "..."}`.
+        self.state.add_message_to_history(message)
 
-        Args:
-            message: The message dictionary to add.
-        """
-        if not isinstance(message, dict) or "role" not in message: # Content can be None for tool_calls
-            logger.warning(f"Attempted to add malformed message to history for agent '{self.agent_id}': {message} (missing 'role')")
-            return
-            
-        self.conversation_history.append(message)
-        logger.debug(f"Message added to history for agent '{self.agent_id}': role={message['role']}")
-
-    def get_tool(self, tool_name: str) -> Optional[BaseTool]:
-        """
-        Retrieves an instantiated tool by its name.
-
-        Args:
-            tool_name: The name of the tool to retrieve.
-
-        Returns:
-            The BaseTool instance if found, otherwise None.
-        """
-        tool = self.tool_instances.get(tool_name)
+    def get_tool(self, tool_name: str) -> Optional['BaseTool']:
+        """Retrieves a tool instance from the runtime state's tool_instances."""
+        # tool_instances property already handles None case by returning {}
+        tool = self.tool_instances.get(tool_name) 
         if not tool:
-            logger.warning(f"Tool '{tool_name}' not found in AgentContext for agent '{self.agent_id}'. "
+            logger.warning(f"Tool '{tool_name}' not found in AgentContext.state.tool_instances for agent '{self.agent_id}'. "
                            f"Available tools: {list(self.tool_instances.keys())}")
         return tool
 
-    def store_pending_tool_invocation(self, invocation: ToolInvocation) -> None:
-        """
-        Stores a tool invocation that is pending approval.
+    def store_pending_tool_invocation(self, invocation: 'ToolInvocation') -> None:
+        self.state.store_pending_tool_invocation(invocation)
 
-        Args:
-            invocation: The ToolInvocation object to store.
-        """
-        if not isinstance(invocation, ToolInvocation) or not invocation.id:
-            logger.error(f"Agent '{self.agent_id}': Attempted to store invalid ToolInvocation for approval: {invocation}")
-            return
-        self.pending_tool_approvals[invocation.id] = invocation
-        logger.info(f"Agent '{self.agent_id}': Stored pending tool invocation '{invocation.id}' ({invocation.name}) for approval.")
-
-    def retrieve_pending_tool_invocation(self, invocation_id: str) -> Optional[ToolInvocation]:
-        """
-        Retrieves and removes a pending tool invocation by its ID.
-
-        Args:
-            invocation_id: The ID of the tool invocation to retrieve.
-
-        Returns:
-            The ToolInvocation object if found, otherwise None.
-        """
-        if not isinstance(invocation_id, str):
-            logger.warning(f"Agent '{self.agent_id}': Attempted to retrieve pending tool invocation with non-string ID: {invocation_id}")
-            return None
-            
-        invocation = self.pending_tool_approvals.pop(invocation_id, None)
-        if invocation:
-            logger.info(f"Agent '{self.agent_id}': Retrieved and removed pending tool invocation '{invocation_id}' ({invocation.name}).")
-        else:
-            logger.warning(f"Agent '{self.agent_id}': Pending tool invocation '{invocation_id}' not found for retrieval.")
-        return invocation
+    def retrieve_pending_tool_invocation(self, invocation_id: str) -> Optional['ToolInvocation']:
+        return self.state.retrieve_pending_tool_invocation(invocation_id)
 
     def __repr__(self) -> str:
-        workspace_repr = f", workspace_id='{self.workspace.workspace_id}'" if self.workspace else ""
-        status_repr = self.status.value if self.status else "None"
-        tool_exec_mode = "Auto" if self.auto_execute_tools else "ApprovalReq"
-        return (f"AgentContext(agent_id='{self.agent_id}', definition_name='{self.definition.name}', "
-                f"status='{status_repr}', tools={list(self.tool_instances.keys())}{workspace_repr}, "
-                f"tool_exec_mode='{tool_exec_mode}', "
-                f"pending_approvals_count={len(self.pending_tool_approvals)})")
+        return (f"AgentContext(agent_id='{self.config.agent_id}', "
+                f"current_status='{self.state.status.value if self.state.status else 'None'}', "
+                f"llm_initialized={self.state.llm_instance is not None}, "
+                f"tools_initialized={self.state.tool_instances is not None})")
+

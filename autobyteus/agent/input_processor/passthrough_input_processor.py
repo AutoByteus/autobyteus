@@ -2,12 +2,11 @@
 import logging
 from typing import TYPE_CHECKING
 
-from .base_user_input_processor import BaseAgentUserInputMessageProcessor # Relative import, OK
+from .base_user_input_processor import BaseAgentUserInputMessageProcessor 
 
 if TYPE_CHECKING:
-    # This import was incorrect in the original context, should be AgentInputUserMessage
     from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
-    from autobyteus.agent.context import AgentContext # MODIFIED IMPORT
+    from autobyteus.agent.context import AgentContext # Composite AgentContext
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +17,7 @@ class PassthroughInputProcessor(BaseAgentUserInputMessageProcessor):
     """
     async def process(self,
                       message: 'AgentInputUserMessage', 
-                      context: 'AgentContext') -> 'AgentInputUserMessage': 
-        logger.debug(f"Agent '{context.agent_id}': PassthroughInputProcessor received message, returning as is.")
+                      context: 'AgentContext') -> 'AgentInputUserMessage': # context is composite
+        agent_id = context.agent_id # Convenience property
+        logger.debug(f"Agent '{agent_id}': PassthroughInputProcessor received message, returning as is.")
         return message

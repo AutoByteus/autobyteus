@@ -4,7 +4,8 @@ from abc import ABC, abstractmethod
 from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from autobyteus.agent.context import AgentContext # MODIFIED IMPORT
+    # Ensure this points to the new composite AgentContext
+    from autobyteus.agent.context.agent_context import AgentContext 
 
 logger = logging.getLogger(__name__)
 
@@ -17,16 +18,14 @@ class AgentEventHandler(ABC):
 
     @abstractmethod
     async def handle(self,
-                     event: Any,
-                     context: 'AgentContext') -> None:
+                     event: Any, # Specific event type will be in subclass
+                     context: 'AgentContext') -> None: # context is now the composite AgentContext
         """
         Handles a specific event.
 
         Args:
-            event: The event object to handle. This could be any of the defined
-                   event types (e.g., UserMessageEvent, ToolInvocationEvent).
-            context: The AgentContext, providing access to the agent's state,
-                     LLM, tools, and queues.
+            event: The event object to handle.
+            context: The composite AgentContext, providing access to agent's config and state.
         
         Raises:
             NotImplementedError: If the subclass does not implement this method.

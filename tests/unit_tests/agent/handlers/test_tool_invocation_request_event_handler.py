@@ -3,7 +3,8 @@ import logging
 import json
 from unittest.mock import MagicMock, AsyncMock, patch, call
 
-from autobyteus.agent.handlers.tool_invocation_request_event_handler import ToolInvocationRequestEventHandler, TOOL_APPROVAL_REQUESTED_EVENT_TYPE
+# UPDATED IMPORT: TOOL_APPROVAL_REQUESTED_EVENT_TYPE removed
+from autobyteus.agent.handlers.tool_invocation_request_event_handler import ToolInvocationRequestEventHandler
 from autobyteus.agent.events.agent_events import PendingToolInvocationEvent, ToolResultEvent, GenericEvent
 from autobyteus.agent.tool_invocation import ToolInvocation
 
@@ -14,31 +15,26 @@ def tool_request_handler():
 
 # --- Tests for Approval Required Path (auto_execute_tools = False) ---
 @pytest.mark.asyncio
-async def test_handle_approval_required_emits_event_and_updates_history(tool_request_handler: ToolInvocationRequestEventHandler, agent_context, mock_tool_invocation, caplog):
-    """Test when approval is required: stores invocation, emits event, updates history."""
-    agent_context.auto_execute_tools = False # CRITICAL: Set for approval path
+# RENAMED Test
+async def test_handle_approval_required_stores_invocation_and_updates_history(tool_request_handler: ToolInvocationRequestEventHandler, agent_context, mock_tool_invocation, caplog):
+    """Test when approval is required: stores invocation and updates history."""
+    # CORRECTED: Set auto_execute_tools on the config object within the context
+    agent_context.config.auto_execute_tools = False # CRITICAL: Set for approval path
     event = PendingToolInvocationEvent(tool_invocation=mock_tool_invocation)
 
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.DEBUG): # Capture DEBUG for the new log message
         await tool_request_handler.handle(event, agent_context)
 
     # Check logs
-    assert f"Agent '{agent_context.agent_id}': Tool invocation for '{mock_tool_invocation.name}' (ID: {mock_tool_invocation.id}) requires approval" in caplog.text
-    assert f"Emitted '{TOOL_APPROVAL_REQUESTED_EVENT_TYPE}' for tool '{mock_tool_invocation.name}' (ID: {mock_tool_invocation.id})." in caplog.text
+    assert f"Agent '{agent_context.agent_id}': Tool '{mock_tool_invocation.name}' (ID: {mock_tool_invocation.id}) requires approval. Storing pending invocation." in caplog.text
+    # REMOVED: assert f"Emitted '{TOOL_APPROVAL_REQUESTED_EVENT_TYPE}' for tool '{mock_tool_invocation.name}' (ID: {mock_tool_invocation.id})." in caplog.text
+    assert f"Agent '{agent_context.agent_id}': Added assistant tool_calls to history for pending approval of '{mock_tool_invocation.name}' (ID: {mock_tool_invocation.id}). External event emission for approval request is no longer handled here." in caplog.text
     
     # Check context interactions
     agent_context.store_pending_tool_invocation.assert_called_once_with(mock_tool_invocation)
     
-    # Check event emission through context.status_manager.emitter
-    # status_manager is already a MagicMock on agent_context from conftest.py
-    agent_context.status_manager.emitter.emit.assert_called_once_with(
-        event_type=TOOL_APPROVAL_REQUESTED_EVENT_TYPE,
-        agent_id=agent_context.agent_id,
-        tool_invocation_id=mock_tool_invocation.id,
-        tool_name=mock_tool_invocation.name,
-        arguments=mock_tool_invocation.arguments,
-        message=f"Agent '{agent_context.agent_id}' requests approval to execute tool '{mock_tool_invocation.name}'."
-    )
+    # REMOVED: Check event emission through context.status_manager.emitter
+    agent_context.status_manager.emitter.emit.assert_not_called()
 
     # Check history update (assistant tool_calls message)
     expected_history_tool_call = {
@@ -56,66 +52,35 @@ async def test_handle_approval_required_emits_event_and_updates_history(tool_req
     agent_context.add_message_to_history.assert_called_once_with(expected_history_tool_call)
 
     # Ensure tool was NOT executed directly and no ToolResultEvent was enqueued by THIS handler
-    agent_context.get_tool.assert_not_called() # Indication tool was not fetched for execution
+    agent_context.get_tool.assert_not_called()
     agent_context.queues.enqueue_tool_result.assert_not_called()
 
 
-@pytest.mark.asyncio
-async def test_handle_approval_required_emitter_missing(tool_request_handler: ToolInvocationRequestEventHandler, agent_context, mock_tool_invocation, caplog):
-    """Test approval path when emitter is not available on context.status_manager."""
-    agent_context.auto_execute_tools = False
-    event = PendingToolInvocationEvent(tool_invocation=mock_tool_invocation)
-
-    # Simulate missing emitter
-    agent_context.status_manager.emitter = None
-
-    with caplog.at_level(logging.ERROR): # Error is logged for missing emitter
-        await tool_request_handler.handle(event, agent_context)
-    
-    assert f"Agent '{agent_context.agent_id}': Cannot emit tool approval request. Emitter not available" in caplog.text
-    agent_context.store_pending_tool_invocation.assert_called_once_with(mock_tool_invocation)
-    agent_context.add_message_to_history.assert_called_once() # History should still be updated
-
-
-@pytest.mark.asyncio
-async def test_handle_approval_required_emitter_raises_exception(tool_request_handler: ToolInvocationRequestEventHandler, agent_context, mock_tool_invocation, caplog):
-    """Test approval path when emitter.emit() raises an exception."""
-    agent_context.auto_execute_tools = False
-    event = PendingToolInvocationEvent(tool_invocation=mock_tool_invocation)
-
-    simulated_emit_error = "Emitter connection failed"
-    agent_context.status_manager.emitter.emit.side_effect = Exception(simulated_emit_error)
-
-    with caplog.at_level(logging.ERROR):
-        await tool_request_handler.handle(event, agent_context)
-
-    assert f"Agent '{agent_context.agent_id}': Failed to emit '{TOOL_APPROVAL_REQUESTED_EVENT_TYPE}': {simulated_emit_error}" in caplog.text
-    agent_context.store_pending_tool_invocation.assert_called_once_with(mock_tool_invocation)
-    agent_context.add_message_to_history.assert_called_once()
+# REMOVED test_handle_approval_required_emitter_missing as emitter is no longer used by handler
+# REMOVED test_handle_approval_required_emitter_raises_exception as emitter is no longer used by handler
 
 
 @pytest.mark.asyncio
 async def test_handle_approval_required_arguments_not_json_serializable(tool_request_handler: ToolInvocationRequestEventHandler, agent_context, caplog):
     """Test approval path when tool arguments are not JSON serializable for history."""
-    agent_context.auto_execute_tools = False
+    agent_context.config.auto_execute_tools = False # CORRECTED
     
-    unserializable_args = {"data": set([1,2,3])} # Set is not JSON serializable
+    unserializable_args = {"data": set([1,2,3])} 
     tool_invocation_bad_args = ToolInvocation(name="test_tool", arguments=unserializable_args, id="bad-args-id")
     event = PendingToolInvocationEvent(tool_invocation=tool_invocation_bad_args)
 
-    with caplog.at_level(logging.WARNING): # Warning logged for serialization issue
+    with caplog.at_level(logging.WARNING): 
         await tool_request_handler.handle(event, agent_context)
 
     assert "Could not serialize arguments for tool_call history message for tool 'test_tool'" in caplog.text
     
-    # Check that history was updated with arguments as "{}"
     expected_history_tool_call = {
         "role": "assistant",
         "content": None,
         "tool_calls": [{
             "id": "bad-args-id",
             "type": "function",
-            "function": {"name": "test_tool", "arguments": "{}"} # Fallback
+            "function": {"name": "test_tool", "arguments": "{}"} 
         }]
     }
     agent_context.add_message_to_history.assert_called_once_with(expected_history_tool_call)
@@ -126,13 +91,11 @@ async def test_handle_approval_required_arguments_not_json_serializable(tool_req
 @pytest.mark.asyncio
 async def test_handle_direct_execution_success(tool_request_handler: ToolInvocationRequestEventHandler, agent_context, mock_tool_instance, mock_tool_invocation, caplog):
     """Test direct tool execution when auto_execute_tools is True."""
-    agent_context.auto_execute_tools = True # CRITICAL: Set for direct execution
+    agent_context.config.auto_execute_tools = True # Ensure it's True for this path
     event = PendingToolInvocationEvent(tool_invocation=mock_tool_invocation)
 
-    # Setup mock_tool_instance for this specific test
     tool_result = "Direct execution successful!"
     mock_tool_instance.execute = AsyncMock(return_value=tool_result)
-    agent_context.tool_instances[mock_tool_invocation.name] = mock_tool_instance
     agent_context.get_tool = MagicMock(return_value=mock_tool_instance)
 
 
@@ -140,12 +103,12 @@ async def test_handle_direct_execution_success(tool_request_handler: ToolInvocat
         await tool_request_handler.handle(event, agent_context)
 
     # Check logs
-    assert f"Agent '{agent_context.agent_id}': Tool invocation for '{mock_tool_invocation.name}' (ID: {mock_tool_invocation.id}) will be executed automatically" in caplog.text
+    assert f"Agent '{agent_context.agent_id}': Tool '{mock_tool_invocation.name}' (ID: {mock_tool_invocation.id}) exec auto (auto_execute_tools=True)." in caplog.text 
     assert f"Tool '{mock_tool_invocation.name}' (ID: {mock_tool_invocation.id}) executed successfully by agent '{agent_context.agent_id}'" in caplog.text
 
     # Check context interactions for direct execution
-    agent_context.store_pending_tool_invocation.assert_not_called() # Should not store if executing directly
-    agent_context.status_manager.emitter.emit.assert_not_called()   # Should not emit approval request
+    agent_context.store_pending_tool_invocation.assert_not_called() 
+    agent_context.status_manager.emitter.emit.assert_not_called()   
 
     # Check tool log queue entries
     expected_log_call = f"[TOOL_CALL_DIRECT] Agent_ID: {agent_context.agent_id}, Tool: {mock_tool_invocation.name}, Invocation_ID: {mock_tool_invocation.id}, Arguments: {json.dumps(mock_tool_invocation.arguments)}"
@@ -173,17 +136,16 @@ async def test_handle_direct_execution_success(tool_request_handler: ToolInvocat
     assert enqueued_event.tool_invocation_id == mock_tool_invocation.id
 
     # Verify tool's execute method was called correctly
-    # Ensure AgentContext is passed to tool.execute
-    mock_tool_instance.execute.assert_called_once_with(agent_context, **mock_tool_invocation.arguments)
+    mock_tool_instance.execute.assert_called_once_with(context=agent_context, **mock_tool_invocation.arguments)
 
 
 @pytest.mark.asyncio
 async def test_handle_direct_execution_tool_not_found(tool_request_handler: ToolInvocationRequestEventHandler, agent_context, mock_tool_invocation, caplog):
     """Test direct execution when tool is not found."""
-    agent_context.auto_execute_tools = True
+    agent_context.config.auto_execute_tools = True # CORRECTED
     event = PendingToolInvocationEvent(tool_invocation=mock_tool_invocation)
 
-    agent_context.get_tool = MagicMock(return_value=None) # Simulate tool not found
+    agent_context.get_tool = MagicMock(return_value=None) 
 
     with caplog.at_level(logging.ERROR):
         await tool_request_handler.handle(event, agent_context)
@@ -211,7 +173,7 @@ async def test_handle_direct_execution_tool_not_found(tool_request_handler: Tool
 @pytest.mark.asyncio
 async def test_handle_direct_execution_tool_exception(tool_request_handler: ToolInvocationRequestEventHandler, agent_context, mock_tool_instance, mock_tool_invocation, caplog):
     """Test direct execution when tool.execute() raises an exception."""
-    agent_context.auto_execute_tools = True
+    agent_context.config.auto_execute_tools = True # CORRECTED
     event = PendingToolInvocationEvent(tool_invocation=mock_tool_invocation)
 
     simulated_tool_error = "Tool crashed unexpectedly!"
@@ -244,7 +206,7 @@ async def test_handle_direct_execution_tool_exception(tool_request_handler: Tool
 
 @pytest.mark.asyncio
 async def test_handle_direct_execution_args_not_json_serializable_for_log(tool_request_handler: ToolInvocationRequestEventHandler, agent_context, mock_tool_instance, caplog):
-    agent_context.auto_execute_tools = True
+    agent_context.config.auto_execute_tools = True # CORRECTED
     unserializable_args = {"data": set([1,2,3])}
     tool_invocation = ToolInvocation(name="test_tool", arguments=unserializable_args, id="direct-json-err-args")
     event = PendingToolInvocationEvent(tool_invocation=tool_invocation)
@@ -261,7 +223,7 @@ async def test_handle_direct_execution_args_not_json_serializable_for_log(tool_r
 
 @pytest.mark.asyncio
 async def test_handle_direct_execution_result_not_json_serializable_for_log(tool_request_handler: ToolInvocationRequestEventHandler, agent_context, mock_tool_instance, mock_tool_invocation, caplog):
-    agent_context.auto_execute_tools = True
+    agent_context.config.auto_execute_tools = True # CORRECTED
     event = PendingToolInvocationEvent(tool_invocation=mock_tool_invocation)
 
     unserializable_result = set([1,2,3])

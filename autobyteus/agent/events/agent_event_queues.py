@@ -162,7 +162,7 @@ class AgentEventQueues:
                             pass # Expected
 
         except asyncio.CancelledError:
-            logger.info("get_next_input_event: Coroutine itself was cancelled (e.g., by AgentRuntime timeout). All created tasks will be cancelled in finally.")
+            logger.debug("get_next_input_event: Coroutine itself was cancelled (e.g., by AgentRuntime timeout). All created tasks will be cancelled in finally.")
             raise # Propagate CancelledError to allow AgentRuntime's wait_for to handle it.
         
         finally:
@@ -232,3 +232,4 @@ class AgentEventQueues:
                     logger.info(f"Input queue '{name}' has {q_size} items remaining at shutdown.")
         
         logger.info("AgentEventQueues graceful shutdown process (joining queues) completed.")
+

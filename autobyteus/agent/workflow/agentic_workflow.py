@@ -1,4 +1,3 @@
-# file: autobyteus/autobyteus/agent/workflow/agentic_workflow.py
 import logging
 import uuid
 from typing import List, Dict, Optional, Any, cast
@@ -35,9 +34,9 @@ class AgenticWorkflow:
                                    passed to AgentGroup. Example:
                                    { "agent_def_name": {
                                         "llm_model_name": "GPT_4O_API", 
-                                        "custom_llm_config": LLMConfig(temperature=0.5) or {"temperature": 0.5}, # RENAMED KEY
-                                        "custom_tool_config": {"ToolName": ToolConfig(...)}, # RENAMED KEY
-                                        "auto_execute_tools_override": True/False
+                                        "custom_llm_config": LLMConfig(temperature=0.5) or {"temperature": 0.5},
+                                        "custom_tool_config": {"ToolName": ToolConfig(...)},
+                                        "auto_execute_tools": True/False # UPDATED DOCSTRING KEY
                                      }
                                    }
                                    If "custom_llm_config" is a dict, AgentGroup will convert it to LLMConfig.

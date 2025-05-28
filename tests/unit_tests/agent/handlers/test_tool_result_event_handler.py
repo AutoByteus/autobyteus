@@ -4,7 +4,7 @@ import json
 from unittest.mock import MagicMock, patch
 
 from autobyteus.agent.handlers.tool_result_event_handler import ToolResultEventHandler
-from autobyteus.agent.events.agent_events import ToolResultEvent, LLMPromptReadyEvent
+from autobyteus.agent.events.agent_events import ToolResultEvent, LLMUserMessageReadyEvent # UPDATED IMPORT
 from autobyteus.llm.user_message import LLMUserMessage
 
 @pytest.fixture
@@ -28,10 +28,10 @@ async def test_handle_tool_result_success(tool_result_handler: ToolResultEventHa
     log_msg_success_processed = f"[TOOL_RESULT_SUCCESS_PROCESSED] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Result (first 200 chars of stringified): {str(tool_result_data)[:200]}"
     agent_context.queues.tool_interaction_log_queue.put.assert_called_once_with(log_msg_success_processed)
 
-    # Check enqueued LLMPromptReadyEvent
+    # Check enqueued LLMUserMessageReadyEvent
     agent_context.queues.enqueue_internal_system_event.assert_called_once()
     enqueued_event = agent_context.queues.enqueue_internal_system_event.call_args[0][0]
-    assert isinstance(enqueued_event, LLMPromptReadyEvent)
+    assert isinstance(enqueued_event, LLMUserMessageReadyEvent) # UPDATED TYPE CHECK
     assert isinstance(enqueued_event.llm_user_message, LLMUserMessage)
     
     expected_llm_content_part1 = f"The tool '{tool_name}' (invocation ID: {tool_invocation_id}) has executed."
@@ -58,7 +58,7 @@ async def test_handle_tool_result_with_error(tool_result_handler: ToolResultEven
 
     agent_context.queues.enqueue_internal_system_event.assert_called_once()
     enqueued_event = agent_context.queues.enqueue_internal_system_event.call_args[0][0]
-    assert isinstance(enqueued_event, LLMPromptReadyEvent)
+    assert isinstance(enqueued_event, LLMUserMessageReadyEvent) # UPDATED TYPE CHECK
     
     expected_llm_content_part1 = f"The tool '{tool_name}' (invocation ID: {tool_invocation_id}) encountered an error."
     expected_llm_content_part2 = f"Error details: {error_message}"
@@ -148,4 +148,3 @@ def test_tool_result_handler_initialization(caplog):
     with caplog.at_level(logging.INFO):
         handler = ToolResultEventHandler()
     assert "ToolResultEventHandler initialized." in caplog.text
-

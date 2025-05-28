@@ -141,18 +141,21 @@ class XmlToolUsageProcessor(BaseLLMResponseProcessor):
         for arg_element in command_element.findall('arg'): # Case-sensitive findall, ensure <arg> is used
             arg_name = arg_element.attrib.get('name')
             if arg_name:
-                # Extract text, including from CDATA if ET.fromstring handles it correctly after preprocessing
-                # For ET, text from CDATA is usually mixed in if not stripped.
-                # itertext() concatenates all text nodes, which is good for mixed content.
-                raw_text_parts = list(arg_element.itertext())
-                raw_text = "".join(raw_text_parts).strip()
+                # Iterate through text parts, strip each, filter out empty ones, then join.
+                # This correctly concatenates text from complex structures within <arg>
+                # and ignores formatting whitespace between tags.
+                text_parts = []
+                for text_node in arg_element.itertext():
+                    stripped_node_text = text_node.strip()
+                    if stripped_node_text: # Only add non-empty strings
+                        text_parts.append(stripped_node_text)
+                raw_text = "".join(text_parts)
 
-                # Check if raw_text is a CDATA section and extract content
-                cdata_match = re.match(r'<!\[CDATA\[(.*?)\]\]>', raw_text, re.DOTALL)
-                if cdata_match:
-                    unescaped_value = cdata_match.group(1) # Content of CDATA is not XML-escaped
-                else:
-                    unescaped_value = unescape(raw_text) # Unescape if it was escaped text
+                # Unescape the final concatenated string.
+                # Note: CDATA content is typically handled by itertext() returning its raw string content.
+                # This unescape call primarily handles XML entities like &amp;, &lt;, etc., that might be
+                # part of the text nodes themselves.
+                unescaped_value = unescape(raw_text)
 
                 arguments[arg_name] = unescaped_value
         return arguments

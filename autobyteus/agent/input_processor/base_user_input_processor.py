@@ -3,11 +3,11 @@ import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from .processor_meta import AgentUserInputMessageProcessorMeta # Relative import, OK
+from .processor_meta import AgentUserInputMessageProcessorMeta 
 
 if TYPE_CHECKING:
     from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage 
-    from autobyteus.agent.context import AgentContext # MODIFIED IMPORT
+    from autobyteus.agent.context import AgentContext # Composite AgentContext
 
 logger = logging.getLogger(__name__)
 
@@ -30,14 +30,13 @@ class BaseAgentUserInputMessageProcessor(ABC, metaclass=AgentUserInputMessagePro
     @abstractmethod
     async def process(self,
                       message: 'AgentInputUserMessage', 
-                      context: 'AgentContext') -> 'AgentInputUserMessage': 
+                      context: 'AgentContext') -> 'AgentInputUserMessage': # context is composite
         """
         Processes the given AgentInputUserMessage.
 
         Args:
             message: The AgentInputUserMessage to process.
-            context: The AgentContext, providing access to the agent's state,
-                     definition, etc.
+            context: The composite AgentContext, providing access to agent's config and state.
 
         Returns:
             The processed (potentially modified) AgentInputUserMessage.

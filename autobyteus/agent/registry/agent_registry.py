@@ -1,4 +1,3 @@
-# file: autobyteus/autobyteus/agent/registry/agent_registry.py
 import asyncio
 import logging
 import uuid 
@@ -17,7 +16,7 @@ from autobyteus.llm.llm_factory import LLMFactory
 from autobyteus.tools.registry import ToolRegistry, default_tool_registry
 from autobyteus.tools.tool_config import ToolConfig
 from autobyteus.llm.models import LLMModel 
-from autobyteus.llm.utils.llm_config import LLMConfig # Added for type hint
+from autobyteus.llm.utils.llm_config import LLMConfig
 
 logger = logging.getLogger(__name__)
 
@@ -43,9 +42,9 @@ class AgentRegistry(metaclass=SingletonMeta):
                      definition: AgentDefinition,
                      llm_model_name: str, 
                      workspace: Optional[BaseAgentWorkspace] = None,
-                     custom_llm_config: Optional[LLMConfig] = None, # RENAMED and TYPE CHANGED
-                     custom_tool_config: Optional[Dict[str, ToolConfig]] = None, # RENAMED
-                     auto_execute_tools: bool = True 
+                     custom_llm_config: Optional[LLMConfig] = None,
+                     custom_tool_config: Optional[Dict[str, ToolConfig]] = None, 
+                     auto_execute_tools: bool = True # NO CHANGE TO NAME, this is fine
                      ) -> Agent: 
         """
         Creates a new agent based on the provided AgentDefinition, stores it,
@@ -96,7 +95,7 @@ class AgentRegistry(metaclass=SingletonMeta):
         
         logger.info(f"Generated agent_id '{final_agent_id}' for definition '{definition.name}' with role '{definition.role}'")
 
-        tool_exec_mode_log = "Automatic" if auto_execute_tools else "Requires Approval"
+        tool_exec_mode_log = "Automatic" if auto_execute_tools else "Requires Approval" # UPDATED LOGGING
         logger.info(f"Attempting to create agent runtime for definition_name '{definition.name}' "
                     f"with agent_id '{final_agent_id}'. "
                     f"Workspace provided: {workspace is not None}. "
@@ -110,9 +109,9 @@ class AgentRegistry(metaclass=SingletonMeta):
             definition=definition,
             llm_model_name=llm_model_name, 
             workspace=workspace,
-            custom_llm_config=custom_llm_config, # Pass renamed param
-            custom_tool_config=custom_tool_config, # Pass renamed param          
-            auto_execute_tools_override=auto_execute_tools # Name already fine
+            custom_llm_config=custom_llm_config, 
+            custom_tool_config=custom_tool_config,          
+            auto_execute_tools=auto_execute_tools # PARAMETER USED HERE
         )
         
         agent_instance = Agent(runtime=runtime_instance) 

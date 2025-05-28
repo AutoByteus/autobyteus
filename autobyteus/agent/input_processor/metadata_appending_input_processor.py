@@ -2,11 +2,11 @@
 import logging
 from typing import TYPE_CHECKING
 
-from .base_user_input_processor import BaseAgentUserInputMessageProcessor # Relative import, OK
+from .base_user_input_processor import BaseAgentUserInputMessageProcessor 
 
 if TYPE_CHECKING:
     from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
-    from autobyteus.agent.context import AgentContext # MODIFIED IMPORT
+    from autobyteus.agent.context import AgentContext # Composite AgentContext
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +17,12 @@ class MetadataAppendingInputProcessor(BaseAgentUserInputMessageProcessor):
     """
     async def process(self,
                       message: 'AgentInputUserMessage', 
-                      context: 'AgentContext') -> 'AgentInputUserMessage': 
-        logger.debug(f"Agent '{context.agent_id}': MetadataAppendingInputProcessor processing message.")
-        message.metadata["processed_by_agent_id"] = context.agent_id
-        message.metadata["processed_with_definition"] = context.definition.name
-        logger.info(f"Agent '{context.agent_id}': Appended 'processed_by_agent_id' and 'processed_with_definition' to message metadata.")
+                      context: 'AgentContext') -> 'AgentInputUserMessage': # context is composite
+        agent_id = context.agent_id # Convenience property
+        definition_name = context.definition.name # Convenience property
+
+        logger.debug(f"Agent '{agent_id}': MetadataAppendingInputProcessor processing message.")
+        message.metadata["processed_by_agent_id"] = agent_id
+        message.metadata["processed_with_definition"] = definition_name
+        logger.info(f"Agent '{agent_id}': Appended 'processed_by_agent_id' and 'processed_with_definition' to message metadata.")
         return message
