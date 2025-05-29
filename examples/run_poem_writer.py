@@ -33,7 +33,6 @@ try:
     from autobyteus.agent.agent import Agent
     from autobyteus.cli import agent_cli
 
-    # MODIFIED: Import the file_writer tool
     from autobyteus.tools import file_writer
 
 except ImportError as e:
@@ -47,55 +46,59 @@ logger = logging.getLogger("run_poem_writer")
 
 def setup_logging(args: argparse.Namespace):
     """
-    Configure logging to send agent module logs to file and other logs to console.
+    Configure logging. By default for this script, it sends specified
+    module logs (autobyteus.*, httpx) to a file to keep the console clean
+    for interactive use.
     """
-    # Basic console logging configuration for non-agent modules
     console_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(console_formatter)
     
-    # Configure root logger with console handler
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.INFO)  # Default level
+    if root_logger.hasHandlers():
+        root_logger.handlers.clear()
+        
     root_logger.addHandler(console_handler)
     
-    # Set debug level if requested
     if args.debug:
         root_logger.setLevel(logging.DEBUG)
         logger.setLevel(logging.DEBUG)
-        logger.debug("Debug logging enabled.")
-    
-    # Configure agent module file logging if enabled
-    if args.enable_agent_file_logging:
-        log_file_path = Path(args.agent_log_file).resolve()
-        
-        # Ensure log directory exists
-        log_file_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Create file handler for agent logs
-        agent_file_handler = logging.FileHandler(log_file_path, mode='w')  # Overwrite on each run
-        agent_file_formatter = logging.Formatter(
-            '%(asctime)s - %(levelname)s - %(name)s:%(lineno)d - %(message)s'
-        )
-        agent_file_handler.setFormatter(agent_file_formatter)
-        
-        # Configure agent module logger to use file handler
-        agent_logger = logging.getLogger("autobyteus.agent")
-        agent_logger.setLevel(logging.DEBUG if args.debug else logging.INFO)
-        agent_logger.addHandler(agent_file_handler)
-        
-        # Prevent agent logs from propagating to root logger (console)
-        agent_logger.propagate = False
-        
-        logger.info(f"Agent module logs will be written to: {log_file_path}")
-        logger.info("Agent logs are now separated from console output for better interactive experience.")
+        logger.debug("Debug logging enabled for root and run_poem_writer script.")
     else:
-        # If file logging is disabled, ensure agent logs still go to console with appropriate level
-        agent_logger = logging.getLogger("autobyteus.agent")
-        if args.debug:
-            agent_logger.setLevel(logging.DEBUG)
-        else:
-            agent_logger.setLevel(logging.INFO)
+        root_logger.setLevel(logging.INFO)
+        logger.setLevel(logging.INFO)
+
+    # For this example script, we will always enable file logging for agent modules
+    # to ensure a clean interactive console experience.
+    log_file_path = Path(args.agent_log_file).resolve()
+    log_file_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    agent_file_handler = logging.FileHandler(log_file_path, mode='w')  
+    agent_file_formatter = logging.Formatter(
+        '%(asctime)s - %(levelname)s - %(name)s:%(lineno)d - %(message)s'
+    )
+    agent_file_handler.setFormatter(agent_file_formatter)
+    
+    loggers_to_redirect = [
+        "autobyteus.agent",
+        "autobyteus.llm",
+        "autobyteus.tools",
+        "autobyteus.cli", 
+        "httpx"          
+    ]
+    
+    for logger_name in loggers_to_redirect:
+        mod_logger = logging.getLogger(logger_name)
+        if mod_logger.hasHandlers():
+            mod_logger.handlers.clear()
+
+        mod_logger.addHandler(agent_file_handler)
+        mod_logger.setLevel(logging.DEBUG if args.debug else logging.INFO)
+        mod_logger.propagate = False 
+    
+    logger.info(f"Specified module logs (including autobyteus.* and httpx) will be written to: {log_file_path}")
+    logger.info("Console output is configured for primarily the agent's direct interaction stream.")
+
 
 async def main(args: argparse.Namespace):
     """Main function to run the PoemWriterAgent interactively using agent_cli.run()."""
@@ -107,11 +110,6 @@ async def main(args: argparse.Namespace):
     
     poem_output_path = (output_dir_path / args.poem_filename).resolve()
     logger.info(f"Agent is instructed to save poems to: {poem_output_path} (will be overwritten on subsequent poems).")
-
-    # System prompt uses the tool's registered name, which should match file_writer.get_name()
-    # For the LLM's understanding, it needs the actual name the tool is registered with.
-    # The {{tools}} placeholder will be filled by ToolDescriptionInjectorProcessor using registered tool info.
-    # The {{tool_examples}} placeholder will be filled by ToolUsageExampleInjectorProcessor with usage examples.
     
     system_prompt = (
         f"You are an excellent poet. When given a topic, you must write a creative poem.\n"
@@ -130,7 +128,6 @@ async def main(args: argparse.Namespace):
         role="CreativePoetInteractive",
         description="An agent that writes poems on specified topics and saves them to disk, interactively.",
         system_prompt=system_prompt,
-        # MODIFIED: Use the imported tool's name
         tool_names=[file_writer.get_name()] 
     )
     logger.info(f"AgentDefinition created: {poem_writer_def.name} using tool name '{file_writer.get_name()}'")
@@ -145,20 +142,20 @@ async def main(args: argparse.Namespace):
     agent: Agent = default_agent_registry.create_agent(
         definition=poem_writer_def,
         llm_model_name=args.llm_model, 
-        auto_execute_tools=True,
+        auto_execute_tools=False,
     )
     logger.info(f"Agent instance created: {agent.agent_id}")
     
-    if args.enable_agent_file_logging:
-        logger.info("Agent module logs are being written to file. Console should now be cleaner for interactive use.")
+    # Message confirming file logging is now unconditionally part of setup_logging
+    # if args.enable_agent_file_logging: # This conditional is no longer needed here
+    #    logger.info("Agent module logs are being written to file. Console should now be cleaner for interactive use.")
     
     try:
         logger.info(f"Starting interactive session for agent {agent.agent_id} via agent_cli.run()...")
         await agent_cli.run(
             agent=agent,
             show_tool_logs=not args.no_tool_logs, 
-            initial_prompt=args.topic,
-            initial_prompt_wait_time=args.initial_topic_wait_time
+            initial_prompt=args.topic
         )
         logger.info(f"Interactive session for agent {agent.agent_id} finished.")
 
@@ -186,21 +183,19 @@ async def main(args: argparse.Namespace):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the PoemWriterAgent interactively to generate and save poems.")
     parser.add_argument("--topic", type=str, default=None, help="Optional: The initial topic for the first poem.")
-    parser.add_argument("--initial-topic-wait-time", type=float, default=3.0, help="Time in seconds to wait after processing an initial topic. Used by agent_cli.run.")
     parser.add_argument("--output-dir", type=str, default=None, help="Directory to save the poem(s). Defaults to a temporary directory.")
     parser.add_argument("--poem-filename", type=str, default="poem_interactive.txt", help="Filename for the saved poem.")
     parser.add_argument("--llm-model", type=str, default="GPT_4o_API", help=f"The LLM model to use. Call --help-models for list.")
     parser.add_argument("--help-models", action="store_true", help="Display available LLM models and exit.")
-    parser.add_argument("--debug", action="store_true", help="Enable debug logging.")
-    parser.add_argument("--no-tool-logs", action="store_true", help="Disable display of tool logs in the interactive session.")
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging for all configured handlers.")
+    parser.add_argument("--no-tool-logs", action="store_true", 
+                        help="Disable generation of [TOOL LOG] messages by the agent_cli. "
+                             "If file logging is enabled (default), these would normally go to file.")
     
-    # New logging configuration arguments
-    parser.add_argument("--enable-agent-file-logging", action="store_true", default=True, 
-                       help="Enable file logging for agent module to reduce console clutter. (Default: True)")
-    parser.add_argument("--disable-agent-file-logging", action="store_true", 
-                       help="Disable file logging for agent module, send all logs to console.")
+    # REMOVED: --disable-agent-file-logging flag
+    
     parser.add_argument("--agent-log-file", type=str, default="./agent_logs.txt", 
-                       help="Path to the log file for agent module logs. (Default: ./agent_logs.txt)")
+                       help="Path to the log file for autobyteus.* and httpx logs. (Default: ./agent_logs.txt)")
 
     if "--help-models" in sys.argv:
         try:
@@ -215,12 +210,10 @@ if __name__ == "__main__":
 
     parsed_args = parser.parse_args()
     
-    # Handle conflicting logging arguments
-    if parsed_args.disable_agent_file_logging:
-        parsed_args.enable_agent_file_logging = False
+    # By default, file logging for agent modules is now always enabled for this script.
+    # The setup_logging function will use args.agent_log_file and args.debug.
     
-    # Setup logging configuration before any other operations
-    setup_logging(parsed_args)
+    setup_logging(parsed_args) # Call setup_logging early
     
     temp_dir_obj = None
     if parsed_args.output_dir is None:
@@ -247,3 +240,4 @@ if __name__ == "__main__":
             try: temp_dir_obj.cleanup(); logger.info(f"Successfully cleaned up temporary directory: {temp_dir_obj.name}")
             except Exception as e_temp_cleanup: logger.warning(f"Could not cleanup temporary directory {temp_dir_obj.name}: {e_temp_cleanup}")
         logger.info("Exiting script.")
+

@@ -15,8 +15,10 @@ class StreamEventType(str, Enum):
     ASSISTANT_CHUNK = "assistant_chunk"
     ASSISTANT_FINAL_MESSAGE = "assistant_final_message"
     TOOL_INTERACTION_LOG_ENTRY = "tool_interaction_log_entry"
-    AGENT_STATUS_CHANGE = "agent_status_change" 
+    # AGENT_STATUS_CHANGED = "agent_status_change"  # REMOVED
     ERROR_EVENT = "error_event" 
+    TOOL_APPROVAL_REQUESTED = "tool_approval_requested" 
+
 
 class StreamEvent(BaseModel):
     """
@@ -46,6 +48,7 @@ class StreamEvent(BaseModel):
     class Config:
         # Pydantic V2 configuration
         populate_by_name = True 
+        use_enum_values = True 
 
     def __repr__(self) -> str:
         return (f"<StreamEvent event_id='{self.event_id}', agent_id='{self.agent_id}', "

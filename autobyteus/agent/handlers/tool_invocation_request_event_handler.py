@@ -113,11 +113,6 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
             
             context.store_pending_tool_invocation(tool_invocation) 
 
-            # External event emission logic has been REMOVED from here.
-            # An external system or observer would now be responsible for detecting this state
-            # (e.g., by monitoring pending_tool_approvals or specific internal agent events if designed for it)
-            # and triggering external notifications if required.
-
             try:
                 arguments_json_str = json.dumps(tool_invocation.arguments or {})
             except TypeError:
