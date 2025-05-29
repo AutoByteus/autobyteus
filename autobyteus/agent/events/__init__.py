@@ -10,7 +10,7 @@ from .agent_events import (
     AgentProcessingEvent,
     # Agent Phase-Specific Base Events
     AgentPreparationEvent, 
-    AgentOperationalEvent, # NEW
+    AgentOperationalEvent, 
     # Specific Lifecycle Events
     AgentStartedEvent,
     AgentStoppedEvent,
@@ -40,7 +40,7 @@ __all__ = [
     "LifecycleEvent",
     "AgentProcessingEvent",
     "AgentPreparationEvent", 
-    "AgentOperationalEvent", # NEW
+    "AgentOperationalEvent", 
     "AgentStartedEvent",
     "AgentStoppedEvent",
     "AgentErrorEvent",
@@ -58,3 +58,4 @@ __all__ = [
     "ApprovedToolInvocationEvent",
     "GenericEvent",
 ]
+

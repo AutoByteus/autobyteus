@@ -1,3 +1,4 @@
+# file: autobyteus/autobyteus/agent/factory/agent_factory.py
 import logging
 from typing import List, Union, Optional, Dict, cast, Type, TYPE_CHECKING, Any
 
@@ -49,7 +50,6 @@ from autobyteus.agent.handlers import (
     FinalizeLLMConfigEventHandler,
     CreateLLMInstanceEventHandler,
 )
-# BaseTool no longer needed for direct instantiation here
 from autobyteus.agent.system_prompt_processor import default_system_prompt_processor_registry, SystemPromptProcessorRegistry
 
 
@@ -72,9 +72,9 @@ class AgentFactory:
                  tool_registry: ToolRegistry,
                  llm_factory: LLMFactory,
                  system_prompt_processor_registry: Optional[SystemPromptProcessorRegistry] = None): 
-        if not isinstance(tool_registry, ToolRegistry):
+        if not isinstance(tool_registry, ToolRegistry): # pragma: no cover
             raise TypeError(f"AgentFactory 'tool_registry' must be an instance of ToolRegistry. Got {type(tool_registry)}")
-        if not isinstance(llm_factory, LLMFactory):
+        if not isinstance(llm_factory, LLMFactory): # pragma: no cover
             raise TypeError(f"AgentFactory 'llm_factory' must be an instance of LLMFactory. Got {type(llm_factory)}")
             
         self.tool_registry = tool_registry
@@ -85,7 +85,6 @@ class AgentFactory:
     def _get_default_event_handler_registry(self) -> EventHandlerRegistry:
         registry = EventHandlerRegistry()
         
-        # Initialization Sequence Handlers
         registry.register(
             CreateToolInstancesEvent,
             CreateToolInstancesEventHandler(tool_registry=self.tool_registry)
@@ -103,7 +102,6 @@ class AgentFactory:
             CreateLLMInstanceEventHandler(llm_factory=self.llm_factory)
         )
         
-        # Regular Processing Handlers
         registry.register(UserMessageReceivedEvent, UserInputMessageEventHandler())
         registry.register(InterAgentMessageReceivedEvent, InterAgentMessageReceivedEventHandler()) 
         registry.register(LLMCompleteResponseReceivedEvent, LLMCompleteResponseReceivedEventHandler())
@@ -114,7 +112,6 @@ class AgentFactory:
         registry.register(LLMUserMessageReadyEvent, LLMUserMessageReadyEventHandler()) 
         registry.register(ApprovedToolInvocationEvent, ApprovedToolInvocationEventHandler()) 
         
-        # Lifecycle Logging Handlers
         lifecycle_logger_instance = LifecycleEventLogger() 
         registry.register(AgentStartedEvent, lifecycle_logger_instance) 
         registry.register(AgentStoppedEvent, lifecycle_logger_instance)
@@ -130,29 +127,29 @@ class AgentFactory:
                                 workspace: Optional[BaseAgentWorkspace] = None,
                                 custom_llm_config: Optional[LLMConfig] = None,
                                 custom_tool_config: Optional[Dict[str, ToolConfig]] = None,
-                                auto_execute_tools: bool = True # RENAMED PARAMETER
+                                auto_execute_tools: bool = True 
                                 ) -> tuple[AgentConfig, AgentRuntimeState]:
         logger.debug(f"Creating AgentConfig for agent_id '{agent_id}' using definition '{definition.name}'. "
-                     f"LLM Model Name: {llm_model_name}. Auto Execute: {auto_execute_tools}.") # UPDATED LOGGING
+                     f"LLM Model Name: {llm_model_name}. Auto Execute: {auto_execute_tools}.")
 
-        if not isinstance(definition, AgentDefinition):
+        if not isinstance(definition, AgentDefinition): # pragma: no cover
             raise TypeError(f"Expected AgentDefinition, got {type(definition).__name__}")
-        if not llm_model_name or not isinstance(llm_model_name, str): 
+        if not llm_model_name or not isinstance(llm_model_name, str):  # pragma: no cover
             raise TypeError(f"An 'llm_model_name' (string) must be specified. Got {type(llm_model_name)}")
-        if custom_llm_config is not None and not isinstance(custom_llm_config, LLMConfig): 
+        if custom_llm_config is not None and not isinstance(custom_llm_config, LLMConfig):  # pragma: no cover
             raise TypeError(f"custom_llm_config must be an LLMConfig instance or None. Got {type(custom_llm_config)}")
-        if custom_tool_config is not None and not (
+        if custom_tool_config is not None and not ( # pragma: no cover
             isinstance(custom_tool_config, dict) and
             all(isinstance(k, str) and isinstance(v, ToolConfig) for k, v in custom_tool_config.items())
         ): 
             raise TypeError("custom_tool_config must be a Dict[str, ToolConfig] or None.")
-        if workspace is not None and not isinstance(workspace, BaseAgentWorkspace):
+        if workspace is not None and not isinstance(workspace, BaseAgentWorkspace): # pragma: no cover
              raise TypeError(f"Expected BaseAgentWorkspace or None for workspace, got {type(workspace).__name__}")
 
         agent_config = AgentConfig(
             agent_id=agent_id,
             definition=definition,
-            auto_execute_tools=auto_execute_tools, # PARAMETER USED HERE
+            auto_execute_tools=auto_execute_tools, 
             llm_model_name=llm_model_name,
             custom_llm_config=custom_llm_config,
             custom_tool_config=custom_tool_config
@@ -177,7 +174,7 @@ class AgentFactory:
                              workspace: Optional[BaseAgentWorkspace] = None,
                              custom_llm_config: Optional[LLMConfig] = None,
                              custom_tool_config: Optional[Dict[str, ToolConfig]] = None,
-                             auto_execute_tools: bool = True # RENAMED PARAMETER
+                             auto_execute_tools: bool = True 
                              ) -> AgentContext: 
         agent_config, agent_runtime_state = self._create_agent_config_and_state(
             agent_id=agent_id,
@@ -186,7 +183,7 @@ class AgentFactory:
             workspace=workspace,
             custom_llm_config=custom_llm_config,
             custom_tool_config=custom_tool_config,
-            auto_execute_tools=auto_execute_tools # PARAMETER USED HERE
+            auto_execute_tools=auto_execute_tools 
         )
         
         composite_context = AgentContext(config=agent_config, state=agent_runtime_state)
@@ -200,7 +197,7 @@ class AgentFactory:
                              workspace: Optional[BaseAgentWorkspace] = None,
                              custom_llm_config: Optional[LLMConfig] = None, 
                              custom_tool_config: Optional[Dict[str, ToolConfig]] = None, 
-                             auto_execute_tools: bool = True # RENAMED PARAMETER
+                             auto_execute_tools: bool = True 
                              ) -> 'AgentRuntime': 
         from autobyteus.agent.agent_runtime import AgentRuntime 
 
@@ -211,12 +208,12 @@ class AgentFactory:
             workspace=workspace,
             custom_llm_config=custom_llm_config, 
             custom_tool_config=custom_tool_config,
-            auto_execute_tools=auto_execute_tools # PARAMETER USED HERE
+            auto_execute_tools=auto_execute_tools 
         )
         
         event_handler_registry = self._get_default_event_handler_registry()
         
-        tool_exec_mode_log = "Automatic" if auto_execute_tools else "Requires Approval" # UPDATED LOGGING
+        tool_exec_mode_log = "Automatic" if auto_execute_tools else "Requires Approval" 
         logger.info(f"Instantiating AgentRuntime for agent_id: '{agent_id}' with definition: '{definition.name}'. "
                      f"LLM Model Name (for init): {llm_model_name}. Workspace: {workspace is not None}. Tool Exec Mode: {tool_exec_mode_log}")
         

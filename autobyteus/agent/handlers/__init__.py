@@ -6,7 +6,7 @@ from .base_event_handler import AgentEventHandler
 from .event_handler_registry import EventHandlerRegistry
 
 # Agent Initialization Sequence Handlers
-from .create_tool_instances_event_handler import CreateToolInstancesEventHandler # NEW
+from .create_tool_instances_event_handler import CreateToolInstancesEventHandler 
 from .process_system_prompt_event_handler import ProcessSystemPromptEventHandler
 from .finalize_llm_config_event_handler import FinalizeLLMConfigEventHandler
 from .create_llm_instance_event_handler import CreateLLMInstanceEventHandler
@@ -25,18 +25,14 @@ from .tool_execution_approval_event_handler import ToolExecutionApprovalEventHan
 from .generic_event_handler import GenericEventHandler
 from .lifecycle_event_logger import LifecycleEventLogger 
 
-# Removed: from .initialize_llm_event_handler import InitializeLLMEventHandler 
-
 
 __all__ = [
     "AgentEventHandler",
     "EventHandlerRegistry",
-    # Agent Initialization Sequence Handlers
-    "CreateToolInstancesEventHandler", # NEW
+    "CreateToolInstancesEventHandler", 
     "ProcessSystemPromptEventHandler",
     "FinalizeLLMConfigEventHandler",
     "CreateLLMInstanceEventHandler",
-    # Regular Agent Processing Handlers
     "UserInputMessageEventHandler", 
     "InterAgentMessageReceivedEventHandler", 
     "LLMUserMessageReadyEventHandler", 
@@ -45,7 +41,7 @@ __all__ = [
     "ToolResultEventHandler",
     "ApprovedToolInvocationEventHandler",
     "ToolExecutionApprovalEventHandler",
-    # General Purpose and Lifecycle Handlers
     "GenericEventHandler",
     "LifecycleEventLogger", 
 ]
+

@@ -3,9 +3,8 @@ import logging
 from typing import Dict, Optional, Any
 
 from autobyteus.agent.registry.agent_definition import AgentDefinition
-# BaseTool is no longer needed here as tool_instances are removed
 from autobyteus.llm.utils.llm_config import LLMConfig
-from autobyteus.tools.tool_config import ToolConfig # ADDED for custom_tool_config type
+from autobyteus.tools.tool_config import ToolConfig 
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +22,7 @@ class AgentConfig:
                  auto_execute_tools: bool,
                  llm_model_name: str,
                  custom_llm_config: Optional[LLMConfig] = None,
-                 custom_tool_config: Optional[Dict[str, ToolConfig]] = None, # ADDED
+                 custom_tool_config: Optional[Dict[str, ToolConfig]] = None, 
                  ):
         """
         Initializes the AgentConfig.
@@ -40,7 +39,6 @@ class AgentConfig:
             raise ValueError("AgentConfig requires a non-empty string 'agent_id'.")
         if not isinstance(definition, AgentDefinition):
             raise TypeError(f"AgentConfig 'definition' must be an AgentDefinition. Got {type(definition)}")
-        # Validation for tool_instances removed
         if not isinstance(auto_execute_tools, bool):
             raise TypeError(f"AgentConfig 'auto_execute_tools' must be a boolean. Got {type(auto_execute_tools)}")
         if not llm_model_name or not isinstance(llm_model_name, str):
@@ -56,18 +54,17 @@ class AgentConfig:
 
         self.agent_id: str = agent_id
         self.definition: AgentDefinition = definition
-        # self.tool_instances: Dict[str, BaseTool] = tool_instances # REMOVED
         self.auto_execute_tools: bool = auto_execute_tools
         self.llm_model_name: str = llm_model_name
         self.custom_llm_config: Optional[LLMConfig] = custom_llm_config
-        self.custom_tool_config: Optional[Dict[str, ToolConfig]] = custom_tool_config # ADDED
+        self.custom_tool_config: Optional[Dict[str, ToolConfig]] = custom_tool_config
 
         logger.info(f"AgentConfig initialized for agent_id '{self.agent_id}'. Definition: '{self.definition.name}', LLM Model: '{self.llm_model_name}'.")
 
     def __repr__(self) -> str:
         custom_tool_config_keys = list(self.custom_tool_config.keys()) if self.custom_tool_config else []
         return (f"AgentConfig(agent_id='{self.agent_id}', definition='{self.definition.name}', "
-                # f"tools={list(self.tool_instances.keys())}, " # REMOVED
                 f"auto_execute={self.auto_execute_tools}, "
                 f"llm_model='{self.llm_model_name}', custom_llm_config_present={self.custom_llm_config is not None}, "
                 f"custom_tool_config_keys={custom_tool_config_keys})")
+

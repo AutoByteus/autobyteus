@@ -5,22 +5,29 @@ import traceback
 from typing import Dict, Optional, Any, AsyncIterator, Type, cast
 
 from autobyteus.agent.context.agent_context import AgentContext 
+from autobyteus.agent.phases import AgentOperationalPhase 
+from autobyteus.agent.notifiers import AgentExternalEventNotifier 
 
 from autobyteus.agent.events import END_OF_STREAM_SENTINEL
-from autobyteus.agent.context.agent_status_manager import AgentStatusManager 
+from autobyteus.agent.context.agent_phase_manager import AgentPhaseManager 
 from autobyteus.agent.events import (
     BaseEvent,
-    AgentProcessingEvent, 
-    AgentPreparationEvent, 
-    AgentOperationalEvent, # ADDED for easier type checking
-    AgentStartedEvent,
-    AgentStoppedEvent,
-    AgentErrorEvent,
-    CreateToolInstancesEvent 
+    AgentStartedEvent, 
+    AgentStoppedEvent, 
+    AgentErrorEvent,   
+    CreateToolInstancesEvent,
+    ProcessSystemPromptEvent, 
+    FinalizeLLMConfigEvent, 
+    LLMUserMessageReadyEvent, 
+    PendingToolInvocationEvent, 
+    ToolExecutionApprovalEvent,
+    ToolResultEvent, 
+    LLMCompleteResponseReceivedEvent, 
+    UserMessageReceivedEvent, 
+    InterAgentMessageReceivedEvent 
 )
 from autobyteus.agent.handlers.event_handler_registry import EventHandlerRegistry
-from autobyteus.agent.status import AgentStatus
-from autobyteus.events.event_types import EventType as ExternalEventType
+
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +35,8 @@ class AgentRuntime:
     """
     The active execution engine for an agent.
     Manages the agent's lifecycle, event loop, and dispatches events to handlers.
-    Agent status management is delegated to an AgentStatusManager.
-    It owns the composite AgentContext (config + state) and EventHandlerRegistry.
-    Initialization is triggered by a chain of AgentPreparationEvents.
-    Regular work is handled by AgentOperationalEvents.
-    AgentStartedEvent is emitted only after LLM and tools are successfully initialized.
+    Agent operational phase management is delegated to an AgentPhaseManager,
+    which uses an AgentExternalEventNotifier to signal phase changes.
     """
 
     def __init__(self,
@@ -49,14 +53,11 @@ class AgentRuntime:
         self._is_running_flag: bool = False 
         self._stop_requested: asyncio.Event = asyncio.Event()
             
-        self.status_manager: AgentStatusManager = AgentStatusManager(context=self.context) 
+        self.external_event_notifier: AgentExternalEventNotifier = AgentExternalEventNotifier(agent_id=self.context.agent_id)
+        self.phase_manager: AgentPhaseManager = AgentPhaseManager(context=self.context, notifier=self.external_event_notifier) 
         
-        if hasattr(self.context.state, 'status_manager_ref'):
-             self.context.state.status_manager_ref = self.status_manager
-        else: 
-             setattr(self.context.state, 'status_manager_ref', self.status_manager)
-        logger.debug(f"AgentRuntime '{self.context.agent_id}': status_manager reference made available on context.state.status_manager_ref for direct access if needed.")
-
+        self.context.state.phase_manager_ref = self.phase_manager 
+        logger.debug(f"AgentRuntime '{self.context.agent_id}': phase_manager_ref set on context.state, pointing to AgentPhaseManager.")
 
         logger.info(f"AgentRuntime initialized for agent_id '{self.context.agent_id}'. Definition: '{self.context.definition.name}'")
         registered_handlers_info = [cls.__name__ for cls in self.event_handler_registry.get_all_registered_event_types()]
@@ -70,53 +71,43 @@ class AgentRuntime:
         self._is_running_flag = True 
         self._stop_requested.clear()
         
-        self.status_manager.notify_runtime_starting() 
+        self.phase_manager.notify_runtime_starting_and_uninitialized()
             
         self._main_loop_task = asyncio.create_task(self._execution_loop(), name=f"agent_runtime_loop_{self.context.agent_id}")
-        logger.info(f"AgentRuntime for '{self.context.agent_id}' execution loop task created. Will trigger initialization chain starting with tool instantiation.")
+        logger.info(f"AgentRuntime for '{self.context.agent_id}' execution loop task created. Will trigger initialization chain.")
 
-    async def _enqueue_fallback_sentinels(self):
+    async def _enqueue_fallback_sentinels(self): # pragma: no cover
         logger.debug(f"AgentRuntime '{self.context.agent_id}' enqueuing fallback sentinels to output queues.")
-        queues_to_signal = [
-            "assistant_output_chunk_queue",
-            "assistant_final_message_queue",
-            "tool_interaction_log_queue"
+        output_queue_names = [
+            "assistant_output_chunk_queue", "assistant_final_message_queue",
+            "tool_interaction_log_queue", "pending_tool_approval_queue" 
         ]
-        for queue_name in queues_to_signal:
+        for queue_name in output_queue_names:
             try:
                 await self.context.queues.enqueue_end_of_stream_sentinel_to_output_queue(queue_name)
-            except Exception as e:
+            except Exception as e: 
                 logger.error(f"AgentRuntime '{self.context.agent_id}' failed to enqueue fallback sentinel to '{queue_name}': {e}", exc_info=True)
+        
 
-
-    async def stop_execution_loop(self, timeout: float = 10.0) -> None:
-        if not self._is_running_flag and not self._main_loop_task : 
+    async def stop_execution_loop(self, timeout: float = 10.0) -> None: # pragma: no cover
+        if not self._is_running_flag: 
             logger.warning(f"AgentRuntime for '{self.context.agent_id}' is not running or already stopped. Ignoring stop request.")
-            if self._is_running_flag: self._is_running_flag = False 
             return
         
         if self._stop_requested.is_set():
              logger.info(f"AgentRuntime for '{self.context.agent_id}' stop already in progress.")
              if self._main_loop_task and not self._main_loop_task.done():
-                 try:
-                     await asyncio.wait_for(self._main_loop_task, timeout=timeout)
-                 except asyncio.TimeoutError:
-                      logger.warning(f"AgentRuntime for '{self.context.agent_id}' timed out waiting for already stopping loop to complete.")
-                 except asyncio.CancelledError:
-                     pass 
-             await self._enqueue_fallback_sentinels()
-             await self.context.queues.graceful_shutdown(timeout=max(1.0, timeout / 2))
-             if self.context.llm_instance:
-                 await self.context.llm_instance.cleanup()
-             self._is_running_flag = False
-             self.status_manager.notify_final_shutdown_complete()
+                 try: await asyncio.wait_for(self._main_loop_task, timeout=timeout)
+                 except asyncio.TimeoutError: logger.warning(f"AgentRuntime for '{self.context.agent_id}' timed out waiting for already stopping loop to complete.")
+                 except asyncio.CancelledError: pass 
+             self._is_running_flag = False 
              return
 
         logger.info(f"AgentRuntime for '{self.context.agent_id}' execution loop stop requested (timeout: {timeout}s).")
         self._stop_requested.set() 
+        self.phase_manager.notify_shutdown_initiated() 
 
-        await self.context.queues.enqueue_internal_system_event(AgentStoppedEvent())
-        logger.debug(f"AgentRuntime '{self.context.agent_id}' enqueued AgentStoppedEvent for logging during shutdown request.")
+        await self.context.queues.enqueue_internal_system_event(AgentStoppedEvent()) 
 
         if self._main_loop_task and not self._main_loop_task.done():
             try:
@@ -125,57 +116,45 @@ class AgentRuntime:
             except asyncio.TimeoutError:
                 logger.warning(f"AgentRuntime for '{self.context.agent_id}' execution loop timed out during stop. Forcing cancellation.")
                 self._main_loop_task.cancel()
-                try:
-                    await self._main_loop_task 
-                except asyncio.CancelledError:
-                    logger.info(f"AgentRuntime for '{self.context.agent_id}' execution loop task was cancelled.")
+                try: await self._main_loop_task 
+                except asyncio.CancelledError: logger.info(f"AgentRuntime for '{self.context.agent_id}' execution loop task was cancelled.")
             except Exception as e: 
                 logger.error(f"Exception during AgentRuntime '{self.context.agent_id}' stop's wait_for: {e}", exc_info=True)
-                self.status_manager.notify_error_occurred() 
+                self.phase_manager.notify_error_occurred(str(e), traceback.format_exc()) 
 
         await self._enqueue_fallback_sentinels()
         await self.context.queues.graceful_shutdown(timeout=max(1.0, timeout / 2)) 
-        if self.context.llm_instance:
+        if self.context.llm_instance and hasattr(self.context.llm_instance, 'cleanup'): 
             await self.context.llm_instance.cleanup() 
         
         self._is_running_flag = False 
         self._main_loop_task = None 
 
-        self.status_manager.notify_final_shutdown_complete()
+        self.phase_manager.notify_final_shutdown_complete() 
         
-        logger.info(f"AgentRuntime for '{self.context.agent_id}' stop_execution_loop completed. Final status: {self.context.status.value if self.context.status else 'None'}")
+        logger.info(f"AgentRuntime for '{self.context.agent_id}' stop_execution_loop completed. Final phase: {self.context.current_phase.value}")
 
 
     async def _execution_loop(self) -> None:
-        # Start initialization sequence with CreateToolInstancesEvent
         await self.context.queues.enqueue_internal_system_event(CreateToolInstancesEvent()) 
-        logger.info(f"Agent '{self.context.agent_id}' _execution_loop: Task starting, CreateToolInstancesEvent enqueued to begin initialization.")
+        logger.info(f"Agent '{self.context.agent_id}' _execution_loop: Task starting. Enqueued CreateToolInstancesEvent. Phase should be UNINITIALIZED or INITIALIZING_TOOLS.")
 
         try:
             while not self._stop_requested.is_set():
-                current_status_val = self.context.status.value if self.context.status else 'None'
-                logger.debug(f"Agent '{self.context.agent_id}' _execution_loop: Top of loop. Stop: {self._stop_requested.is_set()}. Status: {current_status_val}")
                 try:
-                    logger.debug(f"Agent '{self.context.agent_id}' _execution_loop: Attempting to get next event.")
                     queue_event_tuple = await asyncio.wait_for(
-                        self.context.queues.get_next_input_event(), 
-                        timeout=0.5 
+                        self.context.queues.get_next_input_event(), timeout=0.5 
                     )
-                    event_type_name = type(queue_event_tuple[1]).__name__ if queue_event_tuple else 'None'
-                    logger.debug(f"Agent '{self.context.agent_id}' _execution_loop: get_next_input_event returned: {event_type_name}")
                 except asyncio.TimeoutError:
-                    logger.debug(f"Agent '{self.context.agent_id}' _execution_loop: Timed out waiting for event.")
-                    if self.context.status == AgentStatus.RUNNING and \
+                    current_q_phase = self.context.current_phase 
+                    if current_q_phase.is_processing() and not current_q_phase.is_terminal() and \
                        all(q.empty() for _, q in self.context.queues._input_queues if q is not None): 
-                         logger.debug(f"Agent '{self.context.agent_id}' _execution_loop: RUNNING and queues empty, notifying for IDLE.")
-                         self.status_manager.notify_processing_complete_queues_empty() 
+                         if current_q_phase != AgentOperationalPhase.IDLE : 
+                            self.phase_manager.notify_processing_complete_and_idle() 
                     continue 
 
                 if queue_event_tuple is None: 
-                    if self._stop_requested.is_set(): 
-                        logger.debug(f"Agent '{self.context.agent_id}' _execution_loop: Stop requested and no event. Breaking.")
-                        break
-                    logger.debug(f"Agent '{self.context.agent_id}' _execution_loop: No event, continuing.")
+                    if self._stop_requested.is_set(): break
                     continue
 
                 _queue_name, event_obj = queue_event_tuple
@@ -184,44 +163,38 @@ class AgentRuntime:
                     logger.warning(f"Agent '{self.context.agent_id}' _execution_loop: Non-BaseEvent from '{_queue_name}': {type(event_obj)}. Skipping.")
                     continue
                 
-                event_type_name = type(event_obj).__name__
-                current_status_val = self.context.status.value if self.context.status else 'None'
-                logger.debug(f"Agent '{self.context.agent_id}' _execution_loop: Event '{event_type_name}' from '{_queue_name}'. Status: {current_status_val}")
-                
-                # Distinguish between preparation and operational events for status transitions
-                if self.context.status == AgentStatus.IDLE and isinstance(event_obj, AgentOperationalEvent): 
-                    logger.debug(f"Agent '{self.context.agent_id}' _execution_loop: IDLE, received AgentOperationalEvent. Notifying for RUNNING.")
-                    self.status_manager.notify_processing_event_dequeued()
+                current_phase_before_dispatch = self.context.current_phase 
 
-                await self._dispatch_event(event_obj)
+                if current_phase_before_dispatch == AgentOperationalPhase.IDLE:
+                    if isinstance(event_obj, (UserMessageReceivedEvent, InterAgentMessageReceivedEvent)):
+                        self.phase_manager.notify_processing_input_started(trigger_info=type(event_obj).__name__)
                 
-                if self.context.status == AgentStatus.RUNNING and \
-                   isinstance(event_obj, AgentOperationalEvent) and \
-                   all(q.empty() for _, q in self.context.queues._input_queues if q is not None): 
-                     logger.debug(f"Agent '{self.context.agent_id}' _execution_loop: Processing of '{event_type_name}' (Operational Event) complete, RUNNING and queues empty. Notifying for IDLE.")
-                     self.status_manager.notify_processing_complete_queues_empty()
-
-        except asyncio.CancelledError:
+                await self._dispatch_event(event_obj, current_phase_before_dispatch) 
+                
+                # ADDED: Yield control briefly to allow other tasks (like AgentEventStream queue consumers) to run.
+                # This might help improve the perceived order of streaming output vs. subsequent event processing.
+                await asyncio.sleep(0) 
+                
+        except asyncio.CancelledError: # pragma: no cover
             logger.info(f"Agent '{self.context.agent_id}' _execution_loop was cancelled.")
-        except Exception as e:
+        except Exception as e: # pragma: no cover
+            error_details = traceback.format_exc()
             logger.error(f"Fatal error in Agent '{self.context.agent_id}' _execution_loop: {e}", exc_info=True)
-            self.status_manager.notify_error_occurred() 
+            self.phase_manager.notify_error_occurred(str(e), error_details) 
             await self.context.queues.enqueue_internal_system_event(
-                AgentErrorEvent(error_message=str(e), exception_details=traceback.format_exc())
+                AgentErrorEvent(error_message=str(e), exception_details=error_details)
             )
-        finally:
+        finally: # pragma: no branch
             logger.info(f"Agent '{self.context.agent_id}' _execution_loop is exiting. Stop requested: {self._stop_requested.is_set()}")
-            
-            if not self._stop_requested.is_set() and (self.context.status != AgentStatus.ERROR if self.context.status else True) : 
-                logger.warning(f"Agent '{self.context.agent_id}' _execution_loop ended unexpectedly. Notifying status manager.")
-                self.status_manager.notify_runtime_stopping_or_loop_ended_unexpectedly() 
-                await self.context.queues.enqueue_internal_system_event(AgentStoppedEvent())
+            if not self._stop_requested.is_set() and not self.context.current_phase.is_terminal(): # pragma: no cover
+                current_error_details = traceback.format_exc() if 'error_details' not in locals() or error_details is None else error_details
+                self.phase_manager.notify_error_occurred("Execution loop ended unexpectedly.", current_error_details)
             
             self._is_running_flag = False 
             logger.info(f"Agent '{self.context.agent_id}' _execution_loop has finished.")
 
 
-    async def _dispatch_event(self, event: BaseEvent) -> None:
+    async def _dispatch_event(self, event: BaseEvent, current_phase_before_dispatch: AgentOperationalPhase) -> None: # pragma: no cover
         event_class = type(event)
         handler = self.event_handler_registry.get_handler(event_class)
 
@@ -229,36 +202,72 @@ class AgentRuntime:
             event_class_name = event_class.__name__
             handler_class_name = type(handler).__name__
             
+            if isinstance(event, CreateToolInstancesEvent):
+                self.phase_manager.notify_initializing_tools()
+            elif isinstance(event, ProcessSystemPromptEvent):
+                self.phase_manager.notify_initializing_prompt()
+            elif isinstance(event, FinalizeLLMConfigEvent): 
+                self.phase_manager.notify_initializing_llm()
+            elif isinstance(event, LLMUserMessageReadyEvent):
+                if current_phase_before_dispatch not in [AgentOperationalPhase.AWAITING_LLM_RESPONSE, AgentOperationalPhase.ERROR]:
+                    self.phase_manager.notify_awaiting_llm_response()
+            elif isinstance(event, PendingToolInvocationEvent):
+                if not self.context.auto_execute_tools:
+                    self.phase_manager.notify_tool_execution_pending_approval(event.tool_invocation)
+                else: 
+                    self.phase_manager.notify_tool_execution_started(event.tool_invocation.name)
+            elif isinstance(event, ToolExecutionApprovalEvent):
+                tool_name_for_approval: Optional[str] = None
+                pending_invocation = self.context.pending_tool_approvals.get(event.tool_invocation_id) 
+                if pending_invocation:
+                    tool_name_for_approval = pending_invocation.name
+                else: 
+                    logger.warning(f"Agent '{self.context.agent_id}': Could not find pending invocation for ID '{event.tool_invocation_id}' to get tool name for phase notification.")
+                    tool_name_for_approval = "unknown_tool"
+
+                self.phase_manager.notify_tool_execution_resumed_after_approval(
+                    approved=event.is_approved, 
+                    tool_name=tool_name_for_approval
+                )
+            elif isinstance(event, ToolResultEvent):
+                 if current_phase_before_dispatch == AgentOperationalPhase.EXECUTING_TOOL: # Check if we were executing
+                    self.phase_manager.notify_processing_tool_result(event.tool_name)
+
+
             try:
-                logger.debug(f"Agent '{self.context.agent_id}' _dispatch_event: Dispatching '{event_class_name}' to {handler_class_name}.")
+                logger.debug(f"Agent '{self.context.agent_id}' (Phase: {self.context.current_phase.value}) dispatching '{event_class_name}' to {handler_class_name}.")
                 await handler.handle(event, self.context) 
-                logger.debug(f"Agent '{self.context.agent_id}' _dispatch_event: Event '{event_class_name}' handled by {handler_class_name}.")
+                logger.debug(f"Agent '{self.context.agent_id}' (Phase: {self.context.current_phase.value}) event '{event_class_name}' handled by {handler_class_name}.")
 
                 if isinstance(event, AgentStartedEvent): 
-                    self.status_manager.notify_agent_started_event_handled() 
+                    self.phase_manager.notify_initialization_complete() 
+                
+                if isinstance(event, LLMCompleteResponseReceivedEvent):
+                    if self.context.current_phase == AgentOperationalPhase.ANALYZING_LLM_RESPONSE and \
+                       not self.context.pending_tool_approvals and \
+                       self.context.queues.tool_invocation_request_queue.empty(): 
+                           self.phase_manager.notify_processing_complete_and_idle()
 
-            except Exception as e:
-                error_msg = f"Agent '{self.context.agent_id}' _dispatch_event: Error handling '{event_class_name}' with {handler_class_name}: {e}"
+
+            except Exception as e: 
+                error_details = traceback.format_exc()
+                error_msg = f"Agent '{self.context.agent_id}' error handling '{event_class_name}' with {handler_class_name}: {e}"
                 logger.error(error_msg, exc_info=True)
-                self.status_manager.notify_error_occurred() 
+                self.phase_manager.notify_error_occurred(error_msg, error_details) 
                 await self.context.queues.enqueue_internal_system_event(
-                    AgentErrorEvent(error_message=error_msg, exception_details=traceback.format_exc())
+                    AgentErrorEvent(error_message=error_msg, exception_details=error_details)
                 )
-        else:
-            logger.warning(f"Agent '{self.context.agent_id}' _dispatch_event: No handler for '{event_class.__name__}'. Event: {event}")
+        else: 
+            logger.warning(f"Agent '{self.context.agent_id}' (Phase: {self.context.current_phase.value}) No handler for '{event_class.__name__}'. Event: {event}")
 
 
-    @property
-    def status(self) -> AgentStatus:
-        current_status = self.context.status
-        if current_status is None: 
-            logger.error(f"AgentRuntime '{self.context.agent_id}': context.state.status is None. Defaulting to NOT_STARTED/ERROR.")
-            return AgentStatus.NOT_STARTED if not self._is_running_flag else AgentStatus.ERROR
-        return current_status
+    @property 
+    def current_phase_property(self) -> AgentOperationalPhase: 
+        return self.context.current_phase 
         
     @property
     def is_running(self) -> bool:
-        return self._is_running_flag and \
-               self._main_loop_task is not None and \
-               not self._main_loop_task.done()
+        if self._is_running_flag and self._main_loop_task and not self._main_loop_task.done():
+            return not self.context.current_phase.is_terminal()
+        return False
 

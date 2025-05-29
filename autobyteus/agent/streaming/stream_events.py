@@ -15,9 +15,9 @@ class StreamEventType(str, Enum):
     ASSISTANT_CHUNK = "assistant_chunk"
     ASSISTANT_FINAL_MESSAGE = "assistant_final_message"
     TOOL_INTERACTION_LOG_ENTRY = "tool_interaction_log_entry"
-    # AGENT_STATUS_CHANGED = "agent_status_change"  # REMOVED
+    AGENT_PHASE_UPDATE = "agent_phase_update" 
     ERROR_EVENT = "error_event" 
-    TOOL_APPROVAL_REQUESTED = "tool_approval_requested" 
+    TOOL_APPROVAL_REQUESTED = "tool_approval_requested" # Present
 
 
 class StreamEvent(BaseModel):
@@ -46,7 +46,6 @@ class StreamEvent(BaseModel):
     )
 
     class Config:
-        # Pydantic V2 configuration
         populate_by_name = True 
         use_enum_values = True 
 

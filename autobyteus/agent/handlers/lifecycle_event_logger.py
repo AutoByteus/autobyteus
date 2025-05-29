@@ -10,55 +10,56 @@ from autobyteus.agent.events import (
     AgentErrorEvent,
     LifecycleEvent 
 )
-# AgentStatus import is fine as is.
+from autobyteus.agent.phases import AgentOperationalPhase # Import new phase enum
 
 if TYPE_CHECKING:
-    from autobyteus.agent.context import AgentContext # Composite AgentContext
+    from autobyteus.agent.context import AgentContext 
 
 logger = logging.getLogger(__name__)
 
 class LifecycleEventLogger(AgentEventHandler): 
     """
     Logs various lifecycle events for an agent.
-    This handler does not modify agent state directly; status changes are managed
-    by AgentStatusManager, which is triggered by AgentRuntime.
+    This handler does not modify agent state directly; phase changes are managed
+    by AgentPhaseManager.
     """
 
     async def handle(self,
                      event: BaseEvent, 
-                     context: 'AgentContext') -> None: # context is composite
+                     context: 'AgentContext') -> None: 
         """
         Logs different lifecycle events.
 
         Args:
             event: The lifecycle event object (AgentStartedEvent, AgentStoppedEvent, etc.).
-            context: The composite AgentContext (used for agent_id and current status).
+            context: The composite AgentContext (used for agent_id and current phase).
         """
         
-        agent_id = context.agent_id # Using convenience property
-        current_status_val = context.status.value if context.status else "None" # Using convenience property
+        agent_id = context.agent_id 
+        # MODIFIED: Use current_phase instead of status
+        current_phase_val = context.current_phase.value if context.current_phase else "None (Phase not set)"
 
         if isinstance(event, AgentStartedEvent):
-            logger.info(f"Agent '{agent_id}' Logged AgentStartedEvent. Current status context holds: {current_status_val}")
+            logger.info(f"Agent '{agent_id}' Logged AgentStartedEvent. Current agent phase: {current_phase_val}")
 
         elif isinstance(event, AgentStoppedEvent):
-            logger.info(f"Agent '{agent_id}' Logged AgentStoppedEvent. Current status context holds: {current_status_val}")
+            logger.info(f"Agent '{agent_id}' Logged AgentStoppedEvent. Current agent phase: {current_phase_val}")
 
         elif isinstance(event, AgentErrorEvent):
             logger.error(
                 f"Agent '{agent_id}' Logged AgentErrorEvent: {event.error_message}. "
-                f"Details: {event.exception_details}. Current status context holds: {current_status_val}"
+                f"Details: {event.exception_details}. Current agent phase: {current_phase_val}"
             )
 
-        else:
+        else: # pragma: no cover
             if isinstance(event, LifecycleEvent): 
                  logger.warning(
                      f"LifecycleEventLogger for agent '{agent_id}' received an unhandled "
-                     f"specific LifecycleEvent type: {type(event)}. Event: {event}. Current status: {current_status_val}"
+                     f"specific LifecycleEvent type: {type(event)}. Event: {event}. Current phase: {current_phase_val}"
                  )
             else: 
                  logger.warning(
                      f"LifecycleEventLogger for agent '{agent_id}' received an "
-                     f"unexpected event type: {type(event)}. Event: {event}. Current status: {current_status_val}"
+                     f"unexpected event type: {type(event)}. Event: {event}. Current phase: {current_phase_val}"
                  )
 

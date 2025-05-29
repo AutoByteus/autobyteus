@@ -4,13 +4,14 @@ Components related to the agent's runtime context, state, config, and status man
 """
 from .agent_config import AgentConfig
 from .agent_runtime_state import AgentRuntimeState
-from .agent_context import AgentContext # This is the new composite AgentContext
-from .agent_status_manager import AgentStatusManager
+from .agent_context import AgentContext 
+from .agent_phase_manager import AgentPhaseManager # MODIFIED: Replaced AgentStatusManager
 
 
 __all__ = [
     "AgentContext",
     "AgentConfig", 
     "AgentRuntimeState", 
-    "AgentStatusManager",
+    "AgentPhaseManager", # MODIFIED: Replaced AgentStatusManager
 ]
+

@@ -2,7 +2,6 @@
 from dataclasses import dataclass, field 
 from typing import Any, Dict, Optional
 
-# Imports will need to change based on new locations
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage 
 from autobyteus.agent.tool_invocation import ToolInvocation 
 from autobyteus.agent.message.inter_agent_message import InterAgentMessage
@@ -54,7 +53,7 @@ class CreateLLMInstanceEvent(AgentPreparationEvent):
 
 # --- Agent Operational Phase Events ---
 @dataclass
-class AgentOperationalEvent(AgentProcessingEvent): # NEW BASE CLASS
+class AgentOperationalEvent(AgentProcessingEvent): 
     """Base class for events that occur during the agent's active operational phase (post-preparation)."""
     pass
 
@@ -128,10 +127,11 @@ class ApprovedToolInvocationEvent(AgentOperationalEvent):
 
 
 @dataclass
-class GenericEvent(AgentOperationalEvent): # Assuming GenericEvent is primarily operational
+class GenericEvent(AgentOperationalEvent): 
     """
     A generic event for miscellaneous purposes, typically during active operation.
     Its 'type_name' attribute can be used by a GenericEventHandler for sub-dispatch.
     """
     payload: Dict[str, Any]
     type_name: str 
+

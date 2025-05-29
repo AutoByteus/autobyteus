@@ -9,6 +9,7 @@ from .queue_streamer import stream_queue_items
 __all__ = [
     "StreamEventType",
     "StreamEvent",
-    "AgentEventStream",   # This is the main public class for all streaming
+    "AgentEventStream",   
     "stream_queue_items", 
 ]
+
