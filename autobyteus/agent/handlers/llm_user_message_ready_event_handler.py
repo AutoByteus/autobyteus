@@ -4,8 +4,8 @@ import traceback
 from typing import TYPE_CHECKING, cast
 
 from autobyteus.agent.handlers.base_event_handler import AgentEventHandler
-from autobyteus.agent.events import LLMUserMessageReadyEvent, LLMCompleteResponseReceivedEvent # RENAMED Event
-from autobyteus.agent.events import END_OF_STREAM_SENTINEL
+from autobyteus.agent.events import LLMUserMessageReadyEvent, LLMCompleteResponseReceivedEvent 
+from autobyteus.agent.events import END_OF_STREAM_SENTINEL # Will import from agent_output_data_manager
 from autobyteus.llm.user_message import LLMUserMessage
 from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-class LLMUserMessageReadyEventHandler(AgentEventHandler): # RENAMED Class
+class LLMUserMessageReadyEventHandler(AgentEventHandler): 
     """
     Handles LLMUserMessageReadyEvents by sending the prepared LLMUserMessage 
     (derived from user or inter-agent input) to the LLM,
@@ -23,17 +23,16 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler): # RENAMED Class
     """
 
     def __init__(self):
-        logger.info("LLMUserMessageReadyEventHandler initialized.") # RENAMED Class in log
+        logger.info("LLMUserMessageReadyEventHandler initialized.") 
 
     async def handle(self,
-                     event: LLMUserMessageReadyEvent, # RENAMED Event type
+                     event: LLMUserMessageReadyEvent, 
                      context: 'AgentContext') -> None:
-        if not isinstance(event, LLMUserMessageReadyEvent): # RENAMED Event type check
+        if not isinstance(event, LLMUserMessageReadyEvent): 
             logger.warning(f"LLMUserMessageReadyEventHandler received non-LLMUserMessageReadyEvent: {type(event)}. Skipping.")
             return
 
-        # Safeguard: Ensure LLM is initialized.
-        if context.state.llm_instance is None: # Access via context.state
+        if context.state.llm_instance is None: 
             error_msg = f"Agent '{context.agent_id}' received LLMUserMessageReadyEvent but LLM instance is not yet initialized. This indicates a potential issue in the agent's state or event flow."
             logger.critical(error_msg)
             raise RuntimeError(error_msg)
@@ -42,22 +41,23 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler): # RENAMED Class
         logger.info(f"Agent '{context.agent_id}' handling LLMUserMessageReadyEvent: '{llm_user_message.content[:100]}...'") 
         logger.debug(f"Agent '{context.agent_id}' preparing to send full message to LLM:\n---\n{llm_user_message.content}\n---")
         
-        # Access conversation_history and queues via context.state
         context.state.add_message_to_history({"role": "user", "content": llm_user_message.content})
 
         complete_response_text = ""
-        chunk_queue = context.state.queues.assistant_output_chunk_queue
+        # MODIFIED: Access assistant_output_chunk_queue via context.output_data_queues
+        chunk_queue = context.output_data_queues.assistant_output_chunk_queue
         try:
-            # Access llm_instance via context.state
             async for chunk_response in context.state.llm_instance.stream_user_message(llm_user_message):
                 if not isinstance(chunk_response, ChunkResponse):
                     logger.warning(f"Agent '{context.agent_id}' received unexpected chunk type: {type(chunk_response)} during LLM stream. Expected ChunkResponse.")
                     continue
 
                 complete_response_text += chunk_response.content
-                await chunk_queue.put(chunk_response)
+                # MODIFIED: Use enqueue_assistant_chunk method
+                await context.output_data_queues.enqueue_assistant_chunk(chunk_response)
             
-            await chunk_queue.put(END_OF_STREAM_SENTINEL)
+            # MODIFIED: Use enqueue_assistant_chunk method
+            await context.output_data_queues.enqueue_assistant_chunk(END_OF_STREAM_SENTINEL)
             logger.debug(f"Agent '{context.agent_id}' LLM stream completed. Full response length: {len(complete_response_text)}. Sentinel placed in chunk queue.")
             logger.debug(f"Agent '{context.agent_id}' aggregated full LLM response:\n---\n{complete_response_text}\n---")
 
@@ -69,7 +69,8 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler): # RENAMED Class
             context.state.add_message_to_history({"role": "assistant", "content": error_message_for_output, "is_error": True})
             
             if not chunk_queue.full(): 
-                await chunk_queue.put(END_OF_STREAM_SENTINEL)
+                # MODIFIED: Use enqueue_assistant_chunk method
+                await context.output_data_queues.enqueue_assistant_chunk(END_OF_STREAM_SENTINEL)
             else:
                 logger.warning(f"Agent '{context.agent_id}' chunk_queue is full, cannot place error sentinel.")
 
@@ -77,7 +78,8 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler): # RENAMED Class
                 complete_response_text=error_message_for_output, 
                 is_error=True 
             )
-            await context.state.queues.enqueue_internal_system_event(llm_complete_event_on_error)
+            # MODIFIED: Access input_event_queues and its specific enqueue method
+            await context.input_event_queues.enqueue_internal_system_event(llm_complete_event_on_error)
             logger.info(f"Agent '{context.agent_id}' enqueued LLMCompleteResponseReceivedEvent with error details from LLMUserMessageReadyEventHandler.")
             return 
 
@@ -86,6 +88,6 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler): # RENAMED Class
         llm_complete_event = LLMCompleteResponseReceivedEvent(
             complete_response_text=complete_response_text
         )
-        await context.state.queues.enqueue_internal_system_event(llm_complete_event)
+        # MODIFIED: Access input_event_queues and its specific enqueue method
+        await context.input_event_queues.enqueue_internal_system_event(llm_complete_event)
         logger.info(f"Agent '{context.agent_id}' enqueued LLMCompleteResponseReceivedEvent from LLMUserMessageReadyEventHandler.")
-

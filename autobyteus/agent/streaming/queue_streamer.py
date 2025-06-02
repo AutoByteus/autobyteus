@@ -3,14 +3,17 @@ import asyncio
 import logging
 from typing import TypeVar, AsyncIterator, Union, Any
 
+# Import END_OF_STREAM_SENTINEL from its new location
+from autobyteus.agent.events.agent_output_data_manager import END_OF_STREAM_SENTINEL
+
 logger = logging.getLogger(__name__)
 
 T = TypeVar('T')
 
 async def stream_queue_items(
     queue: asyncio.Queue[Union[T, object]], 
-    sentinel: object,
-    source_name: str = "unspecified_queue" # Optional name for logging
+    sentinel: object, # Sentinel is passed in, so its definition location is less critical here
+    source_name: str = "unspecified_queue" 
 ) -> AsyncIterator[T]:
     """
     Asynchronously iterates over an asyncio.Queue, yielding items of type T
@@ -19,6 +22,7 @@ async def stream_queue_items(
     Args:
         queue: The asyncio.Queue to stream items from.
         sentinel: The unique object used to signal the end of data in the queue.
+                 Typically this will be END_OF_STREAM_SENTINEL.
         source_name: An optional identifier for the queue source, used in logging.
 
     Yields:
@@ -38,21 +42,20 @@ async def stream_queue_items(
     logger.debug(f"Starting to stream items from queue '{source_name}'.")
     try:
         while True:
-            item: Any = await queue.get() # item can be T or sentinel
+            item: Any = await queue.get() 
             if item is sentinel:
                 logger.debug(f"Sentinel {sentinel!r} received from queue '{source_name}'. Ending stream.")
                 queue.task_done() 
                 break
             
-            # We expect items to be of type T or the sentinel.
-            # No runtime type check for 'item' against T for performance if T is generic.
             yield item # type: ignore 
             queue.task_done() 
     except asyncio.CancelledError:
         logger.info(f"Stream from queue '{source_name}' was cancelled.")
-        raise # Propagate cancellation
+        raise 
     except Exception as e:
         logger.error(f"Error streaming from queue '{source_name}': {e}", exc_info=True)
-        raise # Propagate other exceptions
+        raise 
     finally:
         logger.debug(f"Exiting stream_queue_items for queue '{source_name}'.")
+

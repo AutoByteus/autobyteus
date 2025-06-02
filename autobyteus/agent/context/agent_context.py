@@ -11,7 +11,9 @@ if TYPE_CHECKING:
     from autobyteus.agent.registry.agent_definition import AgentDefinition
     from autobyteus.llm.base_llm import BaseLLM
     from autobyteus.tools.base_tool import BaseTool
-    from autobyteus.agent.events.agent_event_queues import AgentEventQueues
+    # from autobyteus.agent.events.agent_event_queues import AgentEventQueues # REMOVED
+    from autobyteus.agent.events.agent_input_event_queue_manager import AgentInputEventQueueManager # ADDED
+    from autobyteus.agent.events.agent_output_data_manager import AgentOutputDataManager       # ADDED
     from autobyteus.agent.tool_invocation import ToolInvocation
     from autobyteus.llm.utils.llm_config import LLMConfig
     from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
@@ -78,9 +80,17 @@ class AgentContext:
     def llm_instance(self, value: Optional['BaseLLM']):
         self.state.llm_instance = value
 
+    # @property
+    # def queues(self) -> 'AgentEventQueues': # REMOVED OLD PROPERTY
+    #     return self.state.queues
+
     @property
-    def queues(self) -> 'AgentEventQueues':
-        return self.state.queues
+    def input_event_queues(self) -> 'AgentInputEventQueueManager': # ADDED
+        return self.state.input_event_queues
+
+    @property
+    def output_data_queues(self) -> 'AgentOutputDataManager': # ADDED
+        return self.state.output_data_queues
 
     @property
     def current_phase(self) -> 'AgentOperationalPhase': 

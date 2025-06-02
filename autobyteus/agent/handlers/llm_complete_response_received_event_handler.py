@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from autobyteus.agent.handlers.base_event_handler import AgentEventHandler
 from autobyteus.agent.events import LLMCompleteResponseReceivedEvent 
-from autobyteus.agent.events import END_OF_STREAM_SENTINEL 
+from autobyteus.agent.events import END_OF_STREAM_SENTINEL # Will import from agent_output_data_manager
 from autobyteus.llm.utils.response_types import CompleteResponse
 
 from autobyteus.agent.llm_response_processor import default_llm_response_processor_registry
@@ -32,7 +32,7 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
         complete_response_text = event.complete_response_text
         is_error_response = getattr(event, 'is_error', False) 
 
-        agent_id = context.agent_id # Using convenience property
+        agent_id = context.agent_id 
 
         logger.info(
             f"Agent '{agent_id}' handling LLMCompleteResponseReceivedEvent. "
@@ -41,10 +41,10 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
         logger.debug(f"Agent '{agent_id}' received full LLM response text for processing:\n---\n{complete_response_text}\n---")
 
         any_processor_took_action = False
-        final_message_queue = context.queues.assistant_final_message_queue # Using convenience property
+        # MODIFIED: Access assistant_final_message_queue via context.output_data_queues
+        final_message_queue = context.output_data_queues.assistant_final_message_queue
 
         if not is_error_response:
-            # Access definition via convenience property or context.config
             processor_names_to_try = context.definition.llm_response_processor_names
             if not processor_names_to_try: 
                 logger.debug(
@@ -65,7 +65,6 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
                                 f"LLMResponseProcessor '{processor_name}' (class: {processor_class.__name__})."
                             )
                             
-                            # Pass the composite context to the processor
                             handled_by_this_processor = await processor_instance.process_response(
                                 complete_response_text, context 
                             ) 
@@ -114,9 +113,9 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
                     f"to assistant_final_message_queue: '{complete_response_text[:100]}...'"
                 )
             
-            await final_message_queue.put(final_response)
-            await final_message_queue.put(END_OF_STREAM_SENTINEL)
+            # MODIFIED: Use enqueue_assistant_final_message method
+            await context.output_data_queues.enqueue_assistant_final_message(final_response)
+            await context.output_data_queues.enqueue_assistant_final_message(END_OF_STREAM_SENTINEL)
             logger.debug(
                 f"Agent '{agent_id}' placed CompleteResponse and sentinel into assistant_final_message_queue."
             )
-

@@ -2,7 +2,10 @@
 """
 Event definitions and event queue management for agents.
 """
-from .agent_event_queues import AgentEventQueues, END_OF_STREAM_SENTINEL
+# Removed: from .agent_event_queues import AgentEventQueues, END_OF_STREAM_SENTINEL
+from .agent_input_event_queue_manager import AgentInputEventQueueManager
+from .agent_output_data_manager import AgentOutputDataManager, END_OF_STREAM_SENTINEL
+
 from .agent_events import (
     BaseEvent,
     # Categorical Base Events
@@ -10,12 +13,14 @@ from .agent_events import (
     AgentProcessingEvent,
     # Agent Phase-Specific Base Events
     AgentPreparationEvent, 
-    AgentOperationalEvent, 
+    AgentOperationalEvent,
+    # New Bootstrap Event 
+    BootstrapAgentEvent, 
     # Specific Lifecycle Events
-    AgentStartedEvent,
+    AgentReadyEvent, # MODIFIED: Renamed from AgentStartedEvent
     AgentStoppedEvent,
     AgentErrorEvent,
-    # Agent Initialization Sequence Events (inheriting from AgentPreparationEvent)
+    # Agent Initialization Sequence Events (DEPRECATED in standard flow, kept for potential direct use or reference)
     CreateToolInstancesEvent, 
     ProcessSystemPromptEvent,
     FinalizeLLMConfigEvent,
@@ -34,20 +39,23 @@ from .agent_events import (
 )
 
 __all__ = [
-    "AgentEventQueues",
-    "END_OF_STREAM_SENTINEL",
+    # "AgentEventQueues", # REMOVED
+    "AgentInputEventQueueManager", 
+    "AgentOutputDataManager",      
+    "END_OF_STREAM_SENTINEL",    
     "BaseEvent",
     "LifecycleEvent",
     "AgentProcessingEvent",
     "AgentPreparationEvent", 
     "AgentOperationalEvent", 
-    "AgentStartedEvent",
+    "BootstrapAgentEvent", 
+    "AgentReadyEvent", # MODIFIED: Renamed from AgentStartedEvent
     "AgentStoppedEvent",
     "AgentErrorEvent",
-    "CreateToolInstancesEvent", 
-    "ProcessSystemPromptEvent",
-    "FinalizeLLMConfigEvent",
-    "CreateLLMInstanceEvent",
+    "CreateToolInstancesEvent", # Kept for now, but deprecated in standard flow
+    "ProcessSystemPromptEvent", # Kept for now, but deprecated in standard flow
+    "FinalizeLLMConfigEvent",   # Kept for now, but deprecated in standard flow
+    "CreateLLMInstanceEvent",   # Kept for now, but deprecated in standard flow
     "UserMessageReceivedEvent",
     "InterAgentMessageReceivedEvent",
     "LLMUserMessageReadyEvent", 
@@ -58,4 +66,3 @@ __all__ = [
     "ApprovedToolInvocationEvent",
     "GenericEvent",
 ]
-

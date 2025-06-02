@@ -5,12 +5,13 @@ import traceback
 import functools # For functools.partial
 from typing import AsyncIterator, Dict, Any, TYPE_CHECKING, List, Optional, Callable
 
-from autobyteus.agent.events import AgentEventQueues, END_OF_STREAM_SENTINEL
+# from autobyteus.agent.events import AgentEventQueues, END_OF_STREAM_SENTINEL # REMOVED AgentEventQueues
+from autobyteus.agent.events import AgentOutputDataManager, END_OF_STREAM_SENTINEL # MODIFIED
 from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 from autobyteus.agent.streaming.stream_events import StreamEvent, StreamEventType
 from .queue_streamer import stream_queue_items
 from autobyteus.events.event_types import EventType 
-from autobyteus.events.event_emitter import EventEmitter # ADDED for inheritance
+from autobyteus.events.event_emitter import EventEmitter 
 
 if TYPE_CHECKING:
     from autobyteus.agent.agent import Agent
@@ -19,26 +20,28 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-class AgentEventStream(EventEmitter): # MODIFIED: Inherit from EventEmitter
+class AgentEventStream(EventEmitter): 
     """
     Provides access to various output streams from an agent, unified into
     a single `all_events()` stream of `StreamEvent` objects.
-    It consumes data from various output queues in AgentEventQueues
+    It consumes data from various output queues in AgentOutputDataManager
     and subscribes to events from AgentExternalEventNotifier.
     """
 
     def __init__(self, agent: 'Agent'): # pragma: no cover
-        super().__init__() # MODIFIED: Call superclass __init__
+        super().__init__() 
         
         from autobyteus.agent.agent import Agent as ConcreteAgent 
         if not isinstance(agent, ConcreteAgent):
             raise TypeError(f"AgentEventStream requires an Agent instance, got {type(agent).__name__}.")
 
         self.agent_id: str = agent.agent_id
-        self._queues: AgentEventQueues = agent.get_event_queues() 
-        self._sentinel = END_OF_STREAM_SENTINEL
+        # MODIFIED: Get AgentOutputDataManager instance
+        self._output_data_manager: AgentOutputDataManager = agent.get_output_data_queues() 
+        self._sentinel = END_OF_STREAM_SENTINEL # This constant is now defined in AgentOutputDataManager
         
-        self._pending_tool_approval_queue = self._queues.pending_tool_approval_queue 
+        # Specific queue access is now direct from self._output_data_manager
+        self._pending_tool_approval_queue = self._output_data_manager.pending_tool_approval_queue 
 
         phase_manager: Optional['AgentPhaseManager'] = agent.context.phase_manager
         if phase_manager is None or phase_manager.notifier is None: 
@@ -65,7 +68,6 @@ class AgentEventStream(EventEmitter): # MODIFIED: Inherit from EventEmitter
             EventType.AGENT_PHASE_SHUTDOWN_COMPLETED,
             EventType.AGENT_PHASE_ERROR_ENTERED,
         ]
-        # Store handlers for unsubscription
         self._registered_event_handlers: Dict[EventType, Callable] = {}
         self._register_notifier_listeners()
         
@@ -75,12 +77,9 @@ class AgentEventStream(EventEmitter): # MODIFIED: Inherit from EventEmitter
         if not self._notifier:
             return
         for event_type_to_sub in self._subscribed_notifier_event_types:
-            # Create a partial function to pass event_type to the handler
             handler_with_event_type = functools.partial(self._handle_notifier_event, event_type=event_type_to_sub)
-            # Store the exact handler instance for later unsubscription
             self._registered_event_handlers[event_type_to_sub] = handler_with_event_type
             try:
-                # Use self.subscribe_from as AgentEventStream is now an EventEmitter
                 self.subscribe_from(self._notifier, event_type_to_sub, handler_with_event_type)
                 logger.debug(f"AgentEventStream '{self.agent_id}': Subscribed to {event_type_to_sub.name} from notifier {self._notifier.object_id}.")
             except Exception as e: 
@@ -91,28 +90,18 @@ class AgentEventStream(EventEmitter): # MODIFIED: Inherit from EventEmitter
             return
         for event_type_to_unsub, handler_to_unsub in self._registered_event_handlers.items():
             try:
-                # Use self.unsubscribe_from
                 self.unsubscribe_from(self._notifier, event_type_to_unsub, handler_to_unsub)
                 logger.debug(f"AgentEventStream '{self.agent_id}': Unsubscribed from {event_type_to_unsub.name} from notifier {self._notifier.object_id}.")
             except Exception as e: 
                 logger.warning(f"AgentEventStream '{self.agent_id}': Failed to unsubscribe from {event_type_to_unsub.name} (may be harmless): {e}")
         self._registered_event_handlers.clear()
 
-    # MODIFIED: Signature to match EventEmitter's dispatch and include event_type via partial
     async def _handle_notifier_event(self, *args, event_type: EventType, object_id: Optional[str] = None, **payload: Any): # pragma: no cover
-        # object_id is the ID of the notifier that emitted the event.
-        # args is for any positional arguments passed by emit after event_type and target (currently none from Notifier)
-        # payload contains the keyword arguments from the notifier's emit call.
-        
         logger.debug(f"AgentEventStream '{self.agent_id}': Handling notifier event. event_type='{event_type.name}', emitter_object_id='{object_id}', payload_keys='{list(payload.keys())}'")
         
         event_agent_id = payload.get("agent_id", self.agent_id) 
         stream_event: Optional[StreamEvent] = None
 
-        # All subscribed events are phase events and become AGENT_PHASE_UPDATE StreamEvents.
-        # The `payload` from the original EventType (which includes things like error_message, tool_name, etc.,
-        # but NOT tool_details for AWAITING_TOOL_APPROVAL phase as per last agreement)
-        # will be passed into the StreamEvent's data field.
         if event_type.name.startswith("AGENT_PHASE_"):
             new_phase_val = payload.get("new_phase")
             old_phase_val = payload.get("old_phase")
@@ -137,7 +126,6 @@ class AgentEventStream(EventEmitter): # MODIFIED: Inherit from EventEmitter
             logger.debug(f"AgentEventStream '{self.agent_id}': Bridging {event_type.name} as AGENT_PHASE_UPDATE StreamEvent. New phase: {new_phase_val}, Data keys: {list(stream_event_data.keys())}")
         
         else: 
-            # This case should ideally not be hit if _subscribed_notifier_event_types is accurate
             logger.warning(f"AgentEventStream '{self.agent_id}': Received subscribed event type '{event_type.name}' that is not a phase event. This event will be ignored by this handler logic.")
             return
 
@@ -156,27 +144,29 @@ class AgentEventStream(EventEmitter): # MODIFIED: Inherit from EventEmitter
 
     async def close(self): # pragma: no cover
         logger.info(f"AgentEventStream for '{self.agent_id}': close() called. Unregistering listeners and signaling bridge queue.")
-        self._unregister_notifier_listeners() # Ensures listeners are removed
+        self._unregister_notifier_listeners() 
         try:
             await self._notifier_events_bridge_queue.put(self._sentinel)
         except Exception as e: 
             logger.error(f"AgentEventStream '{self.agent_id}': Error putting sentinel to notifier events bridge queue during close: {e}", exc_info=True)
-        # Call super().close() if EventEmitter had a close method, but it doesn't.
 
     def stream_assistant_chunks(self) -> AsyncIterator[ChunkResponse]: # pragma: no cover
         source_name = f"agent_{self.agent_id}_direct_assistant_chunks"
         logger.debug(f"Providing raw stream: {source_name}.")
-        return stream_queue_items(self._queues.assistant_output_chunk_queue, self._sentinel, source_name)
+        # MODIFIED: Access queue from output_data_manager
+        return stream_queue_items(self._output_data_manager.assistant_output_chunk_queue, self._sentinel, source_name)
 
     def stream_assistant_final_messages(self) -> AsyncIterator[CompleteResponse]: # pragma: no cover
         source_name = f"agent_{self.agent_id}_direct_assistant_final_messages"
         logger.debug(f"Providing raw stream: {source_name}.")
-        return stream_queue_items(self._queues.assistant_final_message_queue, self._sentinel, source_name)
+        # MODIFIED: Access queue from output_data_manager
+        return stream_queue_items(self._output_data_manager.assistant_final_message_queue, self._sentinel, source_name)
 
     def stream_tool_logs(self) -> AsyncIterator[str]: # pragma: no cover
         source_name = f"agent_{self.agent_id}_direct_tool_logs"
         logger.debug(f"Providing raw stream: {source_name}.")
-        return stream_queue_items(self._queues.tool_interaction_log_queue, self._sentinel, source_name)
+        # MODIFIED: Access queue from output_data_manager
+        return stream_queue_items(self._output_data_manager.tool_interaction_log_queue, self._sentinel, source_name)
 
     async def _wrap_assistant_chunks_to_events(self) -> AsyncIterator[StreamEvent]: # pragma: no cover
         source_description = "assistant_chunks_for_unified_stream"
@@ -228,6 +218,7 @@ class AgentEventStream(EventEmitter): # MODIFIED: Inherit from EventEmitter
         stream_identity = f"event_wrapper_for_{source_description}_agent_{self.agent_id}"
         logger.debug(f"Starting event wrapping for {stream_identity}.")
         
+        # MODIFIED: Use self._pending_tool_approval_queue (which is already correctly assigned)
         async for approval_data_dict in stream_queue_items(self._pending_tool_approval_queue, self._sentinel, stream_identity):
             if isinstance(approval_data_dict, dict):
                 event_agent_id = approval_data_dict.get("agent_id", self.agent_id) 

@@ -4,7 +4,7 @@ import json
 from typing import TYPE_CHECKING
 
 from autobyteus.agent.handlers.base_event_handler import AgentEventHandler 
-from autobyteus.agent.events import ToolResultEvent, LLMUserMessageReadyEvent # RENAMED Event
+from autobyteus.agent.events import ToolResultEvent, LLMUserMessageReadyEvent 
 from autobyteus.llm.user_message import LLMUserMessage 
 
 if TYPE_CHECKING:
@@ -28,20 +28,16 @@ class ToolResultEventHandler(AgentEventHandler):
             logger.warning(f"ToolResultEventHandler received non-ToolResultEvent: {type(event)}. Skipping.")
             return
 
-        # Access queues via context.state
-        tool_log_queue = context.state.queues.tool_interaction_log_queue
         tool_invocation_id = event.tool_invocation_id if event.tool_invocation_id else 'N/A'
 
         logger.info(f"Agent '{context.agent_id}' handling ToolResultEvent from tool: '{event.tool_name}' (Invocation ID: {tool_invocation_id}). Error: {event.error is not None}")
         
-        # Log the raw, untruncated tool result/error at DEBUG level
         if event.error:
             logger.debug(f"Agent '{context.agent_id}' tool '{event.tool_name}' (ID: {tool_invocation_id}) raw error details: {event.error}")
         else:
-            # For potentially large results, stringify carefully for logging.
             try:
                 raw_result_str_for_debug_log = json.dumps(event.result, indent=2)
-            except TypeError: # Not JSON serializable
+            except TypeError: 
                 raw_result_str_for_debug_log = str(event.result)
             logger.debug(f"Agent '{context.agent_id}' tool '{event.tool_name}' (ID: {tool_invocation_id}) raw result:\n---\n{raw_result_str_for_debug_log}\n---")
 
@@ -54,7 +50,7 @@ class ToolResultEventHandler(AgentEventHandler):
                 f"Please analyze this error and decide the next course of action."
             )
             log_msg_error_processed = f"[TOOL_RESULT_ERROR_PROCESSED] Agent_ID: {context.agent_id}, Tool: {event.tool_name}, Invocation_ID: {tool_invocation_id}, Error: {event.error}"
-            await tool_log_queue.put(log_msg_error_processed)
+            await context.output_data_queues.enqueue_tool_interaction_log(log_msg_error_processed)
         else:
             try:
                 result_str_for_llm = json.dumps(event.result, indent=2) if not isinstance(event.result, str) else event.result
@@ -63,23 +59,21 @@ class ToolResultEventHandler(AgentEventHandler):
 
             max_len = 2000  
             if len(result_str_for_llm) > max_len:
-                original_len = len(str(event.result)) # Use original length for the log message
+                original_len = len(str(event.result)) 
                 result_str_for_llm = result_str_for_llm[:max_len] + f"... (result truncated, original length {original_len})"
             
             content_for_llm = (
                 f"The tool '{event.tool_name}' (invocation ID: {tool_invocation_id}) has executed.\n"
-                f"Result:\n{result_str_for_llm}\n" # This result_str_for_llm is potentially truncated
+                f"Result:\n{result_str_for_llm}\n" 
                 f"Based on this result, what is the next step or final answer?"
             )
             log_msg_success_processed = f"[TOOL_RESULT_SUCCESS_PROCESSED] Agent_ID: {context.agent_id}, Tool: {event.tool_name}, Invocation_ID: {tool_invocation_id}, Result (first 200 chars of stringified): {str(event.result)[:200]}"
-            await tool_log_queue.put(log_msg_success_processed)
+            await context.output_data_queues.enqueue_tool_interaction_log(log_msg_success_processed)
         
         logger.debug(f"Agent '{context.agent_id}' preparing message for LLM based on tool '{event.tool_name}' (ID: {tool_invocation_id}) result:\n---\n{content_for_llm}\n---")
         llm_user_message = LLMUserMessage(content=content_for_llm)
         
-        next_event = LLMUserMessageReadyEvent(llm_user_message=llm_user_message) # RENAMED Event
-        # Access queues via context.state
-        await context.state.queues.enqueue_internal_system_event(next_event)
+        next_event = LLMUserMessageReadyEvent(llm_user_message=llm_user_message) 
+        await context.input_event_queues.enqueue_internal_system_event(next_event)
         
-        logger.info(f"Agent '{context.agent_id}' enqueued LLMUserMessageReadyEvent for LLM based on tool '{event.tool_name}' (ID: {tool_invocation_id}) result summary.") # Changed log from debug to info for summary
-
+        logger.info(f"Agent '{context.agent_id}' enqueued LLMUserMessageReadyEvent for LLM based on tool '{event.tool_name}' (ID: {tool_invocation_id}) result summary.") 

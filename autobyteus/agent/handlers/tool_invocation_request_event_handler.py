@@ -29,9 +29,7 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
         tool_name = tool_invocation.name
         arguments = tool_invocation.arguments
         invocation_id = tool_invocation.id
-
-        tool_log_queue = context.queues.tool_interaction_log_queue 
-
+        
         logger.info(f"Agent '{agent_id}' executing tool directly: '{tool_name}' (ID: {invocation_id}) with args: {arguments}")
         
         try:
@@ -39,7 +37,7 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
         except TypeError:
             args_str = str(arguments)
         log_msg_call = f"[TOOL_CALL_DIRECT] Agent_ID: {agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Arguments: {args_str}"
-        await tool_log_queue.put(log_msg_call)
+        await context.output_data_queues.enqueue_tool_interaction_log(log_msg_call)
 
         tool_instance = context.get_tool(tool_name) 
         result_event: ToolResultEvent
@@ -55,7 +53,7 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
                 "content": f"Error: Tool '{tool_name}' execution failed. Reason: {error_message}",
             })
             log_msg_error = f"[TOOL_ERROR_DIRECT] Agent_ID: {agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Error: {error_message}"
-            await tool_log_queue.put(log_msg_error)
+            await context.output_data_queues.enqueue_tool_interaction_log(log_msg_error)
         else:
             try:
                 logger.debug(f"Executing tool '{tool_name}' for agent '{agent_id}'. Invocation ID: {invocation_id}")
@@ -77,7 +75,7 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
                     "content": history_content,
                 })
                 log_msg_result = f"[TOOL_RESULT_DIRECT] Agent_ID: {agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Outcome (first 200 chars): {result_str_for_log[:200]}"
-                await tool_log_queue.put(log_msg_result)
+                await context.output_data_queues.enqueue_tool_interaction_log(log_msg_result)
 
             except Exception as e:
                 error_message = f"Error executing tool '{tool_name}' (ID: {invocation_id}): {str(e)}"
@@ -90,9 +88,9 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
                     "content": f"Error: Tool '{tool_name}' execution failed. Reason: {error_message}",
                 })
                 log_msg_exception = f"[TOOL_EXCEPTION_DIRECT] Agent_ID: {agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Exception: {error_message}"
-                await tool_log_queue.put(log_msg_exception)
+                await context.output_data_queues.enqueue_tool_interaction_log(log_msg_exception)
         
-        await context.queues.enqueue_tool_result(result_event) 
+        await context.input_event_queues.enqueue_tool_result(result_event) 
         logger.debug(f"Agent '{agent_id}' enqueued ToolResultEvent (direct exec) for '{tool_name}' (ID: {invocation_id}).")
 
 
@@ -136,10 +134,9 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
                 "arguments": tool_invocation.arguments,
                 "agent_id": agent_id 
             }
-            await context.queues.enqueue_pending_tool_approval(approval_data) # Ensure this line is present
+            await context.output_data_queues.enqueue_pending_tool_approval_data(approval_data)
             
             logger.debug(f"Agent '{agent_id}': Added assistant tool_calls to history and enqueued data to pending_tool_approval_queue for '{tool_invocation.name}' (ID: {tool_invocation.id}).")
         else: 
             logger.info(f"Agent '{agent_id}': Tool '{tool_invocation.name}' (ID: {tool_invocation.id}) exec auto (auto_execute_tools=True).")
             await self._execute_tool_directly(tool_invocation, context)
-

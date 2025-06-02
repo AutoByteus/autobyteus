@@ -12,7 +12,9 @@ from autobyteus.agent.context.agent_config import AgentConfig
 from autobyteus.agent.context.agent_runtime_state import AgentRuntimeState 
 from autobyteus.agent.context.agent_context import AgentContext 
 
-from autobyteus.agent.events import AgentEventQueues 
+from autobyteus.agent.events import AgentInputEventQueueManager 
+from autobyteus.agent.events import AgentOutputDataManager      
+
 from autobyteus.agent.events import ( 
     UserMessageReceivedEvent, 
     InterAgentMessageReceivedEvent, 
@@ -20,16 +22,18 @@ from autobyteus.agent.events import (
     ToolResultEvent,
     LLMCompleteResponseReceivedEvent, 
     GenericEvent, 
-    AgentStartedEvent,
+    AgentReadyEvent, # MODIFIED: Renamed from AgentStartedEvent
     AgentStoppedEvent,
     AgentErrorEvent,
     ToolExecutionApprovalEvent,
     LLMUserMessageReadyEvent, 
     ApprovedToolInvocationEvent,
-    CreateToolInstancesEvent,
-    ProcessSystemPromptEvent,
-    FinalizeLLMConfigEvent,
-    CreateLLMInstanceEvent,
+    # Old preparation events - will not be registered by default
+    # CreateToolInstancesEvent,
+    # ProcessSystemPromptEvent,
+    # FinalizeLLMConfigEvent,
+    # CreateLLMInstanceEvent,
+    BootstrapAgentEvent, 
 )
 from autobyteus.agent.registry.agent_definition import AgentDefinition 
 from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace 
@@ -45,10 +49,12 @@ from autobyteus.agent.handlers import (
     ToolExecutionApprovalEventHandler,
     ApprovedToolInvocationEventHandler,
     LLMUserMessageReadyEventHandler,
-    CreateToolInstancesEventHandler,
-    ProcessSystemPromptEventHandler,
-    FinalizeLLMConfigEventHandler,
-    CreateLLMInstanceEventHandler,
+    # Old preparation handlers - will not be registered
+    # CreateToolInstancesEventHandler,
+    # ProcessSystemPromptEventHandler,
+    # FinalizeLLMConfigEventHandler,
+    # CreateLLMInstanceEventHandler,
+    BootstrapAgentEventHandler, 
 )
 from autobyteus.agent.system_prompt_processor import default_system_prompt_processor_registry, SystemPromptProcessorRegistry
 
@@ -64,7 +70,7 @@ class AgentFactory:
     Factory class for creating agents.
     This factory creates AgentConfig, AgentRuntimeState, the composite AgentContext, 
     and AgentRuntime objects.
-    Tool and LLM instantiation is deferred to a chain of event handlers after agent startup.
+    Tool and LLM instantiation is now orchestrated by BootstrapAgentEventHandler.
     It relies on ToolRegistry, LLMFactory, and SystemPromptProcessorRegistry.
     """
 
@@ -85,22 +91,33 @@ class AgentFactory:
     def _get_default_event_handler_registry(self) -> EventHandlerRegistry:
         registry = EventHandlerRegistry()
         
+        # Register the new BootstrapAgentEventHandler
         registry.register(
-            CreateToolInstancesEvent,
-            CreateToolInstancesEventHandler(tool_registry=self.tool_registry)
+            BootstrapAgentEvent,
+            BootstrapAgentEventHandler(
+                tool_registry=self.tool_registry,
+                system_prompt_processor_registry=self.system_prompt_processor_registry,
+                llm_factory=self.llm_factory
+            )
         )
-        registry.register(
-            ProcessSystemPromptEvent, 
-            ProcessSystemPromptEventHandler(system_prompt_processor_registry=self.system_prompt_processor_registry)
-        )
-        registry.register(
-            FinalizeLLMConfigEvent,
-            FinalizeLLMConfigEventHandler() 
-        )
-        registry.register(
-            CreateLLMInstanceEvent,
-            CreateLLMInstanceEventHandler(llm_factory=self.llm_factory)
-        )
+        
+        # REMOVED old individual initialization handlers
+        # registry.register(
+        #     CreateToolInstancesEvent,
+        #     CreateToolInstancesEventHandler(tool_registry=self.tool_registry)
+        # )
+        # registry.register(
+        #     ProcessSystemPromptEvent, 
+        #     ProcessSystemPromptEventHandler(system_prompt_processor_registry=self.system_prompt_processor_registry)
+        # )
+        # registry.register(
+        #     FinalizeLLMConfigEvent,
+        #     FinalizeLLMConfigEventHandler() 
+        # )
+        # registry.register(
+        #     CreateLLMInstanceEvent,
+        #     CreateLLMInstanceEventHandler(llm_factory=self.llm_factory)
+        # )
         
         registry.register(UserMessageReceivedEvent, UserInputMessageEventHandler())
         registry.register(InterAgentMessageReceivedEvent, InterAgentMessageReceivedEventHandler()) 
@@ -113,7 +130,7 @@ class AgentFactory:
         registry.register(ApprovedToolInvocationEvent, ApprovedToolInvocationEventHandler()) 
         
         lifecycle_logger_instance = LifecycleEventLogger() 
-        registry.register(AgentStartedEvent, lifecycle_logger_instance) 
+        registry.register(AgentReadyEvent, lifecycle_logger_instance) # MODIFIED: AgentReadyEvent
         registry.register(AgentStoppedEvent, lifecycle_logger_instance)
         registry.register(AgentErrorEvent, lifecycle_logger_instance)
         
@@ -156,10 +173,13 @@ class AgentFactory:
         )
         logger.info(f"AgentConfig created for agent_id '{agent_id}'.")
 
-        queues = AgentEventQueues() 
+        input_event_queues = AgentInputEventQueueManager() 
+        output_data_queues = AgentOutputDataManager()
+
         agent_runtime_state = AgentRuntimeState(
             agent_id=agent_id, 
-            queues=queues,
+            input_event_queues=input_event_queues,   
+            output_data_queues=output_data_queues,   
             workspace=workspace,
         )
         logger.info(f"AgentRuntimeState created for agent_id '{agent_id}'.")
@@ -218,4 +238,3 @@ class AgentFactory:
                      f"LLM Model Name (for init): {llm_model_name}. Workspace: {workspace is not None}. Tool Exec Mode: {tool_exec_mode_log}")
         
         return AgentRuntime(context=composite_agent_context, event_handler_registry=event_handler_registry)
-

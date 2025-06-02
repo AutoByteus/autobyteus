@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from autobyteus.agent.handlers.base_event_handler import AgentEventHandler
 from autobyteus.agent.events import (
     BaseEvent,
-    AgentStartedEvent,
+    AgentReadyEvent, # MODIFIED: Renamed from AgentStartedEvent
     AgentStoppedEvent,
     AgentErrorEvent,
     LifecycleEvent 
@@ -31,7 +31,7 @@ class LifecycleEventLogger(AgentEventHandler):
         Logs different lifecycle events.
 
         Args:
-            event: The lifecycle event object (AgentStartedEvent, AgentStoppedEvent, etc.).
+            event: The lifecycle event object (AgentReadyEvent, AgentStoppedEvent, etc.).
             context: The composite AgentContext (used for agent_id and current phase).
         """
         
@@ -39,8 +39,8 @@ class LifecycleEventLogger(AgentEventHandler):
         # MODIFIED: Use current_phase instead of status
         current_phase_val = context.current_phase.value if context.current_phase else "None (Phase not set)"
 
-        if isinstance(event, AgentStartedEvent):
-            logger.info(f"Agent '{agent_id}' Logged AgentStartedEvent. Current agent phase: {current_phase_val}")
+        if isinstance(event, AgentReadyEvent): # MODIFIED: Check for AgentReadyEvent
+            logger.info(f"Agent '{agent_id}' Logged AgentReadyEvent. Current agent phase: {current_phase_val}") # MODIFIED log message
 
         elif isinstance(event, AgentStoppedEvent):
             logger.info(f"Agent '{agent_id}' Logged AgentStoppedEvent. Current agent phase: {current_phase_val}")
@@ -62,4 +62,3 @@ class LifecycleEventLogger(AgentEventHandler):
                      f"LifecycleEventLogger for agent '{agent_id}' received an "
                      f"unexpected event type: {type(event)}. Event: {event}. Current phase: {current_phase_val}"
                  )
-

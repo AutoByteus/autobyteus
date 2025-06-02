@@ -1,51 +1,34 @@
-# file: autobyteus/autobyteus/agent/events/agent_event_queues.py
+# file: autobyteus/autobyteus/agent/events/agent_input_event_queue_manager.py
 import asyncio
 import logging
 from typing import Any, AsyncIterator, Union, Tuple, Optional, List, TYPE_CHECKING, Dict, Set
 
 # Import specific event types for queue annotations where possible
 if TYPE_CHECKING:
-    from autobyteus.agent.events.agent_events import ( 
-        UserMessageReceivedEvent, 
+    from autobyteus.agent.events.agent_events import (
+        UserMessageReceivedEvent,
         InterAgentMessageReceivedEvent,
-        PendingToolInvocationEvent, 
+        PendingToolInvocationEvent,
         ToolResultEvent,
         ToolExecutionApprovalEvent,
-        BaseEvent
+        BaseEvent,
+
     )
-    from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 
 logger = logging.getLogger(__name__)
 
-END_OF_STREAM_SENTINEL = object()
-
-class AgentEventQueues:
+class AgentInputEventQueueManager:
     """
-    Encapsulates all asyncio.Queue instances for an agent, providing a centralized
-    mechanism for inter-component communication within the agent's runtime.
-    Manages queues for various types of events and data streams.
-
-    - Input queues: For events consumed by the AgentRuntime's main event loop.
-    - Output queues: For data/events intended for external consumers, typically via AgentEventStream.
-        - `assistant_output_chunk_queue`, `assistant_final_message_queue`, `tool_interaction_log_queue`:
-          These carry direct agent outputs.
-        - `pending_tool_approval_queue`: Carries dictionaries detailing tool invocations
-          that require external approval. Consumed by AgentEventStream to produce
-          TOOL_APPROVAL_REQUESTED StreamEvents.
+    Manages asyncio.Queue instances for events consumed by the AgentRuntime's
+    main event loop. This class focuses solely on queues for internal agent processing.
     """
     def __init__(self, queue_size: int = 0):
         self.user_message_input_queue: asyncio.Queue['UserMessageReceivedEvent'] = asyncio.Queue(maxsize=queue_size)
         self.inter_agent_message_input_queue: asyncio.Queue['InterAgentMessageReceivedEvent'] = asyncio.Queue(maxsize=queue_size)
-        self.tool_invocation_request_queue: asyncio.Queue['PendingToolInvocationEvent'] = asyncio.Queue(maxsize=queue_size) 
+        self.tool_invocation_request_queue: asyncio.Queue['PendingToolInvocationEvent'] = asyncio.Queue(maxsize=queue_size)
         self.tool_result_input_queue: asyncio.Queue['ToolResultEvent'] = asyncio.Queue(maxsize=queue_size)
         self.tool_execution_approval_queue: asyncio.Queue['ToolExecutionApprovalEvent'] = asyncio.Queue(maxsize=queue_size)
-        self.internal_system_event_queue: asyncio.Queue[Any] = asyncio.Queue(maxsize=queue_size) 
-        
-        self.pending_tool_approval_queue: asyncio.Queue[Dict[str, Any]] = asyncio.Queue(maxsize=queue_size) 
-
-        self.assistant_output_chunk_queue: asyncio.Queue[Union['ChunkResponse', object]] = asyncio.Queue(maxsize=queue_size)
-        self.assistant_final_message_queue: asyncio.Queue[Union['CompleteResponse', object]] = asyncio.Queue(maxsize=queue_size)
-        self.tool_interaction_log_queue: asyncio.Queue[Union[str, object]] = asyncio.Queue(maxsize=queue_size)
+        self.internal_system_event_queue: asyncio.Queue[Any] = asyncio.Queue(maxsize=queue_size) # For lifecycle, init events
 
         self._input_queues: List[Tuple[str, asyncio.Queue[Any]]] = [
             ("user_message_input_queue", self.user_message_input_queue),
@@ -55,14 +38,7 @@ class AgentEventQueues:
             ("tool_execution_approval_queue", self.tool_execution_approval_queue),
             ("internal_system_event_queue", self.internal_system_event_queue),
         ]
-        
-        self._output_queues_map: Dict[str, asyncio.Queue[Union[str, Any, object]]] = { 
-            "assistant_output_chunk_queue": self.assistant_output_chunk_queue,
-            "assistant_final_message_queue": self.assistant_final_message_queue,
-            "tool_interaction_log_queue": self.tool_interaction_log_queue,
-            "pending_tool_approval_queue": self.pending_tool_approval_queue, 
-        }
-        logger.info("AgentEventQueues initialized with pending_tool_approval_queue.")
+        logger.info("AgentInputEventQueueManager initialized.")
 
     async def enqueue_user_message(self, event: 'UserMessageReceivedEvent') -> None:
         await self.user_message_input_queue.put(event)
@@ -72,9 +48,9 @@ class AgentEventQueues:
         await self.inter_agent_message_input_queue.put(event)
         logger.debug(f"Enqueued inter-agent message received event: {event}")
 
-    async def enqueue_tool_invocation_request(self, event: 'PendingToolInvocationEvent') -> None: 
+    async def enqueue_tool_invocation_request(self, event: 'PendingToolInvocationEvent') -> None:
         await self.tool_invocation_request_queue.put(event)
-        logger.debug(f"Enqueued pending tool invocation request event: {event}") 
+        logger.debug(f"Enqueued pending tool invocation request event: {event}")
 
     async def enqueue_tool_result(self, event: 'ToolResultEvent') -> None:
         await self.tool_result_input_queue.put(event)
@@ -88,26 +64,11 @@ class AgentEventQueues:
         await self.internal_system_event_queue.put(event)
         logger.debug(f"Enqueued internal system event: {type(event).__name__}")
 
-    async def enqueue_pending_tool_approval(self, approval_data: Dict[str, Any]) -> None: 
-        if not isinstance(approval_data, dict) or not all(k in approval_data for k in ["invocation_id", "tool_name", "arguments", "agent_id"]): # pragma: no cover
-            logger.warning(f"Attempted to enqueue malformed pending tool approval data: {approval_data}. "
-                           "Must be dict with 'invocation_id', 'tool_name', 'arguments', 'agent_id'.")
-            return
-        await self.pending_tool_approval_queue.put(approval_data)
-        logger.debug(f"Enqueued pending tool approval data for invocation_id='{approval_data.get('invocation_id')}'")
-
-    async def enqueue_end_of_stream_sentinel_to_output_queue(self, queue_name: str) -> None:
-        target_queue = self._output_queues_map.get(queue_name)
-        if target_queue:
-            await target_queue.put(END_OF_STREAM_SENTINEL)
-            logger.debug(f"Enqueued END_OF_STREAM_SENTINEL to output queue: {queue_name}")
-        else: # pragma: no cover
-            logger.warning(f"Attempted to enqueue END_OF_STREAM_SENTINEL to unknown output queue: {queue_name}. Available: {list(self._output_queues_map.keys())}")
-
-    async def get_next_input_event(self) -> Optional[Tuple[str, 'BaseEvent']]:
+    async def get_next_input_event(self) -> Optional[Tuple[str, 'BaseEvent']]: # type: ignore[type-var]
+        # Logger messages will be updated in subsequent steps if needed
         logger.debug(f"get_next_input_event: Checking queue sizes before creating tasks...")
         for name, q_obj in self._input_queues:
-            if q_obj is not None:
+            if q_obj is not None: # pragma: no cover
                 logger.debug(f"get_next_input_event: Queue '{name}' qsize: {q_obj.qsize()}")
 
         created_tasks: List[asyncio.Task] = [
@@ -121,7 +82,7 @@ class AgentEventQueues:
         
         logger.debug(f"get_next_input_event: Created {len(created_tasks)} tasks for queues: {[t.get_name() for t in created_tasks]}. Awaiting asyncio.wait...")
         
-        event_tuple: Optional[Tuple[str, 'BaseEvent']] = None
+        event_tuple: Optional[Tuple[str, 'BaseEvent']] = None # type: ignore[type-var]
         done_tasks_from_wait: Set[asyncio.Task] = set()
         
         try:
@@ -141,9 +102,10 @@ class AgentEventQueues:
                     event_result: Any = task.result() 
                     logger.debug(f"get_next_input_event: Task for queue '{queue_name}' completed. Result type: {type(event_result).__name__}, Result: {str(event_result)[:100]}")
                     
+                    # Avoid circular import for BaseEvent, assuming it's correctly imported in TYPE_CHECKING context
                     from autobyteus.agent.events.agent_events import BaseEvent as AgentBaseEvent 
                     if isinstance(event_result, AgentBaseEvent):
-                        event: 'BaseEvent' = event_result 
+                        event: 'BaseEvent' = event_result # type: ignore[type-var]
                         if event_tuple is None: 
                             event_tuple = (queue_name, event)
                             logger.debug(f"get_next_input_event: Dequeued event from {queue_name}: {type(event).__name__}")
@@ -198,40 +160,15 @@ class AgentEventQueues:
             
             logger.debug(f"get_next_input_event: Finished finally block task cleanup.")
 
-        logger.debug(f"get_next_input_event: Returning event_tuple: {type(event_tuple[1]).__name__ if event_tuple else 'None'}")
+        if event_tuple:
+            logger.debug(f"get_next_input_event: Returning event_tuple: {type(event_tuple[1]).__name__ if event_tuple else 'None'}")
         return event_tuple
 
-    async def graceful_shutdown(self, timeout: float = 5.0): # pragma: no cover
-        logger.info("Initiating graceful shutdown of AgentEventQueues (joining output queues).")
-        output_queues_to_join: List[asyncio.Queue] = [
-            q for q_name, q in self._output_queues_map.items() if q is not None
-        ]
-        
-        join_tasks = [q.join() for q in output_queues_to_join]
-
-        if not join_tasks: 
-            logger.info("No output queues to join during graceful_shutdown.")
-        else:
-            try:
-                await asyncio.wait_for(asyncio.gather(*join_tasks), timeout=timeout)
-                logger.info("All output queues joined successfully.")
-            except asyncio.TimeoutError: 
-                logger.warning(f"Timeout ({timeout}s) waiting for output queues to join during shutdown.")
-            except Exception as e: 
-                 logger.error(f"Error joining output queues during shutdown: {e}", exc_info=True)
-
+    def log_remaining_items_at_shutdown(self): # pragma: no cover
+        """Logs remaining items in input queues, typically called during shutdown."""
         logger.info("Logging remaining items in input queues at shutdown:")
         for name, q_obj in self._input_queues: 
             if q_obj is not None:
                 q_size = q_obj.qsize()
                 if q_size > 0:
                     logger.info(f"Input queue '{name}' has {q_size} items remaining at shutdown.")
-        
-        for name, q_obj in self._output_queues_map.items(): 
-            if q_obj is not None:
-                q_size = q_obj.qsize()
-                if q_size > 0:
-                    logger.info(f"Output queue '{name}' has {q_size} items remaining at shutdown (before consumers finish processing sentinels).")
-        
-        logger.info("AgentEventQueues graceful shutdown process (joining queues) completed.")
-

@@ -33,8 +33,9 @@ class ApprovedToolInvocationEventHandler(AgentEventHandler):
         arguments = tool_invocation.arguments
         invocation_id = tool_invocation.id
 
-        agent_id = context.agent_id # Access via context.agent_id (convenience property)
-        tool_log_queue = context.queues.tool_interaction_log_queue # Access via context.queues (convenience property)
+        agent_id = context.agent_id 
+        # MODIFIED: Access tool_interaction_log_queue via context.output_data_queues
+        tool_log_queue = context.output_data_queues.tool_interaction_log_queue 
 
         logger.info(f"Agent '{agent_id}' handling ApprovedToolInvocationEvent for tool: '{tool_name}' (ID: {invocation_id}) with args: {arguments}")
 
@@ -43,9 +44,10 @@ class ApprovedToolInvocationEventHandler(AgentEventHandler):
         except TypeError:
             args_str = str(arguments)
         log_msg_call = f"[APPROVED_TOOL_CALL] Agent_ID: {agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Arguments: {args_str}"
-        await tool_log_queue.put(log_msg_call)
+        # MODIFIED: Use enqueue_tool_interaction_log method
+        await context.output_data_queues.enqueue_tool_interaction_log(log_msg_call)
 
-        tool_instance = context.get_tool(tool_name) # CORRECTED: Use context.get_tool()
+        tool_instance = context.get_tool(tool_name)
         
         result_event: ToolResultEvent
 
@@ -53,7 +55,6 @@ class ApprovedToolInvocationEventHandler(AgentEventHandler):
             error_message = f"Tool '{tool_name}' not found or configured for agent '{agent_id}'."
             logger.error(error_message)
             result_event = ToolResultEvent(tool_name=tool_name, result=None, error=error_message, tool_invocation_id=invocation_id)
-            # Access add_message_to_history via context convenience method (which uses context.state)
             context.add_message_to_history({
                 "role": "tool",
                 "tool_call_id": invocation_id,
@@ -61,11 +62,11 @@ class ApprovedToolInvocationEventHandler(AgentEventHandler):
                 "content": f"Error: Approved tool '{tool_name}' execution failed. Reason: {error_message}",
             })
             log_msg_error = f"[APPROVED_TOOL_ERROR] Agent_ID: {agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Error: {error_message}"
-            await tool_log_queue.put(log_msg_error)
+            # MODIFIED: Use enqueue_tool_interaction_log method
+            await context.output_data_queues.enqueue_tool_interaction_log(log_msg_error)
         else:
             try:
                 logger.debug(f"Executing approved tool '{tool_name}' for agent '{agent_id}'. Invocation ID: {invocation_id}")
-                # Pass composite AgentContext to tool_instance.execute
                 execution_result = await tool_instance.execute(context=context, **arguments)
                 
                 try:
@@ -85,7 +86,8 @@ class ApprovedToolInvocationEventHandler(AgentEventHandler):
                     "content": history_content,
                 })
                 log_msg_result = f"[APPROVED_TOOL_RESULT] Agent_ID: {agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Outcome (first 200 chars): {result_str_for_log[:200]}"
-                await tool_log_queue.put(log_msg_result)
+                # MODIFIED: Use enqueue_tool_interaction_log method
+                await context.output_data_queues.enqueue_tool_interaction_log(log_msg_result)
 
             except Exception as e:
                 error_message = f"Error executing approved tool '{tool_name}' (ID: {invocation_id}): {str(e)}"
@@ -98,7 +100,9 @@ class ApprovedToolInvocationEventHandler(AgentEventHandler):
                     "content": f"Error: Approved tool '{tool_name}' execution failed. Reason: {error_message}",
                 })
                 log_msg_exception = f"[APPROVED_TOOL_EXCEPTION] Agent_ID: {agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Exception: {error_message}"
-                await tool_log_queue.put(log_msg_exception)
+                # MODIFIED: Use enqueue_tool_interaction_log method
+                await context.output_data_queues.enqueue_tool_interaction_log(log_msg_exception)
         
-        await context.queues.enqueue_tool_result(result_event) # Access via context.queues
+        # MODIFIED: Access input_event_queues and its specific enqueue method
+        await context.input_event_queues.enqueue_tool_result(result_event)
         logger.debug(f"Agent '{agent_id}' enqueued ToolResultEvent for approved tool '{tool_name}' (ID: {invocation_id}).")

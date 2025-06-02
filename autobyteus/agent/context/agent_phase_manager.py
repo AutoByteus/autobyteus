@@ -3,8 +3,6 @@ import logging
 from typing import TYPE_CHECKING, Optional, Dict, Any
 
 from autobyteus.agent.phases import AgentOperationalPhase 
-# EventType no longer needed here directly for legacy emit
-# from autobyteus.events.event_types import EventType 
 
 if TYPE_CHECKING:
     from autobyteus.agent.context.agent_context import AgentContext
@@ -61,7 +59,6 @@ class AgentPhaseManager:
         else: 
             logger.error(f"AgentPhaseManager for '{self.context.agent_id}': Notifier method '{notify_method_name}' not found or not callable on {type(self.notifier).__name__}.")
 
-
     def notify_runtime_starting_and_uninitialized(self) -> None:
         if self.context.current_phase == AgentOperationalPhase.UNINITIALIZED:
             self._transition_phase(AgentOperationalPhase.UNINITIALIZED, "notify_phase_uninitialized_entered")
@@ -69,7 +66,6 @@ class AgentPhaseManager:
              self._transition_phase(AgentOperationalPhase.UNINITIALIZED, "notify_phase_uninitialized_entered")
         else: 
              logger.warning(f"Agent '{self.context.agent_id}' notify_runtime_starting_and_uninitialized called in unexpected phase: {self.context.current_phase.value}")
-
 
     def notify_initializing_tools(self) -> None:
         self._transition_phase(AgentOperationalPhase.INITIALIZING_TOOLS, "notify_phase_initializing_tools_started")

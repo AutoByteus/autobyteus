@@ -4,14 +4,14 @@ import logging
 from typing import AsyncIterator, Optional, List, Any, Dict, TYPE_CHECKING
 
 from autobyteus.agent.agent_runtime import AgentRuntime
-# from autobyteus.agent.status import AgentStatus # REMOVED, use AgentOperationalPhase
-from autobyteus.agent.phases import AgentOperationalPhase # ADDED
+from autobyteus.agent.phases import AgentOperationalPhase 
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.agent.message.inter_agent_message import InterAgentMessage
 from autobyteus.agent.events import UserMessageReceivedEvent, InterAgentMessageReceivedEvent, ToolExecutionApprovalEvent
 
 if TYPE_CHECKING:
-    from autobyteus.agent.events import AgentEventQueues
+    # from autobyteus.agent.events import AgentEventQueues # REMOVED
+    from autobyteus.agent.events import AgentOutputDataManager # ADDED
     from autobyteus.agent.context import AgentContext 
 
 
@@ -44,7 +44,8 @@ class Agent:
             await asyncio.sleep(0.01) 
         
         event = UserMessageReceivedEvent(agent_input_user_message=agent_input_user_message)
-        await self.context.queues.enqueue_user_message(event)
+        # MODIFIED: Use input_event_queues
+        await self.context.input_event_queues.enqueue_user_message(event)
         logger.debug(f"Agent '{self.agent_id}' enqueued UserMessageReceivedEvent.")
 
     async def post_inter_agent_message(self, inter_agent_message: InterAgentMessage) -> None:
@@ -60,7 +61,8 @@ class Agent:
             await asyncio.sleep(0.01)
         
         event = InterAgentMessageReceivedEvent(inter_agent_message=inter_agent_message)
-        await self.context.queues.enqueue_inter_agent_message(event)
+        # MODIFIED: Use input_event_queues
+        await self.context.input_event_queues.enqueue_inter_agent_message(event)
         logger.debug(f"Agent '{self.agent_id}' enqueued InterAgentMessageReceivedEvent for sender '{inter_agent_message.sender_agent_id}'.")
 
 
@@ -83,15 +85,17 @@ class Agent:
             is_approved=is_approved,
             reason=reason
         )
-        await self.context.queues.enqueue_tool_approval_event(approval_event)
+        # MODIFIED: Use input_event_queues
+        await self.context.input_event_queues.enqueue_tool_approval_event(approval_event)
         status_str = "approved" if is_approved else "denied"
         logger.debug(f"Agent '{self.agent_id}' enqueued ToolExecutionApprovalEvent for id '{tool_invocation_id}' ({status_str}).")
 
-    def get_event_queues(self) -> 'AgentEventQueues': # pragma: no cover
-        logger.debug(f"Agent '{self.agent_id}' providing access to AgentEventQueues (via context.state.queues).")
-        return self.context.queues 
+    # MODIFIED: Method renamed and returns AgentOutputDataManager
+    def get_output_data_queues(self) -> 'AgentOutputDataManager': # pragma: no cover
+        logger.debug(f"Agent '{self.agent_id}' providing access to AgentOutputDataManager (via context.output_data_queues).")
+        return self.context.output_data_queues 
 
-    def get_current_phase(self) -> AgentOperationalPhase: # MODIFIED
+    def get_current_phase(self) -> AgentOperationalPhase: 
         return self._runtime.current_phase_property 
     
     @property

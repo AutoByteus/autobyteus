@@ -2,7 +2,10 @@
 import logging
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
 
-from autobyteus.agent.events.agent_event_queues import AgentEventQueues
+# from autobyteus.agent.events.agent_event_queues import AgentEventQueues # REMOVED
+from autobyteus.agent.events.agent_input_event_queue_manager import AgentInputEventQueueManager # ADDED
+from autobyteus.agent.events.agent_output_data_manager import AgentOutputDataManager       # ADDED
+
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.agent.phases import AgentOperationalPhase 
 from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
@@ -18,17 +21,21 @@ logger = logging.getLogger(__name__)
 class AgentRuntimeState:
     """
     Encapsulates the dynamic, stateful data of an agent instance.
+    Now uses separate managers for input event queues and output data queues.
     """
     def __init__(self,
                  agent_id: str, 
-                 queues: AgentEventQueues,
+                 input_event_queues: AgentInputEventQueueManager, # MODIFIED
+                 output_data_queues: AgentOutputDataManager,       # MODIFIED
                  workspace: Optional[BaseAgentWorkspace] = None,
                  conversation_history: Optional[List[Dict[str, Any]]] = None,
                  custom_data: Optional[Dict[str, Any]] = None):
         if not agent_id or not isinstance(agent_id, str):
             raise ValueError("AgentRuntimeState requires a non-empty string 'agent_id'.")
-        if not isinstance(queues, AgentEventQueues):
-            raise TypeError(f"AgentRuntimeState 'queues' must be an AgentEventQueues. Got {type(queues)}")
+        if not isinstance(input_event_queues, AgentInputEventQueueManager): # MODIFIED
+            raise TypeError(f"AgentRuntimeState 'input_event_queues' must be an AgentInputEventQueueManager. Got {type(input_event_queues)}")
+        if not isinstance(output_data_queues, AgentOutputDataManager): # MODIFIED
+            raise TypeError(f"AgentRuntimeState 'output_data_queues' must be an AgentOutputDataManager. Got {type(output_data_queues)}")
         if workspace is not None and not isinstance(workspace, BaseAgentWorkspace): # pragma: no cover
             raise TypeError(f"AgentRuntimeState 'workspace' must be a BaseAgentWorkspace or None. Got {type(workspace)}")
 
@@ -36,7 +43,10 @@ class AgentRuntimeState:
         self.current_phase: AgentOperationalPhase = AgentOperationalPhase.UNINITIALIZED 
         self.llm_instance: Optional[BaseLLM] = None  
         self.tool_instances: Optional[Dict[str, 'BaseTool']] = None 
-        self.queues: AgentEventQueues = queues
+        
+        self.input_event_queues: AgentInputEventQueueManager = input_event_queues # MODIFIED
+        self.output_data_queues: AgentOutputDataManager = output_data_queues     # MODIFIED
+        
         self.workspace: Optional[BaseAgentWorkspace] = workspace
         self.conversation_history: List[Dict[str, Any]] = conversation_history or []
         self.pending_tool_approvals: Dict[str, ToolInvocation] = {}
@@ -47,7 +57,7 @@ class AgentRuntimeState:
         
         self.phase_manager_ref: Optional['AgentPhaseManager'] = None 
          
-        logger.info(f"AgentRuntimeState initialized for agent_id '{self.agent_id}'. Initial phase: {self.current_phase.value}. LLM/Tools: None (initially). Queues, Workspace linked.")
+        logger.info(f"AgentRuntimeState initialized for agent_id '{self.agent_id}'. Initial phase: {self.current_phase.value}. LLM/Tools: None (initially). Input/Output Queues, Workspace linked.")
 
     def add_message_to_history(self, message: Dict[str, Any]) -> None:
         if not isinstance(message, dict) or "role" not in message: # pragma: no cover

@@ -1,10 +1,10 @@
 # file: autobyteus/autobyteus/agent/handlers/tool_execution_approval_event_handler.py
 import logging
-import json # For formatting messages to LLM
+import json 
 from typing import TYPE_CHECKING
 
 from autobyteus.agent.handlers.base_event_handler import AgentEventHandler
-from autobyteus.agent.events import ToolExecutionApprovalEvent, ApprovedToolInvocationEvent, LLMUserMessageReadyEvent # RENAMED Event
+from autobyteus.agent.events import ToolExecutionApprovalEvent, ApprovedToolInvocationEvent, LLMUserMessageReadyEvent 
 from autobyteus.llm.user_message import LLMUserMessage
 
 if TYPE_CHECKING:
@@ -35,7 +35,6 @@ class ToolExecutionApprovalEventHandler(AgentEventHandler):
             f"Approved={event.is_approved}, Reason='{event.reason if event.reason else 'N/A'}'."
         )
 
-        # Access pending_tool_approvals via context.state
         retrieved_invocation = context.state.retrieve_pending_tool_invocation(event.tool_invocation_id)
 
         if not retrieved_invocation:
@@ -52,11 +51,10 @@ class ToolExecutionApprovalEventHandler(AgentEventHandler):
                 f"Enqueuing ApprovedToolInvocationEvent for execution."
             )            
             approved_event = ApprovedToolInvocationEvent(tool_invocation=retrieved_invocation)
-            # Access queues via context.state
-            await context.state.queues.enqueue_internal_system_event(approved_event)
+            await context.input_event_queues.enqueue_internal_system_event(approved_event)
             logger.debug(f"Agent '{context.agent_id}': Enqueued ApprovedToolInvocationEvent for '{retrieved_invocation.name}' (ID: {event.tool_invocation_id}).")
 
-        else: # Tool execution denied
+        else: 
             logger.warning(
                 f"Agent '{context.agent_id}': Tool invocation '{retrieved_invocation.name}' "
                 f"(ID: {event.tool_invocation_id}) was DENIED. Reason: '{event.reason or 'None'}'. "
@@ -66,7 +64,6 @@ class ToolExecutionApprovalEventHandler(AgentEventHandler):
             denial_reason_str = event.reason or "No specific reason provided."
             denial_content_for_history = f"Tool execution denied by user/system. Reason: {denial_reason_str}"
             
-            # Access conversation_history via context.state
             context.state.add_message_to_history({
                 "role": "tool",
                 "tool_call_id": event.tool_invocation_id, 
@@ -83,7 +80,6 @@ class ToolExecutionApprovalEventHandler(AgentEventHandler):
             )
             llm_user_message = LLMUserMessage(content=prompt_content_for_llm)
             
-            llm_user_message_ready_event = LLMUserMessageReadyEvent(llm_user_message=llm_user_message) # RENAMED Event
-            # Access queues via context.state
-            await context.state.queues.enqueue_internal_system_event(llm_user_message_ready_event)
+            llm_user_message_ready_event = LLMUserMessageReadyEvent(llm_user_message=llm_user_message) 
+            await context.input_event_queues.enqueue_internal_system_event(llm_user_message_ready_event)
             logger.debug(f"Agent '{context.agent_id}': Enqueued LLMUserMessageReadyEvent to inform LLM of tool denial for '{retrieved_invocation.name}' (ID: {event.tool_invocation_id}).")

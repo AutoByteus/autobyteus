@@ -3,7 +3,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from autobyteus.agent.handlers.base_event_handler import AgentEventHandler
-from autobyteus.agent.events import InterAgentMessageReceivedEvent, LLMUserMessageReadyEvent # RENAMED Event
+from autobyteus.agent.events import InterAgentMessageReceivedEvent, LLMUserMessageReadyEvent 
 from autobyteus.agent.message.inter_agent_message import InterAgentMessage
 from autobyteus.llm.user_message import LLMUserMessage
 
@@ -57,7 +57,6 @@ class InterAgentMessageReceivedEventHandler(AgentEventHandler):
             f"Please process this information and respond or act accordingly."
         )
         
-        # Access conversation_history via context.state
         context.state.add_message_to_history({
             "role": "user", 
             "content": content_for_llm,
@@ -67,9 +66,9 @@ class InterAgentMessageReceivedEventHandler(AgentEventHandler):
 
         llm_user_message = LLMUserMessage(content=content_for_llm)
         
-        llm_user_message_ready_event = LLMUserMessageReadyEvent(llm_user_message=llm_user_message) # RENAMED Event
-        # Access queues via context.state
-        await context.state.queues.enqueue_internal_system_event(llm_user_message_ready_event)
+        llm_user_message_ready_event = LLMUserMessageReadyEvent(llm_user_message=llm_user_message) 
+        # MODIFIED: Use context.input_event_queues and not context.state.queues
+        await context.input_event_queues.enqueue_internal_system_event(llm_user_message_ready_event)
         
         logger.info(
             f"Agent '{context.agent_id}' processed InterAgentMessage from sender '{inter_agent_msg.sender_agent_id}' "

@@ -31,23 +31,40 @@ class AgentPreparationEvent(AgentProcessingEvent):
     pass
 
 @dataclass
+class BootstrapAgentEvent(AgentPreparationEvent): # ADDED
+    """Event to trigger the comprehensive bootstrapping process for an agent."""
+    pass
+
+@dataclass
 class CreateToolInstancesEvent(AgentPreparationEvent): 
-    """Event to trigger the instantiation of tools for the agent."""
+    """
+    DEPRECATED in standard flow. Use BootstrapAgentEvent.
+    Event to trigger the instantiation of tools for the agent.
+    """
     pass
 
 @dataclass
 class ProcessSystemPromptEvent(AgentPreparationEvent):
-    """Event to trigger the processing of the agent's system prompt template."""
+    """
+    DEPRECATED in standard flow. Use BootstrapAgentEvent.
+    Event to trigger the processing of the agent's system prompt template.
+    """
     pass
 
 @dataclass
 class FinalizeLLMConfigEvent(AgentPreparationEvent):
-    """Event to trigger the finalization of the LLMConfig after system prompt processing."""
+    """
+    DEPRECATED in standard flow. Use BootstrapAgentEvent.
+    Event to trigger the finalization of the LLMConfig after system prompt processing.
+    """
     pass
 
 @dataclass
 class CreateLLMInstanceEvent(AgentPreparationEvent):
-    """Event to trigger the instantiation of the BaseLLM for the agent."""
+    """
+    DEPRECATED in standard flow. Use BootstrapAgentEvent.
+    Event to trigger the instantiation of the BaseLLM for the agent.
+    """
     pass
 
 
@@ -61,8 +78,8 @@ class AgentOperationalEvent(AgentProcessingEvent):
 # --- Specific Lifecycle Events ---
 
 @dataclass
-class AgentStartedEvent(LifecycleEvent):
-    """Event indicating the agent has started its main execution loop and is fully initialized (including LLM and tools)."""
+class AgentReadyEvent(LifecycleEvent): # MODIFIED: Renamed from AgentStartedEvent
+    """Event indicating the agent has completed its bootstrapping process, is fully initialized (including LLM and tools), and is ready to process messages."""
     pass
 
 @dataclass
@@ -134,4 +151,3 @@ class GenericEvent(AgentOperationalEvent):
     """
     payload: Dict[str, Any]
     type_name: str 
-

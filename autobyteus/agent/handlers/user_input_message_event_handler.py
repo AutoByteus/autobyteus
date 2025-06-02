@@ -3,7 +3,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from autobyteus.agent.handlers.base_event_handler import AgentEventHandler
-from autobyteus.agent.events import UserMessageReceivedEvent, LLMUserMessageReadyEvent # RENAMED Event
+from autobyteus.agent.events import UserMessageReceivedEvent, LLMUserMessageReadyEvent 
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage 
 from autobyteus.agent.input_processor import default_input_processor_registry
 from autobyteus.llm.user_message import LLMUserMessage
@@ -41,7 +41,6 @@ class UserInputMessageEventHandler(AgentEventHandler):
         
         logger.info(f"Agent '{context.agent_id}' handling UserMessageReceivedEvent: '{original_agent_input_user_msg.content[:100]}...'") 
         
-        # Access definition via context.config
         processor_names = context.config.definition.input_processor_names
         if processor_names:
             logger.debug(f"Agent '{context.agent_id}': Applying input processors by name: {processor_names}")
@@ -54,7 +53,6 @@ class UserInputMessageEventHandler(AgentEventHandler):
                     try:
                         logger.debug(f"Agent '{context.agent_id}': Applying input processor '{processor_name}' (class: {processor_class.__name__}).")
                         msg_before_this_processor = processed_agent_input_user_msg 
-                        # Pass the composite context to the processor
                         processed_agent_input_user_msg = await processor_instance.process(msg_before_this_processor, context)
                         logger.info(f"Agent '{context.agent_id}': Input processor '{processor_name}' applied successfully.")
                     except Exception as e:
@@ -71,8 +69,7 @@ class UserInputMessageEventHandler(AgentEventHandler):
             image_urls=processed_agent_input_user_msg.image_urls 
         )
         
-        llm_user_message_ready_event = LLMUserMessageReadyEvent(llm_user_message=llm_user_message) # RENAMED Event
-        # Access queues via context.state
-        await context.state.queues.enqueue_internal_system_event(llm_user_message_ready_event)
+        llm_user_message_ready_event = LLMUserMessageReadyEvent(llm_user_message=llm_user_message) 
+        await context.input_event_queues.enqueue_internal_system_event(llm_user_message_ready_event)
         
         logger.info(f"Agent '{context.agent_id}' processed AgentInputUserMessage (processors: {processor_names}) and enqueued LLMUserMessageReadyEvent.")
