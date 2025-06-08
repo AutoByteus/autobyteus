@@ -10,7 +10,7 @@ from autobyteus.agent.events import (
     AgentErrorEvent,
     LifecycleEvent 
 )
-from autobyteus.agent.phases import AgentOperationalPhase # Import new phase enum
+from autobyteus.agent.context.phases import AgentOperationalPhase # Import new phase enum
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext 

@@ -15,7 +15,7 @@ class TestTool(EventEmitter):
         return "Execution result"
 
     @event_listener(EventType.TOOL_EXECUTION_COMPLETED)
-    def on_execution_completed(self, result):
+    def on_execution_completed(self, result, **kwargs):
         self.execution_completed = True
         self.execution_result = result
 
@@ -32,7 +32,7 @@ def test_multiple_listeners():
     external_result = []
     
     @event_listener(EventType.TOOL_EXECUTION_COMPLETED)
-    def external_listener(result):
+    def external_listener(result, **kwargs):
         external_result.append(result)
     
     tool.subscribe(EventType.TOOL_EXECUTION_COMPLETED, external_listener)
@@ -48,7 +48,7 @@ def test_unsubscribe():
     external_result = []
     
     @event_listener(EventType.TOOL_EXECUTION_COMPLETED)
-    def external_listener(result):
+    def external_listener(result, **kwargs):
         external_result.append(result)
     
     tool.subscribe(EventType.TOOL_EXECUTION_COMPLETED, external_listener)

@@ -2,6 +2,7 @@
 
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.browser.session_aware.shared_browser_session_manager import SharedBrowserSessionManager
+from autobyteus.events.event_types import EventType
 
 class BrowserSessionAwareTool(BaseTool):
     def __init__(self):
@@ -19,7 +20,7 @@ class BrowserSessionAwareTool(BaseTool):
             await self.shared_browser_session_manager.create_shared_browser_session()
             shared_session = self.shared_browser_session_manager.get_shared_browser_session()
             await shared_session.page.goto(webpage_url)
-            self.emit("shared_browser_session_created", shared_session)
+            self.emit(EventType.SHARED_BROWSER_SESSION_CREATED, shared_session=shared_session)
         
         return await self.perform_action(shared_session, **kwargs)
 

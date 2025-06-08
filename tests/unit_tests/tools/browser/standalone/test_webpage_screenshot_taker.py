@@ -2,23 +2,23 @@ import pytest
 import os
 from unittest.mock import Mock, AsyncMock, patch
 from autobyteus.tools.browser.standalone.webpage_screenshot_taker import WebPageScreenshotTaker
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType # Updated
-from autobyteus.tools.tool_config import ToolConfig # For testing instantiation
-from autobyteus.agent.context import AgentContext # For mock context
-
+from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType 
+from autobyteus.tools.tool_config import ToolConfig 
+from autobyteus.agent.context import AgentContext 
+from autobyteus.tools.registry import default_tool_registry # Added
 
 @pytest.fixture
-def mock_agent_context_ss(): # Specific name
+def mock_agent_context_ss(): 
     mock_context = Mock(spec=AgentContext)
     mock_context.agent_id = "test_agent_ss_taker"
     return mock_context
 
 @pytest.fixture
-def screenshot_taker_tool_default(): # Default instantiation
+def screenshot_taker_tool_default(): 
     return WebPageScreenshotTaker()
 
 @pytest.fixture
-def screenshot_taker_tool_custom_config(): # Custom instantiation
+def screenshot_taker_tool_custom_config(): 
     config = ToolConfig(params={'full_page': False, 'image_format': 'jpeg'})
     return WebPageScreenshotTaker(config=config)
 
@@ -34,7 +34,7 @@ def test_get_description(screenshot_taker_tool_default: WebPageScreenshotTaker):
 def test_get_config_schema_for_instantiation(screenshot_taker_tool_default: WebPageScreenshotTaker):
     schema = screenshot_taker_tool_default.get_config_schema()
     assert isinstance(schema, ParameterSchema)
-    assert len(schema.parameters) == 2 # full_page, image_format
+    assert len(schema.parameters) == 2 
     
     full_page_param = schema.get_parameter("full_page")
     assert full_page_param.default_value is True
@@ -45,7 +45,7 @@ def test_get_config_schema_for_instantiation(screenshot_taker_tool_default: WebP
 def test_get_argument_schema_for_execution(screenshot_taker_tool_default: WebPageScreenshotTaker):
     schema = screenshot_taker_tool_default.get_argument_schema()
     assert isinstance(schema, ParameterSchema)
-    assert len(schema.parameters) == 2 # url, file_path
+    assert len(schema.parameters) == 2 
     
     url_param = schema.get_parameter("url")
     assert url_param.name == "url"
@@ -53,16 +53,16 @@ def test_get_argument_schema_for_execution(screenshot_taker_tool_default: WebPag
     file_path_param = schema.get_parameter("file_path")
     assert file_path_param.name == "file_path"
     assert file_path_param.required is True
-    assert file_path_param.param_type == ParameterType.FILE_PATH
+    assert file_path_param.param_type == ParameterType.STRING # MODIFIED from FILE_PATH
 
 # Execute Tests
 @pytest.mark.asyncio
 async def test_execute_missing_args(screenshot_taker_tool_default: WebPageScreenshotTaker, mock_agent_context_ss):
     with pytest.raises(ValueError, match="Invalid arguments for tool 'WebPageScreenshotTaker'"):
-        await screenshot_taker_tool_default.execute(mock_agent_context_ss, url="http://example.com") # Missing file_path
+        await screenshot_taker_tool_default.execute(mock_agent_context_ss, url="http://example.com") 
 
     with pytest.raises(ValueError, match="Invalid arguments for tool 'WebPageScreenshotTaker'"):
-        await screenshot_taker_tool_default.execute(mock_agent_context_ss, file_path="test.png") # Missing url
+        await screenshot_taker_tool_default.execute(mock_agent_context_ss, file_path="test.png") 
 
 @pytest.mark.asyncio
 async def test_webpage_screenshot_taker_execute_default_config(screenshot_taker_tool_default: WebPageScreenshotTaker, mock_agent_context_ss, tmp_path):
@@ -70,14 +70,12 @@ async def test_webpage_screenshot_taker_execute_default_config(screenshot_taker_
     file_path_arg = str(tmp_path / "screenshot_default.png")
 
     mock_playwright_page = AsyncMock()
-    # Mock page.screenshot to simulate behavior, no actual file write in mock
     mock_playwright_page.screenshot = AsyncMock()
 
     with patch.object(screenshot_taker_tool_default, 'initialize', AsyncMock()) as mock_init, \
          patch.object(screenshot_taker_tool_default, 'close', AsyncMock()) as mock_close, \
          patch.object(screenshot_taker_tool_default, 'page', new_callable=lambda: mock_playwright_page):
         
-        # Ensure parent dir exists for the test's expectation of os.path.abspath
         os.makedirs(os.path.dirname(file_path_arg), exist_ok=True)
 
         returned_path = await screenshot_taker_tool_default.execute(
@@ -90,15 +88,14 @@ async def test_webpage_screenshot_taker_execute_default_config(screenshot_taker_
     mock_playwright_page.goto.assert_called_once_with(url_to_shot, wait_until="networkidle", timeout=60000)
     mock_playwright_page.screenshot.assert_called_once_with(
         path=file_path_arg, 
-        full_page=True, # Default from tool init
-        type="png"      # Default from tool init
+        full_page=True, 
+        type="png"      
     )
     mock_close.assert_called_once()
     assert returned_path == os.path.abspath(file_path_arg)
 
 @pytest.mark.asyncio
 async def test_webpage_screenshot_taker_execute_custom_config(screenshot_taker_tool_custom_config: WebPageScreenshotTaker, mock_agent_context_ss, tmp_path):
-    # screenshot_taker_tool_custom_config initialized with full_page=False, image_format='jpeg'
     assert screenshot_taker_tool_custom_config.full_page is False
     assert screenshot_taker_tool_custom_config.image_format == "jpeg"
 
@@ -121,8 +118,8 @@ async def test_webpage_screenshot_taker_execute_custom_config(screenshot_taker_t
     
     mock_playwright_page.screenshot.assert_called_once_with(
         path=file_path_arg, 
-        full_page=False, # From custom tool instance config
-        type="jpeg"      # From custom tool instance config
+        full_page=False, 
+        type="jpeg"      
     )
 
 @pytest.mark.asyncio
@@ -141,4 +138,3 @@ async def test_webpage_screenshot_taker_playwright_error(screenshot_taker_tool_d
             await screenshot_taker_tool_default.execute(mock_agent_context_ss, url=url_to_shot, file_path=file_path_arg)
         
         mock_close.assert_called_once()
-

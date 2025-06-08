@@ -24,7 +24,7 @@ async def test_handle_known_generic_event_type(generic_event_handler: GenericEve
     with caplog.at_level(logging.INFO):
         await generic_event_handler.handle(event, agent_context)
 
-    assert f"Agent '{agent_context.agent_id}' handling GenericEvent with type_name: '{event_type_name}'" in caplog.text
+    assert f"Agent '{agent_context.agent_id}' handling GenericEvent with type_name: '{event_type_name}'. Payload: {event_payload}" in caplog.text
     assert f"Handling specific generic event '{event_type_name}' for agent '{agent_context.agent_id}'." in caplog.text
     # Check that no warnings for unhandled type_name are present
     assert "unhandled type_name" not in caplog.text
@@ -39,7 +39,7 @@ async def test_handle_another_known_generic_event_type(generic_event_handler: Ge
     with caplog.at_level(logging.INFO):
         await generic_event_handler.handle(event, agent_context)
 
-    assert f"Agent '{agent_context.agent_id}' handling GenericEvent with type_name: '{event_type_name}'" in caplog.text
+    assert f"Agent '{agent_context.agent_id}' handling GenericEvent with type_name: '{event_type_name}'. Payload: {event_payload}" in caplog.text
     assert f"Handling specific generic event '{event_type_name}' for agent '{agent_context.agent_id}'." in caplog.text
     assert "unhandled type_name" not in caplog.text
 
@@ -49,12 +49,12 @@ async def test_handle_unknown_generic_event_type(generic_event_handler: GenericE
     event_payload = {"info": "unknown_info"}
     event_type_name = "some_unknown_event_type"
     event = GenericEvent(payload=event_payload, type_name=event_type_name)
-
-    with caplog.at_level(logging.WARNING): # Capture warnings
+    
+    with caplog.at_level(logging.INFO): # MODIFIED: Changed from logging.WARNING to logging.INFO
         await generic_event_handler.handle(event, agent_context)
     
     # Check for the initial info log
-    assert f"Agent '{agent_context.agent_id}' handling GenericEvent with type_name: '{event_type_name}'" in caplog.text
+    assert f"Agent '{agent_context.agent_id}' handling GenericEvent with type_name: '{event_type_name}'. Payload: {event_payload}" in caplog.text
     # Check for the warning log
     assert f"Agent '{agent_context.agent_id}' received GenericEvent with unhandled type_name: '{event_type_name}'." in caplog.text
 

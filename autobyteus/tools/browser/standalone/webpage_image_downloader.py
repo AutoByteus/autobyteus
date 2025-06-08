@@ -1,23 +1,23 @@
 from autobyteus.tools.base_tool import BaseTool
 from brui_core.ui_integrator import UIIntegrator
 import os
-import logging # Added
-from urllib.parse import urljoin, urlparse # Added urlparse
-from typing import Optional, TYPE_CHECKING, Any, List # Added List
+import logging 
+from urllib.parse import urljoin, urlparse 
+from typing import Optional, TYPE_CHECKING, Any, List 
 
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
 
-logger = logging.getLogger(__name__) # Added
+logger = logging.getLogger(__name__) 
 
 class WebPageImageDownloader(BaseTool, UIIntegrator):
     """
     A class that downloads images (excluding SVGs and data URIs) from a given webpage URL using Playwright.
     Saves images to a specified directory.
     """
-    def __init__(self): # No instantiation config
+    def __init__(self): 
         BaseTool.__init__(self)
         UIIntegrator.__init__(self)
         logger.debug("WebPageImageDownloader tool initialized.")
@@ -38,17 +38,13 @@ class WebPageImageDownloader(BaseTool, UIIntegrator):
         ))
         schema.add_parameter(ParameterDefinition(
             name="save_dir",
-            param_type=ParameterType.DIRECTORY_PATH,
+            param_type=ParameterType.STRING, # MODIFIED from DIRECTORY_PATH
             description="The local directory path where downloaded images will be saved.",
             required=True
         ))
         return schema
 
-    async def _execute(self, context: 'AgentContext', url: str, save_dir: str) -> List[str]: # Named parameters
-        """
-        Downloads images from the webpage.
-        'url' and 'save_dir' are validated by BaseTool.execute().
-        """
+    async def _execute(self, context: 'AgentContext', url: str, save_dir: str) -> List[str]: 
         logger.info(f"WebPageImageDownloader for agent {context.agent_id} downloading images from '{url}' to '{save_dir}'.")
         
         if not self._is_valid_page_url(url):
@@ -70,11 +66,11 @@ class WebPageImageDownloader(BaseTool, UIIntegrator):
             
             download_counter = 0
             for i, img_src in enumerate(image_srcs):
-                if not img_src or img_src.startswith("data:"): # Skip empty or data URIs
+                if not img_src or img_src.startswith("data:"): 
                     logger.debug(f"Skipping image source (data URI or empty): {img_src[:50]}...")
                     continue
 
-                full_image_url = urljoin(self.page.url, img_src) # Resolve relative URLs against current page URL
+                full_image_url = urljoin(self.page.url, img_src) 
 
                 if self._is_svg(full_image_url):
                     logger.debug(f"Skipping SVG image: {full_image_url}")
@@ -86,13 +82,6 @@ class WebPageImageDownloader(BaseTool, UIIntegrator):
 
                 file_path = self._generate_file_path(save_dir, download_counter, full_image_url)
                 try:
-                    # Using page.goto for each image might be slow and unreliable.
-                    # Better to use a direct HTTP client like aiohttp for downloading.
-                    # For now, sticking to Playwright as per original context, but this is a known limitation.
-                    # The original context's _download_and_save_image used page.screenshot(full_page=True)
-                    # after page.goto(image_url). This seems incorrect for downloading raw image bytes.
-                    # A better Playwright way, if forced, is to get the resource directly, or use evaluate.
-                    # A simplified direct download via page context's request:
                     image_response = await self.page.request.get(full_image_url)
                     if image_response.ok:
                         image_buffer = await image_response.body()
@@ -117,7 +106,6 @@ class WebPageImageDownloader(BaseTool, UIIntegrator):
             await self.close()
 
     async def _get_image_srcs_from_page(self) -> List[str]:
-        # Get 'src' from <img> and 'srcset', and 'data-src' common for lazy loading
         image_elements_data = await self.page.evaluate("""() => {
             const sources = new Set();
             document.querySelectorAll('img').forEach(img => {
@@ -150,27 +138,24 @@ class WebPageImageDownloader(BaseTool, UIIntegrator):
             return False
 
     def _is_svg(self, url: str) -> bool:
-        return url.lower().split('?')[0].endswith('.svg') # Ignore query params for extension check
+        return url.lower().split('?')[0].endswith('.svg') 
 
     def _generate_file_path(self, directory: str, index: int, url: str) -> str:
         try:
             parsed_url = urlparse(url)
             base_filename = os.path.basename(parsed_url.path)
             filename_stem, ext = os.path.splitext(base_filename)
-            if not ext: # If no extension from path, try to guess or default
-                ext = ".jpg" # Default extension if cannot determine
-                # Could try to get from Content-Type if doing full HTTP req per image
+            if not ext: 
+                ext = ".jpg" 
             
-            # Sanitize filename stem
             import string
             valid_chars_fs = "-_.() %s%s" % (string.ascii_letters, string.digits)
-            safe_stem = ''.join(c for c in filename_stem if c in valid_chars_fs)[:50] # Limit length
+            safe_stem = ''.join(c for c in filename_stem if c in valid_chars_fs)[:50] 
             if not safe_stem: safe_stem = f"image_{index}"
 
             final_filename = f"{safe_stem}{ext}"
 
-        except Exception: # Fallback if URL parsing/basename fails
-            final_filename = f"image_{index}.jpg" # Default filename
+        except Exception: 
+            final_filename = f"image_{index}.jpg" 
             
         return os.path.join(directory, final_filename)
-

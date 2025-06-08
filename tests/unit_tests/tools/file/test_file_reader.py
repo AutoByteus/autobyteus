@@ -2,8 +2,7 @@ import pytest
 import os
 from unittest.mock import Mock
 
-# Import the module where the 'file_reader' functional tool is defined to ensure registration
-import autobyteus.tools.file.file_reader # <--- ADDED IMPORT FOR REGISTRATION
+import autobyteus.tools.file.file_reader 
 
 from autobyteus.tools.registry import default_tool_registry 
 from autobyteus.tools.base_tool import BaseTool 
@@ -34,7 +33,7 @@ def test_file_for_reader(tmp_path):
 
 def test_file_reader_definition():
     definition = default_tool_registry.get_tool_definition(TOOL_NAME_FILE_READER)
-    assert definition is not None # This should now pass
+    assert definition is not None 
     assert definition.name == TOOL_NAME_FILE_READER
     assert "Reads content from a specified file" in definition.description
     assert "Raises FileNotFoundError if the file does not exist" in definition.description
@@ -46,9 +45,10 @@ def test_file_reader_definition():
     param_path = schema.get_parameter("path")
     assert isinstance(param_path, ParameterDefinition)
     assert param_path.name == "path"
-    assert param_path.param_type == ParameterType.FILE_PATH 
+    assert param_path.param_type == ParameterType.STRING # MODIFIED from FILE_PATH
     assert param_path.required is True
     assert "Parameter 'path' for tool 'FileReader'" in param_path.description
+    assert "This is expected to be a path." in param_path.description # Heuristic added description
 
 def test_file_reader_tool_usage_xml_output():
     definition = default_tool_registry.get_tool_definition(TOOL_NAME_FILE_READER)
@@ -56,7 +56,12 @@ def test_file_reader_tool_usage_xml_output():
     xml_output = definition.usage_xml 
     
     assert f'<command name="{TOOL_NAME_FILE_READER}">' in xml_output
-    assert '<arg name="path" type="file_path" description="Parameter \'path\' for tool \'FileReader\'." required="true" />' in xml_output
+    # Description for path now includes the heuristic string
+    expected_desc = "Parameter 'path' for tool 'FileReader'. This is expected to be a path."
+    # XML escape the description for assertion
+    import xml.sax.saxutils
+    escaped_desc = xml.sax.saxutils.escape(expected_desc)
+    assert f'<arg name="path" type="string" description="{escaped_desc}" required="true" />' in xml_output # MODIFIED type from file_path
     assert '</command>' in xml_output
 
 def test_file_reader_tool_usage_json_output():
@@ -71,8 +76,9 @@ def test_file_reader_tool_usage_json_output():
     assert input_schema["type"] == "object"
     assert "path" in input_schema["properties"]
     path_prop = input_schema["properties"]["path"]
-    assert path_prop["type"] == ParameterType.FILE_PATH.to_json_schema_type() 
+    assert path_prop["type"] == ParameterType.STRING.to_json_schema_type() # Was FILE_PATH but mapped to string
     assert "Parameter 'path' for tool 'FileReader'" in path_prop["description"]
+    assert "This is expected to be a path." in path_prop["description"]
     assert "path" in input_schema["required"]
 
 @pytest.mark.asyncio
@@ -120,7 +126,6 @@ async def test_read_io_error_functional(tmp_path, mocker, file_reader_tool_insta
             raise IOError("Simulated open error for FileReader")
         return original_open(path_arg, *args, **kwargs) 
     
-    # Patch 'open' in the module where the 'file_reader' function is defined
     mocker.patch('autobyteus.tools.file.file_reader.open', side_effect=mock_open_for_reader)
     
     with pytest.raises(IOError, match=f"Could not read file at {file_path_str}: Simulated open error for FileReader"):

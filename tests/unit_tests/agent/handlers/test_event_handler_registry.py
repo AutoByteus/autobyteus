@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 from autobyteus.agent.handlers.event_handler_registry import EventHandlerRegistry
 from autobyteus.agent.handlers.base_event_handler import AgentEventHandler
-from autobyteus.agent.events.agent_events import BaseEvent, UserMessageReceivedEvent, AgentStartedEvent
+from autobyteus.agent.events.agent_events import BaseEvent, UserMessageReceivedEvent, AgentReadyEvent # UPDATED: AgentStartedEvent -> AgentReadyEvent
 
 
 # A dummy event handler for testing
@@ -25,6 +25,9 @@ class NotAnEvent: # Not a subclass of BaseEvent
 
 @pytest.fixture
 def registry():
+    # Ensure a fresh registry for each test if it's a singleton
+    if hasattr(EventHandlerRegistry, '_instance'):
+        EventHandlerRegistry._instance = None
     return EventHandlerRegistry()
 
 def test_event_handler_registry_initialization(registry: EventHandlerRegistry):
@@ -51,7 +54,7 @@ def test_get_handler_success(registry: EventHandlerRegistry):
 
 def test_get_handler_not_found(registry: EventHandlerRegistry):
     """Test retrieval of a handler for an unregistered event class."""
-    retrieved_handler = registry.get_handler(AgentStartedEvent)
+    retrieved_handler = registry.get_handler(AgentReadyEvent) # UPDATED example event
     assert retrieved_handler is None
 
 def test_register_handler_invalid_event_class_type(registry: EventHandlerRegistry):
@@ -84,12 +87,12 @@ def test_register_handler_already_registered_error(registry: EventHandlerRegistr
 def test_get_handler_invalid_event_class_type_arg(registry: EventHandlerRegistry):
     """Test get_handler with an invalid event_class argument type."""
     handler = registry.get_handler(UserMessageReceivedEvent()) # type: ignore
-    assert handler is None # Should log a warning and return None
+    assert handler is None 
 
 def test_get_handler_event_class_not_base_event_subclass_arg(registry: EventHandlerRegistry):
     """Test get_handler with an event_class not subclassing BaseEvent."""
     handler = registry.get_handler(NotAnEvent) # type: ignore
-    assert handler is None # Should log a warning and return None
+    assert handler is None 
 
 def test_get_all_registered_event_types(registry: EventHandlerRegistry):
     """Test listing all registered event types."""
@@ -101,8 +104,8 @@ def test_get_all_registered_event_types(registry: EventHandlerRegistry):
     registry.register(UserMessageReceivedEvent, handler1)
     assert set(registry.get_all_registered_event_types()) == {UserMessageReceivedEvent}
 
-    registry.register(AgentStartedEvent, handler2)
-    assert set(registry.get_all_registered_event_types()) == {UserMessageReceivedEvent, AgentStartedEvent}
+    registry.register(AgentReadyEvent, handler2) # UPDATED example event
+    assert set(registry.get_all_registered_event_types()) == {UserMessageReceivedEvent, AgentReadyEvent}
 
 def test_event_handler_registry_repr(registry: EventHandlerRegistry):
     """Test the __repr__ method of the registry."""

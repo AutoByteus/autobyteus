@@ -4,6 +4,7 @@ from unittest.mock import Mock, AsyncMock, patch
 from autobyteus.tools.browser.standalone.webpage_image_downloader import WebPageImageDownloader
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.agent.context import AgentContext
+from autobyteus.tools.registry import default_tool_registry # Added
 
 TOOL_NAME_IMG_DOWNLOADER = "WebPageImageDownloader"
 
@@ -21,7 +22,7 @@ def img_downloader_tool_instance(mock_agent_context_img_dl):
 
 # Definition Tests
 def test_img_downloader_definition():
-    definition = default_tool_registry.get_tool_definition(TOOL_NAME_IMG_DOWNLOADER)
+    definition = default_tool_registry.get_tool_definition(TOOL_NAME_IMG_DOWNLOADER) # Using default_tool_registry
     assert definition is not None
     assert definition.name == TOOL_NAME_IMG_DOWNLOADER
     assert "Downloads all usable images" in definition.description
@@ -34,7 +35,7 @@ def test_img_downloader_definition():
     assert param_url.required is True
     param_save_dir = schema.get_parameter("save_dir")
     assert param_save_dir is not None
-    assert param_save_dir.param_type == ParameterType.DIRECTORY_PATH
+    assert param_save_dir.param_type == ParameterType.STRING # MODIFIED from DIRECTORY_PATH
     assert param_save_dir.required is True
 
 # Execute Tests
@@ -42,23 +43,20 @@ def test_img_downloader_definition():
 async def test_execute_success(img_downloader_tool_instance: WebPageImageDownloader, mock_agent_context_img_dl, tmp_path):
     page_url = "https://example.com/gallery"
     save_directory = tmp_path / "downloaded_images"
-    # save_directory.mkdir() # Tool should create it
 
     mock_playwright_page = AsyncMock()
-    # Simulate page.evaluate returning some image URLs
     mock_playwright_page.evaluate.return_value = [
-        "images/pic1.jpg",  # Relative
-        "https://othersite.com/pic2.png", # Absolute
-        "images/pic3.svg", # SVG to be ignored
-        "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", # Data URI
-        "//cdn.example.com/pic4.jpeg" # Protocol-relative
+        "images/pic1.jpg", 
+        "https://othersite.com/pic2.png", 
+        "images/pic3.svg", 
+        "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", 
+        "//cdn.example.com/pic4.jpeg" 
     ]
-    mock_playwright_page.url = page_url # Set current page URL for urljoin
+    mock_playwright_page.url = page_url 
 
-    # Mock page.request.get() and response
     async def mock_page_request_get(url_to_get):
         mock_img_resp = AsyncMock()
-        if "pic1.jpg" in url_to_get or "pic2.png" in url_to_get or "pic4.jpeg" in url_to_get : # Simulate successful download for valid images
+        if "pic1.jpg" in url_to_get or "pic2.png" in url_to_get or "pic4.jpeg" in url_to_get : 
             mock_img_resp.ok = True
             mock_img_resp.body.return_value = b"fake_image_bytes_" + os.path.basename(url_to_get).encode()
         else:
@@ -80,16 +78,14 @@ async def test_execute_success(img_downloader_tool_instance: WebPageImageDownloa
             save_dir=str(save_directory)
         )
     
-    assert len(saved_file_paths) == 3 # jpg, png, jpeg
+    assert len(saved_file_paths) == 3 
     assert os.path.isdir(save_directory)
     
     expected_files = ["pic1.jpg", "pic2.png", "pic4.jpeg"]
     downloaded_filenames = [os.path.basename(p) for p in saved_file_paths]
 
     for expected_file_part in expected_files:
-        # The generated filename might have a stem + original extension
         assert any(expected_file_part in fname for fname in downloaded_filenames), f"Expected part {expected_file_part} not in downloaded filenames: {downloaded_filenames}"
-        # Verify content (optional, but good)
         for p in saved_file_paths:
             if expected_file_part in p:
                  with open(p, "rb") as f:
@@ -111,7 +107,7 @@ async def test_execute_no_images_found(img_downloader_tool_instance: WebPageImag
     save_directory = tmp_path / "empty_images"
 
     mock_playwright_page = AsyncMock()
-    mock_playwright_page.evaluate.return_value = [] # No images
+    mock_playwright_page.evaluate.return_value = [] 
     mock_playwright_page.url = page_url
 
     with patch.object(img_downloader_tool_instance, 'initialize', AsyncMock()), \
@@ -125,7 +121,7 @@ async def test_execute_no_images_found(img_downloader_tool_instance: WebPageImag
         )
     
     assert len(saved_file_paths) == 0
-    assert os.path.isdir(save_directory) # Directory should still be created
+    assert os.path.isdir(save_directory) 
 
 
 @pytest.mark.asyncio
@@ -137,7 +133,6 @@ async def test_execute_image_download_error(img_downloader_tool_instance: WebPag
     mock_playwright_page.evaluate.return_value = ["image_that_will_fail.jpg"]
     mock_playwright_page.url = page_url
     
-    # Simulate error during page.request.get()
     mock_playwright_page.request = AsyncMock()
     mock_playwright_page.request.get = AsyncMock(side_effect=Exception("Simulated download failure"))
 
@@ -151,5 +146,4 @@ async def test_execute_image_download_error(img_downloader_tool_instance: WebPag
             save_dir=str(save_directory)
         )
     
-    assert len(saved_file_paths) == 0 # Should not save the failing image
-
+    assert len(saved_file_paths) == 0 

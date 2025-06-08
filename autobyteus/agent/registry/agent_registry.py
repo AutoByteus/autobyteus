@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, cast, Any
 from autobyteus.utils.singleton import SingletonMeta
 from autobyteus.agent.factory.agent_factory import AgentFactory
 from autobyteus.agent.agent import Agent 
-from autobyteus.agent.agent_runtime import AgentRuntime
+from autobyteus.agent.runtime.agent_runtime import AgentRuntime
 from autobyteus.agent.registry.agent_definition import AgentDefinition 
 from autobyteus.agent.registry.agent_definition_registry import AgentDefinitionRegistry
 from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace 
@@ -111,7 +111,7 @@ class AgentRegistry(metaclass=SingletonMeta):
             workspace=workspace,
             custom_llm_config=custom_llm_config, 
             custom_tool_config=custom_tool_config,          
-            auto_execute_tools=auto_execute_tools # PARAMETER USED HERE
+            auto_execute_tools=auto_execute_tools
         )
         
         agent_instance = Agent(runtime=runtime_instance) 
@@ -146,7 +146,7 @@ class AgentRegistry(metaclass=SingletonMeta):
     def list_active_agent_ids(self) -> List[str]:
         return list(self._active_agents.keys())
 
-default_definition_registry_instance = AgentDefinitionRegistry()
+default_definition_registry = AgentDefinitionRegistry()
 
 default_agent_factory = AgentFactory(
     tool_registry=default_tool_registry, 
@@ -155,6 +155,5 @@ default_agent_factory = AgentFactory(
 
 default_agent_registry = AgentRegistry(
     agent_factory=default_agent_factory,
-    definition_registry=default_definition_registry_instance
+    definition_registry=default_definition_registry
 )
-

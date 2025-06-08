@@ -89,7 +89,7 @@ def test_process_with_tool_having_required_and_defaulted_args_xml_format(mock_co
     prompt = "Examples: {{tool_examples}}"
     
     test_schema = ParameterSchema()
-    test_schema.add_parameter(ParameterDefinition(name="path", param_type=ParameterType.FILE_PATH, description="File path", required=True))
+    test_schema.add_parameter(ParameterDefinition(name="path", param_type=ParameterType.STRING, description="File path", required=True))
     test_schema.add_parameter(ParameterDefinition(name="count", param_type=ParameterType.INTEGER, description="A number", required=False, default_value=10))
     test_schema.add_parameter(ParameterDefinition(name="active", param_type=ParameterType.BOOLEAN, description="Is active", required=True))
     
@@ -102,7 +102,7 @@ def test_process_with_tool_having_required_and_defaulted_args_xml_format(mock_co
     
     expected_xml_example = (
         f'<command name="MixArgsTool">\n'
-        f'    <arg name="path">/path/to/your/file.txt</arg>\n'
+        f'    <arg name="path">/path/to/example.txt</arg>\n'
         f'    <arg name="count">10</arg>\n'
         f'    <arg name="active">true</arg>\n'
         f'</command>'
@@ -118,7 +118,7 @@ def test_process_with_tool_having_required_and_defaulted_args_json_format(mock_c
     prompt = "Examples: {{tool_examples}}"
     
     test_schema = ParameterSchema()
-    test_schema.add_parameter(ParameterDefinition(name="path", param_type=ParameterType.FILE_PATH, description="File path", required=True))
+    test_schema.add_parameter(ParameterDefinition(name="path", param_type=ParameterType.STRING, description="File path", required=True))
     test_schema.add_parameter(ParameterDefinition(name="count", param_type=ParameterType.INTEGER, description="A number", required=False, default_value=10))
     test_schema.add_parameter(ParameterDefinition(name="active", param_type=ParameterType.BOOLEAN, description="Is active", required=True))
     
@@ -132,7 +132,7 @@ def test_process_with_tool_having_required_and_defaulted_args_json_format(mock_c
     expected_json_example_obj = {
         "tool_name": "MixArgsTool",
         "arguments": {
-            "path": "/path/to/your/file.txt",
+            "path": "/path/to/example.txt",
             "count": 10,
             "active": True
         }
@@ -150,8 +150,6 @@ def test_process_with_tool_having_required_and_defaulted_args_json_format(mock_c
     (ParameterType.FLOAT, 123.45, "123.45"),
     (ParameterType.BOOLEAN, True, "true"), 
     (ParameterType.ENUM, "option1", "option1"), 
-    (ParameterType.FILE_PATH, "/path/to/your/file.txt", "/path/to/your/file.txt"),
-    (ParameterType.DIRECTORY_PATH, "/path/to/your/directory/", "/path/to/your/directory/"),
     (ParameterType.OBJECT, {"key1": "example_value", "key2": 100}, "{'key1': 'example_value', 'key2': 100}"), 
     (ParameterType.ARRAY, ["example_item1", 2, True], "['example_item1', 2, True]"), 
 ])
@@ -254,4 +252,3 @@ def test_process_failure_to_generate_example_for_one_tool_json_format(mock_tool_
     
     assert "{{tool_examples}}" not in processed_prompt
     assert processor.XML_EXAMPLES_HEADER not in processed_prompt # Check XML specific things are not there
-

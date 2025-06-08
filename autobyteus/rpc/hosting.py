@@ -200,13 +200,13 @@ async def serve_agent_http_sse(
 if __name__ == "__main__": # pragma: no cover
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     from autobyteus.agent.registry.agent_definition import AgentDefinition
-    from autobyteus.agent.registry.agent_registry import default_agent_registry, default_definition_registry_instance
+    from autobyteus.agent.registry.agent_registry import default_agent_registry, default_definition_registry
     from autobyteus.llm.models import LLMModel
     try: import autobyteus.agent.input_processor 
     except ImportError: print("Warning: input_processor module not found.", file=sys.stderr)
 
     def create_example_agent(name: str, role: str) -> Optional[Agent]:
-        agent_def = default_definition_registry_instance.get(name, role)
+        agent_def = default_definition_registry.get(name, role)
         if not agent_def:
             try:
                 agent_def = AgentDefinition(name=name, role=role, description=f"{name} agent",

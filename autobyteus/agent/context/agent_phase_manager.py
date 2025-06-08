@@ -2,12 +2,12 @@
 import logging
 from typing import TYPE_CHECKING, Optional, Dict, Any
 
-from autobyteus.agent.phases import AgentOperationalPhase 
+from .phases import AgentOperationalPhase 
 
 if TYPE_CHECKING:
     from autobyteus.agent.context.agent_context import AgentContext
     from autobyteus.agent.tool_invocation import ToolInvocation
-    from autobyteus.agent.notifiers import AgentExternalEventNotifier 
+    from autobyteus.agent.events.notifiers import AgentExternalEventNotifier 
 
 
 logger = logging.getLogger(__name__)
@@ -53,9 +53,6 @@ class AgentPhaseManager:
                 notify_args.update(additional_data)
             
             notifier_method(**notify_args)
-            
-            # REMOVED: Call to self.notifier.notify_legacy_status_changed
-            # self.notifier.notify_legacy_status_changed(new_phase=new_phase, old_phase=old_phase)
         else: 
             logger.error(f"AgentPhaseManager for '{self.context.agent_id}': Notifier method '{notify_method_name}' not found or not callable on {type(self.notifier).__name__}.")
 
@@ -144,4 +141,3 @@ class AgentPhaseManager:
             self._transition_phase(AgentOperationalPhase.ERROR, "notify_phase_error_entered", additional_data={"error_message": "Shutdown completed with agent in error state."})
         else:
             self._transition_phase(AgentOperationalPhase.SHUTDOWN_COMPLETE, "notify_phase_shutdown_completed")
-

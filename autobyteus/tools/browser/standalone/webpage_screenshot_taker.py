@@ -1,15 +1,15 @@
 from typing import Optional, TYPE_CHECKING, Any
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.tool_config import ToolConfig
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType # Updated
-from brui_core.ui_integrator import UIIntegrator # Inherits from UIIntegrator
-import logging # Added
-import os # Added for path manipulations if any
+from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType 
+from brui_core.ui_integrator import UIIntegrator 
+import logging 
+import os 
 
 if TYPE_CHECKING:
-    from autobyteus.agent.context import AgentContext # Added
+    from autobyteus.agent.context import AgentContext 
 
-logger = logging.getLogger(__name__) # Added
+logger = logging.getLogger(__name__) 
 
 class WebPageScreenshotTaker(BaseTool, UIIntegrator):
     """
@@ -18,7 +18,7 @@ class WebPageScreenshotTaker(BaseTool, UIIntegrator):
     """
     def __init__(self, config: Optional[ToolConfig] = None):
         BaseTool.__init__(self)
-        UIIntegrator.__init__(self) # Initialize UIIntegrator
+        UIIntegrator.__init__(self) 
         
         self.full_page: bool = True  
         self.image_format: str = "png"  
@@ -45,17 +45,15 @@ class WebPageScreenshotTaker(BaseTool, UIIntegrator):
             required=True
         ))
         schema.add_parameter(ParameterDefinition(
-            name="file_path", # This is the argument name for execute
-            param_type=ParameterType.FILE_PATH,
+            name="file_path", 
+            param_type=ParameterType.STRING, # MODIFIED from FILE_PATH
             description="The local file path (including filename and extension, e.g., 'screenshots/page.png') where the screenshot will be saved.",
             required=True
         ))
-        # Instantiation config (full_page, image_format) are not args for execute here.
-        # If they were to be overridden at execute time, they'd be added to this schema.
         return schema
         
     @classmethod
-    def get_config_schema(cls) -> Optional[ParameterSchema]: # For instantiation config
+    def get_config_schema(cls) -> Optional[ParameterSchema]: 
         schema = ParameterSchema()
         schema.add_parameter(ParameterDefinition(
             name="full_page",
@@ -74,28 +72,22 @@ class WebPageScreenshotTaker(BaseTool, UIIntegrator):
         ))
         return schema
 
-    async def _execute(self, context: 'AgentContext', url: str, file_path: str) -> str: # Updated signature
-        """
-        Take a screenshot of the webpage.
-        'url' and 'file_path' are validated by BaseTool.execute().
-        """
+    async def _execute(self, context: 'AgentContext', url: str, file_path: str) -> str: 
         logger.info(f"WebPageScreenshotTaker for agent {context.agent_id} taking screenshot of '{url}', saving to '{file_path}'.")
         
-        # Ensure parent directory for file_path exists
         output_dir = os.path.dirname(file_path)
-        if output_dir: # If file_path includes a directory
+        if output_dir: 
             os.makedirs(output_dir, exist_ok=True)
 
         try:
-            await self.initialize() # Initialize Playwright page
+            await self.initialize() 
             if not self.page:
                  logger.error("Playwright page not initialized in WebPageScreenshotTaker.")
                  raise RuntimeError("Playwright page not available for WebPageScreenshotTaker.")
 
-            await self.page.goto(url, wait_until="networkidle", timeout=60000) # Wait for network idle
+            await self.page.goto(url, wait_until="networkidle", timeout=60000) 
             
-            # Use instance configured format and full_page setting
-            await self.page.screenshot(path=file_path, full_page=self.full_page, type=self.image_format) # type: ignore (Playwright type for image_format is Literal["png", "jpeg"])
+            await self.page.screenshot(path=file_path, full_page=self.full_page, type=self.image_format) # type: ignore 
             
             absolute_file_path = os.path.abspath(file_path)
             logger.info(f"Screenshot saved successfully to {absolute_file_path}")
@@ -104,5 +96,4 @@ class WebPageScreenshotTaker(BaseTool, UIIntegrator):
             logger.error(f"Error taking screenshot of URL '{url}': {e}", exc_info=True)
             raise RuntimeError(f"WebPageScreenshotTaker failed for URL '{url}': {str(e)}")
         finally:
-            await self.close() # Close Playwright page/context
-
+            await self.close() 

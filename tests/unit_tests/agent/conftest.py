@@ -10,13 +10,12 @@ from autobyteus.agent.context.agent_context import AgentContext
 from autobyteus.agent.context.agent_phase_manager import AgentPhaseManager 
 
 from autobyteus.agent.events.agent_input_event_queue_manager import AgentInputEventQueueManager
-from autobyteus.agent.events.agent_output_data_manager import AgentOutputDataManager, END_OF_STREAM_SENTINEL
+from autobyteus.agent.events.notifiers import AgentExternalEventNotifier 
 
 from autobyteus.agent.registry.agent_definition import AgentDefinition
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.tools.base_tool import BaseTool
-from autobyteus.agent.status import AgentStatus 
-from autobyteus.agent.phases import AgentOperationalPhase 
+from autobyteus.agent.context.phases import AgentOperationalPhase 
 from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
 from autobyteus.agent.tool_invocation import ToolInvocation
 from autobyteus.events.event_emitter import EventEmitter 
@@ -35,20 +34,20 @@ def mock_llm_instance_fixture():
     llm._execute_before_hooks = AsyncMock()
     llm._execute_after_hooks = AsyncMock()
     llm._send_user_message_to_llm = AsyncMock()
-    llm._stream_user_message_to_llm = MagicMock()
+    llm._stream_user_message_to_llm = MagicMock() # Should be AsyncMock if it's an async generator
     llm.send_user_message = AsyncMock()
-    llm.stream_user_message = MagicMock()
+    llm.stream_user_message = MagicMock() # Should be AsyncMock if it's an async generator
     llm.cleanup = AsyncMock()
     
     mock_model_obj = MagicMock(spec=LLMModel)
     mock_model_obj.name = "mock-model-name"
     mock_model_obj.value = "mock-model-value"
-    mock_model_obj.provider = LLMProvider.OPENAI
+    mock_model_obj.provider = LLMProvider.OPENAI # Assuming it needs a provider
     
     mock_llm_config = MagicMock(spec=LLMConfig)
     mock_llm_config.system_message = "Mock system message."
-    mock_llm_config.pricing_config = TokenPricingConfig(input_token_pricing=0.0, output_token_pricing=0.0)
-    mock_model_obj.default_config = mock_llm_config
+    mock_llm_config.pricing_config = TokenPricingConfig(input_token_pricing=0.0, output_token_pricing=0.0) # Ensure this is valid
+    mock_model_obj.default_config = mock_llm_config # LLMModel instances have default_config
     
     llm.model = mock_model_obj
     llm.config = mock_llm_config
@@ -92,6 +91,7 @@ def mock_agent_definition_for_handlers_factory():
 
 @pytest.fixture
 def mock_agent_definition_for_handlers(mock_agent_definition_for_handlers_factory):
+    # Default to XML true, but tests can use the factory to change this
     return mock_agent_definition_for_handlers_factory(use_xml_format=True)
 
 
@@ -119,33 +119,9 @@ def mock_input_event_queue_manager():
     manager.enqueue_internal_system_event = AsyncMock()
     
     manager._input_queues = [("mock_internal_q", manager.internal_system_event_queue)]
-    manager.get_next_input_event = AsyncMock(return_value=None) 
+    manager.get_next_input_event = AsyncMock(return_value=None)
     manager.log_remaining_items_at_shutdown = MagicMock()
     return manager
-
-@pytest.fixture
-def mock_output_data_manager():
-    manager = MagicMock(spec=AgentOutputDataManager)
-    manager.pending_tool_approval_queue = AsyncMock(spec=asyncio.Queue)
-    manager.assistant_output_chunk_queue = AsyncMock(spec=asyncio.Queue)
-    manager.assistant_final_message_queue = AsyncMock(spec=asyncio.Queue)
-    manager.tool_interaction_log_queue = AsyncMock(spec=asyncio.Queue)
-    
-    for q_name in ["pending_tool_approval_queue", "assistant_output_chunk_queue", 
-                   "assistant_final_message_queue", "tool_interaction_log_queue"]:
-        getattr(manager, q_name).put = AsyncMock()
-        getattr(manager, q_name).full = MagicMock(return_value=False)
-
-    manager.enqueue_pending_tool_approval_data = AsyncMock()
-    manager.enqueue_assistant_chunk = AsyncMock()
-    manager.enqueue_assistant_final_message = AsyncMock()
-    manager.enqueue_tool_interaction_log = AsyncMock()
-    manager.enqueue_end_of_stream_sentinel_to_output_queue = AsyncMock()
-    manager.graceful_shutdown = AsyncMock()
-    manager.log_remaining_items_at_shutdown = MagicMock()
-    manager.END_OF_STREAM_SENTINEL = END_OF_STREAM_SENTINEL
-    return manager
-
 
 @pytest.fixture
 def mock_agent_config(mock_agent_definition_for_handlers):
@@ -154,47 +130,61 @@ def mock_agent_config(mock_agent_definition_for_handlers):
         agent_id=agent_id,
         definition=mock_agent_definition_for_handlers,
         auto_execute_tools=True,
-        llm_model_name="mock-model-name", 
+        llm_model_name="mock-model-name",
         custom_llm_config=None,
         custom_tool_config=None
     )
 
 @pytest.fixture
-def mock_agent_runtime_state(mock_agent_config, mock_input_event_queue_manager, mock_output_data_manager, mock_workspace):
-    return AgentRuntimeState(
+def mock_agent_runtime_state(mock_agent_config, mock_workspace):
+    """UPDATED: AgentRuntimeState no longer takes queues in its constructor."""
+    state = AgentRuntimeState(
         agent_id=mock_agent_config.agent_id,
-        input_event_queues=mock_input_event_queue_manager, 
-        output_data_queues=mock_output_data_manager,       
         workspace=mock_workspace,
         conversation_history=[],
         custom_data={}
     )
+    # Mock stateful methods directly on the state object if tests assert on them
+    state.add_message_to_history = MagicMock()
+    state.store_pending_tool_invocation = MagicMock()
+    state.retrieve_pending_tool_invocation = MagicMock(return_value=None)
+    return state
 
 @pytest.fixture
 def mock_phase_manager():
+    notifier_mock = AsyncMock(spec=AgentExternalEventNotifier)
+    for attr_name in dir(AgentExternalEventNotifier):
+        if attr_name.startswith("notify_") and callable(getattr(AgentExternalEventNotifier, attr_name)):
+            setattr(notifier_mock, attr_name, MagicMock())
+
     manager = MagicMock(spec=AgentPhaseManager)
-    manager.notify_initializing_tools = MagicMock()
-    manager.notify_initializing_prompt = MagicMock()
-    manager.notify_initializing_llm = MagicMock()
-    manager.notify_initialization_complete = MagicMock()
+    manager.notifier = notifier_mock 
+    for attr_name in dir(AgentPhaseManager):
+        if attr_name.startswith("notify_") and callable(getattr(AgentPhaseManager, attr_name)):
+            setattr(manager, attr_name, MagicMock())
+            
     return manager
 
 @pytest.fixture
-def agent_context(mock_agent_config, mock_agent_runtime_state, mock_llm_instance_fixture, mock_tool_instance, mock_phase_manager): 
+def agent_context(mock_agent_config, mock_agent_runtime_state, mock_llm_instance_fixture, 
+                  mock_tool_instance, mock_phase_manager, mock_input_event_queue_manager): 
     composite_context = AgentContext(config=mock_agent_config, state=mock_agent_runtime_state)
     
+    # Simulate a post-bootstrap state for handlers:
+    composite_context.state.input_event_queues = mock_input_event_queue_manager
     composite_context.state.tool_instances = {mock_tool_instance.get_name(): mock_tool_instance}
     composite_context.state.current_phase = AgentOperationalPhase.IDLE 
     composite_context.state.llm_instance = mock_llm_instance_fixture
     composite_context.state.processed_system_prompt = "Processed system prompt for testing."
     composite_context.state.final_llm_config_for_creation = LLMConfig(system_message="Final system message.")
-
-    composite_context.add_message_to_history = MagicMock(wraps=composite_context.add_message_to_history)
-    composite_context.store_pending_tool_invocation = MagicMock(wraps=composite_context.store_pending_tool_invocation)
-    composite_context.retrieve_pending_tool_invocation = MagicMock(wraps=composite_context.retrieve_pending_tool_invocation, return_value=None)
-    composite_context.get_tool = MagicMock(wraps=composite_context.get_tool) 
-
     composite_context.state.phase_manager_ref = mock_phase_manager
+    
+    composite_context.get_tool = MagicMock(wraps=composite_context.get_tool)
+    def _mock_get_tool(tool_name):
+        if tool_name == mock_tool_instance.get_name():
+            return mock_tool_instance
+        return None
+    composite_context.get_tool.side_effect = _mock_get_tool
     
     return composite_context
 
@@ -209,14 +199,17 @@ def mock_tool_invocation():
 @pytest.fixture
 def mock_tool_registry():
     registry = MagicMock(spec=ToolRegistry)
-    registry.create_tool = MagicMock(return_value=MagicMock(spec=BaseTool)) 
+    mock_created_tool = MagicMock(spec=BaseTool)
+    mock_created_tool.get_name.return_value = "created_mock_tool"
+    registry.create_tool = MagicMock(return_value=mock_created_tool) 
     return registry
 
 @pytest.fixture
 def mock_system_prompt_processor_registry():
     registry = MagicMock(spec=SystemPromptProcessorRegistry)
-    mock_processor_instance = MagicMock() 
-    mock_processor_instance.process = MagicMock(side_effect=lambda system_prompt, **kwargs: system_prompt) 
+    mock_processor_instance = MagicMock(spec=SystemPromptProcessorRegistry().get_processor("ToolDescriptionInjector")) # type: ignore
+    if mock_processor_instance:
+        mock_processor_instance.process = MagicMock(side_effect=lambda system_prompt, **kwargs: system_prompt) 
     registry.get_processor = MagicMock(return_value=mock_processor_instance)
     return registry
 

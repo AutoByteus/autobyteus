@@ -1,10 +1,10 @@
 import pytest
 import logging
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from autobyteus.agent.handlers.tool_result_event_handler import ToolResultEventHandler
-from autobyteus.agent.events.agent_events import ToolResultEvent, LLMUserMessageReadyEvent # UPDATED IMPORT
+from autobyteus.agent.events.agent_events import ToolResultEvent, LLMUserMessageReadyEvent, GenericEvent
 from autobyteus.llm.user_message import LLMUserMessage
 
 @pytest.fixture
@@ -19,23 +19,25 @@ async def test_handle_tool_result_success(tool_result_handler: ToolResultEventHa
     tool_invocation_id = "calc-123"
     event = ToolResultEvent(tool_name=tool_name, result=tool_result_data, tool_invocation_id=tool_invocation_id)
 
+    # Ensure notifier is mocked on phase_manager
+    if not hasattr(agent_context.phase_manager, 'notifier') or not isinstance(agent_context.phase_manager.notifier, AsyncMock):
+        agent_context.phase_manager.notifier = AsyncMock()
+
     with caplog.at_level(logging.INFO):
         await tool_result_handler.handle(event, agent_context)
 
-    # Check logs
     assert f"Agent '{agent_context.agent_id}' handling ToolResultEvent from tool: '{tool_name}' (Invocation ID: {tool_invocation_id})" in caplog.text
     
     log_msg_success_processed = f"[TOOL_RESULT_SUCCESS_PROCESSED] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Result (first 200 chars of stringified): {str(tool_result_data)[:200]}"
-    agent_context.queues.tool_interaction_log_queue.put.assert_called_once_with(log_msg_success_processed)
+    agent_context.phase_manager.notifier.notify_agent_data_tool_log.assert_called_once_with(log_msg_success_processed)
 
-    # Check enqueued LLMUserMessageReadyEvent
-    agent_context.queues.enqueue_internal_system_event.assert_called_once()
-    enqueued_event = agent_context.queues.enqueue_internal_system_event.call_args[0][0]
-    assert isinstance(enqueued_event, LLMUserMessageReadyEvent) # UPDATED TYPE CHECK
+    agent_context.input_event_queues.enqueue_internal_system_event.assert_called_once()
+    enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
+    assert isinstance(enqueued_event, LLMUserMessageReadyEvent) 
     assert isinstance(enqueued_event.llm_user_message, LLMUserMessage)
     
     expected_llm_content_part1 = f"The tool '{tool_name}' (invocation ID: {tool_invocation_id}) has executed."
-    expected_llm_content_part2 = f"Result:\n{json.dumps(tool_result_data, indent=2)}" # Assuming JSON dump for dicts
+    expected_llm_content_part2 = f"Result:\n{json.dumps(tool_result_data, indent=2)}" 
     assert expected_llm_content_part1 in enqueued_event.llm_user_message.content
     assert expected_llm_content_part2 in enqueued_event.llm_user_message.content
 
@@ -48,17 +50,20 @@ async def test_handle_tool_result_with_error(tool_result_handler: ToolResultEven
     tool_invocation_id = "fw-456"
     event = ToolResultEvent(tool_name=tool_name, result=None, error=error_message, tool_invocation_id=tool_invocation_id)
 
-    with caplog.at_level(logging.INFO):
+    if not hasattr(agent_context.phase_manager, 'notifier') or not isinstance(agent_context.phase_manager.notifier, AsyncMock):
+        agent_context.phase_manager.notifier = AsyncMock()
+
+    with caplog.at_level(logging.INFO): # Captures INFO level for the initial log
         await tool_result_handler.handle(event, agent_context)
 
     assert f"Agent '{agent_context.agent_id}' handling ToolResultEvent from tool: '{tool_name}' (Invocation ID: {tool_invocation_id}). Error: True" in caplog.text
     
     log_msg_error_processed = f"[TOOL_RESULT_ERROR_PROCESSED] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Error: {error_message}"
-    agent_context.queues.tool_interaction_log_queue.put.assert_called_once_with(log_msg_error_processed)
+    agent_context.phase_manager.notifier.notify_agent_data_tool_log.assert_called_once_with(log_msg_error_processed)
 
-    agent_context.queues.enqueue_internal_system_event.assert_called_once()
-    enqueued_event = agent_context.queues.enqueue_internal_system_event.call_args[0][0]
-    assert isinstance(enqueued_event, LLMUserMessageReadyEvent) # UPDATED TYPE CHECK
+    agent_context.input_event_queues.enqueue_internal_system_event.assert_called_once()
+    enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
+    assert isinstance(enqueued_event, LLMUserMessageReadyEvent) 
     
     expected_llm_content_part1 = f"The tool '{tool_name}' (invocation ID: {tool_invocation_id}) encountered an error."
     expected_llm_content_part2 = f"Error details: {error_message}"
@@ -71,33 +76,39 @@ async def test_handle_tool_result_no_invocation_id(tool_result_handler: ToolResu
     """Test handling when tool_invocation_id is None."""
     tool_name = "status_checker"
     tool_result_data = "System OK"
-    event = ToolResultEvent(tool_name=tool_name, result=tool_result_data, tool_invocation_id=None) # No ID
+    event = ToolResultEvent(tool_name=tool_name, result=tool_result_data, tool_invocation_id=None)
 
-    await tool_result_handler.handle(event, agent_context)
+    if not hasattr(agent_context.phase_manager, 'notifier') or not isinstance(agent_context.phase_manager.notifier, AsyncMock):
+        agent_context.phase_manager.notifier = AsyncMock()
 
-    # Check that 'N/A' is used for invocation ID in logs and messages
+    with caplog.at_level(logging.INFO): # ADDED this line to capture INFO logs
+        await tool_result_handler.handle(event, agent_context)
+
     assert "(Invocation ID: N/A)" in caplog.text
     log_msg_success_processed = f"[TOOL_RESULT_SUCCESS_PROCESSED] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: N/A, Result (first 200 chars of stringified): {str(tool_result_data)[:200]}"
-    agent_context.queues.tool_interaction_log_queue.put.assert_called_once_with(log_msg_success_processed)
+    agent_context.phase_manager.notifier.notify_agent_data_tool_log.assert_called_once_with(log_msg_success_processed)
 
-    enqueued_event = agent_context.queues.enqueue_internal_system_event.call_args[0][0]
+    enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
     assert "(invocation ID: N/A)" in enqueued_event.llm_user_message.content
 
 @pytest.mark.asyncio
 async def test_handle_tool_result_truncation(tool_result_handler: ToolResultEventHandler, agent_context):
     """Test that large tool results are truncated for the LLM prompt."""
     tool_name = "data_loader"
-    long_result = "a" * 3000 # Result longer than max_len (2000)
+    long_result = "a" * 3000 
     event = ToolResultEvent(tool_name=tool_name, result=long_result, tool_invocation_id="dl-789")
+
+    if not hasattr(agent_context.phase_manager, 'notifier') or not isinstance(agent_context.phase_manager.notifier, AsyncMock):
+        agent_context.phase_manager.notifier = AsyncMock()
 
     await tool_result_handler.handle(event, agent_context)
 
-    enqueued_event = agent_context.queues.enqueue_internal_system_event.call_args[0][0]
+    enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
     llm_content = enqueued_event.llm_user_message.content
     
-    assert len(llm_content) < len(long_result) + 500 # Check it's substantially shorter
+    assert len(llm_content) < len(long_result) + 500 
     assert "... (result truncated, original length 3000)" in llm_content
-    assert long_result[:1000] in llm_content # Beginning of the result should be there
+    assert long_result[:1000] in llm_content 
 
 @pytest.mark.asyncio
 async def test_handle_tool_result_non_string_json_serializable(tool_result_handler: ToolResultEventHandler, agent_context):
@@ -106,8 +117,11 @@ async def test_handle_tool_result_non_string_json_serializable(tool_result_handl
     dict_result = {"key": "value", "nested": {"num": 1}}
     event = ToolResultEvent(tool_name=tool_name, result=dict_result, tool_invocation_id="cr-001")
 
+    if not hasattr(agent_context.phase_manager, 'notifier') or not isinstance(agent_context.phase_manager.notifier, AsyncMock):
+        agent_context.phase_manager.notifier = AsyncMock()
+
     await tool_result_handler.handle(event, agent_context)
-    enqueued_event = agent_context.queues.enqueue_internal_system_event.call_args[0][0]
+    enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
     llm_content = enqueued_event.llm_user_message.content
     
     expected_json_str = json.dumps(dict_result, indent=2)
@@ -123,8 +137,11 @@ async def test_handle_tool_result_non_json_serializable_object(tool_result_handl
     obj_result = MyObject("test_data")
     event = ToolResultEvent(tool_name="object_tool", result=obj_result, tool_invocation_id="obj-002")
 
+    if not hasattr(agent_context.phase_manager, 'notifier') or not isinstance(agent_context.phase_manager.notifier, AsyncMock):
+        agent_context.phase_manager.notifier = AsyncMock()
+
     await tool_result_handler.handle(event, agent_context)
-    enqueued_event = agent_context.queues.enqueue_internal_system_event.call_args[0][0]
+    enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
     llm_content = enqueued_event.llm_user_message.content
     
     assert f"Result:\n{str(obj_result)}" in llm_content
@@ -133,18 +150,21 @@ async def test_handle_tool_result_non_json_serializable_object(tool_result_handl
 @pytest.mark.asyncio
 async def test_handle_invalid_event_type(tool_result_handler: ToolResultEventHandler, agent_context, caplog):
     """Test that the handler skips events that are not ToolResultEvent."""
-    from autobyteus.agent.events.agent_events import GenericEvent # Example of a different event
     invalid_event = GenericEvent(payload={}, type_name="wrong_event")
+
+    if not hasattr(agent_context.phase_manager, 'notifier') or not isinstance(agent_context.phase_manager.notifier, AsyncMock):
+        agent_context.phase_manager.notifier = AsyncMock()
 
     with caplog.at_level(logging.WARNING):
         await tool_result_handler.handle(invalid_event, agent_context) # type: ignore
     
     assert f"ToolResultEventHandler received non-ToolResultEvent: {type(invalid_event)}. Skipping." in caplog.text
-    agent_context.queues.tool_interaction_log_queue.put.assert_not_called()
-    agent_context.queues.enqueue_internal_system_event.assert_not_called()
+    agent_context.phase_manager.notifier.notify_agent_data_tool_log.assert_not_called()
+    agent_context.input_event_queues.enqueue_internal_system_event.assert_not_called()
 
 
 def test_tool_result_handler_initialization(caplog):
     with caplog.at_level(logging.INFO):
         handler = ToolResultEventHandler()
     assert "ToolResultEventHandler initialized." in caplog.text
+

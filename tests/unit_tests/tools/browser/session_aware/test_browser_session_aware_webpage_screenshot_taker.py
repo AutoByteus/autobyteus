@@ -47,7 +47,9 @@ def test_session_ss_taker_definition():
     assert isinstance(arg_schema, ParameterSchema)
     assert len(arg_schema.parameters) == 2 # webpage_url, file_name
     assert arg_schema.get_parameter("webpage_url").required is True
-    assert arg_schema.get_parameter("file_name").required is True
+    file_name_param = arg_schema.get_parameter("file_name")
+    assert file_name_param.required is True
+    assert file_name_param.param_type == ParameterType.STRING # MODIFIED
 
     config_schema = definition.config_schema # Instantiation config
     assert isinstance(config_schema, ParameterSchema)
@@ -64,11 +66,10 @@ async def test_perform_action_default_settings(
 ):
     file_to_save = str(tmp_path / "session_ss_default.png")
     
-    # Tool instance has full_page=True, image_format="png" by default
     returned_path = await ss_taker_session_tool_default.perform_action(
         mock_shared_browser_session_ss, 
         file_name=file_to_save,
-        webpage_url="http://dummy.url/forperformaction" # Passed by base class
+        webpage_url="http://dummy.url/forperformaction" 
     )
     
     assert returned_path == os.path.abspath(file_to_save)
@@ -77,16 +78,15 @@ async def test_perform_action_default_settings(
         full_page=True,
         type="png"
     )
-    assert os.path.isdir(os.path.dirname(file_to_save)) # Check dir was created by tool
+    assert os.path.isdir(os.path.dirname(file_to_save)) 
 
 @pytest.mark.asyncio
 async def test_perform_action_custom_settings(
-    ss_taker_session_tool_custom: BrowserSessionAwareWebPageScreenshotTaker, # Custom config instance
+    ss_taker_session_tool_custom: BrowserSessionAwareWebPageScreenshotTaker, 
     mock_shared_browser_session_ss: SharedBrowserSession,
     tmp_path
 ):
     file_to_save = str(tmp_path / "session_ss_custom.jpeg")
-    # Tool instance has full_page=False, image_format="jpeg"
     assert ss_taker_session_tool_custom.full_page is False
     assert ss_taker_session_tool_custom.image_format == "jpeg"
 
@@ -120,10 +120,9 @@ async def test_full_execute_with_session_mocking(
 
         result_path = await ss_taker_session_tool_default.execute(
             mock_agent_context_session_ss,
-            webpage_url="https://example.com/session_ss_target", # Required by schema
+            webpage_url="https://example.com/session_ss_target", 
             file_name=file_to_save_execute
         )
 
     assert result_path == os.path.abspath(file_to_save_execute)
     mock_shared_browser_session_ss.page.screenshot.assert_called_once()
-

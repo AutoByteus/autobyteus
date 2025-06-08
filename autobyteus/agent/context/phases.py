@@ -1,4 +1,4 @@
-# file: autobyteus/autobyteus/agent/phases.py
+# file: autobyteus/autobyteus/agent/context/phases.py
 from enum import Enum
 
 class AgentOperationalPhase(str, Enum):
@@ -49,4 +49,3 @@ class AgentOperationalPhase(str, Enum):
     def is_terminal(self) -> bool:
         """Checks if the phase is a terminal state (shutdown or error)."""
         return self in [AgentOperationalPhase.SHUTDOWN_COMPLETE, AgentOperationalPhase.ERROR]
-

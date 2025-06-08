@@ -4,8 +4,7 @@ import tempfile
 import shutil
 from unittest.mock import Mock
 
-# Import the module where the 'file_writer' functional tool is defined
-import autobyteus.tools.file.file_writer # <--- ADDED IMPORT FOR REGISTRATION
+import autobyteus.tools.file.file_writer 
 
 from autobyteus.tools.registry import default_tool_registry
 from autobyteus.tools.base_tool import BaseTool
@@ -37,7 +36,7 @@ def temp_dir_for_functional_writer() -> str:  # type: ignore
 
 def test_file_writer_definition():
     definition = default_tool_registry.get_tool_definition(TOOL_NAME_FILE_WRITER)
-    assert definition is not None # This should now pass
+    assert definition is not None 
     assert definition.name == TOOL_NAME_FILE_WRITER
     assert "Creates or overwrites a file" in definition.description
 
@@ -47,9 +46,10 @@ def test_file_writer_definition():
     
     param_path = schema.get_parameter("path")
     assert isinstance(param_path, ParameterDefinition)
-    assert param_path.param_type == ParameterType.FILE_PATH
+    assert param_path.param_type == ParameterType.STRING # MODIFIED from FILE_PATH
     assert param_path.required is True
     assert "Parameter 'path' for tool 'FileWriter'" in param_path.description
+    assert "This is expected to be a path." in param_path.description # Heuristic added description
     
     param_content = schema.get_parameter("content")
     assert isinstance(param_content, ParameterDefinition)
@@ -115,10 +115,8 @@ async def test_overwrite_existing_file_functional(file_writer_tool_instance: Bas
 @pytest.mark.asyncio
 async def test_write_io_error_functional(mocker, file_writer_tool_instance: BaseTool, temp_dir_for_functional_writer: str, mock_agent_context_file_ops: AgentContext):
     path = os.path.join(temp_dir_for_functional_writer, "writer_io_error.txt")
-    # Patch os.makedirs and open in the module where file_writer is defined
     mocker.patch('autobyteus.tools.file.file_writer.os.makedirs') 
     mocker.patch('autobyteus.tools.file.file_writer.open', side_effect=IOError("Simulated write permission denied"))
     
     with pytest.raises(IOError, match=f"Could not write file at {path}: Simulated write permission denied"):
         await file_writer_tool_instance.execute(mock_agent_context_file_ops, path=path, content="test")
-

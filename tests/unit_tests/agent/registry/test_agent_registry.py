@@ -9,12 +9,12 @@ from autobyteus.agent.factory.agent_factory import AgentFactory
 from autobyteus.agent.registry.agent_definition_registry import AgentDefinitionRegistry
 from autobyteus.agent.registry.agent_definition import AgentDefinition
 from autobyteus.agent.agent import Agent
-from autobyteus.agent.agent_runtime import AgentRuntime
+from autobyteus.agent.runtime.agent_runtime import AgentRuntime
 from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
 from autobyteus.llm.utils.llm_config import LLMConfig 
 from autobyteus.tools.tool_config import ToolConfig 
 from autobyteus.agent.context import AgentContext 
-from autobyteus.agent.status import AgentStatus 
+from autobyteus.agent.context.phases import AgentOperationalPhase 
 
 # Fixtures for AgentDefinition
 @pytest.fixture
@@ -51,8 +51,7 @@ def mock_agent_factory():
     _known_mock_runtime_instance.context = MagicMock(spec=AgentContext)
     _known_mock_runtime_instance.context.agent_id = "default_mock_agent_id" 
     _known_mock_runtime_instance.context.definition = None 
-    _known_mock_runtime_instance.context.status = MagicMock(spec=AgentStatus)
-    _known_mock_runtime_instance.context.status.value = "mocked_status_value_via_context"
+    _known_mock_runtime_instance.context.current_phase = AgentOperationalPhase.UNINITIALIZED # Use phase
 
 
     def create_agent_runtime_mock_side_effect(agent_id: str,
@@ -120,7 +119,7 @@ def test_create_agent_successful(MockAgentClass: MagicMock,
             
         mock_agent_factory.create_agent_runtime.assert_called_once_with(
             agent_id=expected_agent_id,
-            definition=sample_agent_def, # This definition carries use_xml_tool_format (default True)
+            definition=sample_agent_def,
             llm_model_name=sample_llm_model_name_reg, 
             workspace=None,
             custom_llm_config=None, 
@@ -253,4 +252,3 @@ def test_list_active_agent_ids(MockAgentClass: MagicMock,
     assert len(ids) == 2
     assert agent1.agent_id in ids
     assert agent2.agent_id in ids
-

@@ -1,7 +1,8 @@
 # file: autobyteus/autobyteus/agent/handlers/tool_invocation_request_event_handler.py
 import logging
 import json 
-from typing import TYPE_CHECKING
+import traceback 
+from typing import TYPE_CHECKING, Optional 
 
 from autobyteus.agent.handlers.base_event_handler import AgentEventHandler
 from autobyteus.agent.events import PendingToolInvocationEvent, ToolResultEvent 
@@ -9,6 +10,7 @@ from autobyteus.agent.tool_invocation import ToolInvocation
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext 
+    from autobyteus.agent.events.notifiers import AgentExternalEventNotifier 
 
 logger = logging.getLogger(__name__)
 
@@ -16,15 +18,18 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
     """
     Handles PendingToolInvocationEvents.
     If 'auto_execute_tools' (from AgentConfig) is False, it stores the invocation,
-    updates history, and enqueues data to the `pending_tool_approval_queue`
-    so that an external system (like the CLI via AgentEventStream) can prompt for approval.
-    If 'auto_execute_tools' is True, it executes the tool directly, logs, 
+    updates history, and emits an AGENT_REQUEST_TOOL_INVOCATION_APPROVAL event via the notifier.
+    If 'auto_execute_tools' is True, it executes the tool directly, emits
+    AGENT_DATA_TOOL_LOG events for call and result/error, 
     and queues a ToolResultEvent.
     """
     def __init__(self): # pragma: no cover
         logger.info("ToolInvocationRequestEventHandler initialized.")
 
-    async def _execute_tool_directly(self, tool_invocation: ToolInvocation, context: 'AgentContext') -> None: # pragma: no cover
+    async def _execute_tool_directly(self, 
+                                     tool_invocation: ToolInvocation, 
+                                     context: 'AgentContext',
+                                     notifier: Optional['AgentExternalEventNotifier']) -> None: # pragma: no cover
         agent_id = context.agent_id 
         tool_name = tool_invocation.name
         arguments = tool_invocation.arguments
@@ -35,9 +40,14 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
         try:
             args_str = json.dumps(arguments)
         except TypeError:
-            args_str = str(arguments)
+            args_str = str(arguments) 
+
         log_msg_call = f"[TOOL_CALL_DIRECT] Agent_ID: {agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Arguments: {args_str}"
-        await context.output_data_queues.enqueue_tool_interaction_log(log_msg_call)
+        if notifier:
+            try:
+                notifier.notify_agent_data_tool_log(log_msg_call) # USE RENAMED METHOD
+            except Exception as e_notify: 
+                 logger.error(f"Agent '{agent_id}': Error notifying tool call log: {e_notify}", exc_info=True)
 
         tool_instance = context.get_tool(tool_name) 
         result_event: ToolResultEvent
@@ -53,7 +63,15 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
                 "content": f"Error: Tool '{tool_name}' execution failed. Reason: {error_message}",
             })
             log_msg_error = f"[TOOL_ERROR_DIRECT] Agent_ID: {agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Error: {error_message}"
-            await context.output_data_queues.enqueue_tool_interaction_log(log_msg_error)
+            if notifier:
+                try:
+                    notifier.notify_agent_data_tool_log(log_msg_error) # USE RENAMED METHOD
+                    notifier.notify_agent_error_output_generation( # USE RENAMED METHOD
+                        error_source=f"ToolExecutionDirect.ToolNotFound.{tool_name}",
+                        error_message=error_message
+                    )
+                except Exception as e_notify: 
+                    logger.error(f"Agent '{agent_id}': Error notifying tool error log/output error: {e_notify}", exc_info=True)
         else:
             try:
                 logger.debug(f"Executing tool '{tool_name}' for agent '{agent_id}'. Invocation ID: {invocation_id}")
@@ -61,13 +79,13 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
                 
                 try:
                     result_str_for_log = json.dumps(execution_result)
-                except TypeError:
+                except TypeError: 
                     result_str_for_log = str(execution_result)
 
                 logger.info(f"Tool '{tool_name}' (ID: {invocation_id}) executed by agent '{agent_id}'. Result: {result_str_for_log[:200]}...")
                 result_event = ToolResultEvent(tool_name=tool_name, result=execution_result, error=None, tool_invocation_id=invocation_id)
                 
-                history_content = str(execution_result)
+                history_content = str(execution_result) 
                 context.add_message_to_history({ 
                     "role": "tool",
                     "tool_call_id": invocation_id,
@@ -75,9 +93,13 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
                     "content": history_content,
                 })
                 log_msg_result = f"[TOOL_RESULT_DIRECT] Agent_ID: {agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Outcome (first 200 chars): {result_str_for_log[:200]}"
-                await context.output_data_queues.enqueue_tool_interaction_log(log_msg_result)
+                if notifier:
+                    try:
+                        notifier.notify_agent_data_tool_log(log_msg_result) # USE RENAMED METHOD
+                    except Exception as e_notify: 
+                        logger.error(f"Agent '{agent_id}': Error notifying tool result log: {e_notify}", exc_info=True)
 
-            except Exception as e:
+            except Exception as e: 
                 error_message = f"Error executing tool '{tool_name}' (ID: {invocation_id}): {str(e)}"
                 logger.error(f"Agent '{agent_id}' {error_message}", exc_info=True)
                 result_event = ToolResultEvent(tool_name=tool_name, result=None, error=error_message, tool_invocation_id=invocation_id)
@@ -88,7 +110,16 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
                     "content": f"Error: Tool '{tool_name}' execution failed. Reason: {error_message}",
                 })
                 log_msg_exception = f"[TOOL_EXCEPTION_DIRECT] Agent_ID: {agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Exception: {error_message}"
-                await context.output_data_queues.enqueue_tool_interaction_log(log_msg_exception)
+                if notifier:
+                    try:
+                        notifier.notify_agent_data_tool_log(log_msg_exception) # USE RENAMED METHOD
+                        notifier.notify_agent_error_output_generation( # USE RENAMED METHOD
+                            error_source=f"ToolExecutionDirect.Exception.{tool_name}",
+                            error_message=error_message,
+                            error_details=traceback.format_exc()
+                        )
+                    except Exception as e_notify: 
+                        logger.error(f"Agent '{agent_id}': Error notifying tool exception log/output error: {e_notify}", exc_info=True)
         
         await context.input_event_queues.enqueue_tool_result(result_event) 
         logger.debug(f"Agent '{agent_id}' enqueued ToolResultEvent (direct exec) for '{tool_name}' (ID: {invocation_id}).")
@@ -104,14 +135,24 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
         tool_invocation: ToolInvocation = event.tool_invocation
         agent_id = context.agent_id 
         
+        notifier: Optional['AgentExternalEventNotifier'] = None
+        if context.phase_manager:
+            notifier = context.phase_manager.notifier
+        
+        if not notifier:
+            logger.error(f"Agent '{agent_id}': Notifier not available in ToolInvocationRequestEventHandler. Output events for tool approval/logging will be lost.")
+            if not context.auto_execute_tools:
+                logger.critical(f"Agent '{agent_id}': Notifier is REQUIRED for manual tool approval flow but is unavailable. Tool '{tool_invocation.name}' cannot be processed for approval.")
+                return
+
         if not context.auto_execute_tools:
-            logger.info(f"Agent '{agent_id}': Tool '{tool_invocation.name}' (ID: {tool_invocation.id}) requires approval. Storing pending invocation and enqueueing for approval.")
+            logger.info(f"Agent '{agent_id}': Tool '{tool_invocation.name}' (ID: {tool_invocation.id}) requires approval. Storing pending invocation and emitting request.")
             
             context.store_pending_tool_invocation(tool_invocation) 
 
             try:
                 arguments_json_str = json.dumps(tool_invocation.arguments or {})
-            except TypeError:
+            except TypeError: 
                 logger.warning(f"Could not serialize args for history tool_call for '{tool_invocation.name}'. Using empty dict string.")
                 arguments_json_str = "{}"
 
@@ -123,7 +164,7 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
                     "type": "function", 
                     "function": {
                         "name": tool_invocation.name,
-                        "arguments": arguments_json_str
+                        "arguments": arguments_json_str 
                     }
                 }]
             })
@@ -132,11 +173,14 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
                 "invocation_id": tool_invocation.id,
                 "tool_name": tool_invocation.name,
                 "arguments": tool_invocation.arguments,
-                "agent_id": agent_id 
             }
-            await context.output_data_queues.enqueue_pending_tool_approval_data(approval_data)
+            if notifier:
+                try:
+                    notifier.notify_agent_request_tool_invocation_approval(approval_data) # USE RENAMED METHOD
+                    logger.debug(f"Agent '{agent_id}': Emitted AGENT_REQUEST_TOOL_INVOCATION_APPROVAL for '{tool_invocation.name}' (ID: {tool_invocation.id}).")
+                except Exception as e_notify: 
+                    logger.error(f"Agent '{agent_id}': Error emitting AGENT_REQUEST_TOOL_INVOCATION_APPROVAL: {e_notify}", exc_info=True)
             
-            logger.debug(f"Agent '{agent_id}': Added assistant tool_calls to history and enqueued data to pending_tool_approval_queue for '{tool_invocation.name}' (ID: {tool_invocation.id}).")
         else: 
-            logger.info(f"Agent '{agent_id}': Tool '{tool_invocation.name}' (ID: {tool_invocation.id}) exec auto (auto_execute_tools=True).")
-            await self._execute_tool_directly(tool_invocation, context)
+            logger.info(f"Agent '{agent_id}': Tool '{tool_invocation.name}' (ID: {tool_invocation.id}) executing automatically (auto_execute_tools=True).")
+            await self._execute_tool_directly(tool_invocation, context, notifier)

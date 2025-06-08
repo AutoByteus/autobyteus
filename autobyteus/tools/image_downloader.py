@@ -53,7 +53,7 @@ class ImageDownloader(BaseTool):
         schema.add_parameter(
             ParameterDefinition(
                 name="folder", 
-                param_type=ParameterType.DIRECTORY_PATH,
+                param_type=ParameterType.STRING, # MODIFIED from DIRECTORY_PATH
                 description="Optional. Custom directory path to save this specific image. Overrides instance default.",
                 required=False 
             )
@@ -62,13 +62,10 @@ class ImageDownloader(BaseTool):
 
     @classmethod
     def get_config_schema(cls) -> Optional[ParameterSchema]: 
-        """
-        Return the ParameterSchema for this tool's instantiation.
-        """
         schema = ParameterSchema()
         schema.add_parameter(ParameterDefinition(
             name="custom_download_folder",
-            param_type=ParameterType.DIRECTORY_PATH,
+            param_type=ParameterType.STRING, # MODIFIED from DIRECTORY_PATH
             description="Custom directory path where downloaded images will be saved by default. If not specified, uses the system's default download folder.",
             required=False,
             default_value=None 

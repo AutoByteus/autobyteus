@@ -1,233 +1,266 @@
 # file: autobyteus/tests/unit_tests/agent/streaming/test_agent_event_stream.py
 import asyncio
 import pytest
-from typing import List, Any, AsyncIterator, Dict, Optional
-from unittest.mock import MagicMock, patch, AsyncMock # Added MagicMock
+import threading
+from typing import List, Any, AsyncIterator, Coroutine, Generator
+from unittest.mock import MagicMock
 
-from autobyteus.agent.events import AgentEventQueues, END_OF_STREAM_SENTINEL
-# MODIFIED: Import AgentEventStream instead of AgentOutputStreams
 from autobyteus.agent.streaming.agent_event_stream import AgentEventStream
 from autobyteus.agent.streaming.stream_events import StreamEvent, StreamEventType
-from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse # For type checking items
-from autobyteus.agent.agent import Agent # IMPORT ADDED for spec
+from autobyteus.agent.streaming.stream_event_payloads import AssistantChunkData, AssistantCompleteResponseData, ErrorEventData, AgentOperationalPhaseTransitionData
+from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
+from autobyteus.agent.agent import Agent
+from autobyteus.agent.context import AgentContext, AgentPhaseManager
+from autobyteus.agent.events.notifiers import AgentExternalEventNotifier
+from autobyteus.agent.context.phases import AgentOperationalPhase
 
 # Mark all tests in this module as asyncio
 pytestmark = pytest.mark.asyncio
 
-@pytest.fixture
-def mock_agent_queues() -> AgentEventQueues:
-    """Fixture for a new AgentEventQueues instance for the mock agent."""
-    return AgentEventQueues()
+# --- Test Helpers ---
 
-@pytest.fixture
-def sentinel() -> object:
-    """Fixture for the END_OF_STREAM_SENTINEL."""
-    return END_OF_STREAM_SENTINEL
+def run_producer_in_thread(producer_coro: Coroutine) -> threading.Thread:
+    """
+    Runs a coroutine in a new thread with its own dedicated event loop.
+    This simulates the agent worker thread producing events.
+    """
+    def thread_target():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(producer_coro)
+        finally:
+            # Cleanly shut down all tasks in the new loop before closing it.
+            tasks = asyncio.all_tasks(loop=loop)
+            if tasks:
+                async def gather_cancelled():
+                    await asyncio.gather(*tasks, return_exceptions=True)
+                for task in tasks:
+                    task.cancel()
+                loop.run_until_complete(gather_cancelled())
+            loop.close()
+            
+    thread = threading.Thread(target=thread_target, daemon=True)
+    thread.start()
+    return thread
+
+async def _collect_stream_results(stream: AsyncIterator[Any], timeout: float = 1.0) -> List[Any]:
+    """Helper function to collect all items from an async iterator into a list."""
+    results = []
+    try:
+        async def _collect():
+            async for item in stream:
+                results.append(item)
+        await asyncio.wait_for(_collect(), timeout=timeout)
+    except asyncio.TimeoutError:
+        pass # Expected timeout when stream is done or producer finishes
+    return results
+
+# --- Pytest Fixtures ---
 
 @pytest.fixture
 def agent_id_fixture() -> str:
     """Fixture for a sample agent ID."""
-    return "test_agent_001"
+    return "stream_test_agent_001"
 
 @pytest.fixture
-def mock_agent(agent_id_fixture: str, mock_agent_queues: AgentEventQueues) -> MagicMock:
-    """Fixture for a mock Agent instance."""
-    # MODIFIED: Use spec=Agent to make the mock pass isinstance checks
-    agent = MagicMock(spec=Agent) 
+def real_notifier(agent_id_fixture: str) -> AgentExternalEventNotifier:
+    """Fixture for a real AgentExternalEventNotifier instance."""
+    return AgentExternalEventNotifier(agent_id=agent_id_fixture)
+
+@pytest.fixture
+def mock_agent(agent_id_fixture: str, real_notifier: AgentExternalEventNotifier) -> MagicMock:
+    """
+    Fixture for a mock Agent instance that is correctly configured for the streamer.
+    The streamer's __init__ accesses agent.context.phase_manager.notifier.
+    """
+    mock_agent_context = MagicMock(spec=AgentContext)
+    mock_agent_context.agent_id = agent_id_fixture
+    
+    mock_phase_manager = MagicMock(spec=AgentPhaseManager)
+    mock_phase_manager.notifier = real_notifier
+    mock_agent_context.phase_manager = mock_phase_manager
+    
+    agent = MagicMock(spec=Agent)
     agent.agent_id = agent_id_fixture
-    agent.get_event_queues = MagicMock(return_value=mock_agent_queues)
-    # If AgentEventStream's __init__ were to access agent.context, it would need to be mocked too:
-    # agent.context = MagicMock() 
-    # agent.context.agent_id = agent_id_fixture # if agent_id was sourced from context for example
+    agent.context = mock_agent_context
     return agent
 
 @pytest.fixture
-def streamer(mock_agent: MagicMock) -> AgentEventStream:
-    """Fixture for an AgentEventStream instance initialized with a mock agent."""
-    return AgentEventStream(mock_agent)
-
-async def _collect_stream_results(stream: AsyncIterator[Any]) -> List[Any]:
-    """Helper function to collect all items from an async iterator into a list."""
-    results = []
-    async for item in stream:
-        results.append(item)
-    return results
-
-async def _put_items_and_sentinel(queue: asyncio.Queue, items: List[Any], sentinel_obj: object):
-    """Helper to put items and then a sentinel into a queue."""
-    for item in items:
-        await queue.put(item)
-    await queue.put(sentinel_obj)
-
-# Tests for individual raw stream methods
-async def test_stream_assistant_chunks_normal(streamer: AgentEventStream, mock_agent_queues: AgentEventQueues, sentinel: object):
-    # Items are now ChunkResponse objects
-    items = [ChunkResponse(content="chunk1 "), ChunkResponse(content="chunk2 "), ChunkResponse(content="chunk3 ")]
-    await _put_items_and_sentinel(mock_agent_queues.assistant_output_chunk_queue, items, sentinel)
+def streamer(mock_agent: MagicMock, event_loop: asyncio.AbstractEventLoop) -> Generator[AgentEventStream, None, None]:
+    """
+    Fixture for an AgentEventStream instance. Yields the streamer and handles cleanup.
+    This is now a regular (synchronous) fixture. The event_loop fixture (from pytest-asyncio)
+    is used to run the async cleanup code.
+    """
+    # Setup
+    s = AgentEventStream(mock_agent)
     
-    # MODIFIED: Call the new method
-    results = await _collect_stream_results(streamer.stream_assistant_chunks())
-    # Compare based on content if desired, or full objects
-    assert [r.content for r in results] == [i.content for i in items]
-
-async def test_stream_assistant_chunks_empty(streamer: AgentEventStream, mock_agent_queues: AgentEventQueues, sentinel: object):
-    await _put_items_and_sentinel(mock_agent_queues.assistant_output_chunk_queue, [], sentinel)
+    # Yield the object to the test
+    yield s
     
-    results = await _collect_stream_results(streamer.stream_assistant_chunks())
-    assert results == []
+    # Teardown
+    if not event_loop.is_closed():
+        # Ensure the async close method is run to completion in the test's event loop.
+        event_loop.run_until_complete(s.close())
 
-async def test_stream_assistant_final_messages_normal(streamer: AgentEventStream, mock_agent_queues: AgentEventQueues, sentinel: object):
-    # Items are CompleteResponse objects
-    items = [CompleteResponse(content="final message 1"), CompleteResponse(content="final message 2")]
-    await _put_items_and_sentinel(mock_agent_queues.assistant_final_message_queue, items, sentinel)
+# --- Test Cases ---
+
+async def test_stream_assistant_chunks(streamer: AgentEventStream, real_notifier: AgentExternalEventNotifier):
+    """Tests that chunks are correctly streamed across threads."""
+    chunk1 = ChunkResponse(content="Hello ")
+    chunk2 = ChunkResponse(content="World")
     
-    results = await _collect_stream_results(streamer.stream_assistant_final_messages())
-    assert [r.content for r in results] == [i.content for i in items]
+    # This producer coroutine will run in a separate thread.
+    async def produce_events():
+        await asyncio.sleep(0.05) # Give consumer time to start awaiting.
+        real_notifier.notify_agent_data_assistant_chunk(chunk1)
+        real_notifier.notify_agent_data_assistant_chunk(chunk2)
+        real_notifier.notify_agent_data_assistant_chunk_stream_end()
 
-async def test_stream_tool_logs_normal(streamer: AgentEventStream, mock_agent_queues: AgentEventQueues, sentinel: object):
-    items = ["log line 1", "log line 2", "log line 3"]
-    await _put_items_and_sentinel(mock_agent_queues.tool_interaction_log_queue, items, sentinel)
+    # Consumer runs in the main test event loop.
+    consumer_task = asyncio.create_task(
+        _collect_stream_results(streamer.stream_assistant_chunks())
+    )
     
-    results = await _collect_stream_results(streamer.stream_tool_logs())
-    assert results == items
-
-# Tests for all_events (previously stream_unified_agent_events)
-async def test_all_events_single_source_chunks(streamer: AgentEventStream, mock_agent_queues: AgentEventQueues, sentinel: object, agent_id_fixture: str):
-    # Items for raw stream are ChunkResponse
-    chunk_items_raw = [ChunkResponse(content="c1"), ChunkResponse(content="c2")]
+    # Start the producer in its own thread.
+    producer_thread = run_producer_in_thread(produce_events())
     
-    await _put_items_and_sentinel(mock_agent_queues.assistant_output_chunk_queue, chunk_items_raw, sentinel)
-    await _put_items_and_sentinel(mock_agent_queues.assistant_final_message_queue, [], sentinel)
-    await _put_items_and_sentinel(mock_agent_queues.tool_interaction_log_queue, [], sentinel)
-
-    # MODIFIED: Call the new method
-    results = await _collect_stream_results(streamer.all_events())
+    results = await consumer_task
+    producer_thread.join(timeout=1.0)
     
-    assert len(results) == 2
-    for i, raw_chunk in enumerate(chunk_items_raw):
-        event = results[i]
-        assert isinstance(event, StreamEvent)
-        assert event.agent_id == agent_id_fixture # streamer gets agent_id from mock_agent
-        assert event.event_type == StreamEventType.ASSISTANT_CHUNK
-        assert event.data.get("chunk") == raw_chunk.content
+    assert results == [chunk1, chunk2]
 
-async def test_all_events_agent_id_propagation(streamer: AgentEventStream, mock_agent_queues: AgentEventQueues, sentinel: object, agent_id_fixture: str):
-    # This test now verifies agent_id propagation from the mock_agent
-    chunk_items_raw = [ChunkResponse(content="c1")]
-    await _put_items_and_sentinel(mock_agent_queues.assistant_output_chunk_queue, chunk_items_raw, sentinel)
-    await _put_items_and_sentinel(mock_agent_queues.assistant_final_message_queue, [], sentinel)
-    await _put_items_and_sentinel(mock_agent_queues.tool_interaction_log_queue, [], sentinel)
+async def test_stream_assistant_final_messages(streamer: AgentEventStream, real_notifier: AgentExternalEventNotifier):
+    """Tests that the final complete response is streamed correctly across threads."""
+    final_msg = CompleteResponse(content="This is the final message.")
+    
+    async def produce_events():
+        await asyncio.sleep(0.05)
+        real_notifier.notify_agent_data_assistant_complete_response(final_msg)
 
-    results = await _collect_stream_results(streamer.all_events())
+    consumer_task = asyncio.create_task(
+        _collect_stream_results(streamer.stream_assistant_final_messages())
+    )
+    
+    producer_thread = run_producer_in_thread(produce_events())
+    results = await consumer_task
+    producer_thread.join(timeout=1.0)
+
     assert len(results) == 1
-    assert results[0].agent_id == agent_id_fixture # Check against the fixture ID
+    assert results[0] == final_msg
 
-async def test_all_events_multiple_sources(streamer: AgentEventStream, mock_agent_queues: AgentEventQueues, sentinel: object, agent_id_fixture: str):
-    chunk_items_raw = [ChunkResponse(content="chunkA"), ChunkResponse(content="chunkB")]
-    final_msg_items_raw = [CompleteResponse(content="finalMsg1")]
-    log_items_raw = ["toolLogX", "toolLogY", "toolLogZ"]
+async def test_all_events_receives_phase_change(streamer: AgentEventStream, real_notifier: AgentExternalEventNotifier, agent_id_fixture: str):
+    """Tests that phase change events are received by the unified stream."""
+    async def produce_events():
+        await asyncio.sleep(0.05)
+        real_notifier.notify_phase_idle_entered(old_phase=AgentOperationalPhase.INITIALIZING_LLM)
+        # DO NOT call streamer.close() from the producer thread.
 
-    await _put_items_and_sentinel(mock_agent_queues.assistant_output_chunk_queue, chunk_items_raw, sentinel)
-    await _put_items_and_sentinel(mock_agent_queues.assistant_final_message_queue, final_msg_items_raw, sentinel)
-    await _put_items_and_sentinel(mock_agent_queues.tool_interaction_log_queue, log_items_raw, sentinel)
-
-    results = await _collect_stream_results(streamer.all_events())
+    consumer_task = asyncio.create_task(_collect_stream_results(streamer.all_events()))
     
-    assert len(results) == len(chunk_items_raw) + len(final_msg_items_raw) + len(log_items_raw)
+    producer_thread = run_producer_in_thread(produce_events())
+    results = await consumer_task
+    producer_thread.join(timeout=1.0)
 
-    received_chunks_content = [e.data["chunk"] for e in results if e.event_type == StreamEventType.ASSISTANT_CHUNK]
-    received_final_msgs_content = [e.data["message"] for e in results if e.event_type == StreamEventType.ASSISTANT_FINAL_MESSAGE]
-    received_logs = [e.data["log_line"] for e in results if e.event_type == StreamEventType.TOOL_INTERACTION_LOG_ENTRY]
+    assert len(results) == 1
+    event = results[0]
+    assert isinstance(event, StreamEvent)
+    assert event.agent_id == agent_id_fixture
+    assert event.event_type == StreamEventType.AGENT_IDLE
+    assert isinstance(event.data, AgentOperationalPhaseTransitionData)
+    assert event.data.new_phase == AgentOperationalPhase.IDLE
+    assert event.data.old_phase == AgentOperationalPhase.INITIALIZING_LLM
 
-    assert sorted(received_chunks_content) == sorted([c.content for c in chunk_items_raw])
-    assert sorted(received_final_msgs_content) == sorted([m.content for m in final_msg_items_raw])
-    assert sorted(received_logs) == sorted(log_items_raw)
-
-    for event in results:
-        assert event.agent_id == agent_id_fixture
-
-async def test_all_events_empty_sources(streamer: AgentEventStream, mock_agent_queues: AgentEventQueues, sentinel: object):
-    await _put_items_and_sentinel(mock_agent_queues.assistant_output_chunk_queue, [], sentinel)
-    await _put_items_and_sentinel(mock_agent_queues.assistant_final_message_queue, [], sentinel)
-    await _put_items_and_sentinel(mock_agent_queues.tool_interaction_log_queue, [], sentinel)
-
-    results = await _collect_stream_results(streamer.all_events())
-    assert len(results) == 0
-
-async def test_all_events_cancellation(streamer: AgentEventStream, mock_agent_queues: AgentEventQueues): # sentinel not strictly needed for this test
-    await mock_agent_queues.assistant_output_chunk_queue.put(ChunkResponse(content="chunk1"))
+async def test_all_events_receives_assistant_chunk(streamer: AgentEventStream, real_notifier: AgentExternalEventNotifier):
+    """Tests that chunk events are received by the unified stream."""
+    chunk = ChunkResponse(content="test chunk")
     
-    unified_stream_gen = streamer.all_events()
-    task = asyncio.create_task(_collect_stream_results(unified_stream_gen))
-    await asyncio.sleep(0.01) 
-    task.cancel()
+    async def produce_events():
+        await asyncio.sleep(0.05)
+        real_notifier.notify_agent_data_assistant_chunk(chunk)
+        # DO NOT call streamer.close() from the producer thread.
 
-    with pytest.raises(asyncio.CancelledError):
-        await task
+    consumer_task = asyncio.create_task(_collect_stream_results(streamer.all_events()))
     
-async def test_all_events_error_in_source_stream(streamer: AgentEventStream, mock_agent_queues: AgentEventQueues, sentinel: object, agent_id_fixture: str):
-    error_message = "Simulated stream error"
+    producer_thread = run_producer_in_thread(produce_events())
+    results = await consumer_task
+    producer_thread.join(timeout=1.0)
+
+    assert len(results) == 1
+    event = results[0]
+    assert event.event_type == StreamEventType.ASSISTANT_CHUNK
+    assert isinstance(event.data, AssistantChunkData)
+    assert event.data.content == "test chunk"
+
+async def test_all_events_receives_complete_response(streamer: AgentEventStream, real_notifier: AgentExternalEventNotifier):
+    """Tests that complete response events are received by the unified stream."""
+    final_msg = CompleteResponse(content="Final response content.")
     
-    async def faulty_chunk_stream():
-        yield ChunkResponse(content="good_chunk")
-        raise ValueError(error_message)
-        # yield ChunkResponse(content="never_reached_chunk") # pylint: disable=unreachable
+    async def produce_events():
+        await asyncio.sleep(0.05)
+        real_notifier.notify_agent_data_assistant_complete_response(final_msg)
+        # DO NOT call streamer.close() from the producer thread.
 
-    await _put_items_and_sentinel(mock_agent_queues.assistant_final_message_queue, [CompleteResponse(content="final")], sentinel)
-    await _put_items_and_sentinel(mock_agent_queues.tool_interaction_log_queue, ["log"], sentinel)
+    consumer_task = asyncio.create_task(_collect_stream_results(streamer.all_events()))
     
-    # Patch the instance's direct raw stream method
-    with patch.object(streamer, 'stream_assistant_chunks', side_effect=faulty_chunk_stream) as mock_faulty_method:
-        results = await _collect_stream_results(streamer.all_events())
+    producer_thread = run_producer_in_thread(produce_events())
+    results = await consumer_task
+    producer_thread.join(timeout=1.0)
 
-    mock_faulty_method.assert_called_once()
+    assert len(results) == 1
+    event = results[0]
+    assert event.event_type == StreamEventType.ASSISTANT_COMPLETE_RESPONSE
+    assert isinstance(event.data, AssistantCompleteResponseData)
+    assert event.data.content == "Final response content."
 
-    assert len(results) == 4 
+async def test_all_events_receives_error(streamer: AgentEventStream, real_notifier: AgentExternalEventNotifier):
+    """Tests that error events are received by the unified stream."""
+    async def produce_events():
+        await asyncio.sleep(0.05)
+        real_notifier.notify_agent_error_output_generation(
+            error_source="Test.Source",
+            error_message="A test error occurred.",
+            error_details="Detailed traceback."
+        )
+        # DO NOT call streamer.close() from the producer thread.
+
+    consumer_task = asyncio.create_task(_collect_stream_results(streamer.all_events()))
     
-    error_events = [e for e in results if e.event_type == StreamEventType.ERROR_EVENT]
-    assert len(error_events) == 1
-    error_event = error_events[0]
-    assert error_event.agent_id == agent_id_fixture
-    assert error_event.data["error"] == error_message
-    # MODIFIED: The source_stream key from iterators_map is "assistant_chunks"
-    assert error_event.data["source_stream"] == "assistant_chunks" 
-    assert "ValueError" in error_event.data["details"]
+    producer_thread = run_producer_in_thread(produce_events())
+    results = await consumer_task
+    producer_thread.join(timeout=1.0)
 
-    good_chunk_events = [e for e in results if e.event_type == StreamEventType.ASSISTANT_CHUNK and e.data["chunk"] == "good_chunk"]
-    assert len(good_chunk_events) == 1
-    final_events = [e for e in results if e.event_type == StreamEventType.ASSISTANT_FINAL_MESSAGE and e.data["message"] == "final"]
-    assert len(final_events) == 1
-    log_events = [e for e in results if e.event_type == StreamEventType.TOOL_INTERACTION_LOG_ENTRY and e.data["log_line"] == "log"]
-    assert len(log_events) == 1
+    assert len(results) == 1
+    event = results[0]
+    assert event.event_type == StreamEventType.ERROR_EVENT
+    assert isinstance(event.data, ErrorEventData)
+    assert event.data.source == "Test.Source"
+    assert event.data.message == "A test error occurred."
+    assert event.data.details == "Detailed traceback."
 
-async def test_all_events_handles_mixed_completion_and_errors(streamer: AgentEventStream, mock_agent_queues: AgentEventQueues, sentinel: object, agent_id_fixture: str):
-    chunk_items_raw = [ChunkResponse(content="c1"), ChunkResponse(content="c2")]
-    await _put_items_and_sentinel(mock_agent_queues.assistant_output_chunk_queue, chunk_items_raw, sentinel)
+async def test_all_events_receives_multiple_mixed_events(streamer: AgentEventStream, real_notifier: AgentExternalEventNotifier):
+    """Tests that a sequence of different events are all captured by the unified stream."""
+    chunk1 = ChunkResponse(content="c1")
+    final_msg = CompleteResponse(content="final")
 
-    final_msg_error = "Final message stream blew up"
-    async def faulty_final_msg_stream():
-        yield CompleteResponse(content="good_final_msg_part")
-        raise RuntimeError(final_msg_error)
+    async def produce_events():
+        await asyncio.sleep(0.02)
+        real_notifier.notify_phase_idle_entered(old_phase=AgentOperationalPhase.UNINITIALIZED)
+        await asyncio.sleep(0.02)
+        real_notifier.notify_agent_data_assistant_chunk(chunk1)
+        await asyncio.sleep(0.02)
+        real_notifier.notify_agent_data_assistant_complete_response(final_msg)
+        await asyncio.sleep(0.02)
+        # DO NOT call streamer.close() from the producer thread.
 
-    log_items_raw = ["logA"]
-    await _put_items_and_sentinel(mock_agent_queues.tool_interaction_log_queue, log_items_raw, sentinel)
+    consumer_task = asyncio.create_task(_collect_stream_results(streamer.all_events()))
+    
+    producer_thread = run_producer_in_thread(produce_events())
+    results = await consumer_task
+    producer_thread.join(timeout=1.0)
 
-    with patch.object(streamer, 'stream_assistant_final_messages', side_effect=faulty_final_msg_stream):
-        results = await _collect_stream_results(streamer.all_events())
-
-    assert len(results) == 5
-
-    event_types_counts = {}
-    for event in results:
-        event_types_counts[event.event_type] = event_types_counts.get(event.event_type, 0) + 1
-        if event.event_type == StreamEventType.ERROR_EVENT:
-            assert event.data["error"] == final_msg_error
-            # MODIFIED: The source_stream key from iterators_map is "assistant_final_messages"
-            assert event.data["source_stream"] == "assistant_final_messages"
-        if event.event_type == StreamEventType.ASSISTANT_FINAL_MESSAGE:
-            assert event.data["message"] == "good_final_msg_part"
-
-    assert event_types_counts.get(StreamEventType.ASSISTANT_CHUNK) == 2
-    assert event_types_counts.get(StreamEventType.ASSISTANT_FINAL_MESSAGE) == 1
-    assert event_types_counts.get(StreamEventType.TOOL_INTERACTION_LOG_ENTRY) == 1
-    assert event_types_counts.get(StreamEventType.ERROR_EVENT) == 1
+    assert len(results) == 3
+    assert results[0].event_type == StreamEventType.AGENT_IDLE
+    assert results[1].event_type == StreamEventType.ASSISTANT_CHUNK
+    assert results[2].event_type == StreamEventType.ASSISTANT_COMPLETE_RESPONSE

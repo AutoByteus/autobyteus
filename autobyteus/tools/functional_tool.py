@@ -5,30 +5,21 @@ from typing import Callable, Optional, Any, Dict, Tuple, Union, get_origin, get_
 
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
-# from autobyteus.agent.context import AgentContext # Removed direct import
-from autobyteus.tools.tool_config import ToolConfig # For type hinting in NewToolClass __init__
+from autobyteus.tools.tool_config import ToolConfig 
 
 if TYPE_CHECKING:
-    from autobyteus.agent.context import AgentContext # Type hint only for context param
+    from autobyteus.agent.context import AgentContext 
 
 logger = logging.getLogger(__name__)
 
 _TYPE_MAPPING = {
-    # str is handled specially below for path inference
     int: ParameterType.INTEGER,
     float: ParameterType.FLOAT,
     bool: ParameterType.BOOLEAN,
-    # list and dict will be handled by specific logic now
+    str: ParameterType.STRING, 
 }
 
-_FILE_PATH_NAMES = {"path", "filepath", "file_path", "filename"}
-_DIR_PATH_NAMES = {"folder", "dir", "directory", "dir_path", "directory_path", "save_dir", "output_dir"}
-
 def _python_type_to_json_schema(py_type: Any) -> Optional[Dict[str, Any]]:
-    """
-    Converts basic Python types to a simple JSON schema dictionary.
-    Used for array item types.
-    """
     if py_type is str:
         return {"type": "string"}
     if py_type is int:
@@ -37,30 +28,25 @@ def _python_type_to_json_schema(py_type: Any) -> Optional[Dict[str, Any]]:
         return {"type": "number"}
     if py_type is bool:
         return {"type": "boolean"}
-    if py_type is dict: # Generic dict
+    if py_type is dict: 
         return {"type": "object"}
-    if py_type is list: # Generic list
-        return {"type": "array", "items": True} # Array of any type
+    if py_type is list: 
+        return {"type": "array", "items": True} 
     
     origin_type = get_origin(py_type)
     if origin_type is Union:
         args = get_args(py_type)
         non_none_types = [t for t in args if t is not type(None)]
-        if len(non_none_types) == 1: # Essentially an Optional[T]
+        if len(non_none_types) == 1: 
             return _python_type_to_json_schema(non_none_types[0])
-        # More complex unions (e.g., Union[str, int]) could be represented with "anyOf"
-        # For simplicity, returning None here, or could default to generic object/string
         return None
     if origin_type is TypingList or origin_type is list:
         list_args = get_args(py_type)
         if list_args and len(list_args) == 1:
             item_schema = _python_type_to_json_schema(list_args[0])
             return {"type": "array", "items": item_schema if item_schema else True}
-        return {"type": "array", "items": True} # Generic array
+        return {"type": "array", "items": True} 
     if origin_type is Dict or origin_type is dict:
-        # For Dict[K,V], JSON schema represents this as an object where keys are strings
-        # and values have the type of V. If V is complex, this gets tricky.
-        # For now, just "type": "object" for simplicity from basic type hints.
         return {"type": "object"}
 
     logger.debug(f"Could not map Python type {py_type} to a simple JSON schema for array items.")
@@ -68,10 +54,6 @@ def _python_type_to_json_schema(py_type: Any) -> Optional[Dict[str, Any]]:
 
 
 def _get_parameter_type_from_hint(py_type: Any, param_name: str) -> Tuple[ParameterType, Optional[Dict[str, Any]]]:
-    """
-    Infers ParameterType and array_item_schema from Python type hint.
-    Returns: (ParameterType, Optional[JSON schema dict for array items])
-    """
     origin_type = get_origin(py_type)
     actual_type = py_type
     array_item_js_schema: Optional[Dict[str, Any]] = None
@@ -81,39 +63,27 @@ def _get_parameter_type_from_hint(py_type: Any, param_name: str) -> Tuple[Parame
         non_none_type_args = [arg for arg in args if arg is not type(None)]
         if len(non_none_type_args) == 1: 
             actual_type = non_none_type_args[0]
-            origin_type = get_origin(actual_type) # Re-evaluate origin for the unwrapped type
+            origin_type = get_origin(actual_type) 
         else:
             logger.warning(f"Complex Union type hint {py_type} for param '{param_name}' encountered. Defaulting to STRING.")
-            return ParameterType.STRING, None # Treat as string if complex union
+            return ParameterType.STRING, None 
     
-    if actual_type is inspect.Parameter.empty: # Handle cases where annotation is empty
-        logger.warning(f"Parameter '{param_name}' has no type hint. Defaulting to ParameterType.STRING. Name-based path inference will be attempted.")
-        actual_type = str # Treat as str for path name heuristics
-
-    # Handle list (maps to ARRAY)
-    if origin_type is TypingList or origin_type is list: # Check actual_type as well if origin_type is None (e.g. plain list)
-        param_type_enum = ParameterType.ARRAY
-        list_args = get_args(actual_type) # get_args works on List[T] or plain list if it was wrapped
-        if list_args and len(list_args) == 1: # e.g. List[str]
-            array_item_js_schema = _python_type_to_json_schema(list_args[0])
-        if not array_item_js_schema: # Default for untyped list or unmappable item type
-            array_item_js_schema = True # True means items can be of any type in JSON schema
-        return param_type_enum, array_item_js_schema
-
-    # Handle dict (maps to OBJECT)
-    if origin_type is Dict or origin_type is dict: # Check actual_type as well
-        return ParameterType.OBJECT, None # No array_item_schema for OBJECT
-
-    # Handle str (can be STRING, FILE_PATH, DIRECTORY_PATH)
-    if actual_type is str:
-        param_name_lower = param_name.lower()
-        if param_name_lower in _FILE_PATH_NAMES:
-            return ParameterType.FILE_PATH, None
-        if param_name_lower in _DIR_PATH_NAMES:
-            return ParameterType.DIRECTORY_PATH, None
+    if actual_type is inspect.Parameter.empty: 
+        logger.warning(f"Parameter '{param_name}' has no type hint. Defaulting to ParameterType.STRING.")
         return ParameterType.STRING, None
 
-    # Handle other primitive types
+    if origin_type is TypingList or origin_type is list: 
+        param_type_enum = ParameterType.ARRAY
+        list_args = get_args(actual_type) 
+        if list_args and len(list_args) == 1: 
+            array_item_js_schema = _python_type_to_json_schema(list_args[0])
+        if not array_item_js_schema: 
+            array_item_js_schema = True 
+        return param_type_enum, array_item_js_schema
+
+    if origin_type is Dict or origin_type is dict: 
+        return ParameterType.OBJECT, None 
+
     mapped_type = _TYPE_MAPPING.get(actual_type)
     if mapped_type:
         return mapped_type, None
@@ -182,7 +152,6 @@ def tool(
 
             if not argument_schema:
                 param_type_hint = param_obj_sig.annotation
-                # Get ParameterType and array_item_schema (if applicable)
                 parameter_type_enum, inferred_array_item_schema = _get_parameter_type_from_hint(param_type_hint, param_name_sig)
                 
                 is_required = (param_obj_sig.default == inspect.Parameter.empty)
@@ -194,6 +163,14 @@ def tool(
                         is_required = False 
                 
                 param_desc_for_schema = f"Parameter '{param_name_sig}' for tool '{tool_name_to_register}'."
+                
+                param_name_lower = param_name_sig.lower()
+                if "path" in param_name_lower or \
+                   "file" in param_name_lower or \
+                   "dir" in param_name_lower or \
+                   "folder" in param_name_lower: # MODIFIED: Added "folder"
+                    param_desc_for_schema += " This is expected to be a path."
+
 
                 schema_param = ParameterDefinition(
                     name=param_name_sig,
@@ -201,12 +178,11 @@ def tool(
                     description=param_desc_for_schema,
                     required=is_required,
                     default_value=param_obj_sig.default if param_obj_sig.default != inspect.Parameter.empty else None,
-                    array_item_schema=inferred_array_item_schema # Store inferred item schema
+                    array_item_schema=inferred_array_item_schema 
                 )
                 generated_argument_schema_if_needed.add_parameter(schema_param)
         
         final_argument_schema_for_tool_def = argument_schema if argument_schema else generated_argument_schema_if_needed
-        # ... (rest of the decorator remains largely the same) ...
         if argument_schema:
              logger.info(f"Tool '{tool_name_to_register}': Using user-provided argument schema.")
         else:
@@ -223,7 +199,7 @@ def tool(
             _tool_reg_argument_schema = final_argument_schema_for_tool_def
             _tool_reg_config_schema = config_schema 
             _tool_reg_is_async = is_async_func
-            _tool_reg_original_func = func # This stores the original, unbound function
+            _tool_reg_original_func = func 
             _tool_reg_func_param_names = func_param_names_for_call
             _tool_reg_expects_context = expects_context_param
 
@@ -261,17 +237,12 @@ def tool(
                 if self._tool_reg_expects_context:
                     call_args['context'] = context
                 
-                # Get the class of the current instance (self)
                 current_class = type(self)
 
                 if self._tool_reg_is_async:
-                    # Call the original function via the class attribute to avoid implicit self binding
                     return await current_class._tool_reg_original_func(**call_args)
                 else:
                     loop = asyncio.get_event_loop()
-                    # Call the original function via the class attribute in the executor
-                    # Ensure 'current_class' is available in the lambda's scope correctly
-                    # or assign to a local variable before the lambda.
                     original_func_to_call = current_class._tool_reg_original_func
                     return await loop.run_in_executor(None, lambda: original_func_to_call(**call_args))
 

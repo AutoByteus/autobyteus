@@ -5,18 +5,17 @@ import pytest
 import tempfile
 import shutil
 from unittest.mock import patch, MagicMock, Mock
-import requests # For requests.exceptions
+import requests 
 
-# Import the module where the 'pdf_downloader' functional tool is defined to ensure registration
-import autobyteus.tools.pdf_downloader # <--- ENSURE THIS IMPORT IS PRESENT
+import autobyteus.tools.pdf_downloader 
 
 from autobyteus.tools.registry import default_tool_registry
-from autobyteus.tools.base_tool import BaseTool # For type hinting tool instance
+from autobyteus.tools.base_tool import BaseTool 
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.agent.context import AgentContext
-from autobyteus.utils.file_utils import get_default_download_folder # For checking default
+from autobyteus.utils.file_utils import get_default_download_folder 
 
-TOOL_NAME_PDF_DOWNLOADER = "PDFDownloader" # Name registered by @tool
+TOOL_NAME_PDF_DOWNLOADER = "PDFDownloader" 
 
 @pytest.fixture
 def mock_agent_context_pdf_dl() -> AgentContext:
@@ -26,7 +25,6 @@ def mock_agent_context_pdf_dl() -> AgentContext:
 
 @pytest.fixture
 def pdf_downloader_tool_instance(mock_agent_context_pdf_dl: AgentContext) -> BaseTool:
-    # Get instance of the functional tool (dynamically generated class)
     tool_instance = default_tool_registry.create_tool(TOOL_NAME_PDF_DOWNLOADER)
     assert isinstance(tool_instance, BaseTool)
     tool_instance.set_agent_id(mock_agent_context_pdf_dl.agent_id)
@@ -38,34 +36,32 @@ def temp_dir_for_functional_pdf_downloader() -> str: # type: ignore
     yield temp_dir_path
     shutil.rmtree(temp_dir_path, ignore_errors=True)
 
-# Definition Tests (testing the outcome of @tool decorator)
 def test_pdf_downloader_definition():
     definition = default_tool_registry.get_tool_definition(TOOL_NAME_PDF_DOWNLOADER)
     assert definition is not None, f"Tool '{TOOL_NAME_PDF_DOWNLOADER}' not found in registry. Ensure module is imported."
     assert definition.name == TOOL_NAME_PDF_DOWNLOADER
-    # Description comes from the function's docstring
     assert "Downloads a PDF file" in definition.description
     assert "Validates Content-Type" in definition.description 
 
     schema = definition.argument_schema
     assert isinstance(schema, ParameterSchema)
-    assert len(schema.parameters) == 2 # url, folder
+    assert len(schema.parameters) == 2 
     
     param_url = schema.get_parameter("url")
     assert isinstance(param_url, ParameterDefinition)
     assert param_url.name == "url"
     assert param_url.param_type == ParameterType.STRING
     assert param_url.required is True
-    assert "Parameter 'url' for tool 'PDFDownloader'" in param_url.description # Auto-generated
+    assert "Parameter 'url' for tool 'PDFDownloader'" in param_url.description 
 
     param_folder = schema.get_parameter("folder")
     assert isinstance(param_folder, ParameterDefinition)
     assert param_folder.name == "folder"
-    assert param_folder.param_type == ParameterType.DIRECTORY_PATH
-    assert param_folder.required is False # Optional parameter
+    assert param_folder.param_type == ParameterType.STRING # MODIFIED from DIRECTORY_PATH
+    assert param_folder.required is False 
     assert "Parameter 'folder' for tool 'PDFDownloader'" in param_folder.description
+    assert "This is expected to be a path." in param_folder.description # Heuristic added description
 
-    # Functional tools created by the current decorator don't have instantiation config schema
     assert definition.config_schema is None 
 
 def test_pdf_downloader_tool_usage_xml_output():
@@ -73,16 +69,12 @@ def test_pdf_downloader_tool_usage_xml_output():
     assert definition is not None
     xml_output = definition.usage_xml
     assert f'<command name="{TOOL_NAME_PDF_DOWNLOADER}">' in xml_output
-    # For 'url' parameter - check a basic part. Its full XML includes description and required="true"
-    # Example of a more complete check for 'url', assuming its description is "Parameter 'url' for tool 'PDFDownloader'."
-    # expected_url_arg_xml = '<arg name="url" type="string" description="Parameter \'url\' for tool \'PDFDownloader\'." required="true"'
-    # assert expected_url_arg_xml in xml_output
-    assert '<arg name="url" type="string"' in xml_output # Simplified check for brevity
+    assert '<arg name="url" type="string"' in xml_output 
     
-    # For 'folder' parameter - construct the expected substring carefully
-    # The description "Parameter 'folder' for tool 'PDFDownloader'." will contain literal single quotes.
-    expected_folder_arg_xml = '<arg name="folder" type="directory_path" description="Parameter \'folder\' for tool \'PDFDownloader\'." required="false"'
-    assert expected_folder_arg_xml in xml_output
+    expected_folder_desc = "Parameter 'folder' for tool 'PDFDownloader'. This is expected to be a path."
+    import xml.sax.saxutils
+    escaped_folder_desc = xml.sax.saxutils.escape(expected_folder_desc)
+    assert f'<arg name="folder" type="string" description="{escaped_folder_desc}" required="false"' in xml_output # MODIFIED type
     assert '</command>' in xml_output
 
 def test_pdf_downloader_tool_usage_json_output():
@@ -97,21 +89,18 @@ def test_pdf_downloader_tool_usage_json_output():
     assert "url" in input_schema["properties"]
     assert "folder" in input_schema["properties"]
     assert input_schema["properties"]["url"]["type"] == "string"
-    assert input_schema["properties"]["folder"]["type"] == "string" # DIRECTORY_PATH maps to string
+    assert input_schema["properties"]["folder"]["type"] == "string" # Was directory_path, mapped to string
     assert "url" in input_schema["required"]
-    assert "folder" not in input_schema["required"] # Optional
+    assert "folder" not in input_schema["required"] 
 
-# Execute Tests
 @pytest.mark.asyncio
 async def test_pdf_dl_missing_url_arg(pdf_downloader_tool_instance: BaseTool, mock_agent_context_pdf_dl: AgentContext):
-    # BaseTool.execute performs validation
     with pytest.raises(ValueError, match=f"Invalid arguments for tool '{TOOL_NAME_PDF_DOWNLOADER}'"):
-        await pdf_downloader_tool_instance.execute(mock_agent_context_pdf_dl) # Missing 'url'
+        await pdf_downloader_tool_instance.execute(mock_agent_context_pdf_dl) 
 
 @pytest.mark.asyncio
 async def test_pdf_dl_success_default_folder(pdf_downloader_tool_instance: BaseTool, mock_agent_context_pdf_dl: AgentContext, mocker):
     mock_temp_default_folder = tempfile.mkdtemp(prefix="mock_default_pdf_")
-    # Patch where get_default_download_folder is called by the pdf_downloader function
     mocker.patch('autobyteus.tools.pdf_downloader.get_default_download_folder', return_value=mock_temp_default_folder)
     
     url = 'https://example.com/test.pdf'
@@ -124,9 +113,8 @@ async def test_pdf_dl_success_default_folder(pdf_downloader_tool_instance: BaseT
     mock_response.raw = MagicMock(); mock_response.raw.closed = False
     mock_response.close = MagicMock()
 
-    # Patch requests.get within the module where the functional tool is defined
     with patch('autobyteus.tools.pdf_downloader.requests.get', return_value=mock_response) as mock_get_req:
-        result = await pdf_downloader_tool_instance.execute(mock_agent_context_pdf_dl, url=url) # No 'folder' arg
+        result = await pdf_downloader_tool_instance.execute(mock_agent_context_pdf_dl, url=url) 
         
     mock_get_req.assert_called_once_with(url, stream=True, timeout=30)
     assert "PDF successfully downloaded and saved to" in result

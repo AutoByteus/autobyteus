@@ -3,9 +3,9 @@ import json
 from unittest.mock import MagicMock, AsyncMock, patch
 
 from autobyteus.agent.llm_response_processor.json_tool_usage_processor import JsonToolUsageProcessor
-from autobyteus.agent.context import AgentContext # MODIFIED IMPORT
-from autobyteus.agent.events import AgentEventQueues # MODIFIED IMPORT
-from autobyteus.agent.events import PendingToolInvocationEvent # MODIFIED IMPORT
+from autobyteus.agent.context import AgentContext
+from autobyteus.agent.events import AgentInputEventQueueManager
+from autobyteus.agent.events import PendingToolInvocationEvent
 from autobyteus.agent.tool_invocation import ToolInvocation
 from autobyteus.agent.registry.agent_definition import AgentDefinition
 
@@ -23,19 +23,19 @@ def mock_agent_definition() -> MagicMock:
     return mock_def
 
 @pytest.fixture
-def mock_event_queues() -> AsyncMock:
-    """Fixture for mock AgentEventQueues."""
-    queues = AsyncMock(spec=AgentEventQueues)
-    queues.enqueue_tool_invocation_request = AsyncMock() # This method exists on AgentEventQueues
+def mock_input_event_queues() -> AsyncMock:
+    """Fixture for mock AgentInputEventQueueManager."""
+    queues = AsyncMock(spec=AgentInputEventQueueManager)
+    queues.enqueue_tool_invocation_request = AsyncMock()
     return queues
 
 @pytest.fixture
-def mock_agent_context(mock_agent_definition: MagicMock, mock_event_queues: AsyncMock) -> MagicMock:
+def mock_agent_context(mock_agent_definition: MagicMock, mock_input_event_queues: AsyncMock) -> MagicMock:
     """Fixture for a mock AgentContext."""
     context = MagicMock(spec=AgentContext)
     context.agent_id = "json_test_agent_001"
     context.definition = mock_agent_definition
-    context.queues = mock_event_queues
+    context.input_event_queues = mock_input_event_queues # Corrected attribute
     context.tool_instances = {}
     context.llm_instance = MagicMock()
     return context
@@ -56,7 +56,6 @@ def mock_agent_context(mock_agent_definition: MagicMock, mock_event_queues: Asyn
 async def test_valid_json_variants_parse_correctly(
     json_processor: JsonToolUsageProcessor,
     mock_agent_context: MagicMock,
-    mock_event_queues: AsyncMock,
     response_text: str,
     expected_tool_name: str,
     expected_arguments: dict
@@ -64,9 +63,9 @@ async def test_valid_json_variants_parse_correctly(
     result = await json_processor.process_response(response_text, mock_agent_context)
 
     assert result is True
-    mock_event_queues.enqueue_tool_invocation_request.assert_awaited_once()
+    mock_agent_context.input_event_queues.enqueue_tool_invocation_request.assert_awaited_once()
     
-    call_args = mock_event_queues.enqueue_tool_invocation_request.call_args
+    call_args = mock_agent_context.input_event_queues.enqueue_tool_invocation_request.call_args
     enqueued_event: PendingToolInvocationEvent = call_args[0][0]
     assert isinstance(enqueued_event, PendingToolInvocationEvent)
     assert enqueued_event.tool_invocation.name == expected_tool_name
@@ -89,20 +88,18 @@ async def test_valid_json_variants_parse_correctly(
 async def test_invalid_or_no_json_command(
     json_processor: JsonToolUsageProcessor,
     mock_agent_context: MagicMock,
-    mock_event_queues: AsyncMock,
     response_text: str
 ):
     with patch('autobyteus.agent.llm_response_processor.json_tool_usage_processor.logger') as mock_logger:
         result = await json_processor.process_response(response_text, mock_agent_context)
 
     assert result is False
-    mock_event_queues.enqueue_tool_invocation_request.assert_not_awaited()
+    mock_agent_context.input_event_queues.enqueue_tool_invocation_request.assert_not_awaited()
 
 @pytest.mark.asyncio
 async def test_json_with_null_arguments_field(
     json_processor: JsonToolUsageProcessor,
-    mock_agent_context: MagicMock,
-    mock_event_queues: AsyncMock
+    mock_agent_context: MagicMock
 ):
     response_text = '{"tool_name": "NullArgsTool", "arguments": null}'
     expected_tool_name = "NullArgsTool"
@@ -111,16 +108,15 @@ async def test_json_with_null_arguments_field(
     result = await json_processor.process_response(response_text, mock_agent_context)
 
     assert result is True
-    mock_event_queues.enqueue_tool_invocation_request.assert_awaited_once()
-    call_args = mock_event_queues.enqueue_tool_invocation_request.call_args[0][0]
+    mock_agent_context.input_event_queues.enqueue_tool_invocation_request.assert_awaited_once()
+    call_args = mock_agent_context.input_event_queues.enqueue_tool_invocation_request.call_args[0][0]
     assert call_args.tool_invocation.name == expected_tool_name
     assert call_args.tool_invocation.arguments == expected_arguments
 
 @pytest.mark.asyncio
 async def test_json_extraction_from_noisy_response(
     json_processor: JsonToolUsageProcessor,
-    mock_agent_context: MagicMock,
-    mock_event_queues: AsyncMock
+    mock_agent_context: MagicMock
 ):
     response_text = """
     Okay, I've thought about it.
@@ -138,53 +134,50 @@ async def test_json_extraction_from_noisy_response(
     result = await json_processor.process_response(response_text, mock_agent_context)
 
     assert result is True
-    mock_event_queues.enqueue_tool_invocation_request.assert_awaited_once()
-    call_args = mock_event_queues.enqueue_tool_invocation_request.call_args[0][0]
+    mock_agent_context.input_event_queues.enqueue_tool_invocation_request.assert_awaited_once()
+    call_args = mock_agent_context.input_event_queues.enqueue_tool_invocation_request.call_args[0][0]
     assert call_args.tool_invocation.name == expected_tool_name
     assert call_args.tool_invocation.arguments == expected_arguments
 
 @pytest.mark.asyncio
 async def test_arguments_parsing_string_vs_dict(
     json_processor: JsonToolUsageProcessor,
-    mock_agent_context: MagicMock,
-    mock_event_queues: AsyncMock
+    mock_agent_context: MagicMock
 ):
     response_str_args = '{"tool_name": "StringArgsTool", "arguments": "{\\"param\\": \\"value\\"}"}'
     result_str = await json_processor.process_response(response_str_args, mock_agent_context)
     assert result_str is True
-    call_args_str = mock_event_queues.enqueue_tool_invocation_request.call_args[0][0]
+    call_args_str = mock_agent_context.input_event_queues.enqueue_tool_invocation_request.call_args[0][0]
     assert call_args_str.tool_invocation.arguments == {"param": "value"}
-    mock_event_queues.enqueue_tool_invocation_request.reset_mock()
+    mock_agent_context.input_event_queues.enqueue_tool_invocation_request.reset_mock()
 
     response_dict_args = '{"tool_name": "DictArgsTool", "arguments": {"param": "value"}}'
     result_dict = await json_processor.process_response(response_dict_args, mock_agent_context)
     assert result_dict is True
-    call_args_dict = mock_event_queues.enqueue_tool_invocation_request.call_args[0][0]
+    call_args_dict = mock_agent_context.input_event_queues.enqueue_tool_invocation_request.call_args[0][0]
     assert call_args_dict.tool_invocation.arguments == {"param": "value"}
 
 @pytest.mark.asyncio
 async def test_empty_json_object_no_action(
     json_processor: JsonToolUsageProcessor,
-    mock_agent_context: MagicMock,
-    mock_event_queues: AsyncMock
+    mock_agent_context: MagicMock
 ):
     response_text = "{}"
     result = await json_processor.process_response(response_text, mock_agent_context)
     assert result is False
-    mock_event_queues.enqueue_tool_invocation_request.assert_not_awaited()
+    mock_agent_context.input_event_queues.enqueue_tool_invocation_request.assert_not_awaited()
 
 @pytest.mark.asyncio
 async def test_json_with_non_string_tool_name_no_action(
     json_processor: JsonToolUsageProcessor,
-    mock_agent_context: MagicMock,
-    mock_event_queues: AsyncMock
+    mock_agent_context: MagicMock
 ):
     response_text = '{"tool_name": 123, "arguments": {}}'
     result = await json_processor.process_response(response_text, mock_agent_context)
     assert result is False
-    mock_event_queues.enqueue_tool_invocation_request.assert_not_awaited()
+    mock_agent_context.input_event_queues.enqueue_tool_invocation_request.assert_not_awaited()
 
     response_text_bool = '{"tool_name": true, "arguments": {}}' 
     result_bool = await json_processor.process_response(response_text_bool, mock_agent_context)
     assert result_bool is False 
-    mock_event_queues.enqueue_tool_invocation_request.assert_not_awaited()
+    mock_agent_context.input_event_queues.enqueue_tool_invocation_request.assert_not_awaited()

@@ -2,30 +2,41 @@
 import asyncio
 import logging
 import traceback
-import functools # For functools.partial
-from typing import AsyncIterator, Dict, Any, TYPE_CHECKING, List, Optional, Callable
+import functools 
+from typing import AsyncIterator, Dict, Any, TYPE_CHECKING, List, Optional, Callable, Union
 
-# from autobyteus.agent.events import AgentEventQueues, END_OF_STREAM_SENTINEL # REMOVED AgentEventQueues
-from autobyteus.agent.events import AgentOutputDataManager, END_OF_STREAM_SENTINEL # MODIFIED
 from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
-from autobyteus.agent.streaming.stream_events import StreamEvent, StreamEventType
-from .queue_streamer import stream_queue_items
+from autobyteus.agent.streaming.stream_events import StreamEvent, StreamEventType 
+from autobyteus.agent.streaming.stream_event_payloads import ( 
+    create_assistant_chunk_data,
+    create_assistant_complete_response_data, # UPDATED import
+    create_tool_interaction_log_entry_data,
+    create_agent_operational_phase_transition_data, 
+    create_error_event_data,
+    create_tool_invocation_approval_requested_data,
+    EmptyData,
+    StreamDataPayload,
+    ErrorEventData, 
+)
+from .queue_streamer import stream_queue_items 
 from autobyteus.events.event_types import EventType 
 from autobyteus.events.event_emitter import EventEmitter 
 
 if TYPE_CHECKING:
     from autobyteus.agent.agent import Agent
-    from autobyteus.agent.notifiers import AgentExternalEventNotifier
-    from autobyteus.agent.context.agent_phase_manager import AgentPhaseManager
+    from autobyteus.agent.events.notifiers import AgentExternalEventNotifier
 
 logger = logging.getLogger(__name__)
+
+_AES_INTERNAL_SENTINEL = object()
 
 class AgentEventStream(EventEmitter): 
     """
     Provides access to various output streams from an agent, unified into
     a single `all_events()` stream of `StreamEvent` objects.
-    It consumes data from various output queues in AgentOutputDataManager
-    and subscribes to events from AgentExternalEventNotifier.
+    It subscribes to events (phases and data) from the agent's
+    AgentExternalEventNotifier and manages internal queues to adapt
+    synchronous event emissions to its asynchronous streaming methods.
     """
 
     def __init__(self, agent: 'Agent'): # pragma: no cover
@@ -36,21 +47,20 @@ class AgentEventStream(EventEmitter):
             raise TypeError(f"AgentEventStream requires an Agent instance, got {type(agent).__name__}.")
 
         self.agent_id: str = agent.agent_id
-        # MODIFIED: Get AgentOutputDataManager instance
-        self._output_data_manager: AgentOutputDataManager = agent.get_output_data_queues() 
-        self._sentinel = END_OF_STREAM_SENTINEL # This constant is now defined in AgentOutputDataManager
         
-        # Specific queue access is now direct from self._output_data_manager
-        self._pending_tool_approval_queue = self._output_data_manager.pending_tool_approval_queue 
+        self._loop = asyncio.get_event_loop() 
+        self._assistant_chunk_internal_q: asyncio.Queue[Union[ChunkResponse, object]] = asyncio.Queue()
+        self._assistant_final_message_internal_q: asyncio.Queue[Union[CompleteResponse, object]] = asyncio.Queue() # This queue still expects CompleteResponse
+        self._tool_log_internal_q: asyncio.Queue[Union[str, object]] = asyncio.Queue()
+        self._tool_approval_internal_q: asyncio.Queue[Union[Dict[str, Any], object]] = asyncio.Queue()
+        self._generic_stream_event_internal_q: asyncio.Queue[Union[StreamEvent, object]] = asyncio.Queue() 
 
-        phase_manager: Optional['AgentPhaseManager'] = agent.context.phase_manager
-        if phase_manager is None or phase_manager.notifier is None: 
-            logger.error(f"AgentEventStream for '{self.agent_id}': AgentPhaseManager or its notifier is not available. Phase events will not be streamed via notifier.")
-            self._notifier: Optional['AgentExternalEventNotifier'] = None
-        else:
-            self._notifier: Optional['AgentExternalEventNotifier'] = phase_manager.notifier
+        self._notifier: Optional['AgentExternalEventNotifier'] = None
+        if agent.context and agent.context.phase_manager: 
+            self._notifier = agent.context.phase_manager.notifier
         
-        self._notifier_events_bridge_queue: asyncio.Queue[StreamEvent] = asyncio.Queue()
+        if not self._notifier:
+            logger.error(f"AgentEventStream for '{self.agent_id}': AgentExternalEventNotifier not available. No events will be streamed.")
         
         self._subscribed_notifier_event_types: List[EventType] = [
             EventType.AGENT_PHASE_UNINITIALIZED_ENTERED,
@@ -67,6 +77,13 @@ class AgentEventStream(EventEmitter):
             EventType.AGENT_PHASE_SHUTTING_DOWN_STARTED,
             EventType.AGENT_PHASE_SHUTDOWN_COMPLETED,
             EventType.AGENT_PHASE_ERROR_ENTERED,
+            EventType.AGENT_DATA_ASSISTANT_CHUNK,
+            EventType.AGENT_DATA_ASSISTANT_CHUNK_STREAM_END,
+            EventType.AGENT_DATA_ASSISTANT_COMPLETE_RESPONSE, # UPDATED EventType
+            EventType.AGENT_DATA_TOOL_LOG,
+            EventType.AGENT_DATA_TOOL_LOG_STREAM_END,
+            EventType.AGENT_REQUEST_TOOL_INVOCATION_APPROVAL,
+            EventType.AGENT_ERROR_OUTPUT_GENERATION,
         ]
         self._registered_event_handlers: Dict[EventType, Callable] = {}
         self._register_notifier_listeners()
@@ -77,7 +94,7 @@ class AgentEventStream(EventEmitter):
         if not self._notifier:
             return
         for event_type_to_sub in self._subscribed_notifier_event_types:
-            handler_with_event_type = functools.partial(self._handle_notifier_event, event_type=event_type_to_sub)
+            handler_with_event_type = functools.partial(self._handle_notifier_event_sync, event_type=event_type_to_sub)
             self._registered_event_handlers[event_type_to_sub] = handler_with_event_type
             try:
                 self.subscribe_from(self._notifier, event_type_to_sub, handler_with_event_type)
@@ -96,218 +113,155 @@ class AgentEventStream(EventEmitter):
                 logger.warning(f"AgentEventStream '{self.agent_id}': Failed to unsubscribe from {event_type_to_unsub.name} (may be harmless): {e}")
         self._registered_event_handlers.clear()
 
-    async def _handle_notifier_event(self, *args, event_type: EventType, object_id: Optional[str] = None, **payload: Any): # pragma: no cover
-        logger.debug(f"AgentEventStream '{self.agent_id}': Handling notifier event. event_type='{event_type.name}', emitter_object_id='{object_id}', payload_keys='{list(payload.keys())}'")
-        
-        event_agent_id = payload.get("agent_id", self.agent_id) 
-        stream_event: Optional[StreamEvent] = None
+    def _put_to_internal_q_threadsafe(self, queue: asyncio.Queue, item: Any):
+        try:
+            self._loop.call_soon_threadsafe(queue.put_nowait, item)
+        except Exception as e: # pragma: no cover
+            logger.error(f"AgentEventStream '{self.agent_id}': Error putting item to internal queue {queue}: {e}", exc_info=True)
 
-        if event_type.name.startswith("AGENT_PHASE_"):
-            new_phase_val = payload.get("new_phase")
-            old_phase_val = payload.get("old_phase")
+    def _handle_notifier_event_sync(self, *args, event_type: EventType, object_id: Optional[str] = None, **received_kwargs: Any): 
+        event_agent_id = received_kwargs.get("agent_id", self.agent_id) 
+        actual_payload_content = received_kwargs.get("payload")
+
+        logger.debug(f"AgentEventStream '{self.agent_id}': Sync handler received notifier event. Type='{event_type.name}', EmitterID='{object_id}', AgentID='{event_agent_id}', Payload type='{type(actual_payload_content).__name__}'")
+        
+        typed_payload_for_stream_event: Optional[StreamDataPayload] = None
+        stream_event_type_for_generic_stream: Optional[StreamEventType] = None
+
+        try: 
+            if event_type == EventType.AGENT_PHASE_IDLE_ENTERED:
+                typed_payload_for_stream_event = create_agent_operational_phase_transition_data(actual_payload_content)
+                stream_event_type_for_generic_stream = StreamEventType.AGENT_IDLE
             
-            additional_data_for_stream = {
-                k: v for k, v in payload.items() 
-                if k not in ["agent_id", "new_phase", "old_phase"] 
-            }
-            stream_event_data = {
-                "agent_id": event_agent_id, 
-                "phase": new_phase_val,
-                "old_phase": old_phase_val,
-            }
-            if additional_data_for_stream:
-                stream_event_data.update(additional_data_for_stream)
+            elif event_type.name.startswith("AGENT_PHASE_"): 
+                typed_payload_for_stream_event = create_agent_operational_phase_transition_data(actual_payload_content) 
+                stream_event_type_for_generic_stream = StreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION
             
-            stream_event = StreamEvent(
-                agent_id=event_agent_id, 
-                event_type=StreamEventType.AGENT_PHASE_UPDATE,
-                data=stream_event_data
+            elif event_type == EventType.AGENT_DATA_ASSISTANT_CHUNK: 
+                if isinstance(actual_payload_content, ChunkResponse):
+                    self._put_to_internal_q_threadsafe(self._assistant_chunk_internal_q, actual_payload_content)
+                    typed_payload_for_stream_event = create_assistant_chunk_data(actual_payload_content)
+                    stream_event_type_for_generic_stream = StreamEventType.ASSISTANT_CHUNK
+                else: 
+                    logger.warning(f"AgentEventStream '{self.agent_id}': Expected ChunkResponse for AGENT_DATA_ASSISTANT_CHUNK, got {type(actual_payload_content)}.")
+
+            elif event_type == EventType.AGENT_DATA_ASSISTANT_CHUNK_STREAM_END: 
+                self._put_to_internal_q_threadsafe(self._assistant_chunk_internal_q, _AES_INTERNAL_SENTINEL)
+
+            elif event_type == EventType.AGENT_DATA_ASSISTANT_COMPLETE_RESPONSE: # UPDATED EventType check
+                if isinstance(actual_payload_content, CompleteResponse):
+                    self._put_to_internal_q_threadsafe(self._assistant_final_message_internal_q, actual_payload_content) # Queue name is _assistant_final_message_internal_q
+                    self._put_to_internal_q_threadsafe(self._assistant_final_message_internal_q, _AES_INTERNAL_SENTINEL) 
+                    typed_payload_for_stream_event = create_assistant_complete_response_data(actual_payload_content) # UPDATED factory call
+                    stream_event_type_for_generic_stream = StreamEventType.ASSISTANT_COMPLETE_RESPONSE # UPDATED StreamEventType
+                else: 
+                     logger.warning(f"AgentEventStream '{self.agent_id}': Expected CompleteResponse for AGENT_DATA_ASSISTANT_COMPLETE_RESPONSE, got {type(actual_payload_content)}.")
+
+            elif event_type == EventType.AGENT_DATA_TOOL_LOG: 
+                typed_payload_for_stream_event = create_tool_interaction_log_entry_data(actual_payload_content)
+                if isinstance(actual_payload_content, str): 
+                    self._put_to_internal_q_threadsafe(self._tool_log_internal_q, actual_payload_content)
+                elif isinstance(actual_payload_content, dict) and 'log_entry' in actual_payload_content: 
+                    self._put_to_internal_q_threadsafe(self._tool_log_internal_q, actual_payload_content['log_entry'])
+                stream_event_type_for_generic_stream = StreamEventType.TOOL_INTERACTION_LOG_ENTRY
+                
+            elif event_type == EventType.AGENT_DATA_TOOL_LOG_STREAM_END: 
+                self._put_to_internal_q_threadsafe(self._tool_log_internal_q, _AES_INTERNAL_SENTINEL)
+
+            elif event_type == EventType.AGENT_REQUEST_TOOL_INVOCATION_APPROVAL: 
+                if isinstance(actual_payload_content, dict):
+                    self._put_to_internal_q_threadsafe(self._tool_approval_internal_q, actual_payload_content) 
+                    self._put_to_internal_q_threadsafe(self._tool_approval_internal_q, _AES_INTERNAL_SENTINEL) 
+                    typed_payload_for_stream_event = create_tool_invocation_approval_requested_data(actual_payload_content)
+                    stream_event_type_for_generic_stream = StreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED
+                else: 
+                    logger.warning(f"AgentEventStream '{self.agent_id}': Expected dict for AGENT_REQUEST_TOOL_INVOCATION_APPROVAL, got {type(actual_payload_content)}.")
+            
+            elif event_type == EventType.AGENT_ERROR_OUTPUT_GENERATION: 
+                typed_payload_for_stream_event = create_error_event_data(actual_payload_content)
+                stream_event_type_for_generic_stream = StreamEventType.ERROR_EVENT
+            
+            else: 
+                logger.warning(f"AgentEventStream '{self.agent_id}': Sync handler received subscribed event type '{event_type.name}' with no specific data mapping logic. Payload content type: {type(actual_payload_content).__name__}")
+                if actual_payload_content is None or (isinstance(actual_payload_content, dict) and not actual_payload_content) :
+                    typed_payload_for_stream_event = EmptyData()
+                
+        except ValueError as ve: 
+            logger.error(f"AgentEventStream '{self.agent_id}': Error creating typed payload for event {event_type.name}: {ve}. Payload was: {actual_payload_content!r}")
+            typed_payload_for_stream_event = ErrorEventData(
+                source=f"AgentEventStream.PayloadCreation.{event_type.name}",
+                message=f"Failed to process payload: {ve}",
+                details=str(actual_payload_content)
             )
-            logger.debug(f"AgentEventStream '{self.agent_id}': Bridging {event_type.name} as AGENT_PHASE_UPDATE StreamEvent. New phase: {new_phase_val}, Data keys: {list(stream_event_data.keys())}")
-        
-        else: 
-            logger.warning(f"AgentEventStream '{self.agent_id}': Received subscribed event type '{event_type.name}' that is not a phase event. This event will be ignored by this handler logic.")
-            return
+            stream_event_type_for_generic_stream = StreamEventType.ERROR_EVENT
+        except Exception as e: 
+            logger.error(f"AgentEventStream '{self.agent_id}': Unexpected error processing payload for event {event_type.name}: {e}. Payload: {actual_payload_content!r}", exc_info=True)
+            typed_payload_for_stream_event = ErrorEventData(
+                source=f"AgentEventStream.UnexpectedError.{event_type.name}",
+                message=f"Unexpected error: {e}",
+                details=traceback.format_exc()
+            )
+            stream_event_type_for_generic_stream = StreamEventType.ERROR_EVENT
 
-        if stream_event: 
+
+        if typed_payload_for_stream_event and stream_event_type_for_generic_stream:
             try:
-                await self._notifier_events_bridge_queue.put(stream_event)
-            except Exception as e:  
-                 logger.error(f"AgentEventStream '{self.agent_id}': Error putting StreamEvent (from {event_type.name}) to bridge queue: {e}", exc_info=True)
+                stream_event = StreamEvent(
+                    agent_id=event_agent_id, 
+                    event_type=stream_event_type_for_generic_stream, 
+                    data=typed_payload_for_stream_event
+                )
+                self._put_to_internal_q_threadsafe(self._generic_stream_event_internal_q, stream_event)
+            except Exception as e_se: # pragma: no cover
+                logger.error(f"AgentEventStream '{self.agent_id}': Failed to create or enqueue StreamEvent for {stream_event_type_for_generic_stream.value}: {e_se}", exc_info=True)
 
-    async def _stream_notifier_events_from_bridge_queue(self) -> AsyncIterator[StreamEvent]: # pragma: no cover
-        source_name = f"notifier_events_bridge_agent_{self.agent_id}"
-        logger.debug(f"AgentEventStream '{self.agent_id}': Starting to stream from '{source_name}'.")
-        async for event in stream_queue_items(self._notifier_events_bridge_queue, self._sentinel, source_name):
-            yield event
-        logger.debug(f"AgentEventStream '{self.agent_id}': Finished streaming from '{source_name}'.")
 
     async def close(self): # pragma: no cover
-        logger.info(f"AgentEventStream for '{self.agent_id}': close() called. Unregistering listeners and signaling bridge queue.")
+        logger.info(f"AgentEventStream for '{self.agent_id}': close() called. Unregistering listeners and signaling internal queues.")
         self._unregister_notifier_listeners() 
-        try:
-            await self._notifier_events_bridge_queue.put(self._sentinel)
-        except Exception as e: 
-            logger.error(f"AgentEventStream '{self.agent_id}': Error putting sentinel to notifier events bridge queue during close: {e}", exc_info=True)
+        
+        queues_to_signal = [
+            self._assistant_chunk_internal_q,
+            self._assistant_final_message_internal_q,
+            self._tool_log_internal_q,
+            self._tool_approval_internal_q,
+            self._generic_stream_event_internal_q,
+        ]
+        for q in queues_to_signal:
+            try:
+                await q.put(_AES_INTERNAL_SENTINEL)
+            except Exception as e: 
+                logger.error(f"AgentEventStream '{self.agent_id}': Error putting sentinel to internal queue {q} during close: {e}", exc_info=True)
 
     def stream_assistant_chunks(self) -> AsyncIterator[ChunkResponse]: # pragma: no cover
-        source_name = f"agent_{self.agent_id}_direct_assistant_chunks"
-        logger.debug(f"Providing raw stream: {source_name}.")
-        # MODIFIED: Access queue from output_data_manager
-        return stream_queue_items(self._output_data_manager.assistant_output_chunk_queue, self._sentinel, source_name)
+        source_name = f"agent_{self.agent_id}_internal_assistant_chunks"
+        logger.debug(f"Providing stream from internal queue: {source_name}.")
+        return stream_queue_items(self._assistant_chunk_internal_q, _AES_INTERNAL_SENTINEL, source_name)
 
     def stream_assistant_final_messages(self) -> AsyncIterator[CompleteResponse]: # pragma: no cover
-        source_name = f"agent_{self.agent_id}_direct_assistant_final_messages"
-        logger.debug(f"Providing raw stream: {source_name}.")
-        # MODIFIED: Access queue from output_data_manager
-        return stream_queue_items(self._output_data_manager.assistant_final_message_queue, self._sentinel, source_name)
+        source_name = f"agent_{self.agent_id}_internal_assistant_final_messages" # Name of queue is still "final_messages" internally for this specific typed stream
+        logger.debug(f"Providing stream from internal queue: {source_name}.")
+        return stream_queue_items(self._assistant_final_message_internal_q, _AES_INTERNAL_SENTINEL, source_name)
 
     def stream_tool_logs(self) -> AsyncIterator[str]: # pragma: no cover
-        source_name = f"agent_{self.agent_id}_direct_tool_logs"
-        logger.debug(f"Providing raw stream: {source_name}.")
-        # MODIFIED: Access queue from output_data_manager
-        return stream_queue_items(self._output_data_manager.tool_interaction_log_queue, self._sentinel, source_name)
+        source_name = f"agent_{self.agent_id}_internal_tool_logs"
+        logger.debug(f"Providing stream from internal queue: {source_name}.")
+        return stream_queue_items(self._tool_log_internal_q, _AES_INTERNAL_SENTINEL, source_name)
 
-    async def _wrap_assistant_chunks_to_events(self) -> AsyncIterator[StreamEvent]: # pragma: no cover
-        source_description = "assistant_chunks_for_unified_stream"
-        stream_identity = f"event_wrapper_for_{source_description}_agent_{self.agent_id}"
-        logger.debug(f"Starting event wrapping for {stream_identity}.")
-        async for chunk_response in self.stream_assistant_chunks(): 
-            if isinstance(chunk_response, ChunkResponse): 
-                yield StreamEvent(
-                    agent_id=self.agent_id,
-                    event_type=StreamEventType.ASSISTANT_CHUNK,
-                    data={"chunk": chunk_response.content, "usage": chunk_response.usage, "is_complete": chunk_response.is_complete}
-                )
-            else:  
-                logger.warning(f"Expected ChunkResponse in {stream_identity}, got {type(chunk_response)}")
-        logger.debug(f"Event wrapping finished for {stream_identity}.")
-
-    async def _wrap_assistant_final_messages_to_events(self) -> AsyncIterator[StreamEvent]: # pragma: no cover
-        source_description = "assistant_final_messages_for_unified_stream"
-        stream_identity = f"event_wrapper_for_{source_description}_agent_{self.agent_id}"
-        logger.debug(f"Starting event wrapping for {stream_identity}.")
-        async for complete_response in self.stream_assistant_final_messages(): 
-            if isinstance(complete_response, CompleteResponse): 
-                yield StreamEvent(
-                    agent_id=self.agent_id,
-                    event_type=StreamEventType.ASSISTANT_FINAL_MESSAGE,
-                    data={"message": complete_response.content, "usage": complete_response.usage}
-                )
-            else:  
-                logger.warning(f"Expected CompleteResponse in {stream_identity}, got {type(complete_response)}")
-        logger.debug(f"Event wrapping finished for {stream_identity}.")
-
-    async def _wrap_tool_logs_to_events(self) -> AsyncIterator[StreamEvent]: # pragma: no cover
-        source_description = "tool_interaction_logs_for_unified_stream"
-        stream_identity = f"event_wrapper_for_{source_description}_agent_{self.agent_id}"
-        logger.debug(f"Starting event wrapping for {stream_identity}.")
-        async for raw_item_str in self.stream_tool_logs(): 
-            if isinstance(raw_item_str, str): 
-                yield StreamEvent(
-                    agent_id=self.agent_id,
-                    event_type=StreamEventType.TOOL_INTERACTION_LOG_ENTRY,
-                    data={"log_line": raw_item_str}
-                )
-            else:  
-                logger.warning(f"Expected str in {stream_identity}, got {type(raw_item_str)}")
-        logger.debug(f"Event wrapping finished for {stream_identity}.")
-
-    async def _wrap_pending_tool_approvals_from_queue(self) -> AsyncIterator[StreamEvent]:  # pragma: no cover
-        source_description = "pending_tool_approvals_for_unified_stream" 
-        stream_identity = f"event_wrapper_for_{source_description}_agent_{self.agent_id}"
-        logger.debug(f"Starting event wrapping for {stream_identity}.")
-        
-        # MODIFIED: Use self._pending_tool_approval_queue (which is already correctly assigned)
-        async for approval_data_dict in stream_queue_items(self._pending_tool_approval_queue, self._sentinel, stream_identity):
-            if isinstance(approval_data_dict, dict):
-                event_agent_id = approval_data_dict.get("agent_id", self.agent_id) 
-                yield StreamEvent(
-                    agent_id=event_agent_id,
-                    event_type=StreamEventType.TOOL_APPROVAL_REQUESTED, 
-                    data=approval_data_dict 
-                )
-            else: 
-                logger.warning(f"Expected dict in {stream_identity} (from pending_tool_approval_queue), got {type(approval_data_dict)}")
-        logger.debug(f"Event wrapping finished for {stream_identity}.")
-
+    def stream_pending_tool_approvals(self) -> AsyncIterator[Dict[str, Any]]: # pragma: no cover
+        source_name = f"agent_{self.agent_id}_internal_pending_tool_approvals"
+        logger.debug(f"Providing stream from internal queue: {source_name}.")
+        return stream_queue_items(self._tool_approval_internal_q, _AES_INTERNAL_SENTINEL, source_name)
 
     async def all_events(self) -> AsyncIterator[StreamEvent]: # pragma: no cover
-        logger.info(f"AgentEventStream (agent_id: {self.agent_id}): Starting to stream all_events().")
-
-        iterators_map: Dict[str, AsyncIterator[StreamEvent]] = {
-            "assistant_chunks": self._wrap_assistant_chunks_to_events().__aiter__(),
-            "assistant_final_messages": self._wrap_assistant_final_messages_to_events().__aiter__(),
-            "tool_interaction_logs": self._wrap_tool_logs_to_events().__aiter__(),
-            "pending_tool_approvals": self._wrap_pending_tool_approvals_from_queue().__aiter__(), 
-            "notifier_bridge": self._stream_notifier_events_from_bridge_queue().__aiter__(), 
-        }
+        logger.info(f"AgentEventStream (agent_id: {self.agent_id}): Starting to stream all_events() from internal generic queue.")
+        source_name = f"agent_{self.agent_id}_internal_generic_stream_events"
         
-        pending_futures: Dict[asyncio.Future, str] = {}
-
-        def _schedule_next(source_name: str):
-            if source_name in iterators_map: 
-                iterator = iterators_map[source_name]
-                task_name = f"all_events_source_{source_name}_agent_{self.agent_id}"
-                future = asyncio.create_task(iterator.__anext__(), name=task_name)
-                pending_futures[future] = source_name
-            else:  
-                 logger.debug(f"AgentEventStream '{self.agent_id}': Source '{source_name}' no longer in iterators_map (likely exhausted or error), not scheduling next for it.")
-
-        for name in iterators_map.keys():
-            _schedule_next(name)
-
-        try:
-            while pending_futures:
-                done_futures, _ = await asyncio.wait(
-                    list(pending_futures.keys()), 
-                    return_when=asyncio.FIRST_COMPLETED
-                )
-                
-                for future in done_futures:
-                    source_name = pending_futures.pop(future) 
-                    try:
-                        event: StreamEvent = future.result()
-                        yield event
-                        _schedule_next(source_name) 
-                    except StopAsyncIteration:
-                        logger.debug(f"AgentEventStream: Source '{source_name}' for agent '{self.agent_id}' (all_events) fully consumed.")
-                        iterators_map.pop(source_name, None) 
-                    except asyncio.CancelledError: 
-                        logger.info(f"AgentEventStream: Task for source '{source_name}' for agent '{self.agent_id}' (all_events) was cancelled.")
-                        iterators_map.pop(source_name, None) 
-                    except Exception as e: 
-                        logger.error(f"AgentEventStream: Error from source '{source_name}' for agent '{self.agent_id}' (all_events): {e}", exc_info=True)
-                        yield StreamEvent(
-                            agent_id=self.agent_id,
-                            event_type=StreamEventType.ERROR_EVENT,
-                            data={"source_stream": source_name, "error": str(e), "details": traceback.format_exc()}
-                        )
-                        iterators_map.pop(source_name, None) 
+        async for event in stream_queue_items(self._generic_stream_event_internal_q, _AES_INTERNAL_SENTINEL, source_name):
+            yield event 
         
-        except asyncio.CancelledError: 
-            logger.info(f"AgentEventStream (agent_id: {self.agent_id}): all_events() stream was cancelled externally.")
-            raise
-        finally: 
-            logger.debug(f"AgentEventStream (agent_id: {self.agent_id}): all_events() entering finally block. Pending futures: {len(pending_futures)}")
-            active_futures_to_cancel = [f for f in pending_futures.keys() if not f.done()]
-            for future_to_cancel in active_futures_to_cancel:  
-                if not future_to_cancel.done(): 
-                    future_to_cancel.cancel()
-            
-            if active_futures_to_cancel: 
-                 results = await asyncio.gather(*active_futures_to_cancel, return_exceptions=True)
-                 for i, res in enumerate(results): 
-                     fut_task_to_log = active_futures_to_cancel[i]
-                     task_name_for_log = fut_task_to_log.get_name() 
-                     if isinstance(res, Exception) and not isinstance(res, asyncio.CancelledError): 
-                          logger.warning(f"AgentEventStream '{self.agent_id}': Exception during cleanup of future for task '{task_name_for_log}': {res}")
-                     elif isinstance(res, asyncio.CancelledError):
-                          logger.debug(f"AgentEventStream '{self.agent_id}': Task '{task_name_for_log}' confirmed cancelled during cleanup.")
-            
-            await self.close() 
-            logger.info(f"AgentEventStream (agent_id: {self.agent_id}): Exiting all_events() stream method.")
+        logger.info(f"AgentEventStream (agent_id: {self.agent_id}): Exiting all_events() stream method.")
+
 
     def __repr__(self) -> str:
         return f"<AgentEventStream agent_id='{self.agent_id}'>"
-

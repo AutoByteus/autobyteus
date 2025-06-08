@@ -4,7 +4,7 @@ from unittest.mock import Mock, AsyncMock, patch
 from autobyteus.tools.browser.standalone.web_page_pdf_generator import WebPagePDFGenerator
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.agent.context import AgentContext
-from autobyteus.tools.registry import default_tool_registry # Added for definition test
+from autobyteus.tools.registry import default_tool_registry
 
 TOOL_NAME_PDF_GENERATOR = "WebPagePDFGenerator"
 
@@ -35,7 +35,7 @@ def test_pdf_generator_definition():
     assert param_url.required is True
     param_save_dir = schema.get_parameter("save_dir")
     assert param_save_dir is not None
-    assert param_save_dir.param_type == ParameterType.DIRECTORY_PATH
+    assert param_save_dir.param_type == ParameterType.STRING # MODIFIED from DIRECTORY_PATH
     assert param_save_dir.required is True
 
 # Execute Tests
@@ -43,10 +43,8 @@ def test_pdf_generator_definition():
 async def test_execute_pdf_generation_success(pdf_generator_tool_instance: WebPagePDFGenerator, mock_agent_context_pdf_gen, tmp_path):
     url_to_pdf = "https://example.com/report"
     save_directory = tmp_path / "generated_pdfs"
-    # Tool _execute will create save_directory
 
     mock_playwright_page = AsyncMock()
-    # Mock page.pdf to simulate PDF generation, no actual file write in mock
     mock_playwright_page.pdf = AsyncMock()
 
     with patch.object(pdf_generator_tool_instance, 'initialize', AsyncMock()) as mock_init, \
@@ -62,13 +60,12 @@ async def test_execute_pdf_generation_success(pdf_generator_tool_instance: WebPa
     mock_init.assert_called_once()
     mock_playwright_page.goto.assert_called_once_with(url_to_pdf, wait_until="networkidle", timeout=60000)
     
-    # Check that page.pdf was called. The path will be dynamically generated.
     assert mock_playwright_page.pdf.call_count == 1
     call_args = mock_playwright_page.pdf.call_args
     assert call_args is not None
-    assert call_args[1]['format'] == 'A4' # Check format
+    assert call_args[1]['format'] == 'A4' 
     assert call_args[1]['print_background'] is True
-    generated_pdf_path_arg = call_args[1]['path'] # Path passed to page.pdf()
+    generated_pdf_path_arg = call_args[1]['path'] 
     
     assert os.path.dirname(generated_pdf_path_arg) == str(save_directory)
     assert generated_pdf_path_arg.endswith(".pdf")
@@ -103,4 +100,3 @@ async def test_execute_playwright_error(pdf_generator_tool_instance: WebPagePDFG
                 save_dir=str(save_directory)
             )
         mock_close.assert_called_once()
-

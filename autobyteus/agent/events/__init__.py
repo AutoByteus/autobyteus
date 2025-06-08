@@ -1,10 +1,11 @@
 # file: autobyteus/autobyteus/agent/events/__init__.py
 """
 Event definitions and event queue management for agents.
+Also includes the WorkerEventDispatcher for routing events within an agent's worker loop.
 """
-# Removed: from .agent_event_queues import AgentEventQueues, END_OF_STREAM_SENTINEL
 from .agent_input_event_queue_manager import AgentInputEventQueueManager
-from .agent_output_data_manager import AgentOutputDataManager, END_OF_STREAM_SENTINEL
+# AgentOutputDataManager and END_OF_STREAM_SENTINEL removed
+from .worker_event_dispatcher import WorkerEventDispatcher 
 
 from .agent_events import (
     BaseEvent,
@@ -17,7 +18,7 @@ from .agent_events import (
     # New Bootstrap Event 
     BootstrapAgentEvent, 
     # Specific Lifecycle Events
-    AgentReadyEvent, # MODIFIED: Renamed from AgentStartedEvent
+    AgentReadyEvent, 
     AgentStoppedEvent,
     AgentErrorEvent,
     # Agent Initialization Sequence Events (DEPRECATED in standard flow, kept for potential direct use or reference)
@@ -39,23 +40,22 @@ from .agent_events import (
 )
 
 __all__ = [
-    # "AgentEventQueues", # REMOVED
     "AgentInputEventQueueManager", 
-    "AgentOutputDataManager",      
-    "END_OF_STREAM_SENTINEL",    
+    # AgentOutputDataManager and END_OF_STREAM_SENTINEL removed from __all__   
+    "WorkerEventDispatcher", 
     "BaseEvent",
     "LifecycleEvent",
     "AgentProcessingEvent",
     "AgentPreparationEvent", 
     "AgentOperationalEvent", 
     "BootstrapAgentEvent", 
-    "AgentReadyEvent", # MODIFIED: Renamed from AgentStartedEvent
+    "AgentReadyEvent", 
     "AgentStoppedEvent",
     "AgentErrorEvent",
-    "CreateToolInstancesEvent", # Kept for now, but deprecated in standard flow
-    "ProcessSystemPromptEvent", # Kept for now, but deprecated in standard flow
-    "FinalizeLLMConfigEvent",   # Kept for now, but deprecated in standard flow
-    "CreateLLMInstanceEvent",   # Kept for now, but deprecated in standard flow
+    "CreateToolInstancesEvent", 
+    "ProcessSystemPromptEvent", 
+    "FinalizeLLMConfigEvent",   
+    "CreateLLMInstanceEvent",   
     "UserMessageReceivedEvent",
     "InterAgentMessageReceivedEvent",
     "LLMUserMessageReadyEvent", 

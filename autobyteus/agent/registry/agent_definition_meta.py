@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class AgentDefinitionMeta(type):
     """
     Metaclass for AgentDefinition that automatically registers instances
-    with the default_definition_registry_instance upon their creation.
+    with the default_definition_registry upon their creation.
     """
     def __call__(cls, *args, **kwargs) -> 'AgentDefinition':
         """
@@ -23,25 +23,25 @@ class AgentDefinitionMeta(type):
         
         # Dynamically import the default registry instance to avoid circular imports at module level
         try:
-            from autobyteus.agent.registry.agent_registry import default_definition_registry_instance
+            from autobyteus.agent.registry.agent_registry import default_definition_registry
         except ImportError: # pragma: no cover
             logger.error(
-                "Failed to import default_definition_registry_instance from autobyteus.agent.registry.agent_registry. "
+                "Failed to import default_definition_registry from autobyteus.agent.registry.agent_registry. "
                 "AgentDefinition auto-registration will be skipped."
             )
             return instance # Return instance without registration if import fails
 
-        if default_definition_registry_instance is not None:
+        if default_definition_registry is not None:
             try:
                 # Assuming 'instance' is a fully initialized AgentDefinition object here
                 # and has 'name' and 'role' attributes.
-                default_definition_registry_instance.register(instance)
+                default_definition_registry.register(instance)
                 logger.info(
                     f"Auto-registered AgentDefinition instance: '{instance.name}' (Role: '{instance.role}') "
-                    f"with key '{default_definition_registry_instance._generate_key(instance.name, instance.role)}'."
+                    f"with key '{default_definition_registry._generate_key(instance.name, instance.role)}'."
                 )
             except AttributeError: # pragma: no cover 
-                # This might happen if instance is not a valid AgentDefinition or if default_definition_registry_instance is malformed
+                # This might happen if instance is not a valid AgentDefinition or if default_definition_registry is malformed
                 logger.error(
                     f"Failed to auto-register AgentDefinition. Instance might be malformed or registry is not standard. Instance: {str(instance)[:100]}",
                     exc_info=True
@@ -53,9 +53,9 @@ class AgentDefinitionMeta(type):
                 )
         else: # pragma: no cover
             # This case should ideally not be hit if the application structure is correct
-            # and default_definition_registry_instance is always initialized.
+            # and default_definition_registry is always initialized.
             logger.error(
-                "Default AgentDefinitionRegistry instance (default_definition_registry_instance) is None. "
+                "Default AgentDefinitionRegistry instance (default_definition_registry) is None. "
                 "Cannot auto-register AgentDefinition instance."
             )
             

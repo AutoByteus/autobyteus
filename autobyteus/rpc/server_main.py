@@ -7,7 +7,7 @@ import sys
 from typing import Optional
 
 from autobyteus.agent.registry.agent_definition import AgentDefinition
-from autobyteus.agent.registry.agent_registry import default_definition_registry_instance, default_agent_registry
+from autobyteus.agent.registry.agent_registry import default_definition_registry, default_agent_registry
 from autobyteus.agent.agent import Agent 
 from autobyteus.llm.models import LLMModel 
 
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 ECHO_AGENT_DEF: Optional[AgentDefinition] = None
 try:
-    if not default_definition_registry_instance.get("EchoAgent", "echo_responder"):
+    if not default_definition_registry.get("EchoAgent", "echo_responder"):
         ECHO_AGENT_DEF = AgentDefinition(
             name="EchoAgent",
             role="echo_responder",
@@ -43,7 +43,7 @@ try:
         )
         logger.info(f"Example AgentDefinition '{ECHO_AGENT_DEF.name}' created and auto-registered for server_main.")
     else:
-        ECHO_AGENT_DEF = default_definition_registry_instance.get("EchoAgent", "echo_responder")
+        ECHO_AGENT_DEF = default_definition_registry.get("EchoAgent", "echo_responder")
         logger.info(f"Example AgentDefinition 'EchoAgent' already registered. Using existing one for server_main.")
 except Exception as e:
     logger.error(f"Could not create/retrieve example EchoAgentDefinition: {e}. server_main might fail if it's requested.")
@@ -65,7 +65,7 @@ async def main():
     args = parser.parse_args()
     logger.info(f"server_main starting with args: {args}")
 
-    agent_definition = default_definition_registry_instance.get(args.agent_def_name, args.agent_def_role)
+    agent_definition = default_definition_registry.get(args.agent_def_name, args.agent_def_role)
     if not agent_definition:
         logger.error(f"AgentDefinition not found for name='{args.agent_def_name}', role='{args.agent_def_role}'.")
         sys.exit(1)

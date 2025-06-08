@@ -9,7 +9,17 @@ from autobyteus.agent.agent import Agent
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.agent.streaming.agent_event_stream import AgentEventStream
 from autobyteus.agent.streaming.stream_events import StreamEvent, StreamEventType
-from autobyteus.agent.phases import AgentOperationalPhase 
+# Import specific payload types for isinstance checks and attribute access
+from autobyteus.agent.streaming.stream_event_payloads import (
+    AssistantChunkData,
+    AssistantCompleteResponseData,
+    ToolInvocationApprovalRequestedData,
+    ToolInteractionLogEntryData,
+    AgentOperationalPhaseTransitionData,
+    ErrorEventData,
+    EmptyData # Though less likely to be directly checked unless specific logic for it
+)
+from autobyteus.agent.context.phases import AgentOperationalPhase 
 
 logger = logging.getLogger(__name__) 
 
@@ -28,23 +38,27 @@ class InteractiveCLIManager:
         self.cli_session_agent_id = cli_session_agent_id
 
         self.current_line_empty: bool = True
-        self.agent_has_spoken_this_turn: bool = False # Tracks if "Agent:" prefix was printed
+        self.agent_has_spoken_this_turn: bool = False 
 
     def _ensure_new_line(self):
         """Ensures the cursor is on a new line if the current one isn't empty."""
         if not self.current_line_empty:
-            print(flush=True)
+            print(flush=True) # Will print a newline
             self.current_line_empty = True
 
-    async def _prompt_tool_approval(self, tool_approval_data: Dict[str, Any]):
+    async def _prompt_tool_approval(self, tool_approval_payload: ToolInvocationApprovalRequestedData): # MODIFIED: Typed payload
         """Handles the logic for prompting user for tool approval."""
-        invocation_id = tool_approval_data.get("invocation_id")
-        tool_name = tool_approval_data.get("tool_name")
-        arguments = tool_approval_data.get("arguments", {})
-        event_agent_id = tool_approval_data.get("agent_id", self.agent.agent_id)
+        # Access attributes directly from the Pydantic model
+        invocation_id = tool_approval_payload.invocation_id
+        tool_name = tool_approval_payload.tool_name
+        arguments = tool_approval_payload.arguments
+        # event_agent_id can be taken from the StreamEvent.agent_id if needed,
+        # or assume it's self.cli_session_agent_id if payload doesn't carry it.
+        # For now, we assume event.agent_id in handle_stream_event covers this.
+        event_agent_id = self.cli_session_agent_id # Fallback, or get from StreamEvent's agent_id
 
         if not all([invocation_id, tool_name is not None]):  # pragma: no cover
-            logger.error(f"[{event_agent_id}] Invalid data for tool approval request: {tool_approval_data}")
+            logger.error(f"[{event_agent_id}] Invalid data for tool approval request: {tool_approval_payload}")
             self.current_line_empty = True 
             return
 
@@ -60,7 +74,7 @@ class InteractiveCLIManager:
             f"{args_str}\nApprove? (y/n): " 
         )
         print(prompt_message, end="", flush=True)
-        # self.current_line_empty is False because prompt doesn't end with newline
+        self.current_line_empty = False
 
         try:
             loop = asyncio.get_running_loop()
@@ -73,7 +87,7 @@ class InteractiveCLIManager:
             logger.error(f"[{event_agent_id}] Error reading tool approval input for '{tool_name}': {e}. Denying request.", exc_info=True)
             approval_input_str = "n" 
         
-        print() # Add a newline after user types their y/n and hits enter
+        print() 
         self.current_line_empty = True 
 
         if approval_input_str in ["yes", "y"]: 
@@ -87,80 +101,105 @@ class InteractiveCLIManager:
         """Processes a single StreamEvent and updates the CLI display."""
         event_origin_agent_id = event.agent_id or self.cli_session_agent_id
 
-        # Most events imply the agent is "speaking" or providing info,
-        # so ensure a new line unless it's a continuation chunk.
         if event.event_type != StreamEventType.ASSISTANT_CHUNK:
             self._ensure_new_line()
-            # Reset agent_has_spoken_this_turn for most events.
-            # It's specifically managed for CHUNK/FINAL_MESSAGE.
-            if event.event_type not in [StreamEventType.ASSISTANT_FINAL_MESSAGE]:
+            if event.event_type not in [StreamEventType.ASSISTANT_COMPLETE_RESPONSE]: # Renamed from ASSISTANT_FINAL_MESSAGE
                  self.agent_has_spoken_this_turn = False
 
 
         if event.event_type == StreamEventType.ASSISTANT_CHUNK:
-            chunk_content = event.data.get("chunk", "")
-            if not self.agent_has_spoken_this_turn:
-                print(f"Agent ({event_origin_agent_id}): ", end="", flush=True)
-                self.agent_has_spoken_this_turn = True
-                self.current_line_empty = False 
-            
-            print(chunk_content, end="", flush=True)
-            if chunk_content.endswith('\n'):
-                self.current_line_empty = True
-            else:
-                self.current_line_empty = False
+            if isinstance(event.data, AssistantChunkData):
+                chunk_content = event.data.content # Access attribute
+                if not self.agent_has_spoken_this_turn:
+                    print(f"Agent ({event_origin_agent_id}): ", end="", flush=True)
+                    self.agent_has_spoken_this_turn = True
+                    self.current_line_empty = False 
+                
+                print(chunk_content, end="", flush=True)
+                if chunk_content.endswith('\n'):
+                    self.current_line_empty = True
+                else:
+                    self.current_line_empty = False
+            else: # pragma: no cover
+                logger.warning(f"[{self.cli_session_agent_id}] Received ASSISTANT_CHUNK with unexpected data type: {type(event.data)}")
 
-        elif event.event_type == StreamEventType.ASSISTANT_FINAL_MESSAGE:
-            final_msg_content = event.data.get("message", "")
-            content_printed_this_event = False
 
-            if not self.agent_has_spoken_this_turn and final_msg_content:
-                print(f"Agent ({event_origin_agent_id}): {final_msg_content}", flush=True)
-                content_printed_this_event = True
-            elif self.agent_has_spoken_this_turn and not self.current_line_empty:
-                print(flush=True) # Finish the line from chunks
-            
-            logger.debug(f"[{self.cli_session_agent_id}] Received ASSISTANT_FINAL_MESSAGE. Content printed: {content_printed_this_event}, Content: '{final_msg_content[:100]}...'")
-            self.current_line_empty = True 
-            # self.agent_has_spoken_this_turn will be reset by IDLE phase or next user input cycle.
+        elif event.event_type == StreamEventType.ASSISTANT_COMPLETE_RESPONSE: # RENAMED
+            if isinstance(event.data, AssistantCompleteResponseData): # Check type
+                complete_resp_content = event.data.content # Access attribute
+                content_printed_this_event = False
+
+                if not self.agent_has_spoken_this_turn and complete_resp_content:
+                    print(f"Agent ({event_origin_agent_id}): {complete_resp_content}", flush=True)
+                    content_printed_this_event = True
+                elif self.agent_has_spoken_this_turn and not self.current_line_empty:
+                    # This means chunks were printed without a final newline
+                    print(flush=True) # Finish the line from chunks
+                
+                logger.debug(f"[{self.cli_session_agent_id}] Received ASSISTANT_COMPLETE_RESPONSE. Content printed: {content_printed_this_event}, Content: '{complete_resp_content[:100]}...'")
+                self.current_line_empty = True 
+            else: # pragma: no cover
+                 logger.warning(f"[{self.cli_session_agent_id}] Received ASSISTANT_COMPLETE_RESPONSE with unexpected data type: {type(event.data)}")
+
 
         elif event.event_type == StreamEventType.TOOL_APPROVAL_REQUESTED:
-            logger.debug(f"[{self.cli_session_agent_id}] Handling TOOL_APPROVAL_REQUESTED event. Data: {event.data}")
-            await self._prompt_tool_approval(event.data)
-            self.agent_has_spoken_this_turn = False # Tool approval is not agent "speaking"
+            if isinstance(event.data, ToolInvocationApprovalRequestedData): # Check type
+                logger.debug(f"[{self.cli_session_agent_id}] Handling TOOL_APPROVAL_REQUESTED event. Data: {event.data}")
+                await self._prompt_tool_approval(event.data) # Pass the typed payload
+            else: # pragma: no cover
+                logger.warning(f"[{self.cli_session_agent_id}] Received TOOL_APPROVAL_REQUESTED with unexpected data type: {type(event.data)}")
+            self.agent_has_spoken_this_turn = False 
 
         elif event.event_type == StreamEventType.TOOL_INTERACTION_LOG_ENTRY:
-            if self.show_tool_logs:
-                print(f"Tool Log ({event_origin_agent_id}): {event.data.get('log_line', '')}", flush=True)
+            if isinstance(event.data, ToolInteractionLogEntryData): # Check type
+                if self.show_tool_logs:
+                    print(f"Tool Log ({event_origin_agent_id}): {event.data.log_entry}", flush=True) # Access attribute
+            else: # pragma: no cover
+                logger.warning(f"[{self.cli_session_agent_id}] Received TOOL_INTERACTION_LOG_ENTRY with unexpected data type: {type(event.data)}")
             self.current_line_empty = True 
             self.agent_has_spoken_this_turn = False
 
-        elif event.event_type == StreamEventType.AGENT_PHASE_UPDATE:
-            phase = event.data.get('phase')
-            logger.info(f"[{self.cli_session_agent_id}] Agent phase: {phase}. Data in event: {list(event.data.keys())}")
-            
-            if phase and phase != AgentOperationalPhase.IDLE.value:
-                print(f"[Agent Status ({event_origin_agent_id}): {phase}]", flush=True)
-                self.current_line_empty = True 
-            
-            self.agent_has_spoken_this_turn = False 
+        elif event.event_type == StreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION:
+            if isinstance(event.data, AgentOperationalPhaseTransitionData):
+                phase_value = event.data.new_phase.value
+                tool_name = event.data.tool_name
+                
+                logger.info(f"[{self.cli_session_agent_id}] Agent phase transition: {phase_value}. Tool: {tool_name if tool_name else 'N/A'}.")
+                
+                phase_display_message = f"[Agent Status ({event_origin_agent_id}): {phase_value}"
+                if tool_name:
+                    phase_display_message += f" ({tool_name})"
+                phase_display_message += "]"
 
-            if phase == AgentOperationalPhase.IDLE.value:
-                logger.info(f"[{self.cli_session_agent_id}] Agent entered IDLE phase. Turn complete.")
-                self._ensure_new_line() # Ensure any previous agent output is newline-terminated
-                self.agent_has_spoken_this_turn = False 
-                self.agent_turn_complete_event.set()
+                print(phase_display_message, flush=True)
+                self.current_line_empty = True
+                
+                self.agent_has_spoken_this_turn = False
+            else: # pragma: no cover
+                logger.warning(f"[{self.cli_session_agent_id}] Received AGENT_OPERATIONAL_PHASE_TRANSITION with unexpected data type: {type(event.data)}")
+
+        elif event.event_type == StreamEventType.AGENT_IDLE:
+            # This event now signals the end of a turn.
+            logger.info(f"[{self.cli_session_agent_id}] Agent is IDLE. Turn complete.")
+            self._ensure_new_line()
+            self.agent_has_spoken_this_turn = False
+            self.agent_turn_complete_event.set()
 
         elif event.event_type == StreamEventType.ERROR_EVENT:
-            err_source = event.data.get('source_stream', 'Unknown')
-            err_msg = event.data.get('error', 'An unknown error occurred in stream.')
-            print(f"Stream Error ({event_origin_agent_id}, Source: {err_source}): {err_msg}", flush=True)
+            if isinstance(event.data, ErrorEventData): # Check type
+                err_source = event.data.source 
+                err_msg = event.data.message 
+                print(f"Stream Error ({event_origin_agent_id}, Source: {err_source}): {err_msg}", flush=True)
+            else: # pragma: no cover
+                print(f"Stream Error ({event_origin_agent_id}): {event.data}", flush=True) # Fallback for unexpected data
+                logger.warning(f"[{self.cli_session_agent_id}] Received ERROR_EVENT with unexpected data type: {type(event.data)}")
+
             self.current_line_empty = True 
             self.agent_has_spoken_this_turn = False
             self.agent_turn_complete_event.set() 
         
-        else: # Should not happen
-            logger.warning(f"[{self.cli_session_agent_id}] CLI Manager: Unhandled StreamEvent type: {event.event_type}")
+        else: # pragma: no cover
+            logger.warning(f"[{self.cli_session_agent_id}] CLI Manager: Unhandled StreamEvent type: {event.event_type} with data type: {type(event.data)}")
             self.current_line_empty = True 
             self.agent_has_spoken_this_turn = False
 
@@ -179,7 +218,6 @@ async def run(
     agent_turn_complete_event = asyncio.Event()
     streamer = AgentEventStream(agent)
     
-    # Create the CLI Manager instance
     cli_manager = InteractiveCLIManager(
         agent=agent,
         agent_turn_complete_event=agent_turn_complete_event,
@@ -208,49 +246,23 @@ async def run(
         if not agent.is_running:
             agent.start()
             logger.info(f"[{cli_session_agent_id}] Waiting for agent to initialize and become IDLE...")
-            initial_idle_event = asyncio.Event()
             
-            # Use a temporary streamer for initial idle check to avoid consuming events meant for main processor
-            # OR rely on the main cli_manager to handle initial phase updates appropriately.
-            # For simplicity, we'll let the main event processor start and handle initial phases.
-            # The `wait_for_initial_idle` logic below uses the main streamer.
-            
-            async def wait_for_initial_idle_using_main_streamer():
-                # This function will now be simpler as handle_stream_event does the printing
-                async for event in streamer.all_events():
-                    await cli_manager.handle_stream_event(event) # Let manager print status
-                    if event.event_type == StreamEventType.AGENT_PHASE_UPDATE and \
-                       event.data.get('phase') == AgentOperationalPhase.IDLE.value:
-                        logger.info(f"[{cli_session_agent_id}] Agent confirmed IDLE. CLI ready.")
-                        initial_idle_event.set()
-                        return # Stop this temporary listener task
-                    elif event.event_type == StreamEventType.ERROR_EVENT:
-                        logger.error(f"[{cli_session_agent_id}] Error during agent initialization: {event.data.get('error')}")
-                        initial_idle_event.set() 
-                        return 
-            
-            # Start the main event processing task, it will handle initial phase messages.
             event_processing_task = asyncio.create_task(
                 process_agent_events_loop(), 
                 name=f"cli_event_processor_{cli_session_agent_id}"
             )
             
-            # Wait for the first IDLE event specifically for readiness before initial prompt
-            # This requires a way to "peek" or wait for a specific condition without fully consuming the main stream loop
-            # The original wait_for_initial_idle consuming `streamer.all_events()` was problematic as it would steal events
-            # from the main `process_agent_events_loop`.
-            # A simpler approach: The main loop will set agent_turn_complete_event when IDLE.
-            # We just need to wait for that.
-            
-            # Wait for the agent to become IDLE the first time.
-            # The `process_agent_events_loop` will set `agent_turn_complete_event` upon first IDLE.
             try:
                 await asyncio.wait_for(agent_turn_complete_event.wait(), timeout=30.0)
-                agent_turn_complete_event.clear() # Clear for subsequent turns
+                agent_turn_complete_event.clear() 
                 logger.info(f"[{cli_session_agent_id}] Agent confirmed IDLE. CLI ready.")
             except asyncio.TimeoutError:
                  logger.error(f"[{cli_session_agent_id}] Agent did not become IDLE within timeout during startup. CLI may not function correctly.")
-                 # The event_processing_task will continue running or fail based on agent's state.
+        else: # Agent already running
+            event_processing_task = asyncio.create_task(
+                process_agent_events_loop(), 
+                name=f"cli_event_processor_{cli_session_agent_id}"
+            )
 
 
         logger.info(f"Agent ({cli_session_agent_id}) is ready. Type your message or '/quit' to exit.")
@@ -323,4 +335,3 @@ async def run(
                 logger.error(f"[{cli_session_agent_id}] Error closing streamer: {e_close}", exc_info=True)
         cli_manager._ensure_new_line()
         logger.info(f"[{cli_session_agent_id}] Interactive session for agent '{cli_session_agent_id}' finished.")
-

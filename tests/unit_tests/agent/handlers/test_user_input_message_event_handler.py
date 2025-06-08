@@ -3,7 +3,7 @@ import logging
 from unittest.mock import MagicMock, AsyncMock, patch
 
 from autobyteus.agent.handlers.user_input_message_event_handler import UserInputMessageEventHandler
-from autobyteus.agent.events.agent_events import UserMessageReceivedEvent, LLMUserMessageReadyEvent, GenericEvent # UPDATED IMPORT
+from autobyteus.agent.events.agent_events import UserMessageReceivedEvent, LLMUserMessageReadyEvent, GenericEvent
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.llm.user_message import LLMUserMessage
 from autobyteus.agent.input_processor.base_user_input_processor import BaseAgentUserInputMessageProcessor
@@ -42,10 +42,10 @@ class AnotherMockInputProcessor(BaseAgentUserInputMessageProcessor):
 
 @pytest.fixture
 def user_input_handler(agent_context): 
+    # Ensure a fresh registry for each test if it's a singleton
+    if hasattr(AgentUserInputMessageProcessorRegistry, '_instance'): 
+        AgentUserInputMessageProcessorRegistry._instance = None 
     registry = AgentUserInputMessageProcessorRegistry()
-    if hasattr(AgentUserInputMessageProcessorRegistry, 'instance'): 
-        AgentUserInputMessageProcessorRegistry.instance = None 
-        registry = AgentUserInputMessageProcessorRegistry()
 
     MockInputProcessor.reset()
     mock_processor_def = AgentUserInputMessageProcessorDefinition(
@@ -74,19 +74,20 @@ async def test_handle_user_input_no_processors(user_input_handler: UserInputMess
     agent_input_msg = AgentInputUserMessage(content=original_content, image_urls=image_urls, context_files=context_files, metadata=metadata)
     event = UserMessageReceivedEvent(agent_input_user_message=agent_input_msg)
 
-    agent_context.config.definition.input_processor_names = [] # No processors
+    agent_context.definition.input_processor_names = [] # Use definition for names
+
+    # agent_context.input_event_queues.enqueue_internal_system_event is already an AsyncMock
 
     with caplog.at_level(logging.DEBUG): 
         await user_input_handler.handle(event, agent_context)
 
-    assert f"Agent '{agent_context.config.agent_id}' handling UserMessageReceivedEvent: '{original_content[:100]}...'" in caplog.text
+    assert f"Agent '{agent_context.agent_id}' handling UserMessageReceivedEvent: '{original_content[:100]}...'" in caplog.text
     assert "No input processors configured in agent definition." in caplog.text 
-    assert f"Agent '{agent_context.config.agent_id}' processed AgentInputUserMessage (using processors: []) and enqueued LLMUserMessageReadyEvent." in caplog.text # Updated event name in log
+    assert f"Agent '{agent_context.agent_id}' processed AgentInputUserMessage (processors: []) and enqueued LLMUserMessageReadyEvent." in caplog.text 
 
-    # Check enqueued LLMUserMessageReadyEvent
-    agent_context.state.queues.enqueue_internal_system_event.assert_called_once()
-    enqueued_event = agent_context.state.queues.enqueue_internal_system_event.call_args[0][0]
-    assert isinstance(enqueued_event, LLMUserMessageReadyEvent) # UPDATED TYPE CHECK
+    agent_context.input_event_queues.enqueue_internal_system_event.assert_called_once()
+    enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
+    assert isinstance(enqueued_event, LLMUserMessageReadyEvent) 
     assert isinstance(enqueued_event.llm_user_message, LLMUserMessage)
     assert enqueued_event.llm_user_message.content == original_content
     assert enqueued_event.llm_user_message.image_urls == image_urls
@@ -99,14 +100,14 @@ async def test_handle_user_input_with_one_processor(user_input_handler: UserInpu
     agent_input_msg = AgentInputUserMessage(content=original_content)
     event = UserMessageReceivedEvent(agent_input_user_message=agent_input_msg)
 
-    agent_context.config.definition.input_processor_names = ["mock_input_processor"]
+    agent_context.definition.input_processor_names = ["mock_input_processor"] # Use definition
 
     await user_input_handler.handle(event, agent_context)
 
     assert MockInputProcessor._processed_message_content == original_content 
 
-    enqueued_event = agent_context.state.queues.enqueue_internal_system_event.call_args[0][0]
-    assert isinstance(enqueued_event, LLMUserMessageReadyEvent) # UPDATED TYPE CHECK
+    enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
+    assert isinstance(enqueued_event, LLMUserMessageReadyEvent) 
     expected_processed_content = f"{MockInputProcessor._prefix_to_add}{original_content}"
     assert enqueued_event.llm_user_message.content == expected_processed_content
     
@@ -120,12 +121,12 @@ async def test_handle_user_input_with_multiple_processors(user_input_handler: Us
     agent_input_msg = AgentInputUserMessage(content=original_content)
     event = UserMessageReceivedEvent(agent_input_user_message=agent_input_msg)
 
-    agent_context.config.definition.input_processor_names = ["mock_input_processor", "another_mock_processor"]
+    agent_context.definition.input_processor_names = ["mock_input_processor", "another_mock_processor"] # Use definition
 
     await user_input_handler.handle(event, agent_context)
 
-    enqueued_event = agent_context.state.queues.enqueue_internal_system_event.call_args[0][0]
-    assert isinstance(enqueued_event, LLMUserMessageReadyEvent) # UPDATED TYPE CHECK
+    enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
+    assert isinstance(enqueued_event, LLMUserMessageReadyEvent) 
     expected_final_content = f"{MockInputProcessor._prefix_to_add}{original_content} [Another]"
     assert enqueued_event.llm_user_message.content == expected_final_content
 
@@ -139,15 +140,15 @@ async def test_handle_processor_not_in_registry(user_input_handler: UserInputMes
     agent_input_msg = AgentInputUserMessage(content=original_content)
     event = UserMessageReceivedEvent(agent_input_user_message=agent_input_msg)
 
-    agent_context.config.definition.input_processor_names = ["unknown_processor", "mock_input_processor"]
+    agent_context.definition.input_processor_names = ["unknown_processor", "mock_input_processor"] # Use definition
 
     with caplog.at_level(logging.WARNING): 
         await user_input_handler.handle(event, agent_context)
 
     assert "Input processor name 'unknown_processor' not found in registry. Skipping." in caplog.text
     
-    enqueued_event = agent_context.state.queues.enqueue_internal_system_event.call_args[0][0]
-    assert isinstance(enqueued_event, LLMUserMessageReadyEvent) # UPDATED TYPE CHECK
+    enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
+    assert isinstance(enqueued_event, LLMUserMessageReadyEvent) 
     expected_processed_content = f"{MockInputProcessor._prefix_to_add}{original_content}"
     assert enqueued_event.llm_user_message.content == expected_processed_content
     assert agent_input_msg.metadata["processed_by"] == "mock_input_processor"
@@ -160,7 +161,7 @@ async def test_handle_processor_raises_exception(user_input_handler: UserInputMe
     agent_input_msg = AgentInputUserMessage(content=original_content)
     event = UserMessageReceivedEvent(agent_input_user_message=agent_input_msg)
 
-    agent_context.config.definition.input_processor_names = ["mock_input_processor", "another_mock_processor"]
+    agent_context.definition.input_processor_names = ["mock_input_processor", "another_mock_processor"] # Use definition
 
     async def mock_process_error(self, message, context):
         raise ValueError("Simulated processor error")
@@ -175,9 +176,9 @@ async def test_handle_processor_raises_exception(user_input_handler: UserInputMe
         assert "Error applying input processor 'mock_input_processor': Simulated processor error." in caplog.text
         assert "Skipping this processor and continuing with message from before this processor." in caplog.text
 
-        enqueued_event = agent_context.state.queues.enqueue_internal_system_event.call_args[0][0]
-        assert isinstance(enqueued_event, LLMUserMessageReadyEvent) # UPDATED TYPE CHECK
-        expected_final_content = f"{original_content} [Another]" 
+        enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
+        assert isinstance(enqueued_event, LLMUserMessageReadyEvent) 
+        expected_final_content = f"{original_content} [Another]" # mock_input_processor fails, original_content passed to another_mock_processor
         assert enqueued_event.llm_user_message.content == expected_final_content
         
         assert "processed_by" not in agent_input_msg.metadata 
@@ -196,7 +197,7 @@ async def test_handle_invalid_event_type(user_input_handler: UserInputMessageEve
         await user_input_handler.handle(invalid_event, agent_context) 
     
     assert f"UserInputMessageEventHandler received non-UserMessageReceivedEvent: {type(invalid_event)}. Skipping." in caplog.text
-    agent_context.state.queues.enqueue_internal_system_event.assert_not_called()
+    agent_context.input_event_queues.enqueue_internal_system_event.assert_not_called()
 
 
 def test_user_input_handler_initialization(caplog):
@@ -204,4 +205,3 @@ def test_user_input_handler_initialization(caplog):
         handler = UserInputMessageEventHandler()
     assert "UserInputMessageEventHandler initialized." in caplog.text
     assert handler.input_processor_registry is not None 
-

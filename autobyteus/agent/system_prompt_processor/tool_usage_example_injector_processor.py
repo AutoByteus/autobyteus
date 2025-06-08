@@ -44,6 +44,11 @@ class ToolUsageExampleInjectorProcessor(BaseSystemPromptProcessor):
         param_name_lower = param_def.name.lower()
 
         if param_type == ParameterType.STRING:
+            # Heuristics based on parameter name for better examples. Order matters.
+            if "directory" in param_name_lower or "dir_path" in param_name_lower:
+                return "/path/to/example/directory/"
+            if "path" in param_name_lower or "file" in param_name_lower:
+                return "/path/to/example.txt"
             if "query" in param_name_lower: return "example search query"
             if "url" in param_name_lower: return "https://example.com"
             if "content" in param_name_lower: return "Example text content."
@@ -58,15 +63,12 @@ class ToolUsageExampleInjectorProcessor(BaseSystemPromptProcessor):
             return True 
         elif param_type == ParameterType.ENUM:
             return param_def.enum_values[0] if param_def.enum_values else "enum_value"
-        elif param_type == ParameterType.FILE_PATH:
-            return "/path/to/your/file.txt"
-        elif param_type == ParameterType.DIRECTORY_PATH:
-            return "/path/to/your/directory/"
+        # REMOVED: FILE_PATH and DIRECTORY_PATH specific types as they are now handled as STRING with name heuristics.
         elif param_type == ParameterType.OBJECT:
             return {"key1": "example_value", "key2": 100} 
         elif param_type == ParameterType.ARRAY:
             return ["example_item1", 2, True] 
-        return "placeholder_value" 
+        return "placeholder_value"
 
     def _generate_tool_example_xml(self, tool_instance: 'BaseTool') -> str:
         tool_name = tool_instance.get_name()

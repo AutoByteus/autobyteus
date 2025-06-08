@@ -200,6 +200,11 @@ async def test_llm_config_finalization_failure_invalid_model_name(
     agent_context.input_event_queues.enqueue_internal_system_event.assert_called_once()
     enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
     assert isinstance(enqueued_event, AgentErrorEvent)
-    assert enqueued_event.error_message == f"Invalid llm_model_name '{invalid_model_name_for_test}' for LLMConfig finalization."
-    # The actual exception caught and stringified would be the ValueError that the step raises after catching KeyError
-    assert enqueued_event.exception_details == str(ValueError(f"Invalid llm_model_name '{invalid_model_name_for_test}' for LLMConfig finalization."))
+
+    # The actual exception `e` is the ValueError raised within the step.
+    # The error_message is the formatted string including this exception `e`.
+    original_error = ValueError(f"Invalid llm_model_name '{invalid_model_name_for_test}' for LLMConfig finalization.")
+    expected_full_error_message = f"Agent '{agent_context.agent_id}': Critical failure during LLMConfig finalization: {original_error}"
+    assert enqueued_event.error_message == expected_full_error_message
+    
+    assert enqueued_event.exception_details == str(original_error)

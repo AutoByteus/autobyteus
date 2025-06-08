@@ -3,8 +3,8 @@ import asyncio
 import logging
 from typing import TypeVar, AsyncIterator, Union, Any
 
-# Import END_OF_STREAM_SENTINEL from its new location
-from autobyteus.agent.events.agent_output_data_manager import END_OF_STREAM_SENTINEL
+# REMOVED: Import of END_OF_STREAM_SENTINEL as it's no longer globally defined
+# from autobyteus.agent.events.agent_output_data_manager import END_OF_STREAM_SENTINEL
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +12,7 @@ T = TypeVar('T')
 
 async def stream_queue_items(
     queue: asyncio.Queue[Union[T, object]], 
-    sentinel: object, # Sentinel is passed in, so its definition location is less critical here
+    sentinel: object, 
     source_name: str = "unspecified_queue" 
 ) -> AsyncIterator[T]:
     """
@@ -22,7 +22,6 @@ async def stream_queue_items(
     Args:
         queue: The asyncio.Queue to stream items from.
         sentinel: The unique object used to signal the end of data in the queue.
-                 Typically this will be END_OF_STREAM_SENTINEL.
         source_name: An optional identifier for the queue source, used in logging.
 
     Yields:

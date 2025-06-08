@@ -38,7 +38,7 @@ class WebPagePDFGenerator(BaseTool, UIIntegrator):
         ))
         schema.add_parameter(ParameterDefinition(
             name="save_dir", 
-            param_type=ParameterType.DIRECTORY_PATH,
+            param_type=ParameterType.STRING, # MODIFIED from DIRECTORY_PATH
             description="The local directory path where the generated PDF will be saved. A filename will be auto-generated.",
             required=True
         ))

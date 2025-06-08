@@ -2,7 +2,7 @@
 import logging
 from typing import TYPE_CHECKING, List, Dict, Any, Optional
 
-from autobyteus.agent.phases import AgentOperationalPhase 
+from .phases import AgentOperationalPhase 
 
 # Forward references for type hinting within this module
 if TYPE_CHECKING:
@@ -11,9 +11,9 @@ if TYPE_CHECKING:
     from autobyteus.agent.registry.agent_definition import AgentDefinition
     from autobyteus.llm.base_llm import BaseLLM
     from autobyteus.tools.base_tool import BaseTool
-    # from autobyteus.agent.events.agent_event_queues import AgentEventQueues # REMOVED
-    from autobyteus.agent.events.agent_input_event_queue_manager import AgentInputEventQueueManager # ADDED
-    from autobyteus.agent.events.agent_output_data_manager import AgentOutputDataManager       # ADDED
+    from autobyteus.agent.events.agent_input_event_queue_manager import AgentInputEventQueueManager 
+    # AgentOutputDataManager is no longer exposed via AgentContext
+    # from autobyteus.agent.events.agent_output_data_manager import AgentOutputDataManager       
     from autobyteus.agent.tool_invocation import ToolInvocation
     from autobyteus.llm.utils.llm_config import LLMConfig
     from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
@@ -26,6 +26,8 @@ logger = logging.getLogger(__name__)
 class AgentContext:
     """
     Represents the complete operational context for a single agent instance.
+    Input event queues are initialized during the agent's bootstrap process.
+    Output data is now managed via events emitted by AgentExternalEventNotifier.
     """
     def __init__(self, config: 'AgentConfig', state: 'AgentRuntimeState'):
         from .agent_config import AgentConfig as AgentConfigClass 
@@ -80,17 +82,20 @@ class AgentContext:
     def llm_instance(self, value: Optional['BaseLLM']):
         self.state.llm_instance = value
 
-    # @property
-    # def queues(self) -> 'AgentEventQueues': # REMOVED OLD PROPERTY
-    #     return self.state.queues
-
     @property
-    def input_event_queues(self) -> 'AgentInputEventQueueManager': # ADDED
+    def input_event_queues(self) -> 'AgentInputEventQueueManager': 
+        if self.state.input_event_queues is None:
+            logger.critical(f"AgentContext for '{self.agent_id}': Attempted to access 'input_event_queues' before they were initialized by AgentWorker.")
+            raise RuntimeError(f"Agent '{self.agent_id}': Input event queues have not been initialized. This typically occurs during agent bootstrapping.")
         return self.state.input_event_queues
 
-    @property
-    def output_data_queues(self) -> 'AgentOutputDataManager': # ADDED
-        return self.state.output_data_queues
+    # REMOVED: output_data_queues property
+    # @property
+    # def output_data_queues(self) -> 'AgentOutputDataManager': 
+    #     if self.state.output_data_queues is None:
+    #         logger.critical(f"AgentContext for '{self.agent_id}': Attempted to access 'output_data_queues' before they were initialized by AgentWorker.")
+    #         raise RuntimeError(f"Agent '{self.agent_id}': Output data queues have not been initialized. This typically occurs during agent bootstrapping.")
+    #     return self.state.output_data_queues
 
     @property
     def current_phase(self) -> 'AgentOperationalPhase': 
@@ -104,6 +109,7 @@ class AgentContext:
 
     @property
     def phase_manager(self) -> Optional['AgentPhaseManager']: 
+        # Accessing phase_manager.notifier will be the way to emit output events
         return self.state.phase_manager_ref
 
 
@@ -156,8 +162,10 @@ class AgentContext:
         return self.state.retrieve_pending_tool_invocation(invocation_id)
 
     def __repr__(self) -> str:
+        input_q_status = "Initialized" if self.state.input_event_queues is not None else "Pending Init"
+        # REMOVED output_q_status from repr
         return (f"AgentContext(agent_id='{self.config.agent_id}', "
                 f"current_phase='{self.state.current_phase.value}', " 
                 f"llm_initialized={self.state.llm_instance is not None}, "
-                f"tools_initialized={self.state.tool_instances is not None})")
-
+                f"tools_initialized={self.state.tool_instances is not None}, "
+                f"input_queues_status='{input_q_status}')")
