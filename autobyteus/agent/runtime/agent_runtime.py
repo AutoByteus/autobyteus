@@ -94,9 +94,27 @@ class AgentRuntime:
             raise RuntimeError(f"Agent '{agent_id}' worker is not active.")
 
         def _coro_factory() -> Awaitable[Any]:
+            # This factory function creates the coroutine that will be scheduled on the worker's loop.
+            # It has special logic for the BootstrapAgentEvent.
+
+            # Special path for the BootstrapAgentEvent to solve the "chicken-and-egg" problem.
+            # This coroutine directly executes the bootstrap handler instead of enqueueing it.
+            if isinstance(event, BootstrapAgentEvent):
+                async def _bootstrap_coro():
+                    logger.info(f"AgentRuntime '{agent_id}': Executing bootstrap sequence directly in worker loop.")
+                    handler = self.event_handler_registry.get_handler(BootstrapAgentEvent)
+                    if handler:
+                        await handler.handle(event, self.context)
+                    else: # Should not happen with default factory
+                        logger.critical(f"CRITICAL: No handler found for BootstrapAgentEvent for agent '{agent_id}'. Agent cannot start.")
+                return _bootstrap_coro()
+
+            # Normal path for all other events.
+            # This coroutine enqueues the event into the now-existing queues.
             async def _enqueue_coro():
-                if not self.context.state.input_event_queues: # pragma: no cover
-                    logger.critical(f"AgentRuntime '{agent_id}': CRITICAL! Input event queues not initialized in worker loop when trying to enqueue {type(event).__name__}. Bootstrap failure.")
+                if not self.context.state.input_event_queues:
+                    # This is now a valid critical error for any non-bootstrap event.
+                    logger.critical(f"AgentRuntime '{agent_id}': CRITICAL! Input event queues not initialized for event {type(event).__name__}. This indicates a bootstrap failure or logic error.")
                     return 
                 
                 logger.debug(f"AgentRuntime '{agent_id}' (worker loop): Preparing to enqueue {type(event).__name__}.")
