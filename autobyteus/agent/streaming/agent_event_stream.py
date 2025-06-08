@@ -3,6 +3,7 @@ import asyncio
 import logging
 import traceback
 import functools 
+import queue as standard_queue
 from typing import AsyncIterator, Dict, Any, TYPE_CHECKING, List, Optional, Callable, Union
 
 from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
@@ -34,9 +35,9 @@ class AgentEventStream(EventEmitter):
     """
     Provides access to various output streams from an agent, unified into
     a single `all_events()` stream of `StreamEvent` objects.
-    It subscribes to events (phases and data) from the agent's
-    AgentExternalEventNotifier and manages internal queues to adapt
-    synchronous event emissions to its asynchronous streaming methods.
+    It subscribes to events from the agent's AgentExternalEventNotifier and uses
+    standard `queue.Queue` instances for thread-safe communication between the
+    synchronous event handler and asynchronous stream consumers.
     """
 
     def __init__(self, agent: 'Agent'): # pragma: no cover
@@ -49,11 +50,11 @@ class AgentEventStream(EventEmitter):
         self.agent_id: str = agent.agent_id
         
         self._loop = asyncio.get_event_loop() 
-        self._assistant_chunk_internal_q: asyncio.Queue[Union[ChunkResponse, object]] = asyncio.Queue()
-        self._assistant_final_message_internal_q: asyncio.Queue[Union[CompleteResponse, object]] = asyncio.Queue() # This queue still expects CompleteResponse
-        self._tool_log_internal_q: asyncio.Queue[Union[str, object]] = asyncio.Queue()
-        self._tool_approval_internal_q: asyncio.Queue[Union[Dict[str, Any], object]] = asyncio.Queue()
-        self._generic_stream_event_internal_q: asyncio.Queue[Union[StreamEvent, object]] = asyncio.Queue() 
+        self._assistant_chunk_internal_q: standard_queue.Queue[Union[ChunkResponse, object]] = standard_queue.Queue()
+        self._assistant_final_message_internal_q: standard_queue.Queue[Union[CompleteResponse, object]] = standard_queue.Queue()
+        self._tool_log_internal_q: standard_queue.Queue[Union[str, object]] = standard_queue.Queue()
+        self._tool_approval_internal_q: standard_queue.Queue[Union[Dict[str, Any], object]] = standard_queue.Queue()
+        self._generic_stream_event_internal_q: standard_queue.Queue[Union[StreamEvent, object]] = standard_queue.Queue()
 
         self._notifier: Optional['AgentExternalEventNotifier'] = None
         if agent.context and agent.context.phase_manager: 
@@ -79,7 +80,7 @@ class AgentEventStream(EventEmitter):
             EventType.AGENT_PHASE_ERROR_ENTERED,
             EventType.AGENT_DATA_ASSISTANT_CHUNK,
             EventType.AGENT_DATA_ASSISTANT_CHUNK_STREAM_END,
-            EventType.AGENT_DATA_ASSISTANT_COMPLETE_RESPONSE, # UPDATED EventType
+            EventType.AGENT_DATA_ASSISTANT_COMPLETE_RESPONSE,
             EventType.AGENT_DATA_TOOL_LOG,
             EventType.AGENT_DATA_TOOL_LOG_STREAM_END,
             EventType.AGENT_REQUEST_TOOL_INVOCATION_APPROVAL,
@@ -113,12 +114,6 @@ class AgentEventStream(EventEmitter):
                 logger.warning(f"AgentEventStream '{self.agent_id}': Failed to unsubscribe from {event_type_to_unsub.name} (may be harmless): {e}")
         self._registered_event_handlers.clear()
 
-    def _put_to_internal_q_threadsafe(self, queue: asyncio.Queue, item: Any):
-        try:
-            self._loop.call_soon_threadsafe(queue.put_nowait, item)
-        except Exception as e: # pragma: no cover
-            logger.error(f"AgentEventStream '{self.agent_id}': Error putting item to internal queue {queue}: {e}", exc_info=True)
-
     def _handle_notifier_event_sync(self, *args, event_type: EventType, object_id: Optional[str] = None, **received_kwargs: Any): 
         event_agent_id = received_kwargs.get("agent_id", self.agent_id) 
         actual_payload_content = received_kwargs.get("payload")
@@ -139,39 +134,39 @@ class AgentEventStream(EventEmitter):
             
             elif event_type == EventType.AGENT_DATA_ASSISTANT_CHUNK: 
                 if isinstance(actual_payload_content, ChunkResponse):
-                    self._put_to_internal_q_threadsafe(self._assistant_chunk_internal_q, actual_payload_content)
+                    self._assistant_chunk_internal_q.put(actual_payload_content)
                     typed_payload_for_stream_event = create_assistant_chunk_data(actual_payload_content)
                     stream_event_type_for_generic_stream = StreamEventType.ASSISTANT_CHUNK
                 else: 
                     logger.warning(f"AgentEventStream '{self.agent_id}': Expected ChunkResponse for AGENT_DATA_ASSISTANT_CHUNK, got {type(actual_payload_content)}.")
 
             elif event_type == EventType.AGENT_DATA_ASSISTANT_CHUNK_STREAM_END: 
-                self._put_to_internal_q_threadsafe(self._assistant_chunk_internal_q, _AES_INTERNAL_SENTINEL)
+                self._assistant_chunk_internal_q.put(_AES_INTERNAL_SENTINEL)
 
-            elif event_type == EventType.AGENT_DATA_ASSISTANT_COMPLETE_RESPONSE: # UPDATED EventType check
+            elif event_type == EventType.AGENT_DATA_ASSISTANT_COMPLETE_RESPONSE:
                 if isinstance(actual_payload_content, CompleteResponse):
-                    self._put_to_internal_q_threadsafe(self._assistant_final_message_internal_q, actual_payload_content) # Queue name is _assistant_final_message_internal_q
-                    self._put_to_internal_q_threadsafe(self._assistant_final_message_internal_q, _AES_INTERNAL_SENTINEL) 
-                    typed_payload_for_stream_event = create_assistant_complete_response_data(actual_payload_content) # UPDATED factory call
-                    stream_event_type_for_generic_stream = StreamEventType.ASSISTANT_COMPLETE_RESPONSE # UPDATED StreamEventType
+                    self._assistant_final_message_internal_q.put(actual_payload_content)
+                    self._assistant_final_message_internal_q.put(_AES_INTERNAL_SENTINEL) 
+                    typed_payload_for_stream_event = create_assistant_complete_response_data(actual_payload_content)
+                    stream_event_type_for_generic_stream = StreamEventType.ASSISTANT_COMPLETE_RESPONSE
                 else: 
                      logger.warning(f"AgentEventStream '{self.agent_id}': Expected CompleteResponse for AGENT_DATA_ASSISTANT_COMPLETE_RESPONSE, got {type(actual_payload_content)}.")
 
             elif event_type == EventType.AGENT_DATA_TOOL_LOG: 
                 typed_payload_for_stream_event = create_tool_interaction_log_entry_data(actual_payload_content)
                 if isinstance(actual_payload_content, str): 
-                    self._put_to_internal_q_threadsafe(self._tool_log_internal_q, actual_payload_content)
+                    self._tool_log_internal_q.put(actual_payload_content)
                 elif isinstance(actual_payload_content, dict) and 'log_entry' in actual_payload_content: 
-                    self._put_to_internal_q_threadsafe(self._tool_log_internal_q, actual_payload_content['log_entry'])
+                    self._tool_log_internal_q.put(actual_payload_content['log_entry'])
                 stream_event_type_for_generic_stream = StreamEventType.TOOL_INTERACTION_LOG_ENTRY
                 
             elif event_type == EventType.AGENT_DATA_TOOL_LOG_STREAM_END: 
-                self._put_to_internal_q_threadsafe(self._tool_log_internal_q, _AES_INTERNAL_SENTINEL)
+                self._tool_log_internal_q.put(_AES_INTERNAL_SENTINEL)
 
             elif event_type == EventType.AGENT_REQUEST_TOOL_INVOCATION_APPROVAL: 
                 if isinstance(actual_payload_content, dict):
-                    self._put_to_internal_q_threadsafe(self._tool_approval_internal_q, actual_payload_content) 
-                    self._put_to_internal_q_threadsafe(self._tool_approval_internal_q, _AES_INTERNAL_SENTINEL) 
+                    self._tool_approval_internal_q.put(actual_payload_content)
+                    self._tool_approval_internal_q.put(_AES_INTERNAL_SENTINEL) 
                     typed_payload_for_stream_event = create_tool_invocation_approval_requested_data(actual_payload_content)
                     stream_event_type_for_generic_stream = StreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED
                 else: 
@@ -211,7 +206,9 @@ class AgentEventStream(EventEmitter):
                     event_type=stream_event_type_for_generic_stream, 
                     data=typed_payload_for_stream_event
                 )
-                self._put_to_internal_q_threadsafe(self._generic_stream_event_internal_q, stream_event)
+                logger.debug(f"AgentEventStream '{self.agent_id}': Putting StreamEvent of type '{stream_event.event_type.value}' onto generic queue.")
+                self._generic_stream_event_internal_q.put(stream_event)
+                logger.debug(f"AgentEventStream '{self.agent_id}': Successfully put StreamEvent on generic queue.")
             except Exception as e_se: # pragma: no cover
                 logger.error(f"AgentEventStream '{self.agent_id}': Failed to create or enqueue StreamEvent for {stream_event_type_for_generic_stream.value}: {e_se}", exc_info=True)
 
@@ -229,7 +226,7 @@ class AgentEventStream(EventEmitter):
         ]
         for q in queues_to_signal:
             try:
-                await q.put(_AES_INTERNAL_SENTINEL)
+                await self._loop.run_in_executor(None, q.put, _AES_INTERNAL_SENTINEL)
             except Exception as e: 
                 logger.error(f"AgentEventStream '{self.agent_id}': Error putting sentinel to internal queue {q} during close: {e}", exc_info=True)
 
@@ -239,7 +236,7 @@ class AgentEventStream(EventEmitter):
         return stream_queue_items(self._assistant_chunk_internal_q, _AES_INTERNAL_SENTINEL, source_name)
 
     def stream_assistant_final_messages(self) -> AsyncIterator[CompleteResponse]: # pragma: no cover
-        source_name = f"agent_{self.agent_id}_internal_assistant_final_messages" # Name of queue is still "final_messages" internally for this specific typed stream
+        source_name = f"agent_{self.agent_id}_internal_assistant_final_messages"
         logger.debug(f"Providing stream from internal queue: {source_name}.")
         return stream_queue_items(self._assistant_final_message_internal_q, _AES_INTERNAL_SENTINEL, source_name)
 

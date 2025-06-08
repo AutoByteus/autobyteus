@@ -207,9 +207,6 @@ class AgentWorker:
         """Checks if the worker's thread is currently active."""
         return self._thread_future is not None and not self._thread_future.done()
 
-    # REMOVED _enqueue_sentinels_to_output_queues method as output queues are gone.
-    # Notifier events will signal stream ends.
-
     async def async_run(self) -> None:
         agent_id = self.context.agent_id
         if not self._async_stop_event: # pragma: no cover
@@ -230,13 +227,24 @@ class AgentWorker:
                         self.context.state.input_event_queues.get_next_input_event(), timeout=0.1
                     )
                 except asyncio.TimeoutError:
-                    if self._async_stop_event.is_set(): break 
+                    if self._async_stop_event.is_set(): break
+                    
                     current_q_phase = self.context.current_phase
+                    
+                    # **FIX**: Do not automatically transition to IDLE if the agent is in a state
+                    # that explicitly waits for external input, like AWAITING_TOOL_APPROVAL.
+                    phases_that_wait_for_external_input = [
+                        AgentOperationalPhase.AWAITING_TOOL_APPROVAL
+                    ]
+                    if current_q_phase in phases_that_wait_for_external_input:
+                        continue # Simply continue the loop, waiting for the external event.
+
+                    # Original logic for other processing phases that might be "stuck"
                     if current_q_phase and current_q_phase.is_processing() and \
                        not current_q_phase.is_terminal() and \
                        self.context.state.input_event_queues and \
-                       all(q.empty() for _, q in self.context.state.input_event_queues._input_queues if q is not None): # pragma: no cover
-                        if current_q_phase != AgentOperationalPhase.IDLE: # pragma: no cover
+                       all(q.empty() for _, q in self.context.state.input_event_queues._input_queues if q is not None):
+                        if current_q_phase != AgentOperationalPhase.IDLE:
                             if self.phase_manager: self.phase_manager.notify_processing_complete_and_idle()
                     continue 
                 except RuntimeError as e: 
@@ -289,8 +297,6 @@ class AgentWorker:
                     )
         finally:
             logger.info(f"AgentWorker '{agent_id}' async_run() loop is exiting. Async stop event set: {self._async_stop_event.is_set() if self._async_stop_event else 'N/A'}")
-            # REMOVED: await self._enqueue_sentinels_to_output_queues()
-            # Output streams now managed by notifier events.
             if self._async_stop_event and not self._async_stop_event.is_set() and \
                self.phase_manager and self.context.current_phase and not self.context.current_phase.is_terminal(): # pragma: no cover
                 logger.error(f"AgentWorker '{agent_id}': async_run loop ended prematurely without explicit async stop signal. This may indicate an issue.")

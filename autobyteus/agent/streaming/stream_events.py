@@ -113,7 +113,8 @@ class StreamEvent(BaseModel):
 
     class Config:
         populate_by_name = True 
-        use_enum_values = True 
+        # REMOVED: use_enum_values = True, as it was causing issues with the in-memory representation.
+        # Serialization to values should be handled explicitly at API/serialization boundaries if needed.
 
     def __repr__(self) -> str:
         return (f"<StreamEvent event_id='{self.event_id}', agent_id='{self.agent_id}', "

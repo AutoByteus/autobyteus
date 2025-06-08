@@ -43,70 +43,84 @@ except ImportError as e: # pragma: no cover
 
 # Logger for this script
 logger = logging.getLogger("run_poem_writer")
+# Logger for interactive CLI output
+interactive_logger = logging.getLogger("autobyteus.cli.interactive")
 
 def setup_logging(args: argparse.Namespace):
     """
-    Configure logging.
-    - Logs from this script ("run_poem_writer") go to console, respecting --debug.
-    - Logs from "autobyteus" namespace and "httpx" go to a file, respecting --debug for level.
-    - Critical errors from any logger may appear on console.
+    Configure logging for the interactive session.
+    - A dedicated "interactive" logger ("autobyteus.cli.interactive") handles unformatted conversational output.
+    - A standard console logger handles formatted logs from this script and the entire `autobyteus.cli` package.
+    - All other library logs (e.g., `autobyteus.agent`, `autobyteus.llm`) go to the specified file.
     """
+    # --- Clear existing handlers from all relevant loggers ---
+    loggers_to_clear = [
+        logging.getLogger(), # Root logger
+        logging.getLogger("autobyteus"),
+        logging.getLogger("autobyteus.cli"),
+        logging.getLogger("autobyteus.cli.interactive"),
+    ]
+    for l in loggers_to_clear:
+        if l.hasHandlers():
+            for handler in l.handlers[:]:
+                l.removeHandler(handler)
+                if hasattr(handler, 'close'): handler.close()
+
+    script_log_level = logging.DEBUG if args.debug else logging.INFO
+
+    # --- 1. Handler for unformatted interactive output (replicates print) ---
+    interactive_handler = logging.StreamHandler(sys.stdout)
+    # NO formatter, so it just prints the message as-is.
+    interactive_logger.addHandler(interactive_handler)
+    interactive_logger.setLevel(logging.INFO)
+    interactive_logger.propagate = False # Crucial: Don't let it bubble up to be formatted again.
+
+    # --- 2. Handler for formatted console logs (script + CLI debug) ---
     console_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
     
-    class ScriptConsoleFilter(logging.Filter):
+    class FormattedConsoleFilter(logging.Filter):
         def filter(self, record):
-            if record.name == "run_poem_writer":
+            # Allow messages from this script or from the entire `autobyteus.cli` package.
+            if record.name.startswith("run_poem_writer") or record.name.startswith("autobyteus.cli"):
                 return True
-            if record.levelno >= logging.CRITICAL:
+            if record.levelno >= logging.CRITICAL: # Always show critical errors
                 return True
             return False
 
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(console_formatter)
-    console_handler.addFilter(ScriptConsoleFilter())
+    formatted_console_handler = logging.StreamHandler(sys.stdout)
+    formatted_console_handler.setFormatter(console_formatter)
+    formatted_console_handler.addFilter(FormattedConsoleFilter())
     
+    # Attach this handler to the root logger.
     root_logger = logging.getLogger()
-    if root_logger.hasHandlers():
-        for handler in root_logger.handlers[:]: 
-            root_logger.removeHandler(handler)
-            if hasattr(handler, 'close'): handler.close() 
-            
-    root_logger.addHandler(console_handler) 
-    
-    script_log_level = logging.DEBUG if args.debug else logging.INFO
+    root_logger.addHandler(formatted_console_handler)
     root_logger.setLevel(script_log_level) 
-    logger.setLevel(script_log_level)
-
+    
+    # --- 3. Handler for the main agent log file ---
     log_file_path = Path(args.agent_log_file).resolve()
     log_file_path.parent.mkdir(parents=True, exist_ok=True)
     
     agent_file_handler = logging.FileHandler(log_file_path, mode='w')  
-    agent_file_formatter = logging.Formatter(
-        '%(asctime)s - %(levelname)s - %(name)s:%(lineno)d - %(message)s'
-    )
+    agent_file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s:%(lineno)d - %(message)s')
     agent_file_handler.setFormatter(agent_file_formatter)
-    
-    loggers_to_file_only = [
-        "autobyteus", 
-        "httpx"
-    ]
-    
-    # MODIFIED: File log level for autobyteus and httpx now respects args.debug
     file_log_level = logging.DEBUG if args.debug else logging.INFO
 
-    for logger_name in loggers_to_file_only:
-        mod_logger = logging.getLogger(logger_name)
-        if mod_logger.hasHandlers():
-            for handler in mod_logger.handlers[:]:
-                mod_logger.removeHandler(handler)
-                if hasattr(handler, 'close'): handler.close()
-        
-        mod_logger.addHandler(agent_file_handler)
-        mod_logger.setLevel(file_log_level) # MODIFIED
-        mod_logger.propagate = False 
+    # --- 4. Configure `autobyteus` package logging ---
+    # Attach the file handler to the top-level `autobyteus` logger.
+    autobyteus_logger = logging.getLogger("autobyteus")
+    autobyteus_logger.addHandler(agent_file_handler)
+    autobyteus_logger.setLevel(file_log_level)
+    autobyteus_logger.propagate = True # Allow propagation up to root.
+
+    # Specifically configure the `autobyteus.cli` logger.
+    # We want it to use the root's console handler, NOT the file handler.
+    cli_logger = logging.getLogger("autobyteus.cli")
+    cli_logger.setLevel(script_log_level)
+    cli_logger.propagate = True # This ensures it goes to the root logger's console handler.
+    # By not adding the file handler here, it won't write to the file.
     
-    logger.info(f"Core library logs (autobyteus, httpx) redirected to: {log_file_path} (level: {logging.getLevelName(file_log_level)})")
-    logger.info(f"Console output is for this script's messages (level: {logging.getLevelName(script_log_level)}) and critical system errors.")
+    logger.info(f"Core library logs (excluding CLI) redirected to: {log_file_path} (level: {logging.getLevelName(file_log_level)})")
+    logger.info(f"Console output is for this script's messages, CLI debug info, and interactive chat.")
 
 
 async def main(args: argparse.Namespace): # pragma: no cover
@@ -120,22 +134,14 @@ async def main(args: argparse.Namespace): # pragma: no cover
     poem_output_path = (output_dir_path / args.poem_filename).resolve()
     logger.info(f"Agent is instructed to save poems to: {poem_output_path} (will be overwritten on subsequent poems).")
     
-    # Assuming file_writer is a module containing a class like FileWriterTool
-    # If file_writer directly IS the tool class, then file_writer.get_name() is fine.
-    # For clarity, let's assume a class structure like autobyteus.tools.file_writer.FileWriterTool
-    try:
-        tool_class_name = file_writer.FileWriterTool.get_name()
-    except AttributeError:
-        # Fallback if file_writer is the tool class itself or has a module-level get_name
-        tool_class_name = file_writer.get_name()
-
+    # Simplified tool name retrieval
+    tool_class_name = file_writer.get_name()
 
     system_prompt = (
         f"You are an excellent poet. When given a topic, you must write a creative poem.\n"
-        f"After writing the poem, you MUST use the '{tool_class_name}' (described in the 'Tools' section below) to save your complete poem.\n"
-        f"When using the '{tool_class_name}', you MUST use the absolute file path '{poem_output_path.as_posix()}' for its 'file_path' argument.\n"
-        f"Do not ask for confirmation before using the tool. Execute the tool call directly.\n"
-        f"Respond only with the poem and the tool call, nothing else.\n\n"
+        f"After writing the poem, you MUST use the '{tool_class_name}' tool to save your complete poem.\n"
+        f"When using the '{tool_class_name}', you MUST use the absolute file path '{poem_output_path.as_posix()}' for its 'path' argument.\n"
+        f"Respond only with a tool call, nothing else.\n\n"
         f"You have access to the following tools:\n"
         f"{{{{tools}}}}\n\n" 
         f"{{{{tool_examples}}}}" 
@@ -202,13 +208,13 @@ if __name__ == "__main__": # pragma: no cover
     parser.add_argument("--poem-filename", type=str, default="poem_interactive.txt", help="Filename for the saved poem.")
     parser.add_argument("--llm-model", type=str, default="GPT_4o_API", help=f"The LLM model to use. Call --help-models for list.")
     parser.add_argument("--help-models", action="store_true", help="Display available LLM models and exit.")
-    parser.add_argument("--debug", action="store_true", help="Enable debug logging for script operations on console and for file logs.")
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging for script and library file logs. Isolates noisy queue logs to queue_logs.txt.")
     parser.add_argument("--no-tool-logs", action="store_true", 
                         help="Disable display of [Tool Log (...)] messages on the console by the agent_cli.")
     
     parser.add_argument("--agent-log-file", type=str, default="./agent_logs.txt", 
                        help="Path to the log file for autobyteus.* and httpx logs. (Default: ./agent_logs.txt)")
-
+    
     if "--help-models" in sys.argv:
         try:
             from autobyteus.llm.llm_factory import LLMFactory 
@@ -252,4 +258,3 @@ if __name__ == "__main__": # pragma: no cover
             except Exception as e_temp_cleanup:
                 logger.warning(f"Could not cleanup temporary directory {temp_dir_obj.name}: {e_temp_cleanup}")
         logger.info("Exiting script.")
-
