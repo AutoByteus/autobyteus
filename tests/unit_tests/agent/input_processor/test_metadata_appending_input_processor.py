@@ -3,22 +3,22 @@ from unittest.mock import MagicMock
 
 from autobyteus.agent.input_processor.metadata_appending_input_processor import MetadataAppendingInputProcessor
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
-from autobyteus.agent.context import AgentContext # MODIFIED IMPORT
-from autobyteus.agent.registry.agent_definition import AgentDefinition
+from autobyteus.agent.context import AgentContext 
+from autobyteus.agent.registry.agent_specification import AgentSpecification
 
 @pytest.fixture
-def mock_agent_definition() -> MagicMock:
-    """Fixture for a mock AgentDefinition."""
-    mock_def = MagicMock(spec=AgentDefinition)
-    mock_def.name = "test_definition_name_123"
-    return mock_def
+def mock_agent_specification() -> MagicMock:
+    """Fixture for a mock AgentSpecification."""
+    mock_spec = MagicMock(spec=AgentSpecification)
+    mock_spec.name = "test_specification_name_123"
+    return mock_spec
 
 @pytest.fixture
-def mock_agent_context(mock_agent_definition: MagicMock) -> MagicMock:
+def mock_agent_context(mock_agent_specification: MagicMock) -> MagicMock:
     """Fixture for a mock AgentContext."""
     mock_ctx = MagicMock(spec=AgentContext)
     mock_ctx.agent_id = "test_agent_id_abc"
-    mock_ctx.definition = mock_agent_definition
+    mock_ctx.specification = mock_agent_specification
     mock_ctx.custom_data = {} 
     return mock_ctx
 
@@ -33,7 +33,7 @@ async def test_metadata_appended_to_empty_metadata(
     mock_agent_context: MagicMock
 ):
     """
-    Tests that agent_id and definition_name are appended to an empty metadata dict.
+    Tests that agent_id and specification_name are appended to an empty metadata dict.
     """
     message = AgentInputUserMessage(content="Test content", metadata={})
     original_content = message.content
@@ -46,9 +46,9 @@ async def test_metadata_appended_to_empty_metadata(
     
     expected_metadata = {
         "processed_by_agent_id": mock_agent_context.agent_id,
-        "processed_with_definition": mock_agent_context.definition.name
+        "processed_with_specification": mock_agent_context.specification.name
     }
-    assert processed_message.metadata == expected_metadata, "Metadata should contain appended agent and definition info."
+    assert processed_message.metadata == expected_metadata, "Metadata should contain appended agent and specification info."
 
 @pytest.mark.asyncio
 async def test_metadata_appended_to_existing_metadata(
@@ -56,7 +56,7 @@ async def test_metadata_appended_to_existing_metadata(
     mock_agent_context: MagicMock
 ):
     """
-    Tests that agent_id and definition_name are appended to existing metadata,
+    Tests that agent_id and specification_name are appended to existing metadata,
     preserving original key-value pairs.
     """
     original_meta = {"user_id": "user123", "session_id": "session_abc"}
@@ -72,8 +72,8 @@ async def test_metadata_appended_to_existing_metadata(
     assert "processed_by_agent_id" in processed_message.metadata
     assert processed_message.metadata["processed_by_agent_id"] == mock_agent_context.agent_id
     
-    assert "processed_with_definition" in processed_message.metadata
-    assert processed_message.metadata["processed_with_definition"] == mock_agent_context.definition.name
+    assert "processed_with_specification" in processed_message.metadata
+    assert processed_message.metadata["processed_with_specification"] == mock_agent_context.specification.name
     
     assert len(processed_message.metadata) == len(original_meta) + 2, "Metadata should have original keys plus two new ones."
 
@@ -92,7 +92,7 @@ async def test_metadata_appended_when_message_metadata_is_none(
     
     expected_metadata = {
         "processed_by_agent_id": mock_agent_context.agent_id,
-        "processed_with_definition": mock_agent_context.definition.name
+        "processed_with_specification": mock_agent_context.specification.name
     }
     assert processed_message.metadata == expected_metadata, "Metadata should be initialized and contain new info."
 

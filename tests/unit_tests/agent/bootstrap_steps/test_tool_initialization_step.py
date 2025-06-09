@@ -23,7 +23,7 @@ async def test_tool_initialization_success_with_tools(
     mock_tool_instance: BaseTool,
     caplog
 ):
-    agent_context.definition.tool_names = ["tool1", "tool2"]
+    agent_context.specification.tool_names = ["tool1", "tool2"]
     mock_tool_registry.create_tool.side_effect = [mock_tool_instance, mock_tool_instance]
 
     with caplog.at_level(logging.INFO):
@@ -49,7 +49,7 @@ async def test_tool_initialization_success_no_tools(
     mock_phase_manager: AgentPhaseManager,
     caplog
 ):
-    agent_context.definition.tool_names = [] # No tools defined
+    agent_context.specification.tool_names = [] # No tools defined
 
     with caplog.at_level(logging.INFO):
         success = await tool_init_step.execute(agent_context, mock_phase_manager)
@@ -68,7 +68,7 @@ async def test_tool_initialization_failure_tool_creation_error(
     mock_tool_registry: ToolRegistry,
     caplog
 ):
-    agent_context.definition.tool_names = ["failing_tool"]
+    agent_context.specification.tool_names = ["failing_tool"]
     exception_message = "Tool creation failed in registry"
     mock_tool_registry.create_tool.side_effect = ValueError(exception_message)
 
@@ -96,7 +96,7 @@ async def test_tool_initialization_with_custom_config(
     mock_tool_registry: ToolRegistry,
     mock_tool_instance: BaseTool
 ):
-    agent_context.definition.tool_names = ["tool_with_config"]
+    agent_context.specification.tool_names = ["tool_with_config"]
     mock_custom_tool_config = {"tool_with_config": MagicMock()}
     agent_context.config.custom_tool_config = mock_custom_tool_config
     mock_tool_registry.create_tool.return_value = mock_tool_instance

@@ -74,7 +74,7 @@ async def test_handle_user_input_no_processors(user_input_handler: UserInputMess
     agent_input_msg = AgentInputUserMessage(content=original_content, image_urls=image_urls, context_files=context_files, metadata=metadata)
     event = UserMessageReceivedEvent(agent_input_user_message=agent_input_msg)
 
-    agent_context.definition.input_processor_names = [] # Use definition for names
+    agent_context.config.input_processor_names = [] 
 
     # agent_context.input_event_queues.enqueue_internal_system_event is already an AsyncMock
 
@@ -82,7 +82,7 @@ async def test_handle_user_input_no_processors(user_input_handler: UserInputMess
         await user_input_handler.handle(event, agent_context)
 
     assert f"Agent '{agent_context.agent_id}' handling UserMessageReceivedEvent: '{original_content[:100]}...'" in caplog.text
-    assert "No input processors configured in agent definition." in caplog.text 
+    assert "No input processors configured in agent specification." in caplog.text 
     assert f"Agent '{agent_context.agent_id}' processed AgentInputUserMessage (processors: []) and enqueued LLMUserMessageReadyEvent." in caplog.text 
 
     agent_context.input_event_queues.enqueue_internal_system_event.assert_called_once()
@@ -100,7 +100,7 @@ async def test_handle_user_input_with_one_processor(user_input_handler: UserInpu
     agent_input_msg = AgentInputUserMessage(content=original_content)
     event = UserMessageReceivedEvent(agent_input_user_message=agent_input_msg)
 
-    agent_context.definition.input_processor_names = ["mock_input_processor"] # Use definition
+    agent_context.config.input_processor_names = ["mock_input_processor"] 
 
     await user_input_handler.handle(event, agent_context)
 
@@ -121,7 +121,7 @@ async def test_handle_user_input_with_multiple_processors(user_input_handler: Us
     agent_input_msg = AgentInputUserMessage(content=original_content)
     event = UserMessageReceivedEvent(agent_input_user_message=agent_input_msg)
 
-    agent_context.definition.input_processor_names = ["mock_input_processor", "another_mock_processor"] # Use definition
+    agent_context.config.input_processor_names = ["mock_input_processor", "another_mock_processor"] 
 
     await user_input_handler.handle(event, agent_context)
 
@@ -140,7 +140,7 @@ async def test_handle_processor_not_in_registry(user_input_handler: UserInputMes
     agent_input_msg = AgentInputUserMessage(content=original_content)
     event = UserMessageReceivedEvent(agent_input_user_message=agent_input_msg)
 
-    agent_context.definition.input_processor_names = ["unknown_processor", "mock_input_processor"] # Use definition
+    agent_context.config.input_processor_names = ["unknown_processor", "mock_input_processor"] 
 
     with caplog.at_level(logging.WARNING): 
         await user_input_handler.handle(event, agent_context)
@@ -161,7 +161,7 @@ async def test_handle_processor_raises_exception(user_input_handler: UserInputMe
     agent_input_msg = AgentInputUserMessage(content=original_content)
     event = UserMessageReceivedEvent(agent_input_user_message=agent_input_msg)
 
-    agent_context.definition.input_processor_names = ["mock_input_processor", "another_mock_processor"] # Use definition
+    agent_context.config.input_processor_names = ["mock_input_processor", "another_mock_processor"] 
 
     async def mock_process_error(self, message, context):
         raise ValueError("Simulated processor error")
@@ -204,4 +204,4 @@ def test_user_input_handler_initialization(caplog):
     with caplog.at_level(logging.INFO):
         handler = UserInputMessageEventHandler()
     assert "UserInputMessageEventHandler initialized." in caplog.text
-    assert handler.input_processor_registry is not None 
+    assert handler.input_processor_registry is not None

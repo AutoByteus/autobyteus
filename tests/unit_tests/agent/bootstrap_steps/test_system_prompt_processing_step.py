@@ -8,6 +8,7 @@ from autobyteus.agent.events import AgentErrorEvent
 from autobyteus.agent.context import AgentContext
 from autobyteus.agent.context.agent_phase_manager import AgentPhaseManager
 from autobyteus.agent.system_prompt_processor import SystemPromptProcessorRegistry, BaseSystemPromptProcessor
+from autobyteus.agent.registry.agent_specification import AgentSpecification
 
 @pytest.fixture
 def mock_processor_instance_fixture(mock_system_prompt_processor_registry): # Renamed to avoid conflict if used directly in test
@@ -29,8 +30,8 @@ async def test_system_prompt_processing_success_with_processors(
     caplog
 ):
     original_prompt = "Initial prompt. {{placeholder}}"
-    agent_context.definition.system_prompt = original_prompt
-    agent_context.definition.system_prompt_processor_names = ["Processor1", "Processor2"]
+    agent_context.specification.system_prompt = original_prompt
+    agent_context.specification.system_prompt_processor_names = ["Processor1", "Processor2"]
     
     processed_by_p1 = "Processed by P1. {{placeholder}}"
     processed_by_p2 = "Final processed by P2."
@@ -83,15 +84,15 @@ async def test_system_prompt_processing_success_no_processors(
     caplog
 ):
     original_prompt = "Prompt without processors."
-    agent_context.definition.system_prompt = original_prompt
-    agent_context.definition.system_prompt_processor_names = [] 
+    agent_context.specification.system_prompt = original_prompt
+    agent_context.specification.system_prompt_processor_names = [] 
 
     with caplog.at_level(logging.DEBUG):
         success = await prompt_proc_step.execute(agent_context, mock_phase_manager)
 
     assert success is True
     mock_phase_manager.notify_initializing_prompt.assert_called_once()
-    assert "No system prompt processors configured. Using system prompt template as is." in caplog.text
+    assert "No system prompt processors configured. Using system prompt as is." in caplog.text
     assert agent_context.state.processed_system_prompt == original_prompt
     agent_context.input_event_queues.enqueue_internal_system_event.assert_not_called()
 
@@ -104,9 +105,9 @@ async def test_system_prompt_processing_failure_individual_processor_error(
     mock_processor_instance_fixture: BaseSystemPromptProcessor,
     caplog
 ):
-    agent_context.definition.system_prompt = "Prompt that will fail."
+    agent_context.specification.system_prompt = "Prompt that will fail."
     processor_name_that_fails = "FailingProcessor"
-    agent_context.definition.system_prompt_processor_names = [processor_name_that_fails]
+    agent_context.specification.system_prompt_processor_names = [processor_name_that_fails]
     exception_message = "Processor internal error"
     
     mock_processor_instance_fixture.process.side_effect = ValueError(exception_message)
@@ -135,9 +136,9 @@ async def test_system_prompt_processing_failure_processor_not_found(
     mock_system_prompt_processor_registry: SystemPromptProcessorRegistry,
     caplog
 ):
-    agent_context.definition.system_prompt = "Prompt with missing processor."
+    agent_context.specification.system_prompt = "Prompt with missing processor."
     processor_name_not_found = "MissingProcessor"
-    agent_context.definition.system_prompt_processor_names = [processor_name_not_found]
+    agent_context.specification.system_prompt_processor_names = [processor_name_not_found]
     
     mock_system_prompt_processor_registry.get_processor.return_value = None # Simulate processor not found
 
@@ -164,26 +165,23 @@ async def test_system_prompt_processing_failure_step_setup_error(
     mock_system_prompt_processor_registry: SystemPromptProcessorRegistry, # Keep this to allow prompt_proc_step init
     caplog
 ):
-    # Simulate an error before the processor loop, e.g., accessing a misconfigured definition
-    # For this, we can make context.definition.system_prompt raise an error when accessed
+    # Simulate an error before the processor loop, e.g., accessing a misconfigured specification
+    # For this, we can make agent_context.specification.system_prompt raise an error when accessed
     
-    # To reliably cause an error in the step's outer try-block before the loop:
-    # Let's make `agent_context.definition.system_prompt` itself be a property that raises an error
-    
-    original_definition = agent_context.definition 
-    faulty_definition_mock = MagicMock(spec=type(original_definition)) # Mock to replace definition
-    faulty_definition_mock.system_prompt_processor_names = ["AnyProcessor"] # Needed to enter the loop part of try
+    original_specification = agent_context.specification 
+    faulty_specification_mock = MagicMock(spec=type(original_specification)) # Mock to replace specification
+    faulty_specification_mock.system_prompt_processor_names = ["AnyProcessor"] # Needed to enter the loop part of try
     
     # Make accessing 'system_prompt' on this mock raise an error
-    setup_error_message = "Faulty definition access"
-    type(faulty_definition_mock).system_prompt = property(fget=MagicMock(side_effect=AttributeError(setup_error_message)))
+    setup_error_message = "Faulty specification access"
+    type(faulty_specification_mock).system_prompt = property(fget=MagicMock(side_effect=AttributeError(setup_error_message)))
     
-    agent_context.definition = faulty_definition_mock # Temporarily replace definition on context
+    agent_context.specification = faulty_specification_mock # Temporarily replace specification on context
 
     with caplog.at_level(logging.ERROR):
         success = await prompt_proc_step.execute(agent_context, mock_phase_manager)
     
-    agent_context.definition = original_definition # Restore original definition
+    agent_context.specification = original_specification # Restore original specification
 
     assert success is False
     mock_phase_manager.notify_initializing_prompt.assert_called_once() 
@@ -196,4 +194,3 @@ async def test_system_prompt_processing_failure_step_setup_error(
     assert isinstance(enqueued_event, AgentErrorEvent)
     assert enqueued_event.error_message == expected_error_log
     assert enqueued_event.exception_details == str(AttributeError(setup_error_message))
-

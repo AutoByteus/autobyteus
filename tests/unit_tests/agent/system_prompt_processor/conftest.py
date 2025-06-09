@@ -5,9 +5,9 @@ from ._test_helpers import MockTool
 
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
-from autobyteus.agent.context import AgentContext # For mock_context_for_system_prompt_processors
-from autobyteus.agent.registry.agent_definition import AgentDefinition # For mock_context_for_system_prompt_processors
-from unittest.mock import MagicMock # For mock_context_for_system_prompt_processors
+from autobyteus.agent.context import AgentContext 
+from autobyteus.agent.registry.agent_specification import AgentSpecification 
+from unittest.mock import MagicMock 
 
 
 @pytest.fixture
@@ -70,15 +70,15 @@ def mock_context_for_system_prompt_processors_factory():
     Allows specifying the use_xml_tool_format flag.
     """
     def _factory(use_xml_format: bool = True):
-        mock_definition = MagicMock(spec=AgentDefinition)
-        mock_definition.use_xml_tool_format = use_xml_format
-        # Add other AgentDefinition attributes if processors use them
-        mock_definition.name = "test_def_for_spp"
-        mock_definition.role = "spp_tester"
+        mock_specification = MagicMock(spec=AgentSpecification)
+        mock_specification.use_xml_tool_format = use_xml_format
+        # Add other AgentSpecification attributes if processors use them
+        mock_specification.name = "test_spec_for_spp"
+        mock_specification.role = "spp_tester"
 
         mock_context = MagicMock(spec=AgentContext)
         mock_context.agent_id = "spp_agent_123"
-        mock_context.definition = mock_definition
+        mock_context.specification = mock_specification
         # Mock other context attributes if processors use them (e.g., context.custom_data)
         mock_context.custom_data = {}
         return mock_context

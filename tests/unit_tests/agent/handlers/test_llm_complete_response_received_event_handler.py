@@ -63,7 +63,7 @@ def llm_complete_handler(agent_context):
     handler = LLMCompleteResponseReceivedEventHandler()
     handler.llm_response_processor_registry = registry 
 
-    agent_context.definition.llm_response_processor_names = ["mock_processor"]
+    agent_context.specification.llm_response_processor_names = ["mock_processor"]
     # Ensure notifier is mocked on phase_manager
     if not hasattr(agent_context.phase_manager, 'notifier') or not isinstance(agent_context.phase_manager.notifier, MagicMock):
         agent_context.phase_manager.notifier = AsyncMock() # Use AsyncMock for notifier methods
@@ -146,18 +146,18 @@ async def test_handle_error_response_event(llm_complete_handler: LLMCompleteResp
 
 @pytest.mark.asyncio
 async def test_handle_no_processors_configured(llm_complete_handler: LLMCompleteResponseReceivedEventHandler, agent_context, caplog):
-    """Test behavior when agent_definition has no llm_response_processor_names."""
+    """Test behavior when agent_specification has no llm_response_processor_names."""
     response_text = "Response when no processors are configured."
     event = LLMCompleteResponseReceivedEvent(complete_response_text=response_text)
     
-    agent_context.definition.llm_response_processor_names = [] 
+    agent_context.specification.llm_response_processor_names = [] 
 
     MockLLMResponseProcessor._should_handle = False 
 
     with caplog.at_level(logging.DEBUG): 
         await llm_complete_handler.handle(event, agent_context)
 
-    assert "No llm_response_processor_names configured in agent definition." in caplog.text
+    assert "No llm_response_processor_names configured in agent specification." in caplog.text
     assert "Emitting the current LLM response as a complete response for this leg." in caplog.text # Updated log
 
     assert MockLLMResponseProcessor._processed_text is None
@@ -174,13 +174,13 @@ async def test_handle_processor_not_in_registry(llm_complete_handler: LLMComplet
     response_text = "Response with unknown processor."
     event = LLMCompleteResponseReceivedEvent(complete_response_text=response_text)
     
-    agent_context.definition.llm_response_processor_names = ["unknown_processor", "mock_processor"]
+    agent_context.specification.llm_response_processor_names = ["unknown_processor", "mock_processor"]
     MockLLMResponseProcessor._should_handle = False 
 
     with caplog.at_level(logging.DEBUG): 
         await llm_complete_handler.handle(event, agent_context)
 
-    assert "LLMResponseProcessor name 'unknown_processor' defined in agent_definition not found in registry." in caplog.text
+    assert "LLMResponseProcessor name 'unknown_processor' defined in agent_specification not found in registry." in caplog.text
     assert "LLMResponseProcessor 'mock_processor' did not handle the response." in caplog.text
     assert "Emitting the current LLM response as a complete response for this leg." in caplog.text 
 
@@ -196,7 +196,7 @@ async def test_handle_processor_raises_exception(llm_complete_handler: LLMComple
     response_text = "Response that causes processor error."
     event = LLMCompleteResponseReceivedEvent(complete_response_text=response_text)
     
-    agent_context.definition.llm_response_processor_names = ["mock_processor"]
+    agent_context.specification.llm_response_processor_names = ["mock_processor"]
     
     async def mock_process_response_error(self, response, context):
         raise ValueError("Simulated processor error")
@@ -230,4 +230,3 @@ def test_llm_complete_handler_initialization(caplog):
         handler = LLMCompleteResponseReceivedEventHandler()
     assert "LLMCompleteResponseReceivedEventHandler initialized." in caplog.text
     assert handler.llm_response_processor_registry is not None
-

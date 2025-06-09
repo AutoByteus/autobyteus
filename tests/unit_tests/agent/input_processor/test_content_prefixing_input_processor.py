@@ -3,23 +3,23 @@ from unittest.mock import MagicMock, patch
 
 from autobyteus.agent.input_processor.content_prefixing_input_processor import ContentPrefixingInputProcessor
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
-from autobyteus.agent.context import AgentContext # MODIFIED IMPORT
-from autobyteus.agent.registry.agent_definition import AgentDefinition
+from autobyteus.agent.context import AgentContext 
+from autobyteus.agent.registry.agent_specification import AgentSpecification
 
 @pytest.fixture
-def mock_agent_definition() -> MagicMock:
-    """Fixture for a mock AgentDefinition."""
-    mock_def = MagicMock(spec=AgentDefinition)
-    mock_def.name = "prefix_test_definition"
-    return mock_def
+def mock_agent_specification() -> MagicMock:
+    """Fixture for a mock AgentSpecification."""
+    mock_spec = MagicMock(spec=AgentSpecification)
+    mock_spec.name = "prefix_test_specification"
+    return mock_spec
 
 @pytest.fixture
-def mock_agent_context_factory(mock_agent_definition: MagicMock):
+def mock_agent_context_factory(mock_agent_specification: MagicMock):
     """Factory fixture to create mock AgentContext with custom_data."""
     def _factory(custom_data: dict = None): 
         mock_ctx = MagicMock(spec=AgentContext)
         mock_ctx.agent_id = "prefix_agent_789"
-        mock_ctx.definition = mock_agent_definition
+        mock_ctx.specification = mock_agent_specification
         mock_ctx.custom_data = custom_data if custom_data is not None else {} 
         return mock_ctx
     return _factory

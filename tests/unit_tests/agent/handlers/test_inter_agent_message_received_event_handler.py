@@ -17,7 +17,7 @@ async def test_handle_inter_agent_message_success(inter_agent_handler: InterAgen
     sender_id = "sender_agent_123"
     content = "This is a test message from another agent."
     message_type = InterAgentMessageType.TASK_ASSIGNMENT
-    recipient_role = agent_context.definition.role # Use definition for role
+    recipient_role = agent_context.specification.role # Use specification for role
 
     inter_agent_msg = InterAgentMessage(
         sender_agent_id=sender_id,
