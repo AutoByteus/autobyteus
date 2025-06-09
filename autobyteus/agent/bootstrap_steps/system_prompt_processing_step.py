@@ -31,16 +31,14 @@ class SystemPromptProcessingStep(BaseBootstrapStep):
         logger.info(f"Agent '{agent_id}': Executing SystemPromptProcessingStep.")
 
         try:
-            # UPDATED: Get system prompt based on the agent's configured LLM model.
-            llm_model_name_for_prompt = context.config.llm_model_name
-            current_system_prompt = context.definition.get_system_prompt(llm_model_name_for_prompt)
-            logger.debug(f"Agent '{agent_id}': Retrieved system prompt for model '{llm_model_name_for_prompt}'.")
+            current_system_prompt = context.definition.system_prompt
+            logger.debug(f"Agent '{agent_id}': Retrieved system prompt from agent definition.")
             
             processor_names_to_apply = context.definition.system_prompt_processor_names
             tool_instances_for_processor = context.tool_instances # Assumes tools are already initialized
 
             if not processor_names_to_apply:
-                logger.debug(f"Agent '{agent_id}': No system prompt processors configured. Using retrieved system prompt as is.")
+                logger.debug(f"Agent '{agent_id}': No system prompt processors configured. Using system prompt as is.")
             else:
                 logger.debug(f"Agent '{agent_id}': Applying system prompt processors: {processor_names_to_apply}")
                 for processor_name in processor_names_to_apply:

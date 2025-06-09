@@ -157,8 +157,7 @@ async def main(args: argparse.Namespace): # pragma: no cover
     
     tool_class_name = file_writer.get_name()
 
-    # The system prompt now serves as the default.
-    default_system_prompt = (
+    system_prompt = (
         f"You are an excellent poet. When given a topic, you must write a creative poem.\n"
         f"After writing the poem, you MUST use the '{tool_class_name}' tool to save your complete poem.\n"
         f"When using the '{tool_class_name}', you MUST use the absolute file path '{poem_output_path.as_posix()}' for its 'path' argument.\n"
@@ -173,7 +172,7 @@ async def main(args: argparse.Namespace): # pragma: no cover
         name=poem_writer_def_name,
         role="CreativePoetInteractive",
         description="An agent that writes poems on specified topics and saves them to disk, interactively.",
-        default_system_prompt=default_system_prompt, # UPDATED parameter name
+        system_prompt=system_prompt,
         tool_names=[tool_class_name] 
     )
     logger.info(f"AgentDefinition created: {poem_writer_def.name} using tool name '{tool_class_name}'")
@@ -279,3 +278,4 @@ if __name__ == "__main__": # pragma: no cover
             except Exception as e_temp_cleanup:
                 logger.warning(f"Could not cleanup temporary directory {temp_dir_obj.name}: {e_temp_cleanup}")
         logger.info("Exiting script.")
+
