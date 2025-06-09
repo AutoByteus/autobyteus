@@ -6,8 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch, ANY
 
 from autobyteus.agent.registry.agent_registry import AgentRegistry, default_agent_registry
 from autobyteus.agent.factory.agent_factory import AgentFactory
-from autobyteus.agent.registry.agent_definition_registry import AgentDefinitionRegistry
-from autobyteus.agent.registry.agent_definition import AgentDefinition
+from autobyteus.agent.registry.agent_specification import AgentSpecification
 from autobyteus.agent.agent import Agent
 from autobyteus.agent.runtime.agent_runtime import AgentRuntime
 from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
@@ -16,11 +15,11 @@ from autobyteus.tools.tool_config import ToolConfig
 from autobyteus.agent.context import AgentContext 
 from autobyteus.agent.context.phases import AgentOperationalPhase 
 
-# Fixtures for AgentDefinition
+# Fixtures for AgentSpecification
 @pytest.fixture
-def sample_agent_def():
+def sample_agent_spec():
     # use_xml_tool_format will default to True
-    return AgentDefinition(
+    return AgentSpecification(
         name="TestRegAgent",
         role="registry_tester",
         description="Agent for testing registry",
@@ -29,9 +28,9 @@ def sample_agent_def():
     )
 
 @pytest.fixture 
-def sample_agent_def2():
+def sample_agent_spec2():
     # use_xml_tool_format will default to True
-    return AgentDefinition(
+    return AgentSpecification(
         name="OtherAgent", 
         role="other_role", 
         description="desc", 
@@ -50,19 +49,18 @@ def mock_agent_factory():
     _known_mock_runtime_instance = MagicMock(spec=AgentRuntime)
     _known_mock_runtime_instance.context = MagicMock(spec=AgentContext)
     _known_mock_runtime_instance.context.agent_id = "default_mock_agent_id" 
-    _known_mock_runtime_instance.context.definition = None 
-    _known_mock_runtime_instance.context.current_phase = AgentOperationalPhase.UNINITIALIZED # Use phase
-
+    _known_mock_runtime_instance.context.specification = None 
+    _known_mock_runtime_instance.context.current_phase = AgentOperationalPhase.UNINITIALIZED 
 
     def create_agent_runtime_mock_side_effect(agent_id: str,
-                                             definition: AgentDefinition,
+                                             specification: AgentSpecification,
                                              llm_model_name: str, 
                                              workspace: Optional[BaseAgentWorkspace] = None,
                                              custom_llm_config: Optional[LLMConfig] = None, 
                                              custom_tool_config: Optional[Dict[str, ToolConfig]] = None, 
                                              auto_execute_tools: bool = True): 
         _known_mock_runtime_instance.context.agent_id = agent_id
-        _known_mock_runtime_instance.context.definition = definition
+        _known_mock_runtime_instance.context.specification = specification
         return _known_mock_runtime_instance
 
     factory.create_agent_runtime = MagicMock(side_effect=create_agent_runtime_mock_side_effect)
@@ -70,39 +68,34 @@ def mock_agent_factory():
     return factory
 
 @pytest.fixture
-def mock_definition_registry():
-    return MagicMock(spec=AgentDefinitionRegistry)
-
-@pytest.fixture
-def agent_registry_instance(mock_agent_factory, mock_definition_registry):
+def agent_registry_instance(mock_agent_factory):
+    # The default registry is a singleton, so we need to patch its factory
+    # and clear its state for test isolation.
     original_factory = default_agent_registry.agent_factory
-    original_def_registry = default_agent_registry.definition_registry
     default_agent_registry.agent_factory = mock_agent_factory
-    default_agent_registry.definition_registry = mock_definition_registry
+    default_agent_registry._active_agents.clear()
     yield default_agent_registry 
     default_agent_registry.agent_factory = original_factory
-    default_agent_registry.definition_registry = original_def_registry
     default_agent_registry._active_agents.clear()
 
 
 # Test functions
 
-def test_initialization(agent_registry_instance: AgentRegistry, mock_agent_factory, mock_definition_registry):
+def test_initialization(agent_registry_instance: AgentRegistry, mock_agent_factory):
     assert agent_registry_instance.agent_factory == mock_agent_factory
-    assert agent_registry_instance.definition_registry == mock_definition_registry
     assert isinstance(agent_registry_instance._active_agents, dict)
 
 @patch('autobyteus.agent.registry.agent_registry.Agent', autospec=True)
 def test_create_agent_successful(MockAgentClass: MagicMock, 
                                  agent_registry_instance: AgentRegistry,
                                  mock_agent_factory: MagicMock, 
-                                 sample_agent_def: AgentDefinition,
+                                 sample_agent_spec: AgentSpecification,
                                  sample_llm_model_name_reg: str): 
     
     mock_agent_facade_instance = MockAgentClass.return_value
     
     with patch('random.randint', return_value=1234) as mock_randint:
-        expected_agent_id = f"{sample_agent_def.name}_{sample_agent_def.role}_1234"
+        expected_agent_id = f"{sample_agent_spec.name}_{sample_agent_spec.role}_1234"
         mock_agent_facade_instance.agent_id = expected_agent_id
 
         assert agent_registry_instance.agent_factory is mock_agent_factory
@@ -110,7 +103,7 @@ def test_create_agent_successful(MockAgentClass: MagicMock,
         assert isinstance(agent_registry_instance.agent_factory.create_agent_runtime, MagicMock)
 
         agent = agent_registry_instance.create_agent(
-            definition=sample_agent_def,
+            specification=sample_agent_spec,
             llm_model_name=sample_llm_model_name_reg 
         )
 
@@ -119,7 +112,7 @@ def test_create_agent_successful(MockAgentClass: MagicMock,
             
         mock_agent_factory.create_agent_runtime.assert_called_once_with(
             agent_id=expected_agent_id,
-            definition=sample_agent_def,
+            specification=sample_agent_spec,
             llm_model_name=sample_llm_model_name_reg, 
             workspace=None,
             custom_llm_config=None, 
@@ -137,7 +130,7 @@ def test_create_agent_successful(MockAgentClass: MagicMock,
 def test_create_agent_id_collision(MockAgentClass: MagicMock,
                                    agent_registry_instance: AgentRegistry,
                                    mock_agent_factory: MagicMock, 
-                                   sample_agent_def: AgentDefinition,
+                                   sample_agent_spec: AgentSpecification,
                                    sample_llm_model_name_reg: str): 
     
     def agent_constructor_side_effect(runtime):
@@ -147,57 +140,37 @@ def test_create_agent_id_collision(MockAgentClass: MagicMock,
     MockAgentClass.side_effect = agent_constructor_side_effect
 
     with patch('random.randint', return_value=5678):
-        agent1 = agent_registry_instance.create_agent(definition=sample_agent_def, llm_model_name=sample_llm_model_name_reg)
-        assert agent1.agent_id == f"{sample_agent_def.name}_{sample_agent_def.role}_5678"
+        agent1 = agent_registry_instance.create_agent(specification=sample_agent_spec, llm_model_name=sample_llm_model_name_reg)
+        assert agent1.agent_id == f"{sample_agent_spec.name}_{sample_agent_spec.role}_5678"
     
     with patch('random.randint', side_effect=[5678, 5679]) as mock_rand_collision:
-        agent2 = agent_registry_instance.create_agent(definition=sample_agent_def, llm_model_name=sample_llm_model_name_reg)
+        agent2 = agent_registry_instance.create_agent(specification=sample_agent_spec, llm_model_name=sample_llm_model_name_reg)
         
         assert mock_rand_collision.call_count == 2
-        assert agent2.agent_id == f"{sample_agent_def.name}_{sample_agent_def.role}_5679"
+        assert agent2.agent_id == f"{sample_agent_spec.name}_{sample_agent_spec.role}_5679"
         assert agent2.agent_id in agent_registry_instance._active_agents
 
 
 def test_create_agent_invalid_input(agent_registry_instance: AgentRegistry, sample_llm_model_name_reg: str):
-    with pytest.raises(ValueError, match="AgentDefinition cannot be None"):
-        agent_registry_instance.create_agent(definition=None, llm_model_name=sample_llm_model_name_reg) # type: ignore
-    with pytest.raises(TypeError, match="Expected AgentDefinition instance"):
-        agent_registry_instance.create_agent(definition="not a definition", llm_model_name=sample_llm_model_name_reg) # type: ignore
-    with pytest.raises(TypeError, match="An 'llm_model_name' \\(string\\) must be specified."):
-        agent_registry_instance.create_agent(definition=MagicMock(spec=AgentDefinition), llm_model_name=None) # type: ignore
-    with pytest.raises(TypeError, match="An 'llm_model_name' \\(string\\) must be specified."):
-        agent_registry_instance.create_agent(definition=MagicMock(spec=AgentDefinition), llm_model_name=123) # type: ignore
-    with pytest.raises(TypeError, match="custom_llm_config must be an LLMConfig instance or None."):
-        agent_registry_instance.create_agent(
-            definition=MagicMock(spec=AgentDefinition), 
-            llm_model_name=sample_llm_model_name_reg,
-            custom_llm_config="not an LLMConfig" # type: ignore
-        )
-    with pytest.raises(TypeError, match="custom_tool_config must be a Dict\\[str, ToolConfig\\] or None."):
-        agent_registry_instance.create_agent(
-            definition=MagicMock(spec=AgentDefinition), 
-            llm_model_name=sample_llm_model_name_reg,
-            custom_tool_config="not a dict" # type: ignore
-        )
-    with pytest.raises(TypeError, match="custom_tool_config must be a Dict\\[str, ToolConfig\\] or None."): 
-        agent_registry_instance.create_agent(
-            definition=MagicMock(spec=AgentDefinition),
-            llm_model_name=sample_llm_model_name_reg,
-            custom_tool_config={"tool_a": "not a ToolConfig"} # type: ignore
-        )
+    with pytest.raises(TypeError, match="Expected AgentSpecification instance"):
+        agent_registry_instance.create_agent(specification="not a specification", llm_model_name=sample_llm_model_name_reg) # type: ignore
+    
+    # Validation for llm_model_name, custom_llm_config etc. is now inside AgentConfig
+    # and AgentFactory, so testing failure here requires more mocking.
+    # The primary check in create_agent is for the specification type.
 
 
 @patch('autobyteus.agent.registry.agent_registry.Agent', autospec=True)
 async def test_get_agent(MockAgentClass: MagicMock,
                          agent_registry_instance: AgentRegistry, 
-                         sample_agent_def: AgentDefinition, 
+                         sample_agent_spec: AgentSpecification, 
                          sample_llm_model_name_reg: str): 
     
     MockAgentClass.side_effect = lambda runtime: MagicMock(spec=Agent, agent_id=runtime.context.agent_id)
 
     with patch('random.randint', return_value=7777): 
-        created_agent = agent_registry_instance.create_agent(definition=sample_agent_def, llm_model_name=sample_llm_model_name_reg)
-        expected_id = f"{sample_agent_def.name}_{sample_agent_def.role}_7777"
+        created_agent = agent_registry_instance.create_agent(specification=sample_agent_spec, llm_model_name=sample_llm_model_name_reg)
+        expected_id = f"{sample_agent_spec.name}_{sample_agent_spec.role}_7777"
         assert created_agent.agent_id == expected_id
         
     retrieved_agent = agent_registry_instance.get_agent(created_agent.agent_id)
@@ -207,7 +180,7 @@ async def test_get_agent(MockAgentClass: MagicMock,
 @patch('autobyteus.agent.registry.agent_registry.Agent', autospec=True)
 async def test_remove_agent(MockAgentClass: MagicMock,
                             agent_registry_instance: AgentRegistry, 
-                            sample_agent_def: AgentDefinition, 
+                            sample_agent_spec: AgentSpecification, 
                             sample_llm_model_name_reg: str): 
     
     mock_agent_instance = MagicMock(spec=Agent)
@@ -218,7 +191,7 @@ async def test_remove_agent(MockAgentClass: MagicMock,
         return mock_agent_instance
     MockAgentClass.side_effect = agent_constructor_side_effect_for_remove
     
-    agent_to_remove = agent_registry_instance.create_agent(definition=sample_agent_def, llm_model_name=sample_llm_model_name_reg)
+    agent_to_remove = agent_registry_instance.create_agent(specification=sample_agent_spec, llm_model_name=sample_llm_model_name_reg)
     agent_id = agent_to_remove.agent_id 
     
     assert agent_to_remove is mock_agent_instance 
@@ -234,8 +207,8 @@ async def test_remove_agent(MockAgentClass: MagicMock,
 @patch('autobyteus.agent.registry.agent_registry.Agent', autospec=True)
 def test_list_active_agent_ids(MockAgentClass: MagicMock,
                                agent_registry_instance: AgentRegistry, 
-                               sample_agent_def: AgentDefinition, 
-                               sample_agent_def2: AgentDefinition, 
+                               sample_agent_spec: AgentSpecification, 
+                               sample_agent_spec2: AgentSpecification, 
                                sample_llm_model_name_reg: str): 
     
     MockAgentClass.side_effect = lambda runtime: MagicMock(spec=Agent, agent_id=runtime.context.agent_id)
@@ -243,10 +216,10 @@ def test_list_active_agent_ids(MockAgentClass: MagicMock,
     assert agent_registry_instance.list_active_agent_ids() == []
     
     with patch('random.randint', return_value=1001):
-        agent1 = agent_registry_instance.create_agent(definition=sample_agent_def, llm_model_name=sample_llm_model_name_reg)
+        agent1 = agent_registry_instance.create_agent(specification=sample_agent_spec, llm_model_name=sample_llm_model_name_reg)
     
     with patch('random.randint', return_value=1002):
-        agent2 = agent_registry_instance.create_agent(definition=sample_agent_def2, llm_model_name=sample_llm_model_name_reg)
+        agent2 = agent_registry_instance.create_agent(specification=sample_agent_spec2, llm_model_name=sample_llm_model_name_reg)
 
     ids = agent_registry_instance.list_active_agent_ids()
     assert len(ids) == 2

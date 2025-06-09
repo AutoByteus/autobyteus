@@ -12,7 +12,7 @@ from autobyteus.agent.context.agent_phase_manager import AgentPhaseManager
 from autobyteus.agent.events.agent_input_event_queue_manager import AgentInputEventQueueManager
 from autobyteus.agent.events.notifiers import AgentExternalEventNotifier 
 
-from autobyteus.agent.registry.agent_definition import AgentDefinition
+from autobyteus.agent.registry.agent_specification import AgentSpecification
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.agent.context.phases import AgentOperationalPhase 
@@ -70,29 +70,29 @@ def mock_tool_instance():
     return tool
 
 @pytest.fixture
-def mock_agent_definition_for_handlers_factory():
-    """Factory to create mock AgentDefinition for handlers, allowing to set use_xml_tool_format."""
+def mock_agent_specification_for_handlers_factory():
+    """Factory to create mock AgentSpecification for handlers, allowing to set use_xml_tool_format."""
     def _factory(use_xml_format: bool = True):
-        definition = MagicMock(spec=AgentDefinition)
-        definition.name = "test_agent_def_handlers"
-        definition.role = "test_role_handlers"
-        definition.description = "A test agent definition for handlers."
-        definition.system_prompt = "Test system prompt template for handlers. {{tools}} {{tool_examples}}"
-        definition.tool_names = ["mock_tool"] 
-        definition.input_processor_names = []
-        definition.llm_response_processor_names = ["xml_tool_usage"]
-        definition.system_prompt_processor_names = ["ToolDescriptionInjector", "ToolUsageExampleInjector"]
-        definition.use_xml_tool_format = use_xml_format
+        specification = MagicMock(spec=AgentSpecification)
+        specification.name = "test_agent_spec_handlers"
+        specification.role = "test_role_handlers"
+        specification.description = "A test agent specification for handlers."
+        specification.system_prompt = "Test system prompt template for handlers. {{tools}} {{tool_examples}}"
+        specification.tool_names = ["mock_tool"] 
+        specification.input_processor_names = []
+        specification.llm_response_processor_names = ["xml_tool_usage"]
+        specification.system_prompt_processor_names = ["ToolDescriptionInjector", "ToolUsageExampleInjector"]
+        specification.use_xml_tool_format = use_xml_format
         
         if not use_xml_format:
-            definition.llm_response_processor_names = ["json_tool_usage"]
-        return definition
+            specification.llm_response_processor_names = ["json_tool_usage"]
+        return specification
     return _factory
 
 @pytest.fixture
-def mock_agent_definition_for_handlers(mock_agent_definition_for_handlers_factory):
+def mock_agent_specification_for_handlers(mock_agent_specification_for_handlers_factory):
     # Default to XML true, but tests can use the factory to change this
-    return mock_agent_definition_for_handlers_factory(use_xml_format=True)
+    return mock_agent_specification_for_handlers_factory(use_xml_format=True)
 
 
 @pytest.fixture
@@ -124,11 +124,11 @@ def mock_input_event_queue_manager():
     return manager
 
 @pytest.fixture
-def mock_agent_config(mock_agent_definition_for_handlers):
+def mock_agent_config(mock_agent_specification_for_handlers):
     agent_id = f"test_agent_cfg_{uuid.uuid4().hex[:6]}"
     return AgentConfig(
         agent_id=agent_id,
-        definition=mock_agent_definition_for_handlers,
+        specification=mock_agent_specification_for_handlers,
         auto_execute_tools=True,
         llm_model_name="mock-model-name",
         custom_llm_config=None,
