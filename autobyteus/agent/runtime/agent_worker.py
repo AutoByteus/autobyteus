@@ -10,7 +10,6 @@ from autobyteus.agent.context.phases import AgentOperationalPhase
 from autobyteus.agent.events.agent_events import ( 
     BaseEvent,
     AgentErrorEvent, 
-    BootstrapAgentEvent,
     AgentStoppedEvent,
 )
 # END_OF_STREAM_SENTINEL is no longer used by worker for output queues

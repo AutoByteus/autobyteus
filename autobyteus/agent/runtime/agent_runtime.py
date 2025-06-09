@@ -45,8 +45,6 @@ class AgentRuntime:
         self.context: AgentContext = context 
         self.event_handler_registry: EventHandlerRegistry = event_handler_registry
         
-        # --- CORRECTED INITIALIZATION ORDER ---
-        # 1. Create the notifier and phase manager.
         self.external_event_notifier: AgentExternalEventNotifier = AgentExternalEventNotifier(agent_id=self.context.agent_id)
         self.phase_manager: AgentPhaseManager = AgentPhaseManager(context=self.context, notifier=self.external_event_notifier) 
         

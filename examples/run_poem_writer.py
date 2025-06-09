@@ -49,9 +49,10 @@ interactive_logger = logging.getLogger("autobyteus.cli.interactive")
 def setup_logging(args: argparse.Namespace):
     """
     Configure logging for the interactive session.
-    - A dedicated "interactive" logger ("autobyteus.cli.interactive") handles unformatted conversational output.
-    - A standard console logger handles formatted logs from this script and the entire `autobyteus.cli` package.
-    - All other library logs (e.g., `autobyteus.agent`, `autobyteus.llm`) go to the specified file.
+    - 1. A dedicated "interactive" logger ("autobyteus.cli.interactive") handles unformatted conversational output.
+    - 2. A standard console logger handles formatted logs from this script and the `autobyteus.cli` package.
+    - 3. A file handler sends most library logs (e.g., from `autobyteus.agent`) to `agent_logs.txt`.
+    - 4. In debug mode, very noisy logs (from the event queue manager) are automatically redirected to `queue_logs.txt`.
     """
     # --- Clear existing handlers from all relevant loggers ---
     loggers_to_clear = [
@@ -112,6 +113,27 @@ def setup_logging(args: argparse.Namespace):
     autobyteus_logger.setLevel(file_log_level)
     autobyteus_logger.propagate = True # Allow propagation up to root.
 
+    # --- 5. Isolate noisy queue manager logs to a separate file in debug mode ---
+    if args.debug:
+        queue_log_file_path = Path("./queue_logs.txt").resolve()
+        
+        # Handler for the queue logs
+        queue_file_handler = logging.FileHandler(queue_log_file_path, mode='w')
+        # Use a simpler format for these high-volume logs
+        queue_file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+        queue_file_handler.setFormatter(queue_file_formatter)
+        
+        # Get the specific logger to isolate
+        queue_logger = logging.getLogger("autobyteus.agent.events.agent_input_event_queue_manager")
+        
+        # Configure it
+        queue_logger.setLevel(logging.DEBUG)
+        queue_logger.addHandler(queue_file_handler)
+        queue_logger.propagate = False # IMPORTANT: Stop logs from bubbling up to the main agent_logs.txt
+
+        logger.info(f"Debug mode: Redirecting noisy queue manager DEBUG logs to: {queue_log_file_path}")
+
+    # --- 6. Configure `autobyteus.cli` package logging ---
     # Specifically configure the `autobyteus.cli` logger.
     # We want it to use the root's console handler, NOT the file handler.
     cli_logger = logging.getLogger("autobyteus.cli")
@@ -120,7 +142,6 @@ def setup_logging(args: argparse.Namespace):
     # By not adding the file handler here, it won't write to the file.
     
     logger.info(f"Core library logs (excluding CLI) redirected to: {log_file_path} (level: {logging.getLevelName(file_log_level)})")
-    logger.info(f"Console output is for this script's messages, CLI debug info, and interactive chat.")
 
 
 async def main(args: argparse.Namespace): # pragma: no cover
@@ -134,10 +155,10 @@ async def main(args: argparse.Namespace): # pragma: no cover
     poem_output_path = (output_dir_path / args.poem_filename).resolve()
     logger.info(f"Agent is instructed to save poems to: {poem_output_path} (will be overwritten on subsequent poems).")
     
-    # Simplified tool name retrieval
     tool_class_name = file_writer.get_name()
 
-    system_prompt = (
+    # The system prompt now serves as the default.
+    default_system_prompt = (
         f"You are an excellent poet. When given a topic, you must write a creative poem.\n"
         f"After writing the poem, you MUST use the '{tool_class_name}' tool to save your complete poem.\n"
         f"When using the '{tool_class_name}', you MUST use the absolute file path '{poem_output_path.as_posix()}' for its 'path' argument.\n"
@@ -152,7 +173,7 @@ async def main(args: argparse.Namespace): # pragma: no cover
         name=poem_writer_def_name,
         role="CreativePoetInteractive",
         description="An agent that writes poems on specified topics and saves them to disk, interactively.",
-        system_prompt=system_prompt,
+        default_system_prompt=default_system_prompt, # UPDATED parameter name
         tool_names=[tool_class_name] 
     )
     logger.info(f"AgentDefinition created: {poem_writer_def.name} using tool name '{tool_class_name}'")
@@ -208,12 +229,12 @@ if __name__ == "__main__": # pragma: no cover
     parser.add_argument("--poem-filename", type=str, default="poem_interactive.txt", help="Filename for the saved poem.")
     parser.add_argument("--llm-model", type=str, default="GPT_4o_API", help=f"The LLM model to use. Call --help-models for list.")
     parser.add_argument("--help-models", action="store_true", help="Display available LLM models and exit.")
-    parser.add_argument("--debug", action="store_true", help="Enable debug logging for script and library file logs. Isolates noisy queue logs to queue_logs.txt.")
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging. This will create detailed agent_logs.txt and a separate queue_logs.txt for noisy logs.")
     parser.add_argument("--no-tool-logs", action="store_true", 
                         help="Disable display of [Tool Log (...)] messages on the console by the agent_cli.")
     
     parser.add_argument("--agent-log-file", type=str, default="./agent_logs.txt", 
-                       help="Path to the log file for autobyteus.* and httpx logs. (Default: ./agent_logs.txt)")
+                       help="Path to the log file for autobyteus.* library logs. (Default: ./agent_logs.txt)")
     
     if "--help-models" in sys.argv:
         try:
