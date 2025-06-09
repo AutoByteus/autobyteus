@@ -72,6 +72,7 @@ class SystemPromptProcessingStep(BaseBootstrapStep):
             
             context.state.processed_system_prompt = current_system_prompt
             logger.info(f"Agent '{agent_id}': System prompt processed. Final length: {len(current_system_prompt)}.")
+            logger.info(f"Agent '{agent_id}': Final processed system prompt:\n---\n{current_system_prompt}\n---")
             return True
         except Exception as e: # Catches other errors in the step setup itself
             error_message = f"Agent '{agent_id}': Critical failure during system prompt processing step setup: {e}"

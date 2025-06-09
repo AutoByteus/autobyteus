@@ -33,7 +33,7 @@ try:
     from autobyteus.agent.agent import Agent
     from autobyteus.cli import agent_cli
 
-    from autobyteus.tools import file_writer # Assuming file_writer module contains FileWriterTool
+    from autobyteus.tools import file_writer
 
 except ImportError as e: # pragma: no cover
     print(f"Error importing autobyteus components: {e}")
