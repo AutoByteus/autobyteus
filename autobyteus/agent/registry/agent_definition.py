@@ -22,7 +22,7 @@ class AgentDefinition(metaclass=AgentDefinitionMeta):
                  name: str,
                  role: str,
                  description: str,
-                 default_system_prompt: str, # RENAMED from system_prompt
+                 default_system_prompt: str,
                  tool_names: List[str],
                  model_specific_system_prompts: Optional[Dict[str, str]] = None, # ADDED
                  input_processor_names: Optional[List[str]] = None,
