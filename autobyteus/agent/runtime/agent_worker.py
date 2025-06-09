@@ -165,7 +165,8 @@ class AgentWorker:
         if not self._is_active or self._stop_initiated:
             logger.warning(f"AgentWorker '{agent_id}': Stop called, but worker is not active, already stopped, or stop is in progress.")
             if self._thread_future and not self._thread_future.done(): 
-                 try: await asyncio.wrap_future(self._thread_future, timeout=timeout)
+                 try:
+                     await asyncio.wait_for(asyncio.wrap_future(self._thread_future), timeout=timeout)
                  except asyncio.TimeoutError: logger.warning(f"AgentWorker '{agent_id}': Timeout (again) waiting for already stopping worker thread.")
             return
 
@@ -189,7 +190,7 @@ class AgentWorker:
         if self._thread_future:
             logger.debug(f"AgentWorker '{agent_id}': Waiting for worker thread to complete.")
             try:
-                await asyncio.wrap_future(self._thread_future, timeout=timeout)
+                await asyncio.wait_for(asyncio.wrap_future(self._thread_future), timeout=timeout)
                 logger.info(f"AgentWorker '{agent_id}': Worker thread completed.")
             except asyncio.TimeoutError: # pragma: no cover
                 logger.warning(f"AgentWorker '{agent_id}': Timeout waiting for worker thread to complete. Thread may be stuck.")

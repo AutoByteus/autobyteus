@@ -12,10 +12,6 @@ from autobyteus.agent.context.agent_config import AgentConfig
 from autobyteus.agent.context.agent_runtime_state import AgentRuntimeState 
 from autobyteus.agent.context.agent_context import AgentContext 
 
-# AgentInputEventQueueManager and AgentOutputDataManager are no longer directly created by factory for AgentRuntimeState
-# from autobyteus.agent.events import AgentInputEventQueueManager 
-# from autobyteus.agent.events import AgentOutputDataManager      
-
 from autobyteus.agent.events import ( 
     UserMessageReceivedEvent, 
     InterAgentMessageReceivedEvent, 
@@ -31,7 +27,7 @@ from autobyteus.agent.events import (
     ApprovedToolInvocationEvent,
     BootstrapAgentEvent, 
 )
-from autobyteus.agent.registry.agent_definition import AgentDefinition 
+from autobyteus.agent.registry.agent_specification import AgentSpecification
 from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace 
 from autobyteus.agent.handlers import ( 
     UserInputMessageEventHandler,
@@ -85,8 +81,6 @@ class AgentFactory:
     def _get_default_event_handler_registry(self) -> EventHandlerRegistry:
         registry = EventHandlerRegistry()
         
-        # BootstrapAgentEventHandler now includes AgentRuntimeQueueInitializationStep
-        # which creates queues within the worker's loop.
         registry.register(
             BootstrapAgentEvent,
             BootstrapAgentEventHandler(
@@ -116,7 +110,7 @@ class AgentFactory:
 
     def _create_agent_config_and_state(self,
                                 agent_id: str,
-                                definition: AgentDefinition,
+                                specification: AgentSpecification,
                                 llm_model_name: str,
                                 workspace: Optional[BaseAgentWorkspace] = None,
                                 custom_llm_config: Optional[LLMConfig] = None,
@@ -124,27 +118,12 @@ class AgentFactory:
                                 auto_execute_tools: bool = True 
                                 ) -> tuple[AgentConfig, AgentRuntimeState]:
 
-        if not isinstance(definition, AgentDefinition): # pragma: no cover
-            raise TypeError(f"Expected AgentDefinition, got {type(definition).__name__}")
-        if not llm_model_name or not isinstance(llm_model_name, str):  # pragma: no cover
-            raise ValueError("An 'llm_model_name' (string) must be specified and non-empty for _create_agent_config_and_state.")
-
-        logger.debug(f"Creating AgentConfig for agent_id '{agent_id}' using definition '{definition.name}'. "
-                     f"LLM Model Name: {llm_model_name}. Auto Execute: {auto_execute_tools}.")
-
-        if custom_llm_config is not None and not isinstance(custom_llm_config, LLMConfig):  # pragma: no cover
-            raise TypeError(f"custom_llm_config must be an LLMConfig instance or None. Got {type(custom_llm_config)}")
-        if custom_tool_config is not None and not ( # pragma: no cover
-            isinstance(custom_tool_config, dict) and
-            all(isinstance(k, str) and isinstance(v, ToolConfig) for k, v in custom_tool_config.items())
-        ): 
-            raise TypeError("custom_tool_config must be a Dict[str, ToolConfig] or None.")
-        if workspace is not None and not isinstance(workspace, BaseAgentWorkspace): # pragma: no cover
-             raise TypeError(f"Expected BaseAgentWorkspace or None for workspace, got {type(workspace).__name__}")
+        if not isinstance(specification, AgentSpecification):
+            raise TypeError(f"Expected AgentSpecification, got {type(specification).__name__}")
 
         agent_config = AgentConfig(
             agent_id=agent_id,
-            definition=definition,
+            specification=specification,
             auto_execute_tools=auto_execute_tools, 
             llm_model_name=llm_model_name,
             custom_llm_config=custom_llm_config,
@@ -155,7 +134,6 @@ class AgentFactory:
         agent_runtime_state = AgentRuntimeState(
             agent_id=agent_id, 
             workspace=workspace,
-            # creator_event_loop=creator_loop # Not needed if all queues are worker-owned
         )
         logger.info(f"AgentRuntimeState created for agent_id '{agent_id}'. Event queues will be initialized by AgentWorker.")
         
@@ -164,30 +142,17 @@ class AgentFactory:
 
     def create_agent_context(self, 
                              agent_id: str, 
-                             definition: AgentDefinition, 
+                             specification: AgentSpecification, 
                              llm_model_name: str, 
                              workspace: Optional[BaseAgentWorkspace] = None,
                              custom_llm_config: Optional[LLMConfig] = None,
                              custom_tool_config: Optional[Dict[str, ToolConfig]] = None,
                              auto_execute_tools: bool = True 
                              ) -> AgentContext: 
-        if not isinstance(definition, AgentDefinition): 
-            raise TypeError(f"Expected AgentDefinition, got {type(definition).__name__}")
-        if not llm_model_name or not isinstance(llm_model_name, str): 
-            raise ValueError("AgentConfig 'llm_model_name' must be a non-empty string.")
-        if workspace is not None and not isinstance(workspace, BaseAgentWorkspace):
-            raise TypeError(f"Expected BaseAgentWorkspace or None for workspace, got {type(workspace).__name__}")
-        if custom_llm_config is not None and not isinstance(custom_llm_config, LLMConfig):
-            raise TypeError(f"AgentConfig 'custom_llm_config' must be an LLMConfig or None. Got {type(custom_llm_config)}")
-        if custom_tool_config is not None and not (
-            isinstance(custom_tool_config, dict) and
-            all(isinstance(k, str) and isinstance(v, ToolConfig) for k, v in custom_tool_config.items())
-        ):
-            raise TypeError("AgentConfig 'custom_tool_config' must be a Dict[str, ToolConfig] or None.")
 
         agent_config, agent_runtime_state = self._create_agent_config_and_state(
             agent_id=agent_id,
-            definition=definition,
+            specification=specification,
             llm_model_name=llm_model_name,
             workspace=workspace,
             custom_llm_config=custom_llm_config,
@@ -201,7 +166,7 @@ class AgentFactory:
 
     def create_agent_runtime(self, 
                              agent_id: str, 
-                             definition: AgentDefinition,
+                             specification: AgentSpecification,
                              llm_model_name: str, 
                              workspace: Optional[BaseAgentWorkspace] = None,
                              custom_llm_config: Optional[LLMConfig] = None, 
@@ -212,7 +177,7 @@ class AgentFactory:
 
         composite_agent_context = self.create_agent_context(
             agent_id=agent_id, 
-            definition=definition, 
+            specification=specification, 
             llm_model_name=llm_model_name, 
             workspace=workspace,
             custom_llm_config=custom_llm_config, 
@@ -223,7 +188,7 @@ class AgentFactory:
         event_handler_registry = self._get_default_event_handler_registry()
         
         tool_exec_mode_log = "Automatic" if auto_execute_tools else "Requires Approval" 
-        logger.info(f"Instantiating AgentRuntime for agent_id: '{agent_id}' with definition: '{definition.name}'. "
+        logger.info(f"Instantiating AgentRuntime for agent_id: '{agent_id}' with spec: '{specification.name}'. "
                      f"LLM Model Name (for init): {llm_model_name}. Workspace: {workspace is not None}. Tool Exec Mode: {tool_exec_mode_log}")
         
         return AgentRuntime(

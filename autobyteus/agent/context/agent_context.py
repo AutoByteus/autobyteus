@@ -8,12 +8,10 @@ from .phases import AgentOperationalPhase
 if TYPE_CHECKING:
     from .agent_config import AgentConfig 
     from .agent_runtime_state import AgentRuntimeState 
-    from autobyteus.agent.registry.agent_definition import AgentDefinition
+    from autobyteus.agent.registry.agent_specification import AgentSpecification
     from autobyteus.llm.base_llm import BaseLLM
     from autobyteus.tools.base_tool import BaseTool
     from autobyteus.agent.events.agent_input_event_queue_manager import AgentInputEventQueueManager 
-    # AgentOutputDataManager is no longer exposed via AgentContext
-    # from autobyteus.agent.events.agent_output_data_manager import AgentOutputDataManager       
     from autobyteus.agent.tool_invocation import ToolInvocation
     from autobyteus.llm.utils.llm_config import LLMConfig
     from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
@@ -51,8 +49,8 @@ class AgentContext:
         return self.config.agent_id
 
     @property
-    def definition(self) -> 'AgentDefinition':
-        return self.config.definition
+    def specification(self) -> 'AgentSpecification':
+        return self.config.specification
 
     @property
     def tool_instances(self) -> Dict[str, 'BaseTool']:
@@ -89,14 +87,6 @@ class AgentContext:
             raise RuntimeError(f"Agent '{self.agent_id}': Input event queues have not been initialized. This typically occurs during agent bootstrapping.")
         return self.state.input_event_queues
 
-    # REMOVED: output_data_queues property
-    # @property
-    # def output_data_queues(self) -> 'AgentOutputDataManager': 
-    #     if self.state.output_data_queues is None:
-    #         logger.critical(f"AgentContext for '{self.agent_id}': Attempted to access 'output_data_queues' before they were initialized by AgentWorker.")
-    #         raise RuntimeError(f"Agent '{self.agent_id}': Output data queues have not been initialized. This typically occurs during agent bootstrapping.")
-    #     return self.state.output_data_queues
-
     @property
     def current_phase(self) -> 'AgentOperationalPhase': 
         return self.state.current_phase
@@ -109,9 +99,7 @@ class AgentContext:
 
     @property
     def phase_manager(self) -> Optional['AgentPhaseManager']: 
-        # Accessing phase_manager.notifier will be the way to emit output events
         return self.state.phase_manager_ref
-
 
     @property
     def conversation_history(self) -> List[Dict[str, Any]]:
@@ -163,7 +151,6 @@ class AgentContext:
 
     def __repr__(self) -> str:
         input_q_status = "Initialized" if self.state.input_event_queues is not None else "Pending Init"
-        # REMOVED output_q_status from repr
         return (f"AgentContext(agent_id='{self.config.agent_id}', "
                 f"current_phase='{self.state.current_phase.value}', " 
                 f"llm_initialized={self.state.llm_instance is not None}, "

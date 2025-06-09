@@ -31,10 +31,10 @@ class SystemPromptProcessingStep(BaseBootstrapStep):
         logger.info(f"Agent '{agent_id}': Executing SystemPromptProcessingStep.")
 
         try:
-            current_system_prompt = context.definition.system_prompt
-            logger.debug(f"Agent '{agent_id}': Retrieved system prompt from agent definition.")
+            current_system_prompt = context.specification.system_prompt
+            logger.debug(f"Agent '{agent_id}': Retrieved system prompt from agent specification.")
             
-            processor_names_to_apply = context.definition.system_prompt_processor_names
+            processor_names_to_apply = context.specification.system_prompt_processor_names
             tool_instances_for_processor = context.tool_instances # Assumes tools are already initialized
 
             if not processor_names_to_apply:

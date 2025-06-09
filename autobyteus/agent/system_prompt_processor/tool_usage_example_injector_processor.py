@@ -10,7 +10,7 @@ from autobyteus.tools.parameter_schema import ParameterType # For checking param
 if TYPE_CHECKING:
     from autobyteus.tools.base_tool import BaseTool
     from autobyteus.tools.parameter_schema import ParameterDefinition
-    from autobyteus.agent.context import AgentContext # Added for context type hint
+    from autobyteus.agent.context import AgentContext 
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class ToolUsageExampleInjectorProcessor(BaseSystemPromptProcessor):
     """
     A system prompt processor that injects concrete examples of tool usage
     into the system prompt, in either XML or JSON format based on the
-    AgentDefinition's 'use_xml_tool_format' flag.
+    AgentSpecification's 'use_xml_tool_format' flag.
     It looks for a `{{tool_examples}}` placeholder.
     """
     PLACEHOLDER = "{{tool_examples}}"
@@ -63,7 +63,6 @@ class ToolUsageExampleInjectorProcessor(BaseSystemPromptProcessor):
             return True 
         elif param_type == ParameterType.ENUM:
             return param_def.enum_values[0] if param_def.enum_values else "enum_value"
-        # REMOVED: FILE_PATH and DIRECTORY_PATH specific types as they are now handled as STRING with name heuristics.
         elif param_type == ParameterType.OBJECT:
             return {"key1": "example_value", "key2": 100} 
         elif param_type == ParameterType.ARRAY:
@@ -119,8 +118,8 @@ class ToolUsageExampleInjectorProcessor(BaseSystemPromptProcessor):
                 system_prompt: str,
                 tool_instances: Dict[str, 'BaseTool'],
                 agent_id: str,
-                context: 'AgentContext' # Added context
-               ) -> str: # Signature changed
+                context: 'AgentContext'
+               ) -> str:
         if self.PLACEHOLDER not in system_prompt:
             logger.debug(f"{self.get_name()}: Placeholder '{self.PLACEHOLDER}' not found in system prompt for agent '{agent_id}'. Prompt unchanged.")
             return system_prompt
@@ -129,7 +128,7 @@ class ToolUsageExampleInjectorProcessor(BaseSystemPromptProcessor):
             logger.info(f"{self.get_name()}: No tools available for agent '{agent_id}'. Replacing placeholder with: '{self.DEFAULT_NO_TOOLS_MESSAGE}'")
             return system_prompt.replace(self.PLACEHOLDER, self.DEFAULT_NO_TOOLS_MESSAGE)
 
-        use_xml_format = context.definition.use_xml_tool_format
+        use_xml_format = context.specification.use_xml_tool_format
         example_snippets: List[str] = []
         chosen_format_str = "XML" if use_xml_format else "JSON"
         

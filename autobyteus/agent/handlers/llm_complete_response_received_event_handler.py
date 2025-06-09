@@ -50,10 +50,10 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
             logger.error(f"Agent '{agent_id}': Notifier not available in LLMCompleteResponseReceivedEventHandler. Cannot emit complete response event.")
 
         if not is_error_response:
-            processor_names_to_try = context.definition.llm_response_processor_names
+            processor_names_to_try = context.specification.llm_response_processor_names
             if not processor_names_to_try: 
                 logger.debug(
-                    f"Agent '{agent_id}': No llm_response_processor_names configured in agent definition. "
+                    f"Agent '{agent_id}': No llm_response_processor_names configured in agent specification. "
                     f"Proceeding to treat LLM response as output for this leg."
                 )
             else:
@@ -100,7 +100,7 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
                     else: # pragma: no cover
                         logger.warning(
                             f"Agent '{agent_id}': LLMResponseProcessor name '{processor_name}' "
-                            f"defined in agent_definition not found in registry. Skipping this processor."
+                            f"defined in agent_specification not found in registry. Skipping this processor."
                         )
         else:
             logger.info(

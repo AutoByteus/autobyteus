@@ -75,7 +75,7 @@ class AgentGroupContext:
     def get_agents_by_role(self, role_name: str) -> List['Agent']:
         """
         Retrieves all agents within the group that match the specified role name.
-        The role is determined from the agent's definition.
+        The role is determined from the agent's specification.
 
         Args:
             role_name: The role name to filter agents by.
@@ -89,8 +89,8 @@ class AgentGroupContext:
             
         matching_agents: List['Agent'] = []
         for agent in self._agents_by_id.values():
-            # Assuming Agent has a 'context' attribute, and AgentContext has 'definition'
-            if agent.context and agent.context.definition and agent.context.definition.role == role_name:
+            # Assuming Agent has a 'context' attribute, and AgentContext has 'specification'
+            if agent.context and agent.context.specification and agent.context.specification.role == role_name:
                 matching_agents.append(agent)
         
         if not matching_agents:

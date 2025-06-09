@@ -27,7 +27,7 @@ except Exception as e: # pragma: no cover
     print(f"Error loading .env file: {e}")
 
 try:
-    from autobyteus.agent.registry.agent_definition import AgentDefinition
+    from autobyteus.agent.registry.agent_specification import AgentSpecification
     from autobyteus.llm.models import LLMModel
     from autobyteus.agent.registry.agent_registry import default_agent_registry
     from autobyteus.agent.agent import Agent
@@ -167,15 +167,15 @@ async def main(args: argparse.Namespace): # pragma: no cover
         f"{{{{tool_examples}}}}" 
     )
 
-    poem_writer_def_name = "InteractivePoemWriterAgent"
-    poem_writer_def = AgentDefinition(
-        name=poem_writer_def_name,
+    poem_writer_spec = AgentSpecification(
+        name="PoemWriterAgent",
         role="CreativePoetInteractive",
         description="An agent that writes poems on specified topics and saves them to disk, interactively.",
         system_prompt=system_prompt,
-        tool_names=[tool_class_name] 
+        tool_names=[tool_class_name],
+        use_xml_tool_format=True
     )
-    logger.info(f"AgentDefinition created: {poem_writer_def.name} using tool name '{tool_class_name}'")
+    logger.info(f"AgentSpecification created: {poem_writer_spec.name} using tool name '{tool_class_name}'")
 
     try:
         _ = LLMModel[args.llm_model]
@@ -185,7 +185,7 @@ async def main(args: argparse.Namespace): # pragma: no cover
         sys.exit(1)
 
     agent: Agent = default_agent_registry.create_agent(
-        definition=poem_writer_def,
+        specification=poem_writer_spec,
         llm_model_name=args.llm_model, 
         auto_execute_tools=False,
     )

@@ -41,7 +41,7 @@ class UserInputMessageEventHandler(AgentEventHandler):
         
         logger.info(f"Agent '{context.agent_id}' handling UserMessageReceivedEvent: '{original_agent_input_user_msg.content[:100]}...'") 
         
-        processor_names = context.config.definition.input_processor_names
+        processor_names = context.config.input_processor_names
         if processor_names:
             logger.debug(f"Agent '{context.agent_id}': Applying input processors by name: {processor_names}")
             for processor_name in processor_names:
@@ -62,7 +62,7 @@ class UserInputMessageEventHandler(AgentEventHandler):
                 else:
                     logger.warning(f"Agent '{context.agent_id}': Input processor name '{processor_name}' not found in registry. Skipping.")
         else:
-            logger.debug(f"Agent '{context.agent_id}': No input processors configured in agent definition.")
+            logger.debug(f"Agent '{context.agent_id}': No input processors configured in agent specification.")
 
         llm_user_message = LLMUserMessage( 
             content=processed_agent_input_user_msg.content,

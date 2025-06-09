@@ -4,7 +4,7 @@ import logging
 import uuid
 from typing import List, Dict, Optional, Any, cast, Tuple, Union 
 
-from autobyteus.agent.registry.agent_definition import AgentDefinition
+from autobyteus.agent.registry.agent_specification import AgentSpecification
 from autobyteus.agent.factory.agent_factory import AgentFactory
 from autobyteus.agent.agent import Agent 
 from autobyteus.agent.context import AgentContext
@@ -22,23 +22,23 @@ logger = logging.getLogger(__name__)
 class AgentGroup:
     def __init__(self,
                     agent_factory: AgentFactory,
-                    agent_definitions: List[AgentDefinition],
-                    coordinator_definition_name: str,
+                    agent_specifications: List[AgentSpecification],
+                    coordinator_spec_name: str,
                     group_id: Optional[str] = None,
                     agent_runtime_configs: Optional[Dict[str, Dict[str, Any]]] = None): 
         if not agent_factory or not isinstance(agent_factory, AgentFactory): # pragma: no cover
             raise TypeError("agent_factory must be an instance of AgentFactory.")
-        if not agent_definitions or not all(isinstance(d, AgentDefinition) for d in agent_definitions): # pragma: no cover
-            raise TypeError("agent_definitions must be a non-empty list of AgentDefinition instances.")
-        if not coordinator_definition_name or not isinstance(coordinator_definition_name, str): # pragma: no cover
-            raise TypeError("coordinator_definition_name must be a non-empty string.")
+        if not agent_specifications or not all(isinstance(d, AgentSpecification) for d in agent_specifications): # pragma: no cover
+            raise TypeError("agent_specifications must be a non-empty list of AgentSpecification instances.")
+        if not coordinator_spec_name or not isinstance(coordinator_spec_name, str): # pragma: no cover
+            raise TypeError("coordinator_spec_name must be a non-empty string.")
         
         self.group_id: str = group_id or f"group_{uuid.uuid4()}"
         self.agent_factory: AgentFactory = agent_factory
-        self._agent_definitions_map: Dict[str, AgentDefinition] = {
-            defn.name: defn for defn in agent_definitions
+        self._agent_specifications_map: Dict[str, AgentSpecification] = {
+            spec.name: spec for spec in agent_specifications
         }
-        self.coordinator_definition_name: str = coordinator_definition_name
+        self.coordinator_spec_name: str = coordinator_spec_name
         self._agent_runtime_configs: Dict[str, Dict[str, Any]] = agent_runtime_configs or {} 
         self.agents: List[Agent] = []
         self.coordinator_agent: Optional[Agent] = None
@@ -46,11 +46,11 @@ class AgentGroup:
         self._is_initialized: bool = False
         self._is_running: bool = False
         
-        if self.coordinator_definition_name not in self._agent_definitions_map: # pragma: no cover
-            raise ValueError(f"Coordinator definition name '{self.coordinator_definition_name}' "
-                                f"not found in provided agent_definitions. Available: {list(self._agent_definitions_map.keys())}")
-        logger.info(f"AgentGroup '{self.group_id}' created with {len(agent_definitions)} definitions. "
-                    f"Coordinator: '{self.coordinator_definition_name}'.")
+        if self.coordinator_spec_name not in self._agent_specifications_map: # pragma: no cover
+            raise ValueError(f"Coordinator spec name '{self.coordinator_spec_name}' "
+                                f"not found in provided agent_specifications. Available: {list(self._agent_specifications_map.keys())}")
+        logger.info(f"AgentGroup '{self.group_id}' created with {len(agent_specifications)} specifications. "
+                    f"Coordinator: '{self.coordinator_spec_name}'.")
         self._initialize_agents()
 
     def _initialize_agents(self): # pragma: no cover
@@ -59,9 +59,9 @@ class AgentGroup:
             return
         temp_agents_list: List[Agent] = []
         temp_coordinator_agent: Optional[Agent] = None
-        for def_name, original_definition in self._agent_definitions_map.items():
-            agent_id = f"{self.group_id}_{def_name}_{uuid.uuid4().hex[:6]}"
-            runtime_overrides = self._agent_runtime_configs.get(def_name, {})
+        for spec_name, original_spec in self._agent_specifications_map.items():
+            agent_id = f"{self.group_id}_{spec_name}_{uuid.uuid4().hex[:6]}"
+            runtime_overrides = self._agent_runtime_configs.get(spec_name, {})
             llm_model_name_for_agent: Optional[str] = runtime_overrides.get("llm_model_name")
             raw_custom_llm_config = runtime_overrides.get("custom_llm_config") 
             llm_config_for_factory: Optional[LLMConfig] = None
@@ -70,7 +70,7 @@ class AgentGroup:
             elif isinstance(raw_custom_llm_config, dict):
                 llm_config_for_factory = LLMConfig.from_dict(raw_custom_llm_config)
             elif raw_custom_llm_config is not None:
-                logger.warning(f"AgentGroup '{self.group_id}': custom_llm_config for agent '{def_name}' is of "
+                logger.warning(f"AgentGroup '{self.group_id}': custom_llm_config for agent '{spec_name}' is of "
                                 f"unexpected type {type(raw_custom_llm_config)}. Expected LLMConfig or dict. Ignoring this config.")
             raw_custom_tool_config = runtime_overrides.get("custom_tool_config") 
             tool_config_for_factory: Optional[Dict[str, ToolConfig]] = None
@@ -78,36 +78,36 @@ class AgentGroup:
                 if all(isinstance(k, str) and isinstance(v, ToolConfig) for k, v in raw_custom_tool_config.items()):
                         tool_config_for_factory = raw_custom_tool_config
                 else:
-                    logger.warning(f"AgentGroup '{self.group_id}': custom_tool_config for agent '{def_name}' is a dict but contains invalid items. Expected Dict[str, ToolConfig]. Ignoring.")
+                    logger.warning(f"AgentGroup '{self.group_id}': custom_tool_config for agent '{spec_name}' is a dict but contains invalid items. Expected Dict[str, ToolConfig]. Ignoring.")
             elif raw_custom_tool_config is not None:
-                    logger.warning(f"AgentGroup '{self.group_id}': custom_tool_config for agent '{def_name}' is of "
+                    logger.warning(f"AgentGroup '{self.group_id}': custom_tool_config for agent '{spec_name}' is of "
                                 f"unexpected type {type(raw_custom_tool_config)}. Expected Dict[str, ToolConfig]. Ignoring this config.")
             auto_execute_tools: bool = runtime_overrides.get("auto_execute_tools", True) 
-            if llm_model_name_for_agent is None: # AgentDefinition might not require an LLM
-                logger.debug(f"LLM model name not specified for agent definition '{def_name}'. Agent may not use an LLM.")
-            modified_tool_names = list(original_definition.tool_names)
+            if llm_model_name_for_agent is None: # AgentSpecification might not require an LLM
+                logger.debug(f"LLM model name not specified for agent spec '{spec_name}'. Agent may not use an LLM.")
+            modified_tool_names = list(original_spec.tool_names)
             if SendMessageTo.TOOL_NAME not in modified_tool_names:
                 modified_tool_names.append(SendMessageTo.TOOL_NAME)
-            effective_definition = AgentDefinition(name=original_definition.name, role=original_definition.role, description=original_definition.description,
-                                            system_prompt=original_definition.system_prompt, tool_names=modified_tool_names, 
-                                            input_processor_names=original_definition.input_processor_names,
-                                            llm_response_processor_names=original_definition.llm_response_processor_names,
-                                            system_prompt_processor_names=original_definition.system_prompt_processor_names,
-                                            use_xml_tool_format=original_definition.use_xml_tool_format)
+            effective_spec = AgentSpecification(name=original_spec.name, role=original_spec.role, description=original_spec.description,
+                                            system_prompt=original_spec.system_prompt, tool_names=modified_tool_names, 
+                                            input_processor_names=original_spec.input_processor_names,
+                                            llm_response_processor_names=original_spec.llm_response_processor_names,
+                                            system_prompt_processor_names=original_spec.system_prompt_processor_names,
+                                            use_xml_tool_format=original_spec.use_xml_tool_format)
             try:
-                agent_runtime = self.agent_factory.create_agent_runtime(agent_id=agent_id, definition=effective_definition, llm_model_name=llm_model_name_for_agent,
+                agent_runtime = self.agent_factory.create_agent_runtime(agent_id=agent_id, specification=effective_spec, llm_model_name=llm_model_name_for_agent,
                                                                     workspace=None, custom_llm_config=llm_config_for_factory, 
                                                                     custom_tool_config=tool_config_for_factory, auto_execute_tools=auto_execute_tools) 
                 agent_instance = Agent(runtime=agent_runtime)
                 temp_agents_list.append(agent_instance)
-                if def_name == self.coordinator_definition_name:
+                if spec_name == self.coordinator_spec_name:
                     temp_coordinator_agent = agent_instance
-                logger.debug(f"Agent '{agent_id}' (Role: {original_definition.role}) created for group '{self.group_id}'.")
+                logger.debug(f"Agent '{agent_id}' (Role: {original_spec.role}) created for group '{self.group_id}'.")
             except Exception as e:
-                logger.error(f"Failed to create agent '{def_name}' for group '{self.group_id}': {e}", exc_info=True)
-                raise RuntimeError(f"Failed to initialize agent '{def_name}' in group '{self.group_id}'.") from e
+                logger.error(f"Failed to create agent '{spec_name}' for group '{self.group_id}': {e}", exc_info=True)
+                raise RuntimeError(f"Failed to initialize agent '{spec_name}' in group '{self.group_id}'.") from e
         if not temp_coordinator_agent:
-            raise RuntimeError(f"Coordinator agent '{self.coordinator_definition_name}' could not be instantiated in group '{self.group_id}'.")
+            raise RuntimeError(f"Coordinator agent '{self.coordinator_spec_name}' could not be instantiated in group '{self.group_id}'.")
         self.agents = temp_agents_list
         self.coordinator_agent = temp_coordinator_agent
         self.group_context = AgentGroupContext(group_id=self.group_id, agents=self.agents, coordinator_agent_id=self.coordinator_agent.agent_id)
@@ -188,9 +188,8 @@ class AgentGroup:
         return None
 
     def get_agents_by_role(self, role_name: str) -> List[Agent]: # pragma: no cover
-        return [agent for agent in self.agents if agent.context.definition.role == role_name]
+        return [agent for agent in self.agents if agent.context.specification.role == role_name]
 
     @property
     def is_running(self) -> bool: # pragma: no cover
         return self._is_running and any(a.is_running for a in self.agents)
-

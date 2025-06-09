@@ -31,7 +31,7 @@ class ToolInitializationStep(BaseBootstrapStep):
         logger.info(f"Agent '{agent_id}': Executing ToolInitializationStep.")
 
         try:
-            tool_names = context.definition.tool_names
+            tool_names = context.specification.tool_names
             custom_tool_configs = context.custom_tool_config
 
             if not tool_names:

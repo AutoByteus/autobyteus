@@ -3,31 +3,20 @@ import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Dict
 
-from .processor_meta import SystemPromptProcessorMeta # Relative import
+from .processor_meta import SystemPromptProcessorMeta
 
 if TYPE_CHECKING:
     from autobyteus.tools.base_tool import BaseTool
-    from autobyteus.agent.context import AgentContext # Added for context type hint
-    # AgentDefinition might be needed if processors need more context from definition
-    # from autobyteus.agent.registry.agent_definition import AgentDefinition 
+    from autobyteus.agent.context import AgentContext
 
 logger = logging.getLogger(__name__)
 
 class BaseSystemPromptProcessor(ABC, metaclass=SystemPromptProcessorMeta):
     """
     Abstract base class for system prompt processors.
-    These processors can modify an agent's system prompt string before it's
-    used by the LLM, for example, to inject dynamic information like tool descriptions.
-    Concrete subclasses are auto-registered using SystemPromptProcessorMeta.
     """
-
     @classmethod
     def get_name(cls) -> str:
-        """
-        Returns the unique registration name for this processor.
-        Defaults to the class name. Can be overridden by subclasses for a more
-        stable or user-friendly name.
-        """
         return cls.__name__
 
     @abstractmethod
@@ -35,25 +24,18 @@ class BaseSystemPromptProcessor(ABC, metaclass=SystemPromptProcessorMeta):
                 system_prompt: str,
                 tool_instances: Dict[str, 'BaseTool'],
                 agent_id: str,
-                context: 'AgentContext') -> str: # Added context parameter
+                context: 'AgentContext') -> str:
         """
         Processes the given system prompt string.
 
         Args:
             system_prompt: The current system prompt string to process.
-            tool_instances: A dictionary of instantiated tools available to the agent,
-                            keyed by tool name. Processors can use this to extract
-                            tool information (e.g., descriptions, schemas).
-            agent_id: The ID of the agent for whom the prompt is being processed,
-                      useful for logging or context-specific behavior.
-            context: The agent's context, providing access to agent definition,
-                     state, and configuration.
+            tool_instances: A dictionary of instantiated tools available to the agent.
+            agent_id: The ID of the agent for whom the prompt is being processed.
+            context: The agent's context, providing access to agent spec, state, and config.
 
         Returns:
             The processed (potentially modified) system prompt string.
-
-        Raises:
-            NotImplementedError: If the subclass does not implement this method.
         """
         raise NotImplementedError("Subclasses must implement the 'process' method.")
 

@@ -123,7 +123,7 @@ class SendMessageTo(BaseTool):
 
         try:
             message_to_send = InterAgentMessage.create_with_dynamic_message_type(
-                recipient_role_name=target_agent.context.definition.role, 
+                recipient_role_name=target_agent.context.specification.role, 
                 recipient_agent_id=target_agent.agent_id, # Use the definitively resolved agent ID
                 content=content,
                 message_type=message_type,
@@ -132,7 +132,7 @@ class SendMessageTo(BaseTool):
             
             await target_agent.post_inter_agent_message(message_to_send)
             success_msg = (f"Message successfully sent from '{sender_agent_id}' to agent "
-                           f"'{target_agent.agent_id}' (Role: '{target_agent.context.definition.role}').")
+                           f"'{target_agent.agent_id}' (Role: '{target_agent.context.specification.role}').")
             logger.info(f"Tool '{self.get_name()}': {success_msg}")
             return success_msg
         except ValueError as ve: 

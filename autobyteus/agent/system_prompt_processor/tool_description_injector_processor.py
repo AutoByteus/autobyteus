@@ -7,7 +7,7 @@ from .base_processor import BaseSystemPromptProcessor # Relative import
 
 if TYPE_CHECKING:
     from autobyteus.tools.base_tool import BaseTool
-    from autobyteus.agent.context import AgentContext # Added for context type hint
+    from autobyteus.agent.context import AgentContext 
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ class ToolDescriptionInjectorProcessor(BaseSystemPromptProcessor):
     A system prompt processor that injects tool descriptions/schemas into the prompt.
     It looks for a specific placeholder (default: "{{tools}}") in the system prompt
     and replaces it with descriptions of the available tools, formatted as either
-    XML or JSON based on the AgentDefinition's 'use_xml_tool_format' flag.
+    XML or JSON based on the AgentSpecification's 'use_xml_tool_format' flag.
     If the system prompt consists *only* of the placeholder, a default
     instructional prefix is added.
     """
@@ -35,8 +35,8 @@ class ToolDescriptionInjectorProcessor(BaseSystemPromptProcessor):
                 system_prompt: str,
                 tool_instances: Dict[str, 'BaseTool'],
                 agent_id: str,
-                context: 'AgentContext' # Added context to access definition
-               ) -> str: # Signature changed to include context
+                context: 'AgentContext'
+               ) -> str:
         """
         Processes the system prompt to inject tool descriptions.
 
@@ -44,7 +44,7 @@ class ToolDescriptionInjectorProcessor(BaseSystemPromptProcessor):
             system_prompt: The current system prompt string.
             tool_instances: A dictionary of instantiated tools.
             agent_id: The ID of the agent (for logging).
-            context: The agent's context, used to access the AgentDefinition.
+            context: The agent's context, used to access the AgentSpecification.
 
         Returns:
             The processed system prompt string with tool descriptions injected.
@@ -53,7 +53,7 @@ class ToolDescriptionInjectorProcessor(BaseSystemPromptProcessor):
             logger.debug(f"ToolDescriptionInjectorProcessor: Placeholder '{self.PLACEHOLDER}' not found in system prompt for agent '{agent_id}'. Prompt unchanged.")
             return system_prompt
 
-        use_xml_format = context.definition.use_xml_tool_format
+        use_xml_format = context.specification.use_xml_tool_format
         chosen_format_str = "XML" if use_xml_format else "JSON"
         logger.debug(f"ToolDescriptionInjectorProcessor for agent '{agent_id}': Using {chosen_format_str} format for tool descriptions.")
 
