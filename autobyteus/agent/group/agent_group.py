@@ -68,7 +68,8 @@ class AgentGroup:
                 use_xml_tool_format=original_config.use_xml_tool_format,
                 input_processors=original_config.input_processors,
                 llm_response_processors=original_config.llm_response_processors,
-                system_prompt_processors=original_config.system_prompt_processors
+                system_prompt_processors=original_config.system_prompt_processors,
+                workspace=original_config.workspace # Pass the workspace through
             )
 
             try:

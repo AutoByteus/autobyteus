@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from autobyteus.tools.base_tool import BaseTool
     from autobyteus.agent.input_processor import BaseAgentUserInputMessageProcessor
     from autobyteus.llm.base_llm import BaseLLM
+    from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,8 @@ class AgentConfig:
                  use_xml_tool_format: bool = True,
                  input_processors: Optional[List['BaseAgentUserInputMessageProcessor']] = None,
                  llm_response_processors: Optional[List['BaseLLMResponseProcessor']] = None,
-                 system_prompt_processors: Optional[List['BaseSystemPromptProcessor']] = None):
+                 system_prompt_processors: Optional[List['BaseSystemPromptProcessor']] = None,
+                 workspace: Optional['BaseAgentWorkspace'] = None):
         """
         Initializes the AgentConfig.
 
@@ -50,6 +52,7 @@ class AgentConfig:
             input_processors: A list of input processor instances.
             llm_response_processors: A list of LLM response processor instances.
             system_prompt_processors: A list of system prompt processor instances.
+            workspace: An optional pre-initialized workspace instance for the agent.
         """
         self.name = name
         self.role = role
@@ -57,6 +60,7 @@ class AgentConfig:
         self.llm_instance = llm_instance
         self.system_prompt = system_prompt
         self.tools = tools
+        self.workspace = workspace
         self.auto_execute_tools = auto_execute_tools
         self.use_xml_tool_format = use_xml_tool_format
         self.input_processors = input_processors or []
@@ -67,4 +71,4 @@ class AgentConfig:
 
     def __repr__(self) -> str:
         # llm_model_name removed from repr
-        return (f"AgentConfig(name='{self.name}', role='{self.role}', llm_instance='{self.llm_instance.__class__.__name__}')")
+        return (f"AgentConfig(name='{self.name}', role='{self.role}', llm_instance='{self.llm_instance.__class__.__name__}', workspace_configured={self.workspace is not None})")
