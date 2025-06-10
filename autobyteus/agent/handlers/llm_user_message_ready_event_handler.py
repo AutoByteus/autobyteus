@@ -1,12 +1,13 @@
 # file: autobyteus/autobyteus/agent/handlers/llm_user_message_ready_event_handler.py
 import logging
 import traceback
-from typing import TYPE_CHECKING, cast, Optional # Added Optional
+from typing import TYPE_CHECKING, cast, Optional
 
 from autobyteus.agent.handlers.base_event_handler import AgentEventHandler
 from autobyteus.agent.events import LLMUserMessageReadyEvent, LLMCompleteResponseReceivedEvent 
 from autobyteus.llm.user_message import LLMUserMessage
-from autobyteus.llm.utils.response_types import ChunkResponse 
+from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
+from autobyteus.llm.utils.token_usage import TokenUsage
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
@@ -50,6 +51,7 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
         context.state.add_message_to_history({"role": "user", "content": llm_user_message.content})
 
         complete_response_text = ""
+        token_usage: Optional[TokenUsage] = None
         
         notifier: Optional['AgentExternalEventNotifier'] = None
         if context.phase_manager:
@@ -65,6 +67,10 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
                     continue
 
                 complete_response_text += chunk_response.content
+                if chunk_response.is_complete and chunk_response.usage:
+                    token_usage = chunk_response.usage
+                    logger.debug(f"Agent '{agent_id}' received final chunk with token usage: {token_usage}")
+
                 if notifier:
                     try:
                         notifier.notify_agent_data_assistant_chunk(chunk_response) # USE RENAMED METHOD
@@ -98,8 +104,9 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
                 except Exception as e_notify_err: 
                     logger.error(f"Agent '{agent_id}': Error notifying agent output error or chunk stream end after LLM stream failure: {e_notify_err}", exc_info=True)
 
+            complete_response_on_error = CompleteResponse(content=error_message_for_output, usage=None)
             llm_complete_event_on_error = LLMCompleteResponseReceivedEvent(
-                complete_response_text=error_message_for_output, 
+                complete_response=complete_response_on_error,
                 is_error=True 
             )
             await context.input_event_queues.enqueue_internal_system_event(llm_complete_event_on_error)
@@ -108,8 +115,9 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
 
         context.state.add_message_to_history({"role": "assistant", "content": complete_response_text})
         
+        complete_response_obj = CompleteResponse(content=complete_response_text, usage=token_usage)
         llm_complete_event = LLMCompleteResponseReceivedEvent(
-            complete_response_text=complete_response_text
+            complete_response=complete_response_obj
         )
         await context.input_event_queues.enqueue_internal_system_event(llm_complete_event)
         logger.info(f"Agent '{agent_id}' enqueued LLMCompleteResponseReceivedEvent from LLMUserMessageReadyEventHandler.")

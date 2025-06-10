@@ -1,11 +1,12 @@
 # file: autobyteus/autobyteus/agent/input_processor/base_user_input_processor.py
 import logging
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage 
     from autobyteus.agent.context import AgentContext # Composite AgentContext
+    from autobyteus.agent.events import UserMessageReceivedEvent
 
 logger = logging.getLogger(__name__)
 
@@ -27,13 +28,16 @@ class BaseAgentUserInputMessageProcessor(ABC):
     @abstractmethod
     async def process(self,
                       message: 'AgentInputUserMessage', 
-                      context: 'AgentContext') -> 'AgentInputUserMessage': # context is composite
+                      context: 'AgentContext',
+                      triggering_event: 'UserMessageReceivedEvent') -> 'AgentInputUserMessage':
         """
         Processes the given AgentInputUserMessage.
 
         Args:
             message: The AgentInputUserMessage to process.
             context: The composite AgentContext, providing access to agent's config and state.
+            triggering_event: The original UserMessageReceivedEvent that triggered this processing.
+                              This provides access to the full event payload for more complex processors.
 
         Returns:
             The processed (potentially modified) AgentInputUserMessage.

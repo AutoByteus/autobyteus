@@ -7,6 +7,7 @@ from .base_user_input_processor import BaseAgentUserInputMessageProcessor
 if TYPE_CHECKING:
     from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
     from autobyteus.agent.context import AgentContext # Composite AgentContext
+    from autobyteus.agent.events import UserMessageReceivedEvent
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,12 @@ class MetadataAppendingInputProcessor(BaseAgentUserInputMessageProcessor):
     """
     async def process(self,
                       message: 'AgentInputUserMessage', 
-                      context: 'AgentContext') -> 'AgentInputUserMessage': # context is composite
+                      context: 'AgentContext',
+                      triggering_event: 'UserMessageReceivedEvent') -> 'AgentInputUserMessage':
+        """
+        Handles the message by appending metadata.
+        The 'triggering_event' parameter is ignored by this processor.
+        """
         agent_id = context.agent_id
         config_name = context.config.name
 

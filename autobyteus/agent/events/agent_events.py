@@ -6,6 +6,7 @@ from autobyteus.agent.message.agent_input_user_message import AgentInputUserMess
 from autobyteus.agent.tool_invocation import ToolInvocation 
 from autobyteus.agent.message.inter_agent_message import InterAgentMessage
 from autobyteus.llm.user_message import LLMUserMessage 
+from autobyteus.llm.utils.response_types import CompleteResponse
 
 @dataclass
 class BaseEvent:
@@ -107,7 +108,7 @@ class LLMUserMessageReadyEvent(AgentOperationalEvent):
 @dataclass
 class LLMCompleteResponseReceivedEvent(AgentOperationalEvent): 
     """Event indicating that a complete LLM response has been received and aggregated."""
-    complete_response_text: str
+    complete_response: CompleteResponse
     is_error: bool = False 
 
 @dataclass

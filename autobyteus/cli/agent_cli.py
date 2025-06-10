@@ -25,9 +25,10 @@ class InteractiveCLIManager:
     Manages the state and rendering logic for the interactive CLI session.
     Input reading is handled by the main `run` loop. This class only handles output.
     """
-    def __init__(self, agent_turn_complete_event: asyncio.Event, show_tool_logs: bool):
+    def __init__(self, agent_turn_complete_event: asyncio.Event, show_tool_logs: bool, show_token_usage: bool):
         self.agent_turn_complete_event = agent_turn_complete_event
         self.show_tool_logs = show_tool_logs
+        self.show_token_usage = show_token_usage
         self.current_line_empty = True
         self.agent_has_spoken_this_turn = False
         self.pending_approval_data: Optional[ToolInvocationApprovalRequestedData] = None
@@ -77,11 +78,27 @@ class InteractiveCLIManager:
             sys.stdout.write(event.data.content)
             sys.stdout.flush()
             self.current_line_empty = event.data.content.endswith('\n')
+            
+            if self.show_token_usage and event.data.is_complete and event.data.usage:
+                self._ensure_new_line()
+                usage = event.data.usage
+                logger.info(
+                    f"[Token Usage: Prompt={usage.prompt_tokens}, "
+                    f"Completion={usage.completion_tokens}, Total={usage.total_tokens}]"
+                )
 
         elif event.event_type == StreamEventType.ASSISTANT_COMPLETE_RESPONSE and isinstance(event.data, AssistantCompleteResponseData):
             if not self.agent_has_spoken_this_turn:
                 sys.stdout.write(f"Agent: {event.data.content}\n")
                 sys.stdout.flush()
+
+            if self.show_token_usage and event.data.usage:
+                usage = event.data.usage
+                logger.info(
+                    f"[Token Usage: Prompt={usage.prompt_tokens}, "
+                    f"Completion={usage.completion_tokens}, Total={usage.total_tokens}]"
+                )
+
             self.current_line_empty = True
             self.agent_has_spoken_this_turn = False
 
@@ -111,13 +128,13 @@ class InteractiveCLIManager:
             logger.debug(f"CLI Manager: Unhandled StreamEvent type: {event.event_type.value}")
 
 
-async def run(agent: Agent, show_tool_logs: bool = True, initial_prompt: Optional[str] = None):
+async def run(agent: Agent, show_tool_logs: bool = True, show_token_usage: bool = False, initial_prompt: Optional[str] = None):
     if not isinstance(agent, Agent):
         raise TypeError(f"Expected an Agent instance, got {type(agent).__name__}")
 
     logger.info(f"Starting interactive CLI session for agent '{agent.agent_id}'.")
     agent_turn_complete_event = asyncio.Event()
-    cli_manager = InteractiveCLIManager(agent_turn_complete_event, show_tool_logs)
+    cli_manager = InteractiveCLIManager(agent_turn_complete_event, show_tool_logs, show_token_usage)
     streamer = AgentEventStream(agent)
 
     async def process_agent_events():

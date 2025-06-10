@@ -28,13 +28,15 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
     async def handle(self,
                      event: LLMCompleteResponseReceivedEvent, 
                      context: 'AgentContext') -> None: 
-        complete_response_text = event.complete_response_text
+        complete_response: CompleteResponse = event.complete_response
+        complete_response_text = complete_response.content
         is_error_response = getattr(event, 'is_error', False) 
 
         agent_id = context.agent_id 
         logger.info(
             f"Agent '{agent_id}' handling LLMCompleteResponseReceivedEvent. "
-            f"Response Length: {len(complete_response_text)}, IsErrorFlagged: {is_error_response}"
+            f"Response Length: {len(complete_response_text)}, IsErrorFlagged: {is_error_response}, "
+            f"TokenUsage: {complete_response.usage}"
         )
         logger.debug(f"Agent '{agent_id}' received full LLM response text for processing:\n---\n{complete_response_text}\n---")
 
@@ -67,8 +69,11 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
                         processor_name_for_log = processor_instance.get_name()
                         logger.debug(f"Agent '{agent_id}': Attempting to process with LLMResponseProcessor '{processor_name_for_log}'.")
                         
+                        # Pass the original event to the processor
                         handled_by_this_processor = await processor_instance.process_response(
-                            complete_response_text, context 
+                            response=complete_response_text, 
+                            context=context, 
+                            triggering_event=event
                         ) 
                         
                         if handled_by_this_processor:
@@ -95,8 +100,6 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
             )
 
         if not any_processor_took_action:
-            complete_response_obj = CompleteResponse(content=complete_response_text) 
-            
             if is_error_response:
                 logger.info(
                     f"Agent '{agent_id}' emitting a received error message as a complete response: '{complete_response_text[:100]}...'"
@@ -109,7 +112,7 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
             
             if notifier:
                 try:
-                    notifier.notify_agent_data_assistant_complete_response(complete_response_obj) 
+                    notifier.notify_agent_data_assistant_complete_response(complete_response) 
                     logger.debug(f"Agent '{agent_id}' emitted AGENT_DATA_ASSISTANT_COMPLETE_RESPONSE event.")
                 except Exception as e_notify: # pragma: no cover
                     logger.error(f"Agent '{agent_id}': Error emitting AGENT_DATA_ASSISTANT_COMPLETE_RESPONSE: {e_notify}", exc_info=True)

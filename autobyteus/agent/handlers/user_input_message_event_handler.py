@@ -51,7 +51,12 @@ class UserInputMessageEventHandler(AgentEventHandler):
                     processor_name_for_log = processor_instance.get_name()
                     logger.debug(f"Agent '{context.agent_id}': Applying input processor '{processor_name_for_log}'.")
                     msg_before_this_processor = processed_agent_input_user_msg
-                    processed_agent_input_user_msg = await processor_instance.process(msg_before_this_processor, context)
+                    # Pass the original event to the processor
+                    processed_agent_input_user_msg = await processor_instance.process(
+                        message=msg_before_this_processor, 
+                        context=context, 
+                        triggering_event=event
+                    )
                     logger.info(f"Agent '{context.agent_id}': Input processor '{processor_name_for_log}' applied successfully.")
 
                 except Exception as e:
