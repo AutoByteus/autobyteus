@@ -4,7 +4,6 @@ Event definitions and event queue management for agents.
 Also includes the WorkerEventDispatcher for routing events within an agent's worker loop.
 """
 from .agent_input_event_queue_manager import AgentInputEventQueueManager
-# AgentOutputDataManager and END_OF_STREAM_SENTINEL removed
 from .worker_event_dispatcher import WorkerEventDispatcher 
 
 from .agent_events import (
@@ -15,18 +14,16 @@ from .agent_events import (
     # Agent Phase-Specific Base Events
     AgentPreparationEvent, 
     AgentOperationalEvent,
-    # New Bootstrap Event 
-    BootstrapAgentEvent, 
     # Specific Lifecycle Events
     AgentReadyEvent, 
     AgentStoppedEvent,
     AgentErrorEvent,
-    # Agent Initialization Sequence Events (DEPRECATED in standard flow, kept for potential direct use or reference)
+    # DEPRECATED Initialization Events
     CreateToolInstancesEvent, 
     ProcessSystemPromptEvent,
     FinalizeLLMConfigEvent,
     CreateLLMInstanceEvent,
-    # Regular Agent Processing Events (now inheriting from AgentOperationalEvent)
+    # Regular Agent Processing Events
     UserMessageReceivedEvent, 
     InterAgentMessageReceivedEvent, 
     LLMUserMessageReadyEvent, 
@@ -35,20 +32,18 @@ from .agent_events import (
     ToolResultEvent,
     ToolExecutionApprovalEvent,
     ApprovedToolInvocationEvent,
-    # General Purpose Event (now inheriting from AgentOperationalEvent)
+    # General Purpose Event
     GenericEvent
 )
 
 __all__ = [
     "AgentInputEventQueueManager", 
-    # AgentOutputDataManager and END_OF_STREAM_SENTINEL removed from __all__   
     "WorkerEventDispatcher", 
     "BaseEvent",
     "LifecycleEvent",
     "AgentProcessingEvent",
     "AgentPreparationEvent", 
     "AgentOperationalEvent", 
-    "BootstrapAgentEvent", 
     "AgentReadyEvent", 
     "AgentStoppedEvent",
     "AgentErrorEvent",

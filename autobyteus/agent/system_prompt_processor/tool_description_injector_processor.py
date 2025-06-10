@@ -16,7 +16,7 @@ class ToolDescriptionInjectorProcessor(BaseSystemPromptProcessor):
     A system prompt processor that injects tool descriptions/schemas into the prompt.
     It looks for a specific placeholder (default: "{{tools}}") in the system prompt
     and replaces it with descriptions of the available tools, formatted as either
-    XML or JSON based on the AgentSpecification's 'use_xml_tool_format' flag.
+    XML or JSON based on the AgentConfig's 'use_xml_tool_format' flag.
     If the system prompt consists *only* of the placeholder, a default
     instructional prefix is added.
     """
@@ -44,7 +44,7 @@ class ToolDescriptionInjectorProcessor(BaseSystemPromptProcessor):
             system_prompt: The current system prompt string.
             tool_instances: A dictionary of instantiated tools.
             agent_id: The ID of the agent (for logging).
-            context: The agent's context, used to access the AgentSpecification.
+            context: The agent's context, used to access the AgentConfig.
 
         Returns:
             The processed system prompt string with tool descriptions injected.
@@ -53,7 +53,7 @@ class ToolDescriptionInjectorProcessor(BaseSystemPromptProcessor):
             logger.debug(f"ToolDescriptionInjectorProcessor: Placeholder '{self.PLACEHOLDER}' not found in system prompt for agent '{agent_id}'. Prompt unchanged.")
             return system_prompt
 
-        use_xml_format = context.specification.use_xml_tool_format
+        use_xml_format = context.config.use_xml_tool_format
         chosen_format_str = "XML" if use_xml_format else "JSON"
         logger.debug(f"ToolDescriptionInjectorProcessor for agent '{agent_id}': Using {chosen_format_str} format for tool descriptions.")
 
@@ -97,6 +97,7 @@ class ToolDescriptionInjectorProcessor(BaseSystemPromptProcessor):
                                f"but failed to generate or retrieve usage for any tool in {chosen_format_str} format. Replacing with 'Tool usage information is currently unavailable.'")
                 actual_tools_description = "Tool usage information is currently unavailable."
         
+        # Use strip() to handle cases like "  {{tools}}  "
         if system_prompt.strip() == self.PLACEHOLDER:
             logger.info(f"ToolDescriptionInjectorProcessor: System prompt for agent '{agent_id}' was only '{self.PLACEHOLDER}'. "
                         f"Prepending default instructions.")

@@ -1,8 +1,8 @@
 import pytest
 import logging 
-import json # Added for JSON assertions
+import json
 from typing import Dict
-from unittest.mock import MagicMock # Added for mock context
+from unittest.mock import MagicMock
 
 from autobyteus.agent.system_prompt_processor.tool_description_injector_processor import ToolDescriptionInjectorProcessor
 from autobyteus.tools.base_tool import BaseTool
@@ -11,7 +11,8 @@ from autobyteus.tools.base_tool import BaseTool
 
 def test_tool_injector_get_name():
     """Test the get_name() method of ToolDescriptionInjectorProcessor."""
-    assert ToolDescriptionInjectorProcessor.get_name() == "ToolDescriptionInjector"
+    processor = ToolDescriptionInjectorProcessor()
+    assert processor.get_name() == "ToolDescriptionInjector"
 
 def test_process_prompt_without_placeholder(mock_context_for_system_prompt_processors_factory):
     """Test processing when the system prompt does not contain the '{{tools}}' placeholder."""
@@ -28,7 +29,7 @@ def test_process_with_placeholder_and_no_tools_xml(mock_context_for_system_promp
     original_prompt = "Available tools: {{tools}}"
     processed_prompt = processor.process(original_prompt, {}, mock_context.agent_id, mock_context)
     
-    assert "Replacing with 'No tools available.'" in caplog.text
+    assert "no tools are instantiated. Replacing with 'No tools available.'" in caplog.text
     expected_prompt = "Available tools: \nNo tools available for this agent."
     assert processed_prompt == expected_prompt
 
@@ -39,7 +40,7 @@ def test_process_with_placeholder_and_no_tools_json(mock_context_for_system_prom
     original_prompt = "Available tools: {{tools}}"
     processed_prompt = processor.process(original_prompt, {}, mock_context.agent_id, mock_context)
     
-    assert "Replacing with 'No tools available.'" in caplog.text
+    assert "no tools are instantiated. Replacing with 'No tools available.'" in caplog.text
     expected_prompt = "Available tools: \nNo tools available for this agent." # Message is format-agnostic
     assert processed_prompt == expected_prompt
 
@@ -64,8 +65,7 @@ def test_process_with_placeholder_and_one_tool_json(mock_tool_alpha: BaseTool, m
     original_prompt = "Please use {{tools}} for this task."
     tools: Dict[str, BaseTool] = {"AlphaTool": mock_tool_alpha}
     
-    # Ensure mock_tool_alpha.tool_usage_json() returns something reasonable
-    alpha_json_schema = {"name": "AlphaTool", "description": "Desc for Alpha", "parameters": {}}
+    alpha_json_schema = {"name": "AlphaTool", "description": "Desc for Alpha", "input_schema": {}}
     mock_tool_alpha.tool_usage_json = MagicMock(return_value=alpha_json_schema)
 
     processed_prompt = processor.process(original_prompt, tools, mock_context.agent_id, mock_context)
@@ -103,8 +103,8 @@ def test_process_with_placeholder_and_multiple_tools_json(mock_tool_alpha: BaseT
     original_prompt = "Consider these: {{tools}}."
     tools: Dict[str, BaseTool] = {"AlphaTool": mock_tool_alpha, "BetaTool": mock_tool_beta}
 
-    alpha_json_schema = {"name": "AlphaTool", "description": "Desc Alpha", "parameters": {}}
-    beta_json_schema = {"name": "BetaTool", "description": "Desc Beta", "parameters": {"type": "object", "properties": {"param1": {"type": "string"}}}}
+    alpha_json_schema = {"name": "AlphaTool", "description": "Desc Alpha", "input_schema": {}}
+    beta_json_schema = {"name": "BetaTool", "description": "Desc Beta", "input_schema": {"type": "object", "properties": {"param1": {"type": "string"}}}}
     mock_tool_alpha.tool_usage_json = MagicMock(return_value=alpha_json_schema)
     mock_tool_beta.tool_usage_json = MagicMock(return_value=beta_json_schema)
 
@@ -126,24 +126,22 @@ def test_process_tool_returning_empty_xml_logs_warning(mock_tool_empty_xml: Base
     processor = ToolDescriptionInjectorProcessor()
     mock_context = mock_context_for_system_prompt_processors_factory(use_xml_format=True)
     original_prompt = "Tool: {{tools}}"
-    tools: Dict[str, BaseTool] = {"EmptyXmlTool": mock_tool_empty_xml} # mock_tool_empty_xml.tool_usage_xml() returns ""
+    tools: Dict[str, BaseTool] = {"EmptyXmlTool": mock_tool_empty_xml}
     
     processed_prompt = processor.process(original_prompt, tools, mock_context.agent_id, mock_context) 
     
-    assert f"Tool 'EmptyXmlTool' for agent '{mock_context.agent_id}' returned empty usage XML." in caplog.text
+    assert f"Tool 'EmptyXmlTool' for agent '{mock_context.agent_id}' returned empty usage XML description." in caplog.text
     expected_error_tool_xml = '<tool_error name="EmptyXmlTool">Error: Usage information is empty for this tool.</tool_error>'
     expected_prompt = f"Tool: \n{expected_error_tool_xml}"
     assert processed_prompt == expected_prompt
 
 def test_process_tool_returning_empty_json_logs_warning(mock_tool_empty_xml: BaseTool, mock_context_for_system_prompt_processors_factory, caplog):
-    # mock_tool_empty_xml has json_output defined in conftest for this scenario
     processor = ToolDescriptionInjectorProcessor()
     mock_context = mock_context_for_system_prompt_processors_factory(use_xml_format=False)
     original_prompt = "Tool: {{tools}}"
     tools: Dict[str, BaseTool] = {"EmptyJsonTool": mock_tool_empty_xml}
     
-    # Make tool_usage_json return empty dict for this test
-    mock_tool_empty_xml.tool_usage_json = MagicMock(return_value=None) # Simulate it returning None or empty
+    mock_tool_empty_xml.tool_usage_json = MagicMock(return_value=None)
     
     processed_prompt = processor.process(original_prompt, tools, mock_context.agent_id, mock_context)
     
@@ -157,7 +155,7 @@ def test_process_tool_xml_generation_error_logs_error(mock_tool_xml_error: BaseT
     processor = ToolDescriptionInjectorProcessor()
     mock_context = mock_context_for_system_prompt_processors_factory(use_xml_format=True)
     prompt = "Tools: {{tools}}."
-    tools = {"XmlErrorTool": mock_tool_xml_error} # mock_tool_xml_error.tool_usage_xml() raises RuntimeError
+    tools = {"XmlErrorTool": mock_tool_xml_error}
     
     processed_prompt = processor.process(prompt, tools, mock_context.agent_id, mock_context) 
     
@@ -171,7 +169,7 @@ def test_process_tool_json_generation_error_logs_error(mock_tool_json_error: Bas
     processor = ToolDescriptionInjectorProcessor()
     mock_context = mock_context_for_system_prompt_processors_factory(use_xml_format=False)
     prompt = "Tools: {{tools}}."
-    tools = {"JsonErrorTool": mock_tool_json_error} # mock_tool_json_error.tool_usage_json() raises RuntimeError
+    tools = {"JsonErrorTool": mock_tool_json_error}
     
     processed_prompt = processor.process(prompt, tools, mock_context.agent_id, mock_context)
     
@@ -224,7 +222,7 @@ def test_process_prompt_is_only_placeholder_with_tools_json(mock_tool_alpha: Bas
     original_prompt = "  {{tools}}  "
     tools: Dict[str, BaseTool] = {"AlphaTool": mock_tool_alpha}
     
-    alpha_json_schema = {"name": "AlphaTool", "description": "Desc Alpha", "parameters": {}}
+    alpha_json_schema = {"name": "AlphaTool", "description": "Desc Alpha", "input_schema": {}}
     mock_tool_alpha.tool_usage_json = MagicMock(return_value=alpha_json_schema)
 
     processed_prompt = processor.process(original_prompt, tools, mock_context.agent_id, mock_context)
@@ -253,7 +251,7 @@ def test_process_placeholder_in_middle_of_prompt_json(mock_tool_beta: BaseTool, 
     original_prompt = "Before placeholder. {{tools}} After placeholder."
     tools: Dict[str, BaseTool] = {"BetaTool": mock_tool_beta}
 
-    beta_json_schema = {"name": "BetaTool", "description": "Desc Beta", "parameters": {"type": "object", "properties": {"param1": {"type": "string"}}}}
+    beta_json_schema = {"name": "BetaTool", "description": "Desc Beta", "input_schema": {"type": "object", "properties": {"param1": {"type": "string"}}}}
     mock_tool_beta.tool_usage_json = MagicMock(return_value=beta_json_schema)
 
     processed_prompt = processor.process(original_prompt, tools, mock_context.agent_id, mock_context)
@@ -261,4 +259,3 @@ def test_process_placeholder_in_middle_of_prompt_json(mock_tool_beta: BaseTool, 
     expected_json_str = json.dumps(beta_json_schema, indent=2)
     expected_prompt = f"Before placeholder. \n{expected_json_str} After placeholder."
     assert processed_prompt == expected_prompt
-

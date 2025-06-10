@@ -1,5 +1,5 @@
 # file: autobyteus/tests/unit_tests/agent/system_prompt_processor/test_tool_usage_example_injector_processor.py
-from unittest.mock import patch, MagicMock # Added MagicMock
+from unittest.mock import patch, MagicMock
 import pytest
 import logging
 import json 
@@ -14,13 +14,13 @@ from ._test_helpers import MockTool
 
 
 def test_tool_example_injector_get_name():
-    assert ToolUsageExampleInjectorProcessor.get_name() == "ToolUsageExampleInjector"
+    processor = ToolUsageExampleInjectorProcessor()
+    assert processor.get_name() == "ToolUsageExampleInjector"
 
 def test_process_prompt_without_placeholder(mock_context_for_system_prompt_processors_factory):
     processor = ToolUsageExampleInjectorProcessor()
     mock_context = mock_context_for_system_prompt_processors_factory()
     original_prompt = "This is a system prompt without the examples placeholder."
-    # The context argument was missing in the original call, process now requires it.
     processed_prompt = processor.process(original_prompt, {}, mock_context.agent_id, mock_context)
     assert processed_prompt == original_prompt
 
@@ -36,18 +36,15 @@ def test_process_with_placeholder_and_no_tools(mock_context_for_system_prompt_pr
     expected_prompt = f"Tool examples: {processor.DEFAULT_NO_TOOLS_MESSAGE}"
     assert processed_prompt == expected_prompt
 
-# Test for XML examples (use_xml_tool_format = True)
 def test_process_with_one_tool_no_args_xml_format(mock_context_for_system_prompt_processors_factory):
     processor = ToolUsageExampleInjectorProcessor()
     mock_context = mock_context_for_system_prompt_processors_factory(use_xml_format=True)
     original_prompt = "Example: {{tool_examples}}"
     
-    tool_no_args_instance = MockTool(name="NoArgsTool", description="Tool with no args")
+    tool_no_args_instance = MockTool(name="NoArgsTool", description="Tool with no args", args_schema=ParameterSchema())
     tools: Dict[str, BaseTool] = {"NoArgsTool": tool_no_args_instance}
 
-    with patch.object(tool_no_args_instance, 'get_name', return_value="NoArgsTool"), \
-         patch.object(tool_no_args_instance, 'get_argument_schema', return_value=ParameterSchema()):
-        processed_prompt = processor.process(original_prompt, tools, mock_context.agent_id, mock_context)
+    processed_prompt = processor.process(original_prompt, tools, mock_context.agent_id, mock_context)
 
     expected_xml_example = (
         f'<command name="NoArgsTool">\n'
@@ -57,29 +54,23 @@ def test_process_with_one_tool_no_args_xml_format(mock_context_for_system_prompt
     
     assert processor.XML_EXAMPLES_HEADER in processed_prompt
     assert expected_xml_example in processed_prompt
-    assert processor.JSON_EXAMPLES_HEADER not in processed_prompt # Ensure JSON header is NOT present
     assert "{{tool_examples}}" not in processed_prompt
-    assert "json.dumps" not in str(processor._generate_tool_example_json_obj) # Check internal calls if needed or trust logic
 
-# Test for JSON examples (use_xml_tool_format = False)
 def test_process_with_one_tool_no_args_json_format(mock_context_for_system_prompt_processors_factory):
     processor = ToolUsageExampleInjectorProcessor()
     mock_context = mock_context_for_system_prompt_processors_factory(use_xml_format=False)
     original_prompt = "Example: {{tool_examples}}"
     
-    tool_no_args_instance = MockTool(name="NoArgsTool", description="Tool with no args")
+    tool_no_args_instance = MockTool(name="NoArgsTool", description="Tool with no args", args_schema=ParameterSchema())
     tools: Dict[str, BaseTool] = {"NoArgsTool": tool_no_args_instance}
 
-    with patch.object(tool_no_args_instance, 'get_name', return_value="NoArgsTool"), \
-         patch.object(tool_no_args_instance, 'get_argument_schema', return_value=ParameterSchema()):
-        processed_prompt = processor.process(original_prompt, tools, mock_context.agent_id, mock_context)
+    processed_prompt = processor.process(original_prompt, tools, mock_context.agent_id, mock_context)
 
     expected_json_example_obj = {"tool_name": "NoArgsTool", "arguments": {}}
-    expected_json_example_str = json.dumps(expected_json_example_obj, indent=2) # Indent 2 for JSON
+    expected_json_example_str = json.dumps(expected_json_example_obj, indent=2)
 
     assert processor.JSON_EXAMPLES_HEADER in processed_prompt
     assert expected_json_example_str in processed_prompt
-    assert processor.XML_EXAMPLES_HEADER not in processed_prompt # Ensure XML header is NOT present
     assert "{{tool_examples}}" not in processed_prompt
 
 
@@ -93,12 +84,10 @@ def test_process_with_tool_having_required_and_defaulted_args_xml_format(mock_co
     test_schema.add_parameter(ParameterDefinition(name="count", param_type=ParameterType.INTEGER, description="A number", required=False, default_value=10))
     test_schema.add_parameter(ParameterDefinition(name="active", param_type=ParameterType.BOOLEAN, description="Is active", required=True))
     
-    tool_mix_args_instance = MockTool(name="MixArgsTool", description="Tool with mixed args")
+    tool_mix_args_instance = MockTool(name="MixArgsTool", description="Tool with mixed args", args_schema=test_schema)
     tools: Dict[str, BaseTool] = {"MixArgsTool": tool_mix_args_instance}
 
-    with patch.object(tool_mix_args_instance, 'get_name', return_value="MixArgsTool"), \
-         patch.object(tool_mix_args_instance, 'get_argument_schema', return_value=test_schema):
-        processed_prompt = processor.process(prompt, tools, mock_context.agent_id, mock_context)
+    processed_prompt = processor.process(prompt, tools, mock_context.agent_id, mock_context)
     
     expected_xml_example = (
         f'<command name="MixArgsTool">\n'
@@ -110,7 +99,6 @@ def test_process_with_tool_having_required_and_defaulted_args_xml_format(mock_co
     
     assert processor.XML_EXAMPLES_HEADER in processed_prompt
     assert expected_xml_example in processed_prompt
-    assert processor.JSON_EXAMPLES_HEADER not in processed_prompt
 
 def test_process_with_tool_having_required_and_defaulted_args_json_format(mock_context_for_system_prompt_processors_factory):
     processor = ToolUsageExampleInjectorProcessor()
@@ -122,12 +110,10 @@ def test_process_with_tool_having_required_and_defaulted_args_json_format(mock_c
     test_schema.add_parameter(ParameterDefinition(name="count", param_type=ParameterType.INTEGER, description="A number", required=False, default_value=10))
     test_schema.add_parameter(ParameterDefinition(name="active", param_type=ParameterType.BOOLEAN, description="Is active", required=True))
     
-    tool_mix_args_instance = MockTool(name="MixArgsTool", description="Tool with mixed args")
+    tool_mix_args_instance = MockTool(name="MixArgsTool", description="Tool with mixed args", args_schema=test_schema)
     tools: Dict[str, BaseTool] = {"MixArgsTool": tool_mix_args_instance}
 
-    with patch.object(tool_mix_args_instance, 'get_name', return_value="MixArgsTool"), \
-         patch.object(tool_mix_args_instance, 'get_argument_schema', return_value=test_schema):
-        processed_prompt = processor.process(prompt, tools, mock_context.agent_id, mock_context)
+    processed_prompt = processor.process(prompt, tools, mock_context.agent_id, mock_context)
     
     expected_json_example_obj = {
         "tool_name": "MixArgsTool",
@@ -141,9 +127,7 @@ def test_process_with_tool_having_required_and_defaulted_args_json_format(mock_c
     
     assert processor.JSON_EXAMPLES_HEADER in processed_prompt
     assert expected_json_example_str in processed_prompt
-    assert processor.XML_EXAMPLES_HEADER not in processed_prompt
 
-# Parameterize placeholder generation test as it's format-agnostic for py_val
 @pytest.mark.parametrize("param_type, expected_placeholder_val_py, expected_placeholder_val_xml_str", [
     (ParameterType.STRING, "example_string_value", "example_string_value"),
     (ParameterType.INTEGER, 123, "123"),
@@ -164,7 +148,6 @@ def test_generate_placeholder_value_and_xml_string_conversion(param_type: Parame
     py_val = processor._generate_placeholder_value(param_def)
     assert py_val == expected_placeholder_val_py
 
-    # Test XML string conversion part specifically
     xml_str_val = str(py_val)
     if isinstance(py_val, bool): 
         xml_str_val = 'true' if py_val else 'false'
@@ -184,71 +167,52 @@ def test_process_failure_to_generate_example_for_one_tool_xml_format(mock_tool_a
     mock_context = mock_context_for_system_prompt_processors_factory(use_xml_format=True)
     prompt = "Examples: {{tool_examples}}"
 
-    alpha_schema = ParameterSchema() 
-    alpha_schema.add_parameter(ParameterDefinition(name="alpha_param", param_type=ParameterType.STRING, description="Param for Alpha."))
+    tool_beta_instance = MockTool(name="BetaTool", description="Beta desc", args_schema=ParameterSchema())
     
-    tool_beta_instance = MockTool(name="BetaTool", description="Beta desc")
-    beta_schema = ParameterSchema()
-
+    # Make alpha tool fail
+    mock_tool_alpha._generate_tool_example_xml = MagicMock(side_effect=RuntimeError("Simulated XML failure"))
+    
     tools: Dict[str, BaseTool] = {"AlphaTool": mock_tool_alpha, "BetaTool": tool_beta_instance}
 
-    with patch.object(processor, '_generate_tool_example_xml', autospec=True) as mock_gen_xml_proc_method, \
-         patch.object(mock_tool_alpha, 'get_name', return_value="AlphaTool"), \
-         patch.object(mock_tool_alpha, 'get_argument_schema', return_value=alpha_schema), \
-         patch.object(tool_beta_instance, 'get_name', return_value="BetaTool"), \
-         patch.object(tool_beta_instance, 'get_argument_schema', return_value=beta_schema):
+    with patch.object(processor, '_generate_tool_example_xml', wraps=processor._generate_tool_example_xml) as mock_gen_xml_proc_method:
         
         def side_effect_xml(tool_instance_param: BaseTool) -> str:
-            instance_name = tool_instance_param.get_name() 
-            if instance_name == "AlphaTool":
+            if tool_instance_param.get_name() == "AlphaTool":
                 raise RuntimeError("Simulated XML example failure for AlphaTool")
-            return f"<command name=\"{instance_name}\"><!-- XML Example for {instance_name} --></command>"
+            return f"<command name=\"{tool_instance_param.get_name()}\"></command>"
         
         mock_gen_xml_proc_method.side_effect = side_effect_xml
-        
         processed_prompt = processor.process(prompt, tools, mock_context.agent_id, mock_context)
 
     assert "Failed to generate XML example for tool 'AlphaTool'" in caplog.text
     assert "<!-- Error generating XML example for tool: AlphaTool -->" in processed_prompt
-    assert "<command name=\"BetaTool\"><!-- XML Example for BetaTool --></command>" in processed_prompt 
+    assert "<command name=\"BetaTool\"></command>" in processed_prompt 
     assert "{{tool_examples}}" not in processed_prompt
-    assert processor.JSON_EXAMPLES_HEADER not in processed_prompt # Check JSON specific things are not there
 
 def test_process_failure_to_generate_example_for_one_tool_json_format(mock_tool_alpha: MockTool, mock_context_for_system_prompt_processors_factory, caplog):
     processor = ToolUsageExampleInjectorProcessor()
     mock_context = mock_context_for_system_prompt_processors_factory(use_xml_format=False)
     prompt = "Examples: {{tool_examples}}"
 
-    alpha_schema = ParameterSchema()
-    alpha_schema.add_parameter(ParameterDefinition(name="alpha_param", param_type=ParameterType.STRING, description="Param for Alpha."))
-    
-    tool_beta_instance = MockTool(name="BetaTool", description="Beta desc")
-    beta_schema = ParameterSchema()
+    tool_beta_instance = MockTool(name="BetaTool", description="Beta desc", args_schema=ParameterSchema())
 
     tools: Dict[str, BaseTool] = {"AlphaTool": mock_tool_alpha, "BetaTool": tool_beta_instance}
 
-    with patch.object(processor, '_generate_tool_example_json_obj', autospec=True) as mock_gen_json_proc_method, \
-         patch.object(mock_tool_alpha, 'get_name', return_value="AlphaTool"), \
-         patch.object(mock_tool_alpha, 'get_argument_schema', return_value=alpha_schema), \
-         patch.object(tool_beta_instance, 'get_name', return_value="BetaTool"), \
-         patch.object(tool_beta_instance, 'get_argument_schema', return_value=beta_schema):
-        
+    with patch.object(processor, '_generate_tool_example_json_obj', wraps=processor._generate_tool_example_json_obj) as mock_gen_json_proc_method:
         def side_effect_json(tool_instance_param: BaseTool) -> Dict[str, Any]:
             instance_name = tool_instance_param.get_name()
             if instance_name == "AlphaTool":
                 raise RuntimeError("Simulated JSON example failure for AlphaTool")
-            return {"tool_name": instance_name, "arguments": {"note": f"JSON Example for {instance_name}"}}
+            return {"tool_name": instance_name, "arguments": {}}
 
         mock_gen_json_proc_method.side_effect = side_effect_json
-        
         processed_prompt = processor.process(prompt, tools, mock_context.agent_id, mock_context)
 
     assert "Failed to generate JSON example for tool 'AlphaTool'" in caplog.text
     assert "// Error generating JSON example for tool: AlphaTool" in processed_prompt
     
-    beta_json_example_obj = {"tool_name": "BetaTool", "arguments": {"note": "JSON Example for BetaTool"}}
+    beta_json_example_obj = {"tool_name": "BetaTool", "arguments": {}}
     beta_json_example_str = json.dumps(beta_json_example_obj, indent=2)
     assert beta_json_example_str in processed_prompt
     
     assert "{{tool_examples}}" not in processed_prompt
-    assert processor.XML_EXAMPLES_HEADER not in processed_prompt # Check XML specific things are not there

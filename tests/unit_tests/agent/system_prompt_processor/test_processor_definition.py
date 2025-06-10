@@ -1,10 +1,15 @@
 import pytest
+from typing import Dict, TYPE_CHECKING
 
 from autobyteus.agent.system_prompt_processor.base_processor import BaseSystemPromptProcessor
 from autobyteus.agent.system_prompt_processor.processor_definition import SystemPromptProcessorDefinition
 
+if TYPE_CHECKING:
+    from autobyteus.agent.context import AgentContext
+    from autobyteus.tools.base_tool import BaseTool
+
 class DummySystemPromptProcessor(BaseSystemPromptProcessor):
-    def process(self, system_prompt: str, tool_instances: dict, agent_id: str) -> str:
+    def process(self, system_prompt: str, tool_instances: Dict[str, 'BaseTool'], agent_id: str, context: 'AgentContext') -> str:
         return system_prompt # pragma: no cover
 
 def test_processor_definition_valid_creation():
@@ -38,4 +43,3 @@ def test_processor_definition_repr():
     definition = SystemPromptProcessorDefinition(name="MyProc", processor_class=DummySystemPromptProcessor)
     expected_repr = "<SystemPromptProcessorDefinition name='MyProc', class='DummySystemPromptProcessor'>"
     assert repr(definition) == expected_repr
-

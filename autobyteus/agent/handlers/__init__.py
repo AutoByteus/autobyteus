@@ -5,15 +5,6 @@ Event handlers for agent runtime.
 from .base_event_handler import AgentEventHandler
 from .event_handler_registry import EventHandlerRegistry
 
-# Agent Initialization Sequence Handlers
-from .bootstrap_agent_event_handler import BootstrapAgentEventHandler # ADDED
-
-# DEPRECATED Individual Initialization Handlers (files will be removed)
-# from .create_tool_instances_event_handler import CreateToolInstancesEventHandler 
-# from .process_system_prompt_event_handler import ProcessSystemPromptEventHandler
-# from .finalize_llm_config_event_handler import FinalizeLLMConfigEventHandler
-# from .create_llm_instance_event_handler import CreateLLMInstanceEventHandler
-
 # Regular Agent Processing Handlers
 from .user_input_message_event_handler import UserInputMessageEventHandler 
 from .inter_agent_message_event_handler import InterAgentMessageReceivedEventHandler 
@@ -32,11 +23,6 @@ from .lifecycle_event_logger import LifecycleEventLogger
 __all__ = [
     "AgentEventHandler",
     "EventHandlerRegistry",
-    "BootstrapAgentEventHandler", # ADDED
-    # "CreateToolInstancesEventHandler", # REMOVED
-    # "ProcessSystemPromptEventHandler", # REMOVED
-    # "FinalizeLLMConfigEventHandler",   # REMOVED
-    # "CreateLLMInstanceEventHandler",   # REMOVED
     "UserInputMessageEventHandler", 
     "InterAgentMessageReceivedEventHandler", 
     "LLMUserMessageReadyEventHandler", 

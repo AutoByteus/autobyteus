@@ -15,10 +15,11 @@ from autobyteus.llm.api.ollama_llm import OllamaLLM
 from autobyteus.llm.api.deepseek_llm import DeepSeekLLM
 from autobyteus.llm.api.grok_llm import GrokLLM
 from autobyteus.llm.ollama_provider import OllamaModelProvider
+from autobyteus.utils.singleton import SingletonMeta
 
 logger = logging.getLogger(__name__)
 
-class LLMFactory:
+class LLMFactory(metaclass=SingletonMeta):
     _models_by_provider: Dict[LLMProvider, List[LLMModel]] = {}
     _initialized = False
 
@@ -306,3 +307,5 @@ class LLMFactory:
                 if model_instance.name == model_name:
                     return model_instance.canonical_name
         return None
+
+default_llm_factory = LLMFactory()

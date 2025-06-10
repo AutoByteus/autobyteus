@@ -18,7 +18,7 @@ class ToolUsageExampleInjectorProcessor(BaseSystemPromptProcessor):
     """
     A system prompt processor that injects concrete examples of tool usage
     into the system prompt, in either XML or JSON format based on the
-    AgentSpecification's 'use_xml_tool_format' flag.
+    AgentConfig's 'use_xml_tool_format' flag.
     It looks for a `{{tool_examples}}` placeholder.
     """
     PLACEHOLDER = "{{tool_examples}}"
@@ -128,7 +128,7 @@ class ToolUsageExampleInjectorProcessor(BaseSystemPromptProcessor):
             logger.info(f"{self.get_name()}: No tools available for agent '{agent_id}'. Replacing placeholder with: '{self.DEFAULT_NO_TOOLS_MESSAGE}'")
             return system_prompt.replace(self.PLACEHOLDER, self.DEFAULT_NO_TOOLS_MESSAGE)
 
-        use_xml_format = context.specification.use_xml_tool_format
+        use_xml_format = context.config.use_xml_tool_format
         example_snippets: List[str] = []
         chosen_format_str = "XML" if use_xml_format else "JSON"
         

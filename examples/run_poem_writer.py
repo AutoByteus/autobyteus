@@ -6,7 +6,7 @@ import tempfile
 import sys
 import os
 
-# Ensure the autobyteus package is discoverable if running script from examples dir directly
+# Ensure the autobyteus package is discoverable
 SCRIPT_DIR = Path(__file__).resolve().parent
 PACKAGE_ROOT = SCRIPT_DIR.parent
 sys.path.insert(0, str(PACKAGE_ROOT))
@@ -27,14 +27,13 @@ except Exception as e: # pragma: no cover
     print(f"Error loading .env file: {e}")
 
 try:
-    from autobyteus.agent.registry.agent_specification import AgentSpecification
+    # Import autobyteus components from the current implementation
+    from autobyteus.agent.context.agent_config import AgentConfig
     from autobyteus.llm.models import LLMModel
-    from autobyteus.agent.registry.agent_registry import default_agent_registry
-    from autobyteus.agent.agent import Agent
+    from autobyteus.llm.llm_factory import default_llm_factory
+    from autobyteus.agent.factory.agent_factory import default_agent_factory
     from autobyteus.cli import agent_cli
-
-    from autobyteus.tools import file_writer
-
+    from autobyteus.tools.file.file_writer import file_writer
 except ImportError as e: # pragma: no cover
     print(f"Error importing autobyteus components: {e}")
     print("Please ensure that the autobyteus library is installed and accessible in your PYTHONPATH.")
@@ -143,54 +142,59 @@ def setup_logging(args: argparse.Namespace):
     
     logger.info(f"Core library logs (excluding CLI) redirected to: {log_file_path} (level: {logging.getLevelName(file_log_level)})")
 
+async def main(args: argparse.Namespace):
+    """Main function to configure and run the PoemWriterAgent."""
 
-async def main(args: argparse.Namespace): # pragma: no cover
-    """Main function to run the PoemWriterAgent interactively using agent_cli.run()."""
-
-    output_dir_path = Path(args.output_dir).resolve()
-    if not output_dir_path.exists():
-        logger.info(f"Output directory '{output_dir_path}' does not exist. Creating it.")
-        output_dir_path.mkdir(parents=True, exist_ok=True)
+    output_dir = Path(args.output_dir).resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    poem_output_path = (output_dir / args.poem_filename).resolve()
     
-    poem_output_path = (output_dir_path / args.poem_filename).resolve()
-    logger.info(f"Agent is instructed to save poems to: {poem_output_path} (will be overwritten on subsequent poems).")
-    
-    tool_class_name = file_writer.get_name()
+    logger.info(f"Agent will be instructed to save poems to: {poem_output_path}")
 
+    # The file_writer tool is an instance ready to be used
+    tools_for_agent = [file_writer]
+    
+    # --- System prompt now uses placeholders for tool descriptions and examples ---
     system_prompt = (
-        f"You are an excellent poet. When given a topic, you must write a creative poem.\n"
-        f"After writing the poem, you MUST use the '{tool_class_name}' tool to save your complete poem.\n"
-        f"When using the '{tool_class_name}', you MUST use the absolute file path '{poem_output_path.as_posix()}' for its 'path' argument.\n"
-        f"Respond only with a tool call, nothing else.\n\n"
-        f"You have access to the following tools:\n"
-        f"{{{{tools}}}}\n\n" 
-        f"{{{{tool_examples}}}}" 
+        f"You are a world-class poet. Your task is to write a creative and beautiful poem on the given topic.\n"
+        f"After composing the poem, you MUST use the '{file_writer.get_name()}' tool to save your work.\n"
+        f"When using the tool, you MUST use the absolute file path '{poem_output_path.as_posix()}' for the 'path' argument.\n"
+        f"Conclude your response with only the tool call necessary to save the poem.\n\n"
+        f"Tools available:\n"
+        f"{{{{tools}}}}" # Placeholder for tool descriptions
+        f"\n\n"
+        f"{{{{tool_examples}}}}" # Placeholder for tool examples
     )
-
-    poem_writer_spec = AgentSpecification(
-        name="PoemWriterAgent",
-        role="CreativePoetInteractive",
-        description="An agent that writes poems on specified topics and saves them to disk, interactively.",
-        system_prompt=system_prompt,
-        tool_names=[tool_class_name],
-        use_xml_tool_format=True
-    )
-    logger.info(f"AgentSpecification created: {poem_writer_spec.name} using tool name '{tool_class_name}'")
 
     try:
+        # Validate the LLM model name
         _ = LLMModel[args.llm_model]
-    except KeyError:
-        logger.error(f"LLM Model '{args.llm_model}' not found in autobyteus.llm.models.LLMModel enum.")
-        logger.info(f"Available models: {[m.name for m in LLMModel]}")
+    except (ValueError, KeyError):
+        logger.error(f"LLM Model '{args.llm_model}' is not valid.")
+        logger.info(f"Available models: {[m.value for m in LLMModel]}")
         sys.exit(1)
 
-    agent: Agent = default_agent_registry.create_agent(
-        specification=poem_writer_spec,
-        llm_model_name=args.llm_model, 
-        auto_execute_tools=False,
+    # --- User is now responsible for creating the LLM instance ---
+    logger.info(f"Creating LLM instance for model: {args.llm_model}")
+    # The factory can be used as a convenience, or the user could instantiate their own LLM class directly.
+    llm_instance = default_llm_factory.create_llm(model_identifier=args.llm_model)
+
+    # Create the single, unified AgentConfig object
+    poem_writer_config = AgentConfig(
+        name="PoemWriterAgent",
+        role="CreativePoet",
+        description="An agent that writes poems and saves them to disk.",
+        llm_instance=llm_instance, # Pass the LLM instance directly
+        system_prompt=system_prompt,
+        tools=tools_for_agent, # Pass the list of tool instances
+        auto_execute_tools=False, # We want to approve the file write
+        use_xml_tool_format=True
     )
+
+    # Use the default factory to create the agent
+    agent = default_agent_factory.create_agent(config=poem_writer_config)
     logger.info(f"Agent instance created: {agent.agent_id}")
-    
+
     try:
         logger.info(f"Starting interactive session for agent {agent.agent_id} via agent_cli.run()...")
         await agent_cli.run(
@@ -199,27 +203,13 @@ async def main(args: argparse.Namespace): # pragma: no cover
             initial_prompt=args.topic
         )
         logger.info(f"Interactive session for agent {agent.agent_id} finished.")
-
     except KeyboardInterrupt: 
         logger.info("KeyboardInterrupt received during interactive session. agent_cli.run should handle shutdown.")
     except Exception as e: 
         logger.error(f"An error occurred during the agent interaction: {e}", exc_info=True)
-    finally: 
-        logger.info("Poem writer script specific cleanup...")
-        if hasattr(args, 'output_dir_is_temporary') and args.output_dir_is_temporary:
-            if output_dir_path.exists():
-                 try:
-                     if poem_output_path.exists(): 
-                         poem_output_path.unlink()
-                     if not any(output_dir_path.iterdir()): 
-                         output_dir_path.rmdir()
-                         logger.info(f"Temporary output directory '{output_dir_path}' and its contents cleaned up.")
-                     else:
-                         logger.info(f"Temporary output directory '{output_dir_path}' was not empty. Poem file removed if existed, directory kept.")
-                 except Exception as e_cleanup:
-                     logger.warning(f"Error during temporary directory cleanup: {e_cleanup}")
+    finally:
+        logger.info("Poem writer script finished.")
 
-    logger.info("Poem writer script finished.")
 
 if __name__ == "__main__": # pragma: no cover
     parser = argparse.ArgumentParser(description="Run the PoemWriterAgent interactively to generate and save poems.")
@@ -253,16 +243,12 @@ if __name__ == "__main__": # pragma: no cover
     temp_dir_obj = None 
     if parsed_args.output_dir is None:
         try:
-            _temp_dir_manager = tempfile.TemporaryDirectory(prefix="poem_writer_interactive_") 
-            parsed_args.output_dir = _temp_dir_manager.name
-            parsed_args.output_dir_is_temporary = True 
-            temp_dir_obj = _temp_dir_manager 
+            temp_dir_obj = tempfile.TemporaryDirectory(prefix="poem_writer_interactive_") 
+            parsed_args.output_dir = temp_dir_obj.name
             logger.info(f"Using temporary directory for output: {parsed_args.output_dir}")
         except Exception as e:
             logger.error(f"Failed to create temporary directory: {e}. Please specify --output-dir.", exc_info=True)
             sys.exit(1)
-    else:
-        parsed_args.output_dir_is_temporary = False
 
     try:
         asyncio.run(main(parsed_args))
@@ -278,4 +264,3 @@ if __name__ == "__main__": # pragma: no cover
             except Exception as e_temp_cleanup:
                 logger.warning(f"Could not cleanup temporary directory {temp_dir_obj.name}: {e_temp_cleanup}")
         logger.info("Exiting script.")
-

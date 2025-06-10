@@ -13,16 +13,16 @@ logger = logging.getLogger(__name__)
 class MetadataAppendingInputProcessor(BaseAgentUserInputMessageProcessor):
     """
     A processor that appends fixed metadata to the message.
-    Example: Appends agent_id and specification_name to metadata.
+    Example: Appends agent_id and config_name to metadata.
     """
     async def process(self,
                       message: 'AgentInputUserMessage', 
                       context: 'AgentContext') -> 'AgentInputUserMessage': # context is composite
-        agent_id = context.agent_id # Convenience property
-        specification_name = context.specification.name # Convenience property
+        agent_id = context.agent_id
+        config_name = context.config.name
 
         logger.debug(f"Agent '{agent_id}': MetadataAppendingInputProcessor processing message.")
         message.metadata["processed_by_agent_id"] = agent_id
-        message.metadata["processed_with_specification"] = specification_name
-        logger.info(f"Agent '{agent_id}': Appended 'processed_by_agent_id' and 'processed_with_specification' to message metadata.")
+        message.metadata["processed_with_config_name"] = config_name
+        logger.info(f"Agent '{agent_id}': Appended 'processed_by_agent_id' and 'processed_with_config_name' to message metadata.")
         return message

@@ -1,66 +1,70 @@
 # file: autobyteus/autobyteus/agent/context/agent_config.py
 import logging
-from typing import Dict, Optional, Any, List
+from typing import List, Optional, Union, Tuple, TYPE_CHECKING
 
-from autobyteus.agent.registry.agent_specification import AgentSpecification
-from autobyteus.llm.utils.llm_config import LLMConfig
-from autobyteus.tools.tool_config import ToolConfig 
+# LLMConfig is no longer needed here for the constructor
+from autobyteus.agent.llm_response_processor import XmlToolUsageProcessor, BaseLLMResponseProcessor
+from autobyteus.agent.system_prompt_processor import ToolDescriptionInjectorProcessor, ToolUsageExampleInjectorProcessor, BaseSystemPromptProcessor
+
+if TYPE_CHECKING:
+    from autobyteus.tools.base_tool import BaseTool
+    from autobyteus.agent.input_processor import BaseAgentUserInputMessageProcessor
+    from autobyteus.llm.base_llm import BaseLLM
 
 logger = logging.getLogger(__name__)
 
 class AgentConfig:
     """
-    Encapsulates the static configuration for an agent instance.
-    This data is typically defined at agent creation and remains constant
-    throughout the agent's lifecycle.
+    Represents the complete, static configuration for an agent instance.
+    This is the single source of truth for an agent's definition, including
+    its identity, capabilities, and default behaviors.
     """
+    DEFAULT_LLM_RESPONSE_PROCESSORS = [XmlToolUsageProcessor()]
+    DEFAULT_SYSTEM_PROMPT_PROCESSORS = [ToolDescriptionInjectorProcessor(), ToolUsageExampleInjectorProcessor()]
+
     def __init__(self,
-                 agent_id: str,
-                 specification: AgentSpecification,
-                 auto_execute_tools: bool,
-                 llm_model_name: str,
-                 custom_llm_config: Optional[LLMConfig] = None,
-                 custom_tool_config: Optional[Dict[str, ToolConfig]] = None, 
-                 ):
+                 name: str,
+                 role: str,
+                 description: str,
+                 llm_instance: 'BaseLLM',
+                 system_prompt: str,
+                 tools: List['BaseTool'],
+                 auto_execute_tools: bool = True,
+                 use_xml_tool_format: bool = True,
+                 input_processors: Optional[List['BaseAgentUserInputMessageProcessor']] = None,
+                 llm_response_processors: Optional[List['BaseLLMResponseProcessor']] = None,
+                 system_prompt_processors: Optional[List['BaseSystemPromptProcessor']] = None):
         """
         Initializes the AgentConfig.
+
+        Args:
+            name: The agent's name.
+            role: The agent's role.
+            description: A description of the agent.
+            llm_instance: A pre-initialized LLM instance (subclass of BaseLLM).
+                          The user is responsible for creating and configuring this instance.
+            system_prompt: The base system prompt.
+            tools: A list of pre-initialized tool instances (subclasses of BaseTool).
+            auto_execute_tools: If True, the agent will execute tools without approval.
+            use_xml_tool_format: Whether to use XML for tool descriptions and examples.
+            input_processors: A list of input processor instances.
+            llm_response_processors: A list of LLM response processor instances.
+            system_prompt_processors: A list of system prompt processor instances.
         """
-        if not agent_id or not isinstance(agent_id, str):
-            raise ValueError("AgentConfig requires a non-empty string 'agent_id'.")
-        if not isinstance(specification, AgentSpecification):
-            raise TypeError(f"AgentConfig 'specification' must be an AgentSpecification. Got {type(specification)}")
+        self.name = name
+        self.role = role
+        self.description = description
+        self.llm_instance = llm_instance
+        self.system_prompt = system_prompt
+        self.tools = tools
+        self.auto_execute_tools = auto_execute_tools
+        self.use_xml_tool_format = use_xml_tool_format
+        self.input_processors = input_processors or []
+        self.llm_response_processors = llm_response_processors if llm_response_processors is not None else list(self.DEFAULT_LLM_RESPONSE_PROCESSORS)
+        self.system_prompt_processors = system_prompt_processors if system_prompt_processors is not None else list(self.DEFAULT_SYSTEM_PROMPT_PROCESSORS)
 
-        self.agent_id: str = agent_id
-        self.specification: AgentSpecification = specification
-        self.auto_execute_tools: bool = auto_execute_tools
-        self.llm_model_name: str = llm_model_name
-        self.custom_llm_config: Optional[LLMConfig] = custom_llm_config
-        self.custom_tool_config: Optional[Dict[str, ToolConfig]] = custom_tool_config
-
-        logger.info(f"AgentConfig initialized for agent_id '{self.agent_id}'. Spec: '{self.specification.name}', LLM Model: '{self.llm_model_name}'.")
-    
-    @property
-    def name(self) -> str: return self.specification.name
-    @property
-    def role(self) -> str: return self.specification.role
-    @property
-    def description(self) -> str: return self.specification.description
-    @property
-    def system_prompt(self) -> str: return self.specification.system_prompt
-    @property
-    def tool_names(self) -> List[str]: return self.specification.tool_names
-    @property
-    def input_processor_names(self) -> List[str]: return self.specification.input_processor_names
-    @property
-    def llm_response_processor_names(self) -> List[str]: return self.specification.llm_response_processor_names
-    @property
-    def system_prompt_processor_names(self) -> List[str]: return self.specification.system_prompt_processor_names
-    @property
-    def use_xml_tool_format(self) -> bool: return self.specification.use_xml_tool_format
+        logger.debug(f"AgentConfig created for name '{self.name}', role '{self.role}'.")
 
     def __repr__(self) -> str:
-        custom_tool_config_keys = list(self.custom_tool_config.keys()) if self.custom_tool_config else []
-        return (f"AgentConfig(agent_id='{self.agent_id}', spec='{self.specification.name}', "
-                f"auto_execute={self.auto_execute_tools}, "
-                f"llm_model='{self.llm_model_name}', custom_llm_config_present={self.custom_llm_config is not None}, "
-                f"custom_tool_config_keys={custom_tool_config_keys})")
+        # llm_model_name removed from repr
+        return (f"AgentConfig(name='{self.name}', role='{self.role}', llm_instance='{self.llm_instance.__class__.__name__}')")

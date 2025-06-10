@@ -15,6 +15,9 @@ class PassthroughInputProcessor(BaseAgentUserInputMessageProcessor):
     A processor that returns the message unchanged.
     Can be used as a default or for testing.
     """
+    def get_name(self) -> str:
+        return "PassthroughInputProcessor"
+
     async def process(self,
                       message: 'AgentInputUserMessage', 
                       context: 'AgentContext') -> 'AgentInputUserMessage': # context is composite

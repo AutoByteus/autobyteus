@@ -7,7 +7,7 @@ from autobyteus.agent.context import AgentContext
 from autobyteus.agent.events import AgentInputEventQueueManager
 from autobyteus.agent.events import PendingToolInvocationEvent
 from autobyteus.agent.tool_invocation import ToolInvocation
-from autobyteus.agent.registry.agent_specification import AgentSpecification
+from autobyteus.agent.context.agent_config import AgentConfig
 
 @pytest.fixture
 def xml_processor() -> XmlToolUsageProcessor:
@@ -15,12 +15,12 @@ def xml_processor() -> XmlToolUsageProcessor:
     return XmlToolUsageProcessor()
 
 @pytest.fixture
-def mock_agent_specification() -> MagicMock:
-    """Fixture for a mock AgentSpecification."""
-    mock_spec = MagicMock(spec=AgentSpecification)
-    mock_spec.name = "xml_test_specification"
-    mock_spec.llm_response_processor_names = ["xml_tool_usage"] 
-    return mock_spec
+def mock_agent_config() -> MagicMock:
+    """Fixture for a mock AgentConfig."""
+    mock_conf = MagicMock(spec=AgentConfig)
+    mock_conf.name = "xml_test_config"
+    mock_conf.llm_response_processors = [XmlToolUsageProcessor()]
+    return mock_conf
 
 @pytest.fixture
 def mock_input_event_queues() -> AsyncMock:
@@ -30,11 +30,11 @@ def mock_input_event_queues() -> AsyncMock:
     return queues
 
 @pytest.fixture
-def mock_agent_context(mock_agent_specification: MagicMock, mock_input_event_queues: AsyncMock) -> MagicMock:
+def mock_agent_context(mock_agent_config: MagicMock, mock_input_event_queues: AsyncMock) -> MagicMock:
     """Fixture for a mock AgentContext."""
     context = MagicMock(spec=AgentContext)
     context.agent_id = "xml_test_agent_001"
-    context.specification = mock_agent_specification
+    context.config = mock_agent_config
     context.input_event_queues = mock_input_event_queues 
     context.tool_instances = {} 
     context.llm_instance = MagicMock()

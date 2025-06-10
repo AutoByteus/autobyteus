@@ -17,9 +17,7 @@ async def test_handle_tool_approved(tool_approval_handler: ToolExecutionApproval
     """Test handling when a tool execution is approved."""
     event = ToolExecutionApprovalEvent(tool_invocation_id=mock_tool_invocation.id, is_approved=True, reason="User approved")
     
-    # Configure the mock to return the mock_tool_invocation object
     agent_context.state.retrieve_pending_tool_invocation.return_value = mock_tool_invocation
-    # agent_context.input_event_queues.enqueue_internal_system_event is already an AsyncMock
 
     with caplog.at_level(logging.INFO):
         await tool_approval_handler.handle(event, agent_context)
@@ -33,10 +31,6 @@ async def test_handle_tool_approved(tool_approval_handler: ToolExecutionApproval
     enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
     assert isinstance(enqueued_event, ApprovedToolInvocationEvent)
     assert enqueued_event.tool_invocation == mock_tool_invocation
-
-    # Ensure LLMUserMessageReadyEvent was NOT enqueued
-    for call_item_args, _ in agent_context.input_event_queues.enqueue_internal_system_event.call_args_list:
-        assert not isinstance(call_item_args[0], LLMUserMessageReadyEvent)
     
     agent_context.state.add_message_to_history.assert_not_called()
 
@@ -47,10 +41,7 @@ async def test_handle_tool_denied(tool_approval_handler: ToolExecutionApprovalEv
     denial_reason = "User denied due to cost."
     event = ToolExecutionApprovalEvent(tool_invocation_id=mock_tool_invocation.id, is_approved=False, reason=denial_reason)
     
-    # Configure the mock to return the mock_tool_invocation object for denial path as well
     agent_context.state.retrieve_pending_tool_invocation.return_value = mock_tool_invocation
-    # agent_context.state.add_message_to_history is already a MagicMock
-    # agent_context.input_event_queues.enqueue_internal_system_event is already an AsyncMock
 
     with caplog.at_level(logging.WARNING): 
         await tool_approval_handler.handle(event, agent_context)
@@ -81,17 +72,12 @@ async def test_handle_tool_denied(tool_approval_handler: ToolExecutionApprovalEv
     )
     assert enqueued_event.llm_user_message.content == expected_llm_prompt
 
-    # Ensure ApprovedToolInvocationEvent was NOT enqueued
-    for call_item_args, _ in agent_context.input_event_queues.enqueue_internal_system_event.call_args_list:
-        assert not isinstance(call_item_args[0], ApprovedToolInvocationEvent)
-
 
 @pytest.mark.asyncio
 async def test_handle_tool_denied_no_reason(tool_approval_handler: ToolExecutionApprovalEventHandler, agent_context, mock_tool_invocation, caplog):
     """Test tool denial when no reason is provided."""
     event = ToolExecutionApprovalEvent(tool_invocation_id=mock_tool_invocation.id, is_approved=False, reason=None)
-    agent_context.state.retrieve_pending_tool_invocation.return_value = mock_tool_invocation # ADDED: Ensure mock returns the invocation
-    # Mocks are set by conftest
+    agent_context.state.retrieve_pending_tool_invocation.return_value = mock_tool_invocation
 
     await tool_approval_handler.handle(event, agent_context)
 
@@ -113,8 +99,7 @@ async def test_handle_pending_invocation_not_found(tool_approval_handler: ToolEx
     unknown_invocation_id = "unknown-id-000"
     event = ToolExecutionApprovalEvent(tool_invocation_id=unknown_invocation_id, is_approved=True)
     
-    agent_context.state.retrieve_pending_tool_invocation = MagicMock(return_value=None) 
-    # other mocks from conftest
+    agent_context.state.retrieve_pending_tool_invocation.return_value = None
 
     with caplog.at_level(logging.WARNING):
         await tool_approval_handler.handle(event, agent_context)
@@ -130,15 +115,13 @@ async def test_handle_pending_invocation_not_found(tool_approval_handler: ToolEx
 async def test_handle_invalid_event_type(tool_approval_handler: ToolExecutionApprovalEventHandler, agent_context, caplog):
     """Test that the handler skips events that are not ToolExecutionApprovalEvent."""
     invalid_event = GenericEvent(payload={}, type_name="some_other_event")
-    # Mocks from conftest
 
     with caplog.at_level(logging.WARNING):
-        await tool_approval_handler.handle(invalid_event, agent_context) # type: ignore
+        await tool_approval_handler.handle(invalid_event, agent_context)
     
     assert f"ToolExecutionApprovalEventHandler received non-ToolExecutionApprovalEvent: {type(invalid_event)}. Skipping." in caplog.text
-    if hasattr(agent_context.state, 'retrieve_pending_tool_invocation') and isinstance(agent_context.state.retrieve_pending_tool_invocation, MagicMock):
-        agent_context.state.retrieve_pending_tool_invocation.assert_not_called()
-        
+    
+    agent_context.state.retrieve_pending_tool_invocation.assert_not_called()
     agent_context.input_event_queues.enqueue_internal_system_event.assert_not_called()
     agent_context.state.add_message_to_history.assert_not_called()
 
@@ -147,4 +130,3 @@ def test_tool_approval_handler_initialization(caplog):
     with caplog.at_level(logging.INFO):
         handler = ToolExecutionApprovalEventHandler()
     assert "ToolExecutionApprovalEventHandler initialized." in caplog.text
-

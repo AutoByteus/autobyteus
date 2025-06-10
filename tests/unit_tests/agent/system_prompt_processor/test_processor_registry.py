@@ -1,37 +1,34 @@
 import pytest
-from typing import Dict
+from typing import Dict, TYPE_CHECKING
 
 from autobyteus.agent.system_prompt_processor.base_processor import BaseSystemPromptProcessor
 from autobyteus.agent.system_prompt_processor.processor_definition import SystemPromptProcessorDefinition
 from autobyteus.agent.system_prompt_processor.processor_registry import SystemPromptProcessorRegistry, default_system_prompt_processor_registry
-from autobyteus.tools.base_tool import BaseTool
 
+if TYPE_CHECKING:
+    from autobyteus.tools.base_tool import BaseTool
+    from autobyteus.agent.context import AgentContext
 
 class ProcA(BaseSystemPromptProcessor):
-    @classmethod
-    def get_name(cls) -> str: return "ProcA"
-    def process(self, system_prompt: str, tool_instances: Dict[str, 'BaseTool'], agent_id: str) -> str: return system_prompt
+    def get_name(self) -> str: return "ProcA"
+    def process(self, system_prompt: str, tool_instances: Dict[str, 'BaseTool'], agent_id: str, context: 'AgentContext') -> str: return system_prompt
 
 class ProcB(BaseSystemPromptProcessor):
-    @classmethod
-    def get_name(cls) -> str: return "ProcB"
-    def process(self, system_prompt: str, tool_instances: Dict[str, 'BaseTool'], agent_id: str) -> str: return system_prompt
+    def get_name(self) -> str: return "ProcB"
+    def process(self, system_prompt: str, tool_instances: Dict[str, 'BaseTool'], agent_id: str, context: 'AgentContext') -> str: return system_prompt
     
 class ProcWithInitError(BaseSystemPromptProcessor):
-    @classmethod
-    def get_name(cls) -> str: return "ProcWithInitError"
+    def get_name(self) -> str: return "ProcWithInitError"
     def __init__(self): raise ValueError("Init failed")
-    def process(self, system_prompt: str, tool_instances: Dict[str, 'BaseTool'], agent_id: str) -> str: return system_prompt
+    def process(self, system_prompt: str, tool_instances: Dict[str, 'BaseTool'], agent_id: str, context: 'AgentContext') -> str: return system_prompt
 
 
 @pytest.fixture(autouse=True)
 def clear_registry_before_each_test():
     """Fixture to ensure the default registry is clean before each test."""
-    # Preserve original state if any processors were auto-registered from source code
     original_definitions = default_system_prompt_processor_registry.get_all_definitions().copy()
     default_system_prompt_processor_registry.clear()
     yield
-    # Restore original state
     default_system_prompt_processor_registry.clear()
     for name, definition in original_definitions.items():
         default_system_prompt_processor_registry.register_processor(definition)
@@ -147,4 +144,3 @@ def test_registry_len_and_contains():
     assert "ProcA" in default_system_prompt_processor_registry
     assert "NonExistent" not in default_system_prompt_processor_registry
     assert 123 not in default_system_prompt_processor_registry # Test with invalid type for contains
-

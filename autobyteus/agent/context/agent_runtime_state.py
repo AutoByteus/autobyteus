@@ -10,7 +10,8 @@ from autobyteus.llm.base_llm import BaseLLM
 from .phases import AgentOperationalPhase 
 from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
 from autobyteus.agent.tool_invocation import ToolInvocation
-from autobyteus.llm.utils.llm_config import LLMConfig 
+# LLMConfig is no longer needed here
+# from autobyteus.llm.utils.llm_config import LLMConfig 
 
 if TYPE_CHECKING:
     from autobyteus.agent.context.agent_phase_manager import AgentPhaseManager 
@@ -48,7 +49,7 @@ class AgentRuntimeState:
         self.custom_data: Dict[str, Any] = custom_data or {}
         
         self.processed_system_prompt: Optional[str] = None
-        self.final_llm_config_for_creation: Optional[LLMConfig] = None
+        # self.final_llm_config_for_creation removed
         
         self.phase_manager_ref: Optional['AgentPhaseManager'] = None 
          

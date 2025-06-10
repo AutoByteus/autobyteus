@@ -4,6 +4,19 @@ from typing import Dict, Optional, Any
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 
+def _parameter_type_to_json_schema_type(param_type: ParameterType) -> str:
+    """Helper to convert ParameterType to a JSON schema type string."""
+    type_map = {
+        ParameterType.STRING: "string",
+        ParameterType.INTEGER: "integer",
+        ParameterType.FLOAT: "number",
+        ParameterType.BOOLEAN: "boolean",
+        ParameterType.OBJECT: "object",
+        ParameterType.ARRAY: "array",
+        ParameterType.ENUM: "string", # Enums are typically represented as strings
+    }
+    return type_map.get(param_type, "string") # Default to string
+
 class MockTool(BaseTool):
     """A configurable mock tool for testing system prompt processing."""
     
@@ -15,43 +28,29 @@ class MockTool(BaseTool):
                  description: str, 
                  args_schema: Optional[ParameterSchema] = None, 
                  xml_output: Optional[str] = None,
-                 json_output: Optional[Dict[str, Any]] = None, # ADDED for JSON schema
+                 json_output: Optional[Dict[str, Any]] = None,
                  execute_should_raise: Optional[Exception] = None,
                  xml_should_raise: Optional[Exception] = None,
-                 json_should_raise: Optional[Exception] = None): # ADDED for JSON schema error
+                 json_should_raise: Optional[Exception] = None):
         self._instance_name = name
         self._instance_description = description
         self._instance_args_schema = args_schema
         self._xml_output = xml_output
-        self._json_output = json_output # ADDED
+        self._json_output = json_output
         self._execute_should_raise = execute_should_raise
         self._xml_should_raise = xml_should_raise
-        self._json_should_raise = json_should_raise # ADDED
+        self._json_should_raise = json_should_raise
         
         super().__init__()
 
-    @classmethod
-    def get_name(cls) -> str:
-        return cls._class_level_name
-    
-    @property 
-    def name(self) -> str: 
+    def get_name(self) -> str: # Overriding the classmethod for instance-specific name
         return self._instance_name
 
-    @classmethod
-    def get_description(cls) -> str:
-        return cls._class_level_description
-
-    @classmethod
-    def get_argument_schema(cls) -> Optional[ParameterSchema]:
-        default_schema = ParameterSchema() 
-        default_schema.add_parameter(ParameterDefinition(
-            name="mock_arg_class",
-            param_type=ParameterType.STRING,
-            description="A class-level mock argument.",
-            required=False
-        ))
-        return default_schema
+    def get_description(self) -> str: # Overriding for instance-specific description
+        return self._instance_description
+    
+    def get_argument_schema(self) -> Optional[ParameterSchema]: # Overriding for instance-specific schema
+        return self._instance_args_schema
 
     def tool_usage_xml(self) -> str: 
         if self._xml_should_raise:
@@ -59,41 +58,34 @@ class MockTool(BaseTool):
         if self._xml_output is not None:
             return self._xml_output
         
-        schema_to_use = self._instance_args_schema
-        
-        xml_parts = [f'<command name="{self._instance_name}" description="{self._instance_description}">']
-        if schema_to_use and schema_to_use.parameters: 
-            for param_def in schema_to_use.parameters: 
-                xml_parts.append(f'  <arg name="{param_def.name}" type="{param_def.param_type.value}" required="{str(param_def.required).lower()}">{param_def.description}</arg>')
-        else: 
-            xml_parts.append('    <!-- This tool has no arguments or schema not provided for XML generation. -->')
+        # Use BaseTool's default implementation if no override is provided
+        return super().tool_usage_xml()
 
-        xml_parts.append('</command>')
-        return "\n".join(xml_parts)
-
-    def tool_usage_json(self) -> Dict[str, Any]: # ADDED method
+    def tool_usage_json(self) -> Dict[str, Any]:
         """Generates a JSON-like dictionary representing the tool's schema."""
         if self._json_should_raise:
             raise self._json_should_raise
         if self._json_output is not None:
             return self._json_output
 
-        schema_to_use = self._instance_args_schema
+        # Re-implement a simplified version of BaseTool's logic since we can't call it directly
+        # without a circular dependency or more complex mocking.
+        schema_to_use = self.get_argument_schema()
         
         json_schema: Dict[str, Any] = {
-            "name": self._instance_name,
-            "description": self._instance_description,
-            "parameters": {
+            "name": self.get_name(),
+            "description": self.get_description(),
+            "input_schema": {
                 "type": "object",
                 "properties": {},
-                "required": []
             }
         }
-
+        
+        required_params = []
         if schema_to_use and schema_to_use.parameters:
             for param_def in schema_to_use.parameters:
                 param_info: Dict[str, Any] = {
-                    "type": param_def.param_type.to_json_schema_type(), # Assumes ParameterType has this method
+                    "type": _parameter_type_to_json_schema_type(param_def.param_type),
                     "description": param_def.description
                 }
                 if param_def.enum_values:
@@ -101,15 +93,12 @@ class MockTool(BaseTool):
                 if param_def.default_value is not None:
                     param_info["default"] = param_def.default_value
                 
-                json_schema["parameters"]["properties"][param_def.name] = param_info
+                json_schema["input_schema"]["properties"][param_def.name] = param_info
                 if param_def.required:
-                    json_schema["parameters"]["required"].append(param_def.name)
-            if not json_schema["parameters"]["required"]: # OpenAI schema expects this field to be absent if no required params
-                del json_schema["parameters"]["required"]
-        else: # No args or schema_to_use.parameters is empty
-             # For JSON schema, it's common to represent no arguments with an empty properties object
-             pass
-
+                    required_params.append(param_def.name)
+        
+        if required_params:
+            json_schema["input_schema"]["required"] = required_params
 
         return json_schema
 

@@ -1,197 +1,145 @@
+# file: autobyteus/autobyteus/agent/factory/agent_factory.py
 import logging
-import asyncio # Added for get_running_loop
-from typing import List, Union, Optional, Dict, cast, Type, TYPE_CHECKING, Any
+import random
+from typing import Optional, TYPE_CHECKING, Dict, List
 
-from autobyteus.llm.llm_factory import LLMFactory
-from autobyteus.tools.registry import ToolRegistry, default_tool_registry
-from autobyteus.tools.tool_config import ToolConfig
-from autobyteus.llm.models import LLMModel
-from autobyteus.llm.utils.llm_config import LLMConfig
-
-from autobyteus.agent.context.agent_config import AgentConfig 
+# LLMFactory is no longer needed here.
+from autobyteus.agent.agent import Agent
+from autobyteus.agent.context.agent_config import AgentConfig
 from autobyteus.agent.context.agent_runtime_state import AgentRuntimeState 
 from autobyteus.agent.context.agent_context import AgentContext 
-
-from autobyteus.agent.events import ( 
-    UserMessageReceivedEvent, 
-    InterAgentMessageReceivedEvent, 
-    PendingToolInvocationEvent, 
-    ToolResultEvent,
-    LLMCompleteResponseReceivedEvent, 
-    GenericEvent, 
-    AgentReadyEvent,
-    AgentStoppedEvent,
-    AgentErrorEvent,
-    ToolExecutionApprovalEvent,
-    LLMUserMessageReadyEvent, 
-    ApprovedToolInvocationEvent,
-    BootstrapAgentEvent, 
-)
-from autobyteus.agent.registry.agent_specification import AgentSpecification
+from autobyteus.agent.events import *
 from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace 
-from autobyteus.agent.handlers import ( 
-    UserInputMessageEventHandler,
-    InterAgentMessageReceivedEventHandler, 
-    ToolInvocationRequestEventHandler,
-    ToolResultEventHandler,
-    LLMCompleteResponseReceivedEventHandler, 
-    GenericEventHandler, 
-    EventHandlerRegistry,
-    LifecycleEventLogger, 
-    ToolExecutionApprovalEventHandler,
-    ApprovedToolInvocationEventHandler,
-    LLMUserMessageReadyEventHandler,
-    BootstrapAgentEventHandler, 
-)
-from autobyteus.agent.system_prompt_processor import default_system_prompt_processor_registry, SystemPromptProcessorRegistry
+from autobyteus.agent.handlers import *
+from autobyteus.utils.singleton import SingletonMeta
+from autobyteus.tools.base_tool import BaseTool
 
 if TYPE_CHECKING:
     from autobyteus.agent.runtime.agent_runtime import AgentRuntime
 
-
 logger = logging.getLogger(__name__)
 
-class AgentFactory:
+class AgentFactory(metaclass=SingletonMeta):
     """
-    Factory class for creating agents.
-    This factory creates AgentConfig, AgentRuntimeState, the composite AgentContext, 
-    and AgentRuntime objects. AgentRuntime, in turn, creates an AgentWorker which
-    initializes its own event queues via a bootstrap step.
+    A singleton factory class for creating and managing agent instances.
+    This is the primary entry point for creating new agents.
+    This factory is now decoupled from LLMFactory.
     """
 
-    def __init__(self,
-                 tool_registry: ToolRegistry,
-                 llm_factory: LLMFactory,
-                 system_prompt_processor_registry: Optional[SystemPromptProcessorRegistry] = None):
-        if not isinstance(tool_registry, ToolRegistry): # pragma: no cover
-            raise TypeError(f"AgentFactory 'tool_registry' must be an instance of ToolRegistry. Got {type(tool_registry)}")
-        if not isinstance(llm_factory, LLMFactory): # pragma: no cover
-            raise TypeError(f"AgentFactory 'llm_factory' must be an instance of LLMFactory. Got {type(llm_factory)}")
-            
-        self.tool_registry = tool_registry
-        self.llm_factory = llm_factory
-        
-        if system_prompt_processor_registry is not None:
-            self.system_prompt_processor_registry = system_prompt_processor_registry
-        else:
-            self.system_prompt_processor_registry = default_system_prompt_processor_registry
-        
-        logger.info("AgentFactory initialized with ToolRegistry, LLMFactory, and SystemPromptProcessorRegistry.")
+    def __init__(self):
+        self._active_agents: Dict[str, Agent] = {}
+        logger.info("AgentFactory (Singleton) initialized.")
 
     def _get_default_event_handler_registry(self) -> EventHandlerRegistry:
         registry = EventHandlerRegistry()
-        
-        registry.register(
-            BootstrapAgentEvent,
-            BootstrapAgentEventHandler(
-                tool_registry=self.tool_registry,
-                system_prompt_processor_registry=self.system_prompt_processor_registry,
-                llm_factory=self.llm_factory
-            )
-        )
-        
         registry.register(UserMessageReceivedEvent, UserInputMessageEventHandler())
-        registry.register(InterAgentMessageReceivedEvent, InterAgentMessageReceivedEventHandler()) 
+        registry.register(InterAgentMessageReceivedEvent, InterAgentMessageReceivedEventHandler())
         registry.register(LLMCompleteResponseReceivedEvent, LLMCompleteResponseReceivedEventHandler())
-        registry.register(PendingToolInvocationEvent, ToolInvocationRequestEventHandler()) 
+        registry.register(PendingToolInvocationEvent, ToolInvocationRequestEventHandler())
         registry.register(ToolResultEvent, ToolResultEventHandler())
         registry.register(GenericEvent, GenericEventHandler())
         registry.register(ToolExecutionApprovalEvent, ToolExecutionApprovalEventHandler())
-        registry.register(LLMUserMessageReadyEvent, LLMUserMessageReadyEventHandler()) 
-        registry.register(ApprovedToolInvocationEvent, ApprovedToolInvocationEventHandler()) 
-        
-        lifecycle_logger_instance = LifecycleEventLogger() 
+        registry.register(LLMUserMessageReadyEvent, LLMUserMessageReadyEventHandler())
+        registry.register(ApprovedToolInvocationEvent, ApprovedToolInvocationEventHandler())
+        lifecycle_logger_instance = LifecycleEventLogger()
         registry.register(AgentReadyEvent, lifecycle_logger_instance)
         registry.register(AgentStoppedEvent, lifecycle_logger_instance)
         registry.register(AgentErrorEvent, lifecycle_logger_instance)
-        
-        logger.debug(f"Default EventHandlerRegistry created with handlers for: {[cls.__name__ for cls in registry.get_all_registered_event_types()]}")
         return registry
 
-    def _create_agent_config_and_state(self,
-                                agent_id: str,
-                                specification: AgentSpecification,
-                                llm_model_name: str,
-                                workspace: Optional[BaseAgentWorkspace] = None,
-                                custom_llm_config: Optional[LLMConfig] = None,
-                                custom_tool_config: Optional[Dict[str, ToolConfig]] = None,
-                                auto_execute_tools: bool = True 
-                                ) -> tuple[AgentConfig, AgentRuntimeState]:
+    def _prepare_tool_instances(self, agent_id: str, config: AgentConfig) -> Dict[str, BaseTool]:
+        """
+        Prepares the tool instance dictionary from the provided list of tool instances.
+        """
+        tool_instances_dict: Dict[str, BaseTool] = {}
+        if not config.tools:
+            logger.info(f"Agent '{agent_id}': No tools provided in config.")
+            return tool_instances_dict
 
-        if not isinstance(specification, AgentSpecification):
-            raise TypeError(f"Expected AgentSpecification, got {type(specification).__name__}")
-
-        agent_config = AgentConfig(
-            agent_id=agent_id,
-            specification=specification,
-            auto_execute_tools=auto_execute_tools, 
-            llm_model_name=llm_model_name,
-            custom_llm_config=custom_llm_config,
-            custom_tool_config=custom_tool_config
-        )
-        logger.info(f"AgentConfig created for agent_id '{agent_id}'.")
-
-        agent_runtime_state = AgentRuntimeState(
-            agent_id=agent_id, 
-            workspace=workspace,
-        )
-        logger.info(f"AgentRuntimeState created for agent_id '{agent_id}'. Event queues will be initialized by AgentWorker.")
+        for tool_instance in config.tools:
+            if not isinstance(tool_instance, BaseTool):
+                 # This should ideally be caught by AgentConfig's type hints, but serves as a runtime safeguard.
+                raise TypeError(f"Invalid item in tool list for agent '{agent_id}': {type(tool_instance)}. Expected an instance of BaseTool.")
+            
+            instance_name = tool_instance.get_name()
+            if instance_name in tool_instances_dict:
+                logger.warning(f"Agent '{agent_id}': Duplicate tool name '{instance_name}' encountered. The last one will be used.")
+            
+            tool_instances_dict[instance_name] = tool_instance
         
-        return agent_config, agent_runtime_state
+        return tool_instances_dict
 
-
-    def create_agent_context(self, 
-                             agent_id: str, 
-                             specification: AgentSpecification, 
-                             llm_model_name: str, 
-                             workspace: Optional[BaseAgentWorkspace] = None,
-                             custom_llm_config: Optional[LLMConfig] = None,
-                             custom_tool_config: Optional[Dict[str, ToolConfig]] = None,
-                             auto_execute_tools: bool = True 
-                             ) -> AgentContext: 
-
-        agent_config, agent_runtime_state = self._create_agent_config_and_state(
-            agent_id=agent_id,
-            specification=specification,
-            llm_model_name=llm_model_name,
-            workspace=workspace,
-            custom_llm_config=custom_llm_config,
-            custom_tool_config=custom_tool_config,
-            auto_execute_tools=auto_execute_tools 
-        )
-        
-        composite_context = AgentContext(config=agent_config, state=agent_runtime_state)
-        logger.info(f"Composite AgentContext created for agent_id '{agent_id}'.")
-        return composite_context
-
-    def create_agent_runtime(self, 
-                             agent_id: str, 
-                             specification: AgentSpecification,
-                             llm_model_name: str, 
-                             workspace: Optional[BaseAgentWorkspace] = None,
-                             custom_llm_config: Optional[LLMConfig] = None, 
-                             custom_tool_config: Optional[Dict[str, ToolConfig]] = None, 
-                             auto_execute_tools: bool = True 
-                             ) -> 'AgentRuntime': 
+    def _create_runtime(self, 
+                        agent_id: str, 
+                        config: AgentConfig,
+                        workspace: Optional[BaseAgentWorkspace] = None
+                        ) -> 'AgentRuntime': 
         from autobyteus.agent.runtime.agent_runtime import AgentRuntime 
 
-        composite_agent_context = self.create_agent_context(
-            agent_id=agent_id, 
-            specification=specification, 
-            llm_model_name=llm_model_name, 
-            workspace=workspace,
-            custom_llm_config=custom_llm_config, 
-            custom_tool_config=custom_tool_config,
-            auto_execute_tools=auto_execute_tools 
-        )
+        runtime_state = AgentRuntimeState(agent_id=agent_id, workspace=workspace)
         
+        # --- Set pre-initialized instances on the state ---
+        runtime_state.llm_instance = config.llm_instance
+        runtime_state.tool_instances = self._prepare_tool_instances(agent_id, config)
+        
+        logger.info(f"Agent '{agent_id}': LLM instance '{config.llm_instance.__class__.__name__}' and {len(runtime_state.tool_instances)} tools prepared and stored in state.")
+
+        context = AgentContext(agent_id=agent_id, config=config, state=runtime_state)
         event_handler_registry = self._get_default_event_handler_registry()
         
-        tool_exec_mode_log = "Automatic" if auto_execute_tools else "Requires Approval" 
-        logger.info(f"Instantiating AgentRuntime for agent_id: '{agent_id}' with spec: '{specification.name}'. "
-                     f"LLM Model Name (for init): {llm_model_name}. Workspace: {workspace is not None}. Tool Exec Mode: {tool_exec_mode_log}")
+        logger.info(f"Instantiating AgentRuntime for agent_id: '{agent_id}' with config: '{config.name}'.")
         
         return AgentRuntime(
-            context=composite_agent_context, 
+            context=context, 
             event_handler_registry=event_handler_registry
         )
+
+    def create_agent(
+        self,
+        config: AgentConfig,
+        workspace: Optional[BaseAgentWorkspace] = None
+    ) -> Agent:
+        """
+        Creates a new agent based on the provided AgentConfig, stores it,
+        and returns its facade (Agent class). The agent_id is automatically generated.
+        """
+        if not isinstance(config, AgentConfig):
+            raise TypeError(f"Expected AgentConfig instance, got {type(config).__name__}.")
+
+        random_part = random.randint(1000, 9999)
+        agent_id = f"{config.name}_{config.role}_{random_part}"
+        while agent_id in self._active_agents:
+            agent_id = f"{config.name}_{config.role}_{random.randint(1000, 9999)}"
+
+        runtime = self._create_runtime(
+            agent_id=agent_id,
+            config=config,
+            workspace=workspace
+        )
+
+        agent = Agent(runtime=runtime)
+        self._active_agents[agent_id] = agent
+        logger.info(f"Agent '{agent_id}' created and stored successfully.")
+        return agent
+
+    def get_agent(self, agent_id: str) -> Optional[Agent]:
+        """Retrieves an active agent instance by its ID."""
+        return self._active_agents.get(agent_id)
+
+    async def remove_agent(self, agent_id: str, shutdown_timeout: float = 10.0) -> bool:
+        """
+        Removes an agent from the factory's management and gracefully stops it.
+        """
+        agent = self._active_agents.pop(agent_id, None)
+        if agent:
+            logger.info(f"Removing agent '{agent_id}'. Attempting graceful shutdown.")
+            await agent.stop(timeout=shutdown_timeout)
+            return True
+        logger.warning(f"Agent with ID '{agent_id}' not found for removal.")
+        return False
+
+    def list_active_agent_ids(self) -> List[str]:
+        """Returns a list of IDs of all active agents managed by this factory."""
+        return list(self._active_agents.keys())
+
+default_agent_factory = AgentFactory()

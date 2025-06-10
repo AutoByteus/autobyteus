@@ -4,21 +4,21 @@ from unittest.mock import MagicMock
 from autobyteus.agent.input_processor.passthrough_input_processor import PassthroughInputProcessor
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.agent.context import AgentContext 
-from autobyteus.agent.registry.agent_specification import AgentSpecification
+from autobyteus.agent.context.agent_config import AgentConfig
 
 @pytest.fixture
-def mock_agent_specification() -> MagicMock:
-    """Fixture for a mock AgentSpecification."""
-    mock_spec = MagicMock(spec=AgentSpecification)
-    mock_spec.name = "test_specification"
-    return mock_spec
+def mock_agent_config() -> MagicMock:
+    """Fixture for a mock AgentConfig."""
+    mock_conf = MagicMock(spec=AgentConfig)
+    mock_conf.name = "test_config"
+    return mock_conf
 
 @pytest.fixture
-def mock_agent_context(mock_agent_specification: MagicMock) -> MagicMock:
+def mock_agent_context(mock_agent_config: MagicMock) -> MagicMock:
     """Fixture for a mock AgentContext."""
     mock_ctx = MagicMock(spec=AgentContext)
     mock_ctx.agent_id = "test_agent_123"
-    mock_ctx.specification = mock_agent_specification
+    mock_ctx.config = mock_agent_config
     mock_ctx.custom_data = {}
     return mock_ctx
 

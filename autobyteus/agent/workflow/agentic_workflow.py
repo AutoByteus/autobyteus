@@ -1,9 +1,10 @@
+# file: autobyteus/autobyteus/agent/workflow/agentic_workflow.py
 import logging
 import uuid
 from typing import List, Dict, Optional, Any, cast
 
-from autobyteus.agent.registry.agent_specification import AgentSpecification
-from autobyteus.agent.factory.agent_factory import AgentFactory
+from autobyteus.agent.context.agent_config import AgentConfig
+from autobyteus.agent.factory import default_agent_factory
 from autobyteus.agent.group.agent_group import AgentGroup
 
 logger = logging.getLogger(__name__)
@@ -15,32 +16,18 @@ class AgenticWorkflow:
     to process tasks.
     """
     def __init__(self,
-                 agent_factory: AgentFactory,
-                 agent_specifications: List[AgentSpecification],
-                 coordinator_spec_name: str,
+                 agent_configs: List[AgentConfig],
+                 coordinator_config_name: str,
                  workflow_id: Optional[str] = None,
-                 agent_runtime_configs: Optional[Dict[str, Dict[str, Any]]] = None,
                  input_param_name: str = "input",
                 ):
         """
         Initializes the AgenticWorkflow.
 
         Args:
-            agent_factory: The factory to be used by the internal AgentGroup.
-            agent_specifications: List of AgentSpecifications for the agents in this workflow.
-            coordinator_spec_name: Name of the agent specification to be used as coordinator.
+            agent_configs: List of pre-made AgentConfig instances for the agents in this workflow.
+            coordinator_config_name: Name of the agent config to be used as coordinator.
             workflow_id: Optional. A unique ID for this workflow instance. Auto-generated if None.
-            agent_runtime_configs: Optional. Runtime configurations for agents within the group,
-                                   passed to AgentGroup. Example:
-                                   { "agent_spec_name": {
-                                        "llm_model_name": "GPT_4O_API", 
-                                        "custom_llm_config": LLMConfig(temperature=0.5) or {"temperature": 0.5},
-                                        "custom_tool_config": {"ToolName": ToolConfig(...)},
-                                        "auto_execute_tools": True/False
-                                     }
-                                   }
-                                   If "custom_llm_config" is a dict, AgentGroup will convert it to LLMConfig.
-                                   The 'llm_model_name' (string) is mandatory in the config if the agent needs an LLM.
             input_param_name: The key to use in `process(**kwargs)` to find the initial
                               input string for the coordinator. Defaults to "input".
         """
@@ -50,12 +37,11 @@ class AgenticWorkflow:
         logger.info(f"Initializing AgenticWorkflow '{self.workflow_id}'. "
                     f"Input parameter name for process(): '{self._input_param_name}'.")
 
+        # The AgentGroup is now initialized directly with the user-provided configs.
         self.agent_group: AgentGroup = AgentGroup(
-            agent_factory=agent_factory,
-            agent_specifications=agent_specifications,
-            coordinator_spec_name=coordinator_spec_name,
+            agent_configs=agent_configs,
+            coordinator_config_name=coordinator_config_name,
             group_id=f"group_for_{self.workflow_id}",
-            agent_runtime_configs=agent_runtime_configs
         )
         logger.info(f"AgenticWorkflow '{self.workflow_id}' successfully instantiated internal AgentGroup '{self.agent_group.group_id}'.")
 
@@ -100,5 +86,5 @@ class AgenticWorkflow:
     def __repr__(self) -> str:
         return (f"<AgenticWorkflow workflow_id='{self.workflow_id}', "
                 f"group_id='{self.agent_group.group_id}', "
-                f"coordinator='{self.agent_group.coordinator_spec_name}', "
+                f"coordinator='{self.agent_group.coordinator_config_name}', "
                 f"is_running={self.is_running}>")

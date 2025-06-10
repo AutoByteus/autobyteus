@@ -19,8 +19,7 @@ class JsonToolUsageProcessor(BaseLLMResponseProcessor):
     Processes LLM responses for tool usage commands formatted as JSON.
     If a command is found, it enqueues a PendingToolInvocationEvent.
     """
-    @classmethod
-    def get_name(cls) -> str:
+    def get_name(self) -> str:
         return "json_tool_usage"
 
     async def process_response(self, response: str, context: 'AgentContext') -> bool:

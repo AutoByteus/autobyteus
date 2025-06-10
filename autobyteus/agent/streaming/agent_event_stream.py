@@ -65,9 +65,9 @@ class AgentEventStream(EventEmitter):
         
         self._subscribed_notifier_event_types: List[EventType] = [
             EventType.AGENT_PHASE_UNINITIALIZED_ENTERED,
-            EventType.AGENT_PHASE_INITIALIZING_TOOLS_STARTED,
+            # EventType.AGENT_PHASE_INITIALIZING_TOOLS_STARTED, # Removed
             EventType.AGENT_PHASE_INITIALIZING_PROMPT_STARTED,
-            EventType.AGENT_PHASE_INITIALIZING_LLM_STARTED,
+            # EventType.AGENT_PHASE_INITIALIZING_LLM_STARTED, # Removed
             EventType.AGENT_PHASE_IDLE_ENTERED,
             EventType.AGENT_PHASE_PROCESSING_USER_INPUT_STARTED,
             EventType.AGENT_PHASE_AWAITING_LLM_RESPONSE_STARTED,

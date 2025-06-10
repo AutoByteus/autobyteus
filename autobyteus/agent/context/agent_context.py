@@ -4,53 +4,42 @@ from typing import TYPE_CHECKING, List, Dict, Any, Optional
 
 from .phases import AgentOperationalPhase 
 
-# Forward references for type hinting within this module
 if TYPE_CHECKING:
     from .agent_config import AgentConfig 
     from .agent_runtime_state import AgentRuntimeState 
-    from autobyteus.agent.registry.agent_specification import AgentSpecification
     from autobyteus.llm.base_llm import BaseLLM
     from autobyteus.tools.base_tool import BaseTool
     from autobyteus.agent.events.agent_input_event_queue_manager import AgentInputEventQueueManager 
     from autobyteus.agent.tool_invocation import ToolInvocation
-    from autobyteus.llm.utils.llm_config import LLMConfig
+    # LLMConfig no longer needed here
     from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
     from autobyteus.agent.context.agent_phase_manager import AgentPhaseManager 
-    from autobyteus.tools.tool_config import ToolConfig 
-
 
 logger = logging.getLogger(__name__)
 
 class AgentContext:
     """
     Represents the complete operational context for a single agent instance.
-    Input event queues are initialized during the agent's bootstrap process.
-    Output data is now managed via events emitted by AgentExternalEventNotifier.
     """
-    def __init__(self, config: 'AgentConfig', state: 'AgentRuntimeState'):
+    def __init__(self, agent_id: str, config: 'AgentConfig', state: 'AgentRuntimeState'):
         from .agent_config import AgentConfig as AgentConfigClass 
         from .agent_runtime_state import AgentRuntimeState as AgentRuntimeStateClass 
 
+        if not agent_id or not isinstance(agent_id, str):
+            raise ValueError("AgentContext requires a non-empty string 'agent_id'.")
         if not isinstance(config, AgentConfigClass):
             raise TypeError(f"AgentContext 'config' must be an AgentConfig instance. Got {type(config)}")
         if not isinstance(state, AgentRuntimeStateClass):
             raise TypeError(f"AgentContext 'state' must be an AgentRuntimeState instance. Got {type(state)}")
         
-        if config.agent_id != state.agent_id: # pragma: no cover
-            logger.warning(f"AgentContext created with mismatched agent_id in config ('{config.agent_id}') and state ('{state.agent_id}'). Using config's ID for logging context init.")
+        if agent_id != state.agent_id: # pragma: no cover
+            logger.warning(f"AgentContext created with mismatched agent_id ('{agent_id}') and state's ID ('{state.agent_id}'). Using context's ID for logging.")
 
+        self.agent_id: str = agent_id
         self.config: 'AgentConfig' = config
         self.state: 'AgentRuntimeState' = state
         
-        logger.info(f"AgentContext composed for agent_id '{self.config.agent_id}'. Config and State linked.")
-
-    @property
-    def agent_id(self) -> str:
-        return self.config.agent_id
-
-    @property
-    def specification(self) -> 'AgentSpecification':
-        return self.config.specification
+        logger.info(f"AgentContext composed for agent_id '{self.agent_id}'. Config and State linked.")
 
     @property
     def tool_instances(self) -> Dict[str, 'BaseTool']:
@@ -60,17 +49,8 @@ class AgentContext:
     def auto_execute_tools(self) -> bool:
         return self.config.auto_execute_tools
     
-    @property
-    def llm_model_name(self) -> str: 
-        return self.config.llm_model_name
-
-    @property
-    def custom_llm_config(self) -> Optional['LLMConfig']: 
-        return self.config.custom_llm_config
-    
-    @property
-    def custom_tool_config(self) -> Optional[Dict[str, 'ToolConfig']]: 
-        return self.config.custom_tool_config
+    # llm_model_name property removed
+    # custom_llm_config property removed
 
     @property
     def llm_instance(self) -> Optional['BaseLLM']:
@@ -125,13 +105,7 @@ class AgentContext:
     def processed_system_prompt(self, value: Optional[str]):
         self.state.processed_system_prompt = value
 
-    @property
-    def final_llm_config_for_creation(self) -> Optional['LLMConfig']:
-        return self.state.final_llm_config_for_creation
-        
-    @final_llm_config_for_creation.setter
-    def final_llm_config_for_creation(self, value: Optional['LLMConfig']):
-        self.state.final_llm_config_for_creation = value
+    # final_llm_config_for_creation property removed
 
     def add_message_to_history(self, message: Dict[str, Any]) -> None:
         self.state.add_message_to_history(message)
@@ -151,7 +125,7 @@ class AgentContext:
 
     def __repr__(self) -> str:
         input_q_status = "Initialized" if self.state.input_event_queues is not None else "Pending Init"
-        return (f"AgentContext(agent_id='{self.config.agent_id}', "
+        return (f"AgentContext(agent_id='{self.agent_id}', "
                 f"current_phase='{self.state.current_phase.value}', " 
                 f"llm_initialized={self.state.llm_instance is not None}, "
                 f"tools_initialized={self.state.tool_instances is not None}, "

@@ -2,11 +2,10 @@ import pytest
 from unittest.mock import Mock, AsyncMock, patch
 from autobyteus.tools.base_tool import BaseTool # For type checking the tool
 from autobyteus.agent.message.send_message_to import SendMessageTo
-from autobyteus.agent.context import AgentContext
+from autobyteus.agent.context import AgentContext, AgentConfig
 from autobyteus.agent.group.agent_group_context import AgentGroupContext
 from autobyteus.agent.message.inter_agent_message import InterAgentMessage, InterAgentMessageType
 from autobyteus.agent.agent import Agent # For mocking agents
-from autobyteus.agent.registry.agent_definition import AgentDefinition # For mocking agent definitions
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 
 @pytest.fixture
@@ -20,10 +19,12 @@ def mock_sender_agent_context():
 def mock_recipient_agent():
     agent = Mock(spec=Agent)
     agent.agent_id = "recipient_agent_007"
-    # Mock the context and definition for the recipient agent
+    
+    # Mock the context and config for the recipient agent
     agent.context = Mock(spec=AgentContext)
-    agent.context.definition = Mock(spec=AgentDefinition)
-    agent.context.definition.role = "worker_bee" # Example role
+    mock_config = Mock(spec=AgentConfig)
+    mock_config.role = "worker_bee" # Example role
+    agent.context.config = mock_config
     agent.post_inter_agent_message = AsyncMock()
     return agent
 
@@ -40,7 +41,7 @@ def mock_agent_group_context(mock_recipient_agent):
     group_context.get_agent = Mock(side_effect=get_agent_side_effect)
 
     def get_agents_by_role_side_effect(role_name_to_find):
-        if role_name_to_find == mock_recipient_agent.context.definition.role:
+        if role_name_to_find == mock_recipient_agent.context.config.role:
             return [mock_recipient_agent]
         return []
     group_context.get_agents_by_role = Mock(side_effect=get_agents_by_role_side_effect)
@@ -84,7 +85,7 @@ def test_tool_usage_json_output(send_message_tool: SendMessageTo):
     assert SendMessageTo.get_description() in json_output["description"]
     input_schema = json_output["inputSchema"]
     assert "recipient_role_name" in input_schema["properties"]
-    assert "recipient_agent_id" not in input_schema["required"] # Optional
+    assert "recipient_agent_id" not in input_schema.get("required", [])
 
 # Execute Tests
 @pytest.mark.asyncio
@@ -124,7 +125,7 @@ async def test_execute_send_to_role_success(
     
     result = await send_message_tool.execute(
         context=mock_sender_agent_context,
-        recipient_role_name=mock_recipient_agent.context.definition.role, # Target by role
+        recipient_role_name=mock_recipient_agent.context.config.role, # Target by role
         content="Role-based message",
         message_type="CLARIFICATION",
         recipient_agent_id=None # No specific ID
@@ -140,7 +141,7 @@ async def test_execute_send_to_role_success(
 @pytest.mark.asyncio
 async def test_execute_no_group_context(send_message_tool: SendMessageTo, mock_sender_agent_context: AgentContext):
     # custom_data is empty, no agent_group_context
-    result = await send_message_tool.execute(
+    result = await send_message_tool._execute( # Test _execute directly to bypass arg validation
         context=mock_sender_agent_context,
         recipient_role_name="worker",
         content="Test",
@@ -159,7 +160,7 @@ async def test_execute_recipient_not_found_by_id_or_role(
     mock_agent_group_context.get_agent = Mock(return_value=None)
     mock_agent_group_context.get_agents_by_role = Mock(return_value=[])
 
-    result = await send_message_tool.execute(
+    result = await send_message_tool._execute(
         context=mock_sender_agent_context,
         recipient_role_name="non_existent_role",
         content="To nowhere",
@@ -178,13 +179,9 @@ async def test_execute_invalid_message_type_string(
     mock_sender_agent_context.custom_data['agent_group_context'] = mock_agent_group_context
     mock_agent_group_context.get_agent = Mock(return_value=mock_recipient_agent) # Ensure recipient is found
 
-    # Patch InterAgentMessageType.add_type to simulate failure if it can't create a new type
-    # For this test, let's assume create_with_dynamic_message_type raises ValueError if type is bad and cannot be added
-    # The current create_with_dynamic_message_type might always succeed or return None then raise ValueError.
-    # We test the ValueError case.
     with patch('autobyteus.agent.message.inter_agent_message.InterAgentMessage.create_with_dynamic_message_type', 
                side_effect=ValueError("Simulated bad message type")) as mock_create:
-        result = await send_message_tool.execute(
+        result = await send_message_tool._execute(
             context=mock_sender_agent_context,
             recipient_role_name="worker_bee",
             content="Test",
@@ -198,8 +195,7 @@ async def test_execute_invalid_message_type_string(
 async def test_execute_missing_required_args(send_message_tool: SendMessageTo, mock_sender_agent_context: AgentContext):
     # BaseTool.execute will catch these based on the schema
     with pytest.raises(ValueError, match="Invalid arguments for tool 'SendMessageTo'"):
-        await send_message_tool.execute(mock_sender_agent_context, content="test") # Missing role, type
+        await send_message_tool.execute(context=mock_sender_agent_context, content="test") # Missing role, type
 
     with pytest.raises(ValueError, match="Invalid arguments for tool 'SendMessageTo'"):
-        await send_message_tool.execute(mock_sender_agent_context, recipient_role_name="test", message_type="test") # Missing content
-
+        await send_message_tool.execute(context=mock_sender_agent_context, recipient_role_name="test", message_type="test") # Missing content

@@ -1,3 +1,4 @@
+# file: autobyteus/tests/unit_tests/agent/handlers/test_generic_event_handler.py
 import pytest
 import logging
 from unittest.mock import MagicMock, patch
@@ -50,7 +51,7 @@ async def test_handle_unknown_generic_event_type(generic_event_handler: GenericE
     event_type_name = "some_unknown_event_type"
     event = GenericEvent(payload=event_payload, type_name=event_type_name)
     
-    with caplog.at_level(logging.INFO): # MODIFIED: Changed from logging.WARNING to logging.INFO
+    with caplog.at_level(logging.WARNING):
         await generic_event_handler.handle(event, agent_context)
     
     # Check for the initial info log
@@ -64,8 +65,8 @@ async def test_handle_non_generic_event(generic_event_handler: GenericEventHandl
     # Using UserMessageReceivedEvent as an example of a non-GenericEvent
     non_generic_event = UserMessageReceivedEvent(agent_input_user_message=AgentInputUserMessage(content="hello"))
 
-    with caplog.at_level(logging.WARNING): # Capture warnings
-        await generic_event_handler.handle(non_generic_event, agent_context) # type: ignore
+    with caplog.at_level(logging.WARNING):
+        await generic_event_handler.handle(non_generic_event, agent_context)
 
     # Check that a warning is logged about the wrong event type
     assert f"GenericEventHandler received a non-GenericEvent: {type(non_generic_event)}. Skipping." in caplog.text
@@ -78,7 +79,7 @@ async def test_handle_non_generic_event_completely_unrelated(generic_event_handl
     unrelated_event = NonGenericTestEvent()
 
     with caplog.at_level(logging.WARNING):
-        await generic_event_handler.handle(unrelated_event, agent_context) # type: ignore
+        await generic_event_handler.handle(unrelated_event, agent_context)
     
     assert f"GenericEventHandler received a non-GenericEvent: {type(unrelated_event)}. Skipping." in caplog.text
 
@@ -88,4 +89,3 @@ def test_generic_event_handler_initialization(caplog):
         handler = GenericEventHandler()
     assert "GenericEventHandler initialized." in caplog.text
     assert isinstance(handler, GenericEventHandler)
-

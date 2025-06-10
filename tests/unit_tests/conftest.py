@@ -1,12 +1,9 @@
+# file: autobyteus/tests/unit_tests/conftest.py
 import pytest
-from autobyteus.llm.llm_factory import LLMFactory
 import logging
 
 logger = logging.getLogger(__name__)
 
-@pytest.fixture(scope="session", autouse=True)
-def initialize_llm_factory():
-    """Pytest fixture to initialize LLM factory before running integration tests"""
-    logger.info("Initializing LLM factory for integration tests")
-    LLMFactory.ensure_initialized()
-    logger.debug("LLM factory initialization completed")
+# This file can be used for fixtures that are shared across all unit tests,
+# but for now, the more specific conftest files in subdirectories are sufficient.
+# The LLMFactory fixture has been removed as it's no longer a dependency for agent creation.

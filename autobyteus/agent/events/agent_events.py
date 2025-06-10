@@ -30,40 +30,33 @@ class AgentPreparationEvent(AgentProcessingEvent):
     """Base class for events that are part of the agent's preparation/initialization sequence."""
     pass
 
-@dataclass
-class BootstrapAgentEvent(AgentPreparationEvent): # ADDED
-    """Event to trigger the comprehensive bootstrapping process for an agent."""
-    pass
+# BootstrapAgentEvent REMOVED
 
 @dataclass
 class CreateToolInstancesEvent(AgentPreparationEvent): 
     """
-    DEPRECATED in standard flow. Use BootstrapAgentEvent.
-    Event to trigger the instantiation of tools for the agent.
+    DEPRECATED. Initialization is now handled directly by the agent worker.
     """
     pass
 
 @dataclass
 class ProcessSystemPromptEvent(AgentPreparationEvent):
     """
-    DEPRECATED in standard flow. Use BootstrapAgentEvent.
-    Event to trigger the processing of the agent's system prompt template.
+    DEPRECATED. Initialization is now handled directly by the agent worker.
     """
     pass
 
 @dataclass
 class FinalizeLLMConfigEvent(AgentPreparationEvent):
     """
-    DEPRECATED in standard flow. Use BootstrapAgentEvent.
-    Event to trigger the finalization of the LLMConfig after system prompt processing.
+    DEPRECATED. Initialization is now handled directly by the agent worker.
     """
     pass
 
 @dataclass
 class CreateLLMInstanceEvent(AgentPreparationEvent):
     """
-    DEPRECATED in standard flow. Use BootstrapAgentEvent.
-    Event to trigger the instantiation of the BaseLLM for the agent.
+    DEPRECATED. Initialization is now handled directly by the agent worker.
     """
     pass
 
@@ -78,8 +71,8 @@ class AgentOperationalEvent(AgentProcessingEvent):
 # --- Specific Lifecycle Events ---
 
 @dataclass
-class AgentReadyEvent(LifecycleEvent): # MODIFIED: Renamed from AgentStartedEvent
-    """Event indicating the agent has completed its bootstrapping process, is fully initialized (including LLM and tools), and is ready to process messages."""
+class AgentReadyEvent(LifecycleEvent):
+    """Event indicating the agent has completed its bootstrapping process, is fully initialized, and is ready to process messages."""
     pass
 
 @dataclass
@@ -150,4 +143,4 @@ class GenericEvent(AgentOperationalEvent):
     Its 'type_name' attribute can be used by a GenericEventHandler for sub-dispatch.
     """
     payload: Dict[str, Any]
-    type_name: str 
+    type_name: str

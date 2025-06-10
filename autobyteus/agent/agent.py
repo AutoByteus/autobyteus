@@ -10,10 +10,7 @@ from autobyteus.agent.message.inter_agent_message import InterAgentMessage
 from autobyteus.agent.events import UserMessageReceivedEvent, InterAgentMessageReceivedEvent, ToolExecutionApprovalEvent, BaseEvent 
 
 if TYPE_CHECKING:
-    # AgentOutputDataManager no longer exposed
-    # from autobyteus.agent.events import AgentOutputDataManager 
     from autobyteus.agent.context import AgentContext 
-
 
 logger = logging.getLogger(__name__)
 
@@ -83,9 +80,6 @@ class Agent:
             reason=reason
         )
         await self._submit_event_to_runtime(approval_event)
-
-    # REMOVED: get_output_data_queues()
-    # REMOVED: get_worker_event_loop()
 
     def get_current_phase(self) -> AgentOperationalPhase: 
         return self._runtime.current_phase_property 

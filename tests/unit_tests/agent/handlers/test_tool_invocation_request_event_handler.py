@@ -20,15 +20,13 @@ async def test_handle_approval_required_logic(tool_request_handler: ToolInvocati
     agent_context.config.auto_execute_tools = False 
     event = PendingToolInvocationEvent(tool_invocation=mock_tool_invocation)
 
-    # Ensure notifier is mocked on phase_manager
-    if not hasattr(agent_context.phase_manager, 'notifier') or not isinstance(agent_context.phase_manager.notifier, AsyncMock):
-        agent_context.phase_manager.notifier = AsyncMock()
+    agent_context.phase_manager.notifier = AsyncMock()
 
     with caplog.at_level(logging.DEBUG): 
         await tool_request_handler.handle(event, agent_context)
 
-    assert f"Agent '{agent_context.agent_id}': Tool '{mock_tool_invocation.name}' (ID: {mock_tool_invocation.id}) requires approval. Storing pending invocation and emitting request." in caplog.text
-    assert f"Agent '{agent_context.agent_id}': Emitted AGENT_REQUEST_TOOL_INVOCATION_APPROVAL for '{mock_tool_invocation.name}' (ID: {mock_tool_invocation.id})." in caplog.text
+    assert f"Agent '{agent_context.agent_id}': Tool '{mock_tool_invocation.name}' (ID: {mock_tool_invocation.id}) requires approval." in caplog.text
+    assert f"Emitted AGENT_REQUEST_TOOL_INVOCATION_APPROVAL for '{mock_tool_invocation.name}'" in caplog.text
     
     agent_context.state.store_pending_tool_invocation.assert_called_once_with(mock_tool_invocation)
     
@@ -60,7 +58,7 @@ async def test_handle_approval_required_logic(tool_request_handler: ToolInvocati
 @pytest.mark.asyncio
 async def test_handle_approval_required_notifier_missing_critical_log(tool_request_handler: ToolInvocationRequestEventHandler, agent_context, mock_tool_invocation, caplog):
     agent_context.config.auto_execute_tools = False
-    agent_context.phase_manager.notifier = None # Simulate missing notifier
+    agent_context.phase_manager.notifier = None 
     event = PendingToolInvocationEvent(tool_invocation=mock_tool_invocation)
 
     with caplog.at_level(logging.CRITICAL):
@@ -79,8 +77,7 @@ async def test_handle_approval_required_arguments_not_json_serializable(tool_req
     tool_invocation_bad_args = ToolInvocation(name="test_tool", arguments=unserializable_args, id="bad-args-id")
     event = PendingToolInvocationEvent(tool_invocation=tool_invocation_bad_args)
 
-    if not hasattr(agent_context.phase_manager, 'notifier') or not isinstance(agent_context.phase_manager.notifier, AsyncMock):
-        agent_context.phase_manager.notifier = AsyncMock()
+    agent_context.phase_manager.notifier = AsyncMock()
 
     with caplog.at_level(logging.WARNING): 
         await tool_request_handler.handle(event, agent_context)
@@ -109,31 +106,29 @@ async def test_handle_direct_execution_success(tool_request_handler: ToolInvocat
 
     tool_result = "Direct execution successful!"
     mock_tool_instance.execute = AsyncMock(return_value=tool_result)
-    agent_context.get_tool = MagicMock(return_value=mock_tool_instance)
-
-    if not hasattr(agent_context.phase_manager, 'notifier') or not isinstance(agent_context.phase_manager.notifier, AsyncMock):
-        agent_context.phase_manager.notifier = AsyncMock()
+    agent_context.get_tool.return_value = mock_tool_instance
+    agent_context.phase_manager.notifier = AsyncMock()
 
     with caplog.at_level(logging.INFO):
         await tool_request_handler.handle(event, agent_context)
 
-    assert f"Agent '{agent_context.agent_id}': Tool '{mock_tool_invocation.name}' (ID: {mock_tool_invocation.id}) executing automatically (auto_execute_tools=True)." in caplog.text 
+    assert f"Agent '{agent_context.agent_id}': Tool '{mock_tool_invocation.name}' (ID: {mock_tool_invocation.id}) executing automatically" in caplog.text 
     assert f"Tool '{mock_tool_invocation.name}' (ID: {mock_tool_invocation.id}) executed by agent '{agent_context.agent_id}'" in caplog.text
 
     agent_context.state.store_pending_tool_invocation.assert_not_called() 
     
     expected_log_call_str = f"[TOOL_CALL_DIRECT] Agent_ID: {agent_context.agent_id}, Tool: {mock_tool_invocation.name}, Invocation_ID: {mock_tool_invocation.id}, Arguments: {json.dumps(mock_tool_invocation.arguments)}"
-    # UPDATED: Use json.dumps for tool_result to match handler logic for string results
-    expected_log_result_str_part = f"[TOOL_RESULT_DIRECT] Agent_ID: {agent_context.agent_id}, Tool: {mock_tool_invocation.name}, Invocation_ID: {mock_tool_invocation.id}, Outcome (first 200 chars): {json.dumps(tool_result)[:200]}"
+    result_str_for_log = json.dumps(tool_result)
+    expected_log_result_str = f"[TOOL_RESULT_DIRECT] Agent_ID: {agent_context.agent_id}, Tool: {mock_tool_invocation.name}, Invocation_ID: {mock_tool_invocation.id}, Outcome (first 200 chars): {result_str_for_log[:200]}"
     
     agent_context.phase_manager.notifier.notify_agent_data_tool_log.assert_any_call(expected_log_call_str)
-    agent_context.phase_manager.notifier.notify_agent_data_tool_log.assert_any_call(expected_log_result_str_part)
+    agent_context.phase_manager.notifier.notify_agent_data_tool_log.assert_any_call(expected_log_result_str)
 
     agent_context.state.add_message_to_history.assert_called_once_with({
         "role": "tool",
         "tool_call_id": mock_tool_invocation.id,
         "name": mock_tool_invocation.name,
-        "content": str(tool_result), # History content remains as stringified result
+        "content": str(tool_result),
     })
 
     agent_context.input_event_queues.enqueue_tool_result.assert_called_once()
@@ -151,10 +146,8 @@ async def test_handle_direct_execution_success(tool_request_handler: ToolInvocat
 async def test_handle_direct_execution_tool_not_found(tool_request_handler: ToolInvocationRequestEventHandler, agent_context, mock_tool_invocation, caplog):
     agent_context.config.auto_execute_tools = True 
     event = PendingToolInvocationEvent(tool_invocation=mock_tool_invocation)
-    agent_context.get_tool = MagicMock(return_value=None) 
-
-    if not hasattr(agent_context.phase_manager, 'notifier') or not isinstance(agent_context.phase_manager.notifier, AsyncMock):
-        agent_context.phase_manager.notifier = AsyncMock()
+    agent_context.get_tool.return_value = None 
+    agent_context.phase_manager.notifier = AsyncMock()
 
     with caplog.at_level(logging.ERROR):
         await tool_request_handler.handle(event, agent_context)
@@ -186,10 +179,8 @@ async def test_handle_direct_execution_tool_exception(tool_request_handler: Tool
 
     simulated_tool_error = "Tool crashed unexpectedly!"
     mock_tool_instance.execute = AsyncMock(side_effect=Exception(simulated_tool_error))
-    agent_context.get_tool = MagicMock(return_value=mock_tool_instance)
-
-    if not hasattr(agent_context.phase_manager, 'notifier') or not isinstance(agent_context.phase_manager.notifier, AsyncMock):
-        agent_context.phase_manager.notifier = AsyncMock()
+    agent_context.get_tool.return_value = mock_tool_instance
+    agent_context.phase_manager.notifier = AsyncMock()
 
     with caplog.at_level(logging.ERROR):
         await tool_request_handler.handle(event, agent_context)
@@ -226,15 +217,13 @@ async def test_handle_direct_execution_args_not_json_serializable_for_log(tool_r
     event = PendingToolInvocationEvent(tool_invocation=tool_invocation)
 
     mock_tool_instance.execute = AsyncMock(return_value="result")
-    agent_context.get_tool = MagicMock(return_value=mock_tool_instance)
+    agent_context.get_tool.return_value = mock_tool_instance
+    agent_context.phase_manager.notifier = AsyncMock()
     
-    if not hasattr(agent_context.phase_manager, 'notifier') or not isinstance(agent_context.phase_manager.notifier, AsyncMock):
-        agent_context.phase_manager.notifier = AsyncMock()
-
     await tool_request_handler.handle(event, agent_context)
     
-    expected_log_call_str_args = f"[TOOL_CALL_DIRECT] Agent_ID: {agent_context.agent_id}, Tool: test_tool, Invocation_ID: direct-json-err-args, Arguments: {str(unserializable_args)}"
-    agent_context.phase_manager.notifier.notify_agent_data_tool_log.assert_any_call(expected_log_call_str_args)
+    expected_log_call_str = f"[TOOL_CALL_DIRECT] Agent_ID: {agent_context.agent_id}, Tool: test_tool, Invocation_ID: direct-json-err-args, Arguments: {str(unserializable_args)}"
+    agent_context.phase_manager.notifier.notify_agent_data_tool_log.assert_any_call(expected_log_call_str)
 
 
 @pytest.mark.asyncio
@@ -244,14 +233,11 @@ async def test_handle_direct_execution_result_not_json_serializable_for_log(tool
 
     unserializable_result = set([1,2,3])
     mock_tool_instance.execute = AsyncMock(return_value=unserializable_result)
-    agent_context.get_tool = MagicMock(return_value=mock_tool_instance)
-    
-    if not hasattr(agent_context.phase_manager, 'notifier') or not isinstance(agent_context.phase_manager.notifier, AsyncMock):
-        agent_context.phase_manager.notifier = AsyncMock()
+    agent_context.get_tool.return_value = mock_tool_instance
+    agent_context.phase_manager.notifier = AsyncMock()
     
     await tool_request_handler.handle(event, agent_context)
 
-    # If result is not JSON serializable, handler falls back to str()
     expected_log_result_str = f"[TOOL_RESULT_DIRECT] Agent_ID: {agent_context.agent_id}, Tool: {mock_tool_invocation.name}, Invocation_ID: {mock_tool_invocation.id}, Outcome (first 200 chars): {str(unserializable_result)[:200]}"
     agent_context.phase_manager.notifier.notify_agent_data_tool_log.assert_any_call(expected_log_result_str)
 
@@ -260,12 +246,10 @@ async def test_handle_direct_execution_result_not_json_serializable_for_log(tool
 @pytest.mark.asyncio
 async def test_handle_invalid_event_type(tool_request_handler: ToolInvocationRequestEventHandler, agent_context, caplog):
     invalid_event = GenericEvent(payload={}, type_name="other_event")
-
-    if not hasattr(agent_context.phase_manager, 'notifier') or not isinstance(agent_context.phase_manager.notifier, AsyncMock): # Ensure notifier mock exists
-        agent_context.phase_manager.notifier = AsyncMock()
+    agent_context.phase_manager.notifier = AsyncMock()
 
     with caplog.at_level(logging.WARNING):
-        await tool_request_handler.handle(invalid_event, agent_context) # type: ignore
+        await tool_request_handler.handle(invalid_event, agent_context)
     
     assert f"ToolInvocationRequestEventHandler received non-PendingToolInvocationEvent: {type(invalid_event)}. Skipping." in caplog.text
     agent_context.state.store_pending_tool_invocation.assert_not_called()

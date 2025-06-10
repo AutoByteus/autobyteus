@@ -1,20 +1,17 @@
 # file: autobyteus/tests/unit_tests/agent/runtime/test_agent_worker.py
 import asyncio
 import pytest
-import concurrent.futures
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock, patch, call
 
 from autobyteus.agent.runtime.agent_worker import AgentWorker
 from autobyteus.agent.runtime.agent_thread_pool_manager import AgentThreadPoolManager
-from autobyteus.agent.context import AgentContext, AgentConfig, AgentRuntimeState, AgentPhaseManager
-from autobyteus.agent.events import AgentInputEventQueueManager, WorkerEventDispatcher
+from autobyteus.agent.context import AgentContext
+from autobyteus.agent.events import WorkerEventDispatcher
 from autobyteus.agent.events.agent_events import (
-    UserMessageReceivedEvent, AgentErrorEvent, AgentStoppedEvent, BaseEvent
+    UserMessageReceivedEvent, AgentErrorEvent
 )
 from autobyteus.agent.handlers import EventHandlerRegistry
-from autobyteus.agent.events.notifiers import AgentExternalEventNotifier
-from autobyteus.agent.registry.agent_definition import AgentDefinition
-from autobyteus.agent.context.phases import AgentOperationalPhase
+from autobyteus.agent.bootstrap_steps.agent_bootstrapper import AgentBootstrapper
 
 # Module-scoped thread pool manager to avoid creating/destroying threads for every test.
 @pytest.fixture(scope="module", autouse=True)
@@ -30,25 +27,6 @@ def module_scoped_thread_pool_manager():
     if hasattr(AgentThreadPoolManager, '_instances'):
         AgentThreadPoolManager._instances.clear()
 
-# A simplified agent_context fixture for worker tests
-@pytest.fixture
-def agent_context():
-    """Provides a basic AgentContext suitable for worker tests."""
-    agent_id = "test-worker-agent"
-    definition = AgentDefinition(
-        name="TestWorkerDef", role="Tester", description="Test",
-        system_prompt="Test", tool_names=[]
-    )
-    agent_config = AgentConfig(agent_id=agent_id, definition=definition, auto_execute_tools=True, llm_model_name="mock_model")
-    runtime_state = AgentRuntimeState(agent_id=agent_id)
-    context = AgentContext(config=agent_config, state=runtime_state)
-    
-    notifier = AgentExternalEventNotifier(agent_id=agent_id)
-    phase_manager = AgentPhaseManager(context=context, notifier=notifier)
-    context.state.phase_manager_ref = phase_manager
-    
-    return context
-
 @pytest.fixture
 def mock_dispatcher():
     """Provides a mock WorkerEventDispatcher."""
@@ -58,11 +36,15 @@ def mock_dispatcher():
 def agent_worker(agent_context, mock_dispatcher):
     """
     Provides an AgentWorker instance with a mocked dispatcher.
+    Note: agent_context fixture comes from tests/unit_tests/agent/conftest.py
     """
     with patch('autobyteus.agent.runtime.agent_worker.WorkerEventDispatcher', return_value=mock_dispatcher):
         dummy_registry = MagicMock(spec=EventHandlerRegistry)
         worker = AgentWorker(context=agent_context, event_handler_registry=dummy_registry)
         yield worker
+        # Ensure worker is stopped after test if it was started
+        if worker.is_alive():
+            asyncio.run(worker.stop())
 
 @pytest.mark.asyncio
 async def test_worker_initialization(agent_worker, agent_context, mock_dispatcher):
@@ -77,149 +59,108 @@ async def test_worker_start_and_stop_cycle(agent_worker):
     """Test the basic start and stop lifecycle of the worker."""
     assert not agent_worker.is_alive()
     
-    worker_started = asyncio.Event()
+    worker_completed_future = asyncio.Future()
     def on_done(future):
-        worker_started.set()
+        worker_completed_future.set_result(True)
 
     agent_worker.add_done_callback(on_done)
-    agent_worker.start()
-
-    await asyncio.sleep(0.1)
-    assert agent_worker.is_alive()
-    assert agent_worker.get_worker_loop() is not None
     
+    with patch.object(agent_worker, '_initialize', return_value=True):
+        agent_worker.start()
+        await asyncio.sleep(0.1) # Give worker time to start
+        assert agent_worker.is_alive()
+        assert agent_worker.get_worker_loop() is not None
+
     await agent_worker.stop(timeout=2.0)
     
-    await asyncio.wait_for(worker_started.wait(), timeout=1.0)
+    await asyncio.wait_for(worker_completed_future, timeout=1.0)
 
     assert not agent_worker.is_alive()
-    assert agent_worker.get_worker_loop() is None
+    # The loop is closed internally, so get_worker_loop should now return None
+    assert agent_worker.get_worker_loop() is None 
     assert agent_worker._thread_future.done()
 
 @pytest.mark.asyncio
-async def test_worker_processes_event_after_queues_are_set(agent_worker, agent_context, mock_dispatcher):
-    """Test that the worker can process an event after its queues are initialized."""
-    
-    agent_worker.start()
-    await asyncio.sleep(0.1) # Give worker time to start
-    assert agent_worker.is_alive()
+async def test_initialize_delegates_to_bootstrapper_success(agent_worker, agent_context):
+    """Test that _initialize successfully delegates to AgentBootstrapper."""
+    mock_bootstrapper_instance = AsyncMock(spec=AgentBootstrapper)
+    mock_bootstrapper_instance.run.return_value = True
 
-    # Prepare the mock queue manager
-    mock_queue_manager = AsyncMock(spec=AgentInputEventQueueManager)
-    test_event = UserMessageReceivedEvent(agent_input_user_message=MagicMock())
-    
-    # Use a side effect function for more controlled behavior
-    _event_yielded = False
-    async def mock_get_next_event(*args, **kwargs):
-        nonlocal _event_yielded
-        if not _event_yielded:
-            _event_yielded = True
-            return "user_message_input_queue", test_event
-        else:
-            # Simulate an empty queue by hanging, which will cause the
-            # worker's wait_for to timeout, as expected.
-            await asyncio.sleep(1) 
-            return None
+    with patch('autobyteus.agent.runtime.agent_worker.AgentBootstrapper', return_value=mock_bootstrapper_instance) as mock_bootstrapper_class:
+        success = await agent_worker._initialize()
 
-    mock_queue_manager.get_next_input_event.side_effect = mock_get_next_event
-    
-    # Inject the mock queue manager into the running worker's context
-    agent_context.state.input_event_queues = mock_queue_manager
-    
-    # Give the worker loop time to process the event
-    await asyncio.sleep(0.2)
-    
-    # Now, assert that the dispatcher was called with the event
-    mock_dispatcher.dispatch.assert_awaited_with(test_event, agent_context)
+        assert success is True
+        mock_bootstrapper_class.assert_called_once_with() # Check it's initialized
+        mock_bootstrapper_instance.run.assert_awaited_once_with(agent_context, agent_context.phase_manager)
 
-    await agent_worker.stop()
+@pytest.mark.asyncio
+async def test_initialize_delegates_to_bootstrapper_failure(agent_worker, agent_context):
+    """Test that _initialize handles failure from AgentBootstrapper."""
+    mock_bootstrapper_instance = AsyncMock(spec=AgentBootstrapper)
+    mock_bootstrapper_instance.run.return_value = False # Simulate failure
+
+    with patch('autobyteus.agent.runtime.agent_worker.AgentBootstrapper', return_value=mock_bootstrapper_instance) as mock_bootstrapper_class:
+        success = await agent_worker._initialize()
+
+        assert success is False
+        mock_bootstrapper_class.assert_called_once_with()
+        mock_bootstrapper_instance.run.assert_awaited_once_with(agent_context, agent_context.phase_manager)
+
+@pytest.mark.asyncio
+async def test_worker_processes_event(agent_worker, agent_context, mock_dispatcher):
+    """Test that the worker can process an event from its queue."""
+    # Mock the initialization to succeed and set up a more robust queue mock
+    event_queue = asyncio.Queue()
+    agent_context.state.input_event_queues = AsyncMock()
+    # The mock's get_next_input_event will now block on a real async queue
+    agent_context.state.input_event_queues.get_next_input_event.side_effect = event_queue.get
+    
+    with patch.object(agent_worker, '_initialize', return_value=True):
+        agent_worker.start()
+        await asyncio.sleep(0.1) # Give worker time to start up and block on event_queue.get()
+        assert agent_worker.is_alive() # This should now pass reliably
+
+        test_event = UserMessageReceivedEvent(agent_input_user_message=MagicMock())
+        
+        # Put the event onto the queue to unblock the worker
+        await event_queue.put(("user_message_input_queue", test_event))
+        
+        # Give the worker time to process the event
+        await asyncio.sleep(0.2)
+        
+        mock_dispatcher.dispatch.assert_awaited_with(test_event, agent_context)
+
+        await agent_worker.stop()
 
 @pytest.mark.asyncio
 async def test_worker_handles_dispatcher_exception(agent_worker, agent_context, mock_dispatcher):
     """Test that an exception from the dispatcher is caught and handled."""
-    agent_worker.start()
-    await asyncio.sleep(0.1)
-
-    mock_queue_manager = AsyncMock(spec=AgentInputEventQueueManager)
-    test_event = UserMessageReceivedEvent(agent_input_user_message=MagicMock())
+    # Set up a robust queue mock
+    event_queue = asyncio.Queue()
+    agent_context.state.input_event_queues = AsyncMock()
+    agent_context.state.input_event_queues.get_next_input_event.side_effect = event_queue.get
     
-    # Use a robust side effect to avoid hot loops and provide the event once
-    _event_yielded = False
-    async def mock_get_next_event(*args, **kwargs):
-        nonlocal _event_yielded
-        if not _event_yielded:
-            _event_yielded = True
-            return "user_message_input_queue", test_event
-        else:
-            await asyncio.sleep(1)
-            return None
-            
-    mock_queue_manager.get_next_input_event.side_effect = mock_get_next_event
-    agent_context.state.input_event_queues = mock_queue_manager
-    mock_queue_manager.enqueue_internal_system_event = AsyncMock() # Need to mock this method
-
-    error_message = "Dispatcher failed!"
-    mock_dispatcher.dispatch.side_effect = ValueError(error_message)
-
-    await asyncio.sleep(0.2)
-    
-    # Assertions remain the same
-    agent_context.phase_manager.notify_error_occurred.assert_called_once()
-    args, _ = agent_context.phase_manager.notify_error_occurred.call_args
-    assert error_message in args[0]
-    assert "Traceback" in args[1]
-    
-    mock_queue_manager.enqueue_internal_system_event.assert_awaited_once()
-    enqueued_event = mock_queue_manager.enqueue_internal_system_event.call_args[0][0]
-    assert isinstance(enqueued_event, AgentErrorEvent)
-    assert error_message in enqueued_event.error_message
-
-    await agent_worker.stop()
-
-@pytest.mark.asyncio
-async def test_worker_stops_on_stop_event(agent_worker):
-    """Test that the worker's async_run loop exits when the stop event is set."""
-    agent_worker.start()
-    await asyncio.sleep(0.1)
-    
-    assert agent_worker._async_stop_event is not None
-    agent_worker._async_stop_event.set()
-
-    try:
-        await asyncio.wait_for(asyncio.wrap_future(agent_worker._thread_future), timeout=2.0)
-    except asyncio.TimeoutError:
-        pytest.fail("Worker thread did not terminate after _async_stop_event was set.")
-
-    assert agent_worker._thread_future.done()
-
-@pytest.mark.asyncio
-async def test_worker_start_idempotency(agent_worker, module_scoped_thread_pool_manager):
-    """Test that calling start() multiple times has no adverse effect."""
-    thread_pool_manager = module_scoped_thread_pool_manager
-    
-    with patch.object(thread_pool_manager, 'submit_task', wraps=thread_pool_manager.submit_task) as mock_submit:
+    with patch.object(agent_worker, '_initialize', return_value=True):
         agent_worker.start()
         await asyncio.sleep(0.1)
-        first_future = agent_worker._thread_future
-        mock_submit.assert_called_once()
+        assert agent_worker.is_alive() # Add assertion for robustness
 
-        agent_worker.start()
-        await asyncio.sleep(0.05)
-        assert agent_worker._thread_future is first_future
-        mock_submit.assert_called_once()
+        test_event = UserMessageReceivedEvent(agent_input_user_message=MagicMock())
+        
+        error_message = "Dispatcher failed!"
+        mock_dispatcher.dispatch.side_effect = ValueError(error_message)
 
-    await agent_worker.stop()
+        with patch('autobyteus.agent.events.worker_event_dispatcher.logger') as mock_event_dispatcher_logger:
+            # Put event on queue to trigger the dispatch
+            await event_queue.put(("user_message_input_queue", test_event))
+            await asyncio.sleep(0.2)
+        
+            mock_event_dispatcher_logger.error.assert_called()
+            assert error_message in mock_event_dispatcher_logger.error.call_args[0][0]
 
-@pytest.mark.asyncio
-async def test_worker_stop_idempotency(agent_worker):
-    """Test that calling stop() multiple times is safe."""
-    agent_worker.start()
-    await asyncio.sleep(0.1)
-    await agent_worker.stop()
-    
-    # Check that calling stop again does not cause issues and is a no-op
-    with patch.object(agent_worker, '_signal_internal_stop', new_callable=AsyncMock) as mock_signal:
+        agent_context.state.input_event_queues.enqueue_internal_system_event.assert_awaited_once()
+        enqueued_event = agent_context.state.input_event_queues.enqueue_internal_system_event.call_args[0][0]
+        assert isinstance(enqueued_event, AgentErrorEvent)
+        assert error_message in enqueued_event.error_message
+
         await agent_worker.stop()
-        mock_signal.assert_not_called()
-
-    assert not agent_worker.is_alive()

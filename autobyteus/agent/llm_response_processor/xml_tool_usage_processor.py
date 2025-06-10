@@ -26,8 +26,7 @@ class XmlToolUsageProcessor(BaseLLMResponseProcessor):
         <arg name="arg2_name">arg2_value</arg>
     </command>
     """
-    @classmethod
-    def get_name(cls) -> str:
+    def get_name(self) -> str:
         return "xml_tool_usage"
 
     async def process_response(self, response: str, context: 'AgentContext') -> bool:

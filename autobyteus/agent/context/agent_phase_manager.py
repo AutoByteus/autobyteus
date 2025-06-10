@@ -64,14 +64,12 @@ class AgentPhaseManager:
         else: 
              logger.warning(f"Agent '{self.context.agent_id}' notify_runtime_starting_and_uninitialized called in unexpected phase: {self.context.current_phase.value}")
 
-    def notify_initializing_tools(self) -> None:
-        self._transition_phase(AgentOperationalPhase.INITIALIZING_TOOLS, "notify_phase_initializing_tools_started")
+    # notify_initializing_tools method removed.
 
     def notify_initializing_prompt(self) -> None:
         self._transition_phase(AgentOperationalPhase.INITIALIZING_PROMPT, "notify_phase_initializing_prompt_started")
 
-    def notify_initializing_llm(self) -> None:
-        self._transition_phase(AgentOperationalPhase.INITIALIZING_LLM, "notify_phase_initializing_llm_started")
+    # notify_initializing_llm method removed.
     
     def notify_initialization_complete(self) -> None:
         if self.context.current_phase.is_initializing() or self.context.current_phase == AgentOperationalPhase.UNINITIALIZED :

@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional, AsyncGenerator, Type, Dict, Union
+import logging
 
 from autobyteus.llm.extensions.token_usage_tracking_extension import TokenUsageTrackingExtension
 from autobyteus.llm.utils.llm_config import LLMConfig
@@ -117,6 +118,37 @@ class BaseLLM(ABC):
         msg = Message(MessageRole.ASSISTANT, message, reasoning_content=reasoning_content)
         self.messages.append(msg)
         self._trigger_on_assistant_message_added(msg)
+
+    def configure_system_prompt(self, new_system_prompt: str):
+        """
+        Updates the system prompt for the LLM instance after initialization.
+        This will replace the existing system message in the conversation history.
+
+        Args:
+            new_system_prompt (str): The new system prompt content.
+        """
+        if not new_system_prompt or not isinstance(new_system_prompt, str):
+            logging.warning("Attempted to configure an empty or invalid system prompt. No changes made.")
+            return
+
+        self.system_message = new_system_prompt
+        self.config.system_message = new_system_prompt
+
+        # Find and update the existing system message, or add a new one if not found.
+        system_message_found = False
+        for i, msg in enumerate(self.messages):
+            if msg.role == MessageRole.SYSTEM:
+                self.messages[i] = Message(MessageRole.SYSTEM, new_system_prompt)
+                system_message_found = True
+                logging.debug(f"Replaced existing system message at index {i}.")
+                break
+        
+        if not system_message_found:
+            # If for some reason no system message was there, insert it at the beginning.
+            self.messages.insert(0, Message(MessageRole.SYSTEM, new_system_prompt))
+            logging.debug("No existing system message found, inserted new one at the beginning.")
+        
+        logging.info(f"LLM instance system prompt updated. New prompt length: {len(new_system_prompt)}")
 
     def _trigger_on_user_message_added(self, message: Message):
         """

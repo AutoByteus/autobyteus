@@ -167,4 +167,3 @@ def test_tool_result_handler_initialization(caplog):
     with caplog.at_level(logging.INFO):
         handler = ToolResultEventHandler()
     assert "ToolResultEventHandler initialized." in caplog.text
-

@@ -254,6 +254,11 @@ def tool(
             f"Dynamically created tool class '{dynamic_class_name_str}' for function "
             f"'{func.__name__}' to be registered as tool '{tool_name_to_register}'."
         )
-        return NewToolClass 
+
+        # The class is already registered via ToolMeta.
+        # Now, instantiate it and return the instance, so it can be used directly.
+        tool_instance = NewToolClass()
+        logger.debug(f"Instantiated and returning functional tool '{tool_name_to_register}'")
+        return tool_instance
 
     return decorator

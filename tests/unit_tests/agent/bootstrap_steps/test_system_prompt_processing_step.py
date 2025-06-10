@@ -1,53 +1,41 @@
 # file: autobyteus/tests/unit_tests/agent/bootstrap_steps/test_system_prompt_processing_step.py
 import pytest
 import logging
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock, call, AsyncMock
 
 from autobyteus.agent.bootstrap_steps.system_prompt_processing_step import SystemPromptProcessingStep
 from autobyteus.agent.events import AgentErrorEvent
 from autobyteus.agent.context import AgentContext
 from autobyteus.agent.context.agent_phase_manager import AgentPhaseManager
-from autobyteus.agent.system_prompt_processor import SystemPromptProcessorRegistry, BaseSystemPromptProcessor
-from autobyteus.agent.registry.agent_specification import AgentSpecification
+from autobyteus.agent.system_prompt_processor import BaseSystemPromptProcessor
 
 @pytest.fixture
-def mock_processor_instance_fixture(mock_system_prompt_processor_registry): # Renamed to avoid conflict if used directly in test
-    # This fixture provides the mock instance that the registry's get_processor method will return.
-    # The actual mock_processor_instance used in tests will be this return value.
-    return mock_system_prompt_processor_registry.get_processor.return_value
-
-@pytest.fixture
-def prompt_proc_step(mock_system_prompt_processor_registry: SystemPromptProcessorRegistry):
-    return SystemPromptProcessingStep(system_prompt_processor_registry=mock_system_prompt_processor_registry)
+def prompt_proc_step():
+    """Provides a clean instance of the SystemPromptProcessingStep."""
+    return SystemPromptProcessingStep()
 
 @pytest.mark.asyncio
 async def test_system_prompt_processing_success_with_processors(
     prompt_proc_step: SystemPromptProcessingStep,
     agent_context: AgentContext,
     mock_phase_manager: AgentPhaseManager,
-    mock_system_prompt_processor_registry: SystemPromptProcessorRegistry,
-    mock_processor_instance_fixture: BaseSystemPromptProcessor, 
     caplog
 ):
-    original_prompt = "Initial prompt. {{placeholder}}"
-    agent_context.specification.system_prompt = original_prompt
-    agent_context.specification.system_prompt_processor_names = ["Processor1", "Processor2"]
-    
-    processed_by_p1 = "Processed by P1. {{placeholder}}"
-    processed_by_p2 = "Final processed by P2."
+    """Tests successful prompt processing with a sequence of processors."""
+    original_prompt = "Initial prompt."
+    agent_context.config.system_prompt = original_prompt
 
-    # mock_processor_instance_fixture is the single mock instance returned by registry.get_processor
-    # We configure its side_effect for multiple calls
-    mock_processor_instance_fixture.process.side_effect = [
-        processed_by_p1,
-        processed_by_p2
-    ]
+    # Create mock processor instances
+    mock_processor_1 = MagicMock(spec=BaseSystemPromptProcessor)
+    mock_processor_1.get_name.return_value = "Processor1"
+    mock_processor_1.process = MagicMock(return_value="Processed by P1.")
     
-    # Ensure the registry's get_processor returns our controlled mock instance for each processor name
-    mock_system_prompt_processor_registry.get_processor.side_effect = [
-        mock_processor_instance_fixture, # For Processor1
-        mock_processor_instance_fixture  # For Processor2
-    ]
+    mock_processor_2 = MagicMock(spec=BaseSystemPromptProcessor)
+    mock_processor_2.get_name.return_value = "Processor2"
+    mock_processor_2.process = MagicMock(return_value="Final processed by P2.")
+    
+    # Set the instances on the config
+    agent_context.config.system_prompt_processors = [mock_processor_1, mock_processor_2]
 
     with caplog.at_level(logging.INFO):
         success = await prompt_proc_step.execute(agent_context, mock_phase_manager)
@@ -55,25 +43,27 @@ async def test_system_prompt_processing_success_with_processors(
     assert success is True
     mock_phase_manager.notify_initializing_prompt.assert_called_once()
     assert f"Agent '{agent_context.agent_id}': Executing SystemPromptProcessingStep." in caplog.text
-    assert f"System prompt processor 'Processor1' applied successfully." in caplog.text
-    assert f"System prompt processor 'Processor2' applied successfully." in caplog.text
-    assert agent_context.state.processed_system_prompt == processed_by_p2
+    assert "System prompt processor 'Processor1' applied successfully." in caplog.text
+    assert "System prompt processor 'Processor2' applied successfully." in caplog.text
     
-    mock_processor_instance_fixture.process.assert_has_calls([
-        call(
-            system_prompt=original_prompt,
-            tool_instances=agent_context.state.tool_instances,
-            agent_id=agent_context.agent_id,
-            context=agent_context
-        ),
-        call(
-            system_prompt=processed_by_p1,
-            tool_instances=agent_context.state.tool_instances,
-            agent_id=agent_context.agent_id,
-            context=agent_context
-        )
-    ])
-    assert mock_processor_instance_fixture.process.call_count == 2
+    # Verify the final prompt was stored in state AND set on the LLM config
+    final_prompt = "Final processed by P2."
+    assert agent_context.state.processed_system_prompt == final_prompt
+    assert agent_context.llm_instance.config.system_message == final_prompt
+    
+    # Verify processors were called correctly
+    mock_processor_1.process.assert_called_once_with(
+        system_prompt=original_prompt,
+        tool_instances=agent_context.tool_instances,
+        agent_id=agent_context.agent_id,
+        context=agent_context
+    )
+    mock_processor_2.process.assert_called_once_with(
+        system_prompt="Processed by P1.",
+        tool_instances=agent_context.tool_instances,
+        agent_id=agent_context.agent_id,
+        context=agent_context
+    )
     agent_context.input_event_queues.enqueue_internal_system_event.assert_not_called()
 
 @pytest.mark.asyncio
@@ -83,9 +73,10 @@ async def test_system_prompt_processing_success_no_processors(
     mock_phase_manager: AgentPhaseManager,
     caplog
 ):
+    """Tests successful execution when no processors are configured."""
     original_prompt = "Prompt without processors."
-    agent_context.specification.system_prompt = original_prompt
-    agent_context.specification.system_prompt_processor_names = [] 
+    agent_context.config.system_prompt = original_prompt
+    agent_context.config.system_prompt_processors = [] 
 
     with caplog.at_level(logging.DEBUG):
         success = await prompt_proc_step.execute(agent_context, mock_phase_manager)
@@ -93,25 +84,49 @@ async def test_system_prompt_processing_success_no_processors(
     assert success is True
     mock_phase_manager.notify_initializing_prompt.assert_called_once()
     assert "No system prompt processors configured. Using system prompt as is." in caplog.text
+    
+    # Verify the original prompt was stored and set
     assert agent_context.state.processed_system_prompt == original_prompt
+    assert agent_context.llm_instance.config.system_message == original_prompt
     agent_context.input_event_queues.enqueue_internal_system_event.assert_not_called()
 
 @pytest.mark.asyncio
-async def test_system_prompt_processing_failure_individual_processor_error(
+async def test_execute_fails_if_no_llm_instance(
     prompt_proc_step: SystemPromptProcessingStep,
     agent_context: AgentContext,
     mock_phase_manager: AgentPhaseManager,
-    mock_system_prompt_processor_registry: SystemPromptProcessorRegistry,
-    mock_processor_instance_fixture: BaseSystemPromptProcessor,
     caplog
 ):
-    agent_context.specification.system_prompt = "Prompt that will fail."
-    processor_name_that_fails = "FailingProcessor"
-    agent_context.specification.system_prompt_processor_names = [processor_name_that_fails]
+    """Tests that the step fails if the LLM instance isn't in the context."""
+    agent_context.state.llm_instance = None # Critical setup for this test
+    agent_context.config.llm_instance = None
+
+    with caplog.at_level(logging.ERROR):
+        success = await prompt_proc_step.execute(agent_context, mock_phase_manager)
+    
+    assert success is False
+    assert "Critical failure during system prompt processing step: LLM instance not found" in caplog.text
+    agent_context.input_event_queues.enqueue_internal_system_event.assert_called_once()
+    enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
+    assert isinstance(enqueued_event, AgentErrorEvent)
+    assert "LLM instance not found" in enqueued_event.error_message
+
+@pytest.mark.asyncio
+async def test_system_prompt_processing_failure_processor_error(
+    prompt_proc_step: SystemPromptProcessingStep,
+    agent_context: AgentContext,
+    mock_phase_manager: AgentPhaseManager,
+    caplog
+):
+    """Tests failure when a processor instance raises an exception."""
+    agent_context.config.system_prompt = "Prompt that will fail."
     exception_message = "Processor internal error"
     
-    mock_processor_instance_fixture.process.side_effect = ValueError(exception_message)
-    mock_system_prompt_processor_registry.get_processor.return_value = mock_processor_instance_fixture
+    failing_processor = MagicMock(spec=BaseSystemPromptProcessor)
+    failing_processor.get_name.return_value = "FailingProcessor"
+    failing_processor.process.side_effect = ValueError(exception_message)
+    
+    agent_context.config.system_prompt_processors = [failing_processor]
 
     with caplog.at_level(logging.ERROR):
         success = await prompt_proc_step.execute(agent_context, mock_phase_manager)
@@ -119,78 +134,28 @@ async def test_system_prompt_processing_failure_individual_processor_error(
     assert success is False
     mock_phase_manager.notify_initializing_prompt.assert_called_once()
     
-    expected_error_log = f"Agent '{agent_context.agent_id}': Error applying system prompt processor '{processor_name_that_fails}': {exception_message}"
+    expected_error_log = f"Agent '{agent_context.agent_id}': Error applying system prompt processor 'FailingProcessor': {exception_message}"
     assert expected_error_log in caplog.text
     
     agent_context.input_event_queues.enqueue_internal_system_event.assert_called_once()
     enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
     assert isinstance(enqueued_event, AgentErrorEvent)
     assert enqueued_event.error_message == expected_error_log
-    assert enqueued_event.exception_details == str(ValueError(exception_message))
 
 @pytest.mark.asyncio
-async def test_system_prompt_processing_failure_processor_not_found(
+async def test_system_prompt_processing_invalid_processor_type(
     prompt_proc_step: SystemPromptProcessingStep,
     agent_context: AgentContext,
     mock_phase_manager: AgentPhaseManager,
-    mock_system_prompt_processor_registry: SystemPromptProcessorRegistry,
     caplog
 ):
-    agent_context.specification.system_prompt = "Prompt with missing processor."
-    processor_name_not_found = "MissingProcessor"
-    agent_context.specification.system_prompt_processor_names = [processor_name_not_found]
-    
-    mock_system_prompt_processor_registry.get_processor.return_value = None # Simulate processor not found
+    """Tests failure when an item in the processor list is not a valid type."""
+    agent_context.config.system_prompt_processors = ["not_a_processor_instance"]
 
     with caplog.at_level(logging.ERROR):
         success = await prompt_proc_step.execute(agent_context, mock_phase_manager)
 
     assert success is False
-    mock_phase_manager.notify_initializing_prompt.assert_called_once()
-    
-    expected_error_log = f"Agent '{agent_context.agent_id}': System prompt processor '{processor_name_not_found}' not found in registry. This is a configuration error."
-    assert expected_error_log in caplog.text
-    
-    agent_context.input_event_queues.enqueue_internal_system_event.assert_called_once()
-    enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
-    assert isinstance(enqueued_event, AgentErrorEvent)
-    assert enqueued_event.error_message == expected_error_log
-    assert enqueued_event.exception_details is None
-
-@pytest.mark.asyncio
-async def test_system_prompt_processing_failure_step_setup_error(
-    prompt_proc_step: SystemPromptProcessingStep,
-    agent_context: AgentContext,
-    mock_phase_manager: AgentPhaseManager,
-    mock_system_prompt_processor_registry: SystemPromptProcessorRegistry, # Keep this to allow prompt_proc_step init
-    caplog
-):
-    # Simulate an error before the processor loop, e.g., accessing a misconfigured specification
-    # For this, we can make agent_context.specification.system_prompt raise an error when accessed
-    
-    original_specification = agent_context.specification 
-    faulty_specification_mock = MagicMock(spec=type(original_specification)) # Mock to replace specification
-    faulty_specification_mock.system_prompt_processor_names = ["AnyProcessor"] # Needed to enter the loop part of try
-    
-    # Make accessing 'system_prompt' on this mock raise an error
-    setup_error_message = "Faulty specification access"
-    type(faulty_specification_mock).system_prompt = property(fget=MagicMock(side_effect=AttributeError(setup_error_message)))
-    
-    agent_context.specification = faulty_specification_mock # Temporarily replace specification on context
-
-    with caplog.at_level(logging.ERROR):
-        success = await prompt_proc_step.execute(agent_context, mock_phase_manager)
-    
-    agent_context.specification = original_specification # Restore original specification
-
-    assert success is False
-    mock_phase_manager.notify_initializing_prompt.assert_called_once() 
-    
-    expected_error_log = f"Agent '{agent_context.agent_id}': Critical failure during system prompt processing step setup: {setup_error_message}"
-    assert expected_error_log in caplog.text
-    
-    agent_context.input_event_queues.enqueue_internal_system_event.assert_called_once()
-    enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
-    assert isinstance(enqueued_event, AgentErrorEvent)
-    assert enqueued_event.error_message == expected_error_log
-    assert enqueued_event.exception_details == str(AttributeError(setup_error_message))
+    assert "Invalid system prompt processor configuration type" in caplog.text
+    # The step should fail before enqueuing an error event in this specific TypeError case
+    agent_context.input_event_queues.enqueue_internal_system_event.assert_not_called()

@@ -2,112 +2,89 @@
 import asyncio
 import logging
 import uuid
-from typing import List, Dict, Optional, Any, cast, Tuple, Union 
+from typing import List, Dict, Optional, Any
 
-from autobyteus.agent.registry.agent_specification import AgentSpecification
-from autobyteus.agent.factory.agent_factory import AgentFactory
+from autobyteus.agent.context.agent_config import AgentConfig
+from autobyteus.agent.factory import default_agent_factory
 from autobyteus.agent.agent import Agent 
-from autobyteus.agent.context import AgentContext
 from autobyteus.agent.group.agent_group_context import AgentGroupContext
 from autobyteus.agent.message.send_message_to import SendMessageTo
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.agent.streaming.agent_event_stream import AgentEventStream
-from autobyteus.llm.models import LLMModel 
-from autobyteus.llm.utils.llm_config import LLMConfig 
 from autobyteus.llm.utils.response_types import CompleteResponse
-from autobyteus.tools.tool_config import ToolConfig
 
 logger = logging.getLogger(__name__)
 
 class AgentGroup:
     def __init__(self,
-                    agent_factory: AgentFactory,
-                    agent_specifications: List[AgentSpecification],
-                    coordinator_spec_name: str,
-                    group_id: Optional[str] = None,
-                    agent_runtime_configs: Optional[Dict[str, Dict[str, Any]]] = None): 
-        if not agent_factory or not isinstance(agent_factory, AgentFactory): # pragma: no cover
-            raise TypeError("agent_factory must be an instance of AgentFactory.")
-        if not agent_specifications or not all(isinstance(d, AgentSpecification) for d in agent_specifications): # pragma: no cover
-            raise TypeError("agent_specifications must be a non-empty list of AgentSpecification instances.")
-        if not coordinator_spec_name or not isinstance(coordinator_spec_name, str): # pragma: no cover
-            raise TypeError("coordinator_spec_name must be a non-empty string.")
+                    agent_configs: List[AgentConfig],
+                    coordinator_config_name: str,
+                    group_id: Optional[str] = None): 
+        if not agent_configs or not all(isinstance(c, AgentConfig) for c in agent_configs):
+            raise TypeError("agent_configs must be a non-empty list of AgentConfig instances.")
+        if not coordinator_config_name or not isinstance(coordinator_config_name, str):
+            raise TypeError("coordinator_config_name must be a non-empty string.")
         
         self.group_id: str = group_id or f"group_{uuid.uuid4()}"
-        self.agent_factory: AgentFactory = agent_factory
-        self._agent_specifications_map: Dict[str, AgentSpecification] = {
-            spec.name: spec for spec in agent_specifications
+        self.agent_factory = default_agent_factory() # Get singleton instance
+        self._agent_configs_map: Dict[str, AgentConfig] = {
+            config.name: config for config in agent_configs
         }
-        self.coordinator_spec_name: str = coordinator_spec_name
-        self._agent_runtime_configs: Dict[str, Dict[str, Any]] = agent_runtime_configs or {} 
+        self.coordinator_config_name: str = coordinator_config_name
         self.agents: List[Agent] = []
         self.coordinator_agent: Optional[Agent] = None
-        self.group_context: Optional[AgentGroupContext] = None # Initialize later
+        self.group_context: Optional[AgentGroupContext] = None
         self._is_initialized: bool = False
         self._is_running: bool = False
         
-        if self.coordinator_spec_name not in self._agent_specifications_map: # pragma: no cover
-            raise ValueError(f"Coordinator spec name '{self.coordinator_spec_name}' "
-                                f"not found in provided agent_specifications. Available: {list(self._agent_specifications_map.keys())}")
-        logger.info(f"AgentGroup '{self.group_id}' created with {len(agent_specifications)} specifications. "
-                    f"Coordinator: '{self.coordinator_spec_name}'.")
+        if self.coordinator_config_name not in self._agent_configs_map:
+            raise ValueError(f"Coordinator config name '{self.coordinator_config_name}' "
+                                f"not found in provided agent_configs. Available: {list(self._agent_configs_map.keys())}")
+        logger.info(f"AgentGroup '{self.group_id}' created with {len(agent_configs)} configurations. "
+                    f"Coordinator: '{self.coordinator_config_name}'.")
         self._initialize_agents()
 
-    def _initialize_agents(self): # pragma: no cover
+    def _initialize_agents(self):
         if self._is_initialized:
             logger.warning(f"AgentGroup '{self.group_id}' agents already initialized. Skipping.")
             return
+            
         temp_agents_list: List[Agent] = []
         temp_coordinator_agent: Optional[Agent] = None
-        for spec_name, original_spec in self._agent_specifications_map.items():
-            agent_id = f"{self.group_id}_{spec_name}_{uuid.uuid4().hex[:6]}"
-            runtime_overrides = self._agent_runtime_configs.get(spec_name, {})
-            llm_model_name_for_agent: Optional[str] = runtime_overrides.get("llm_model_name")
-            raw_custom_llm_config = runtime_overrides.get("custom_llm_config") 
-            llm_config_for_factory: Optional[LLMConfig] = None
-            if isinstance(raw_custom_llm_config, LLMConfig):
-                llm_config_for_factory = raw_custom_llm_config
-            elif isinstance(raw_custom_llm_config, dict):
-                llm_config_for_factory = LLMConfig.from_dict(raw_custom_llm_config)
-            elif raw_custom_llm_config is not None:
-                logger.warning(f"AgentGroup '{self.group_id}': custom_llm_config for agent '{spec_name}' is of "
-                                f"unexpected type {type(raw_custom_llm_config)}. Expected LLMConfig or dict. Ignoring this config.")
-            raw_custom_tool_config = runtime_overrides.get("custom_tool_config") 
-            tool_config_for_factory: Optional[Dict[str, ToolConfig]] = None
-            if isinstance(raw_custom_tool_config, dict):
-                if all(isinstance(k, str) and isinstance(v, ToolConfig) for k, v in raw_custom_tool_config.items()):
-                        tool_config_for_factory = raw_custom_tool_config
-                else:
-                    logger.warning(f"AgentGroup '{self.group_id}': custom_tool_config for agent '{spec_name}' is a dict but contains invalid items. Expected Dict[str, ToolConfig]. Ignoring.")
-            elif raw_custom_tool_config is not None:
-                    logger.warning(f"AgentGroup '{self.group_id}': custom_tool_config for agent '{spec_name}' is of "
-                                f"unexpected type {type(raw_custom_tool_config)}. Expected Dict[str, ToolConfig]. Ignoring this config.")
-            auto_execute_tools: bool = runtime_overrides.get("auto_execute_tools", True) 
-            if llm_model_name_for_agent is None: # AgentSpecification might not require an LLM
-                logger.debug(f"LLM model name not specified for agent spec '{spec_name}'. Agent may not use an LLM.")
-            modified_tool_names = list(original_spec.tool_names)
-            if SendMessageTo.TOOL_NAME not in modified_tool_names:
-                modified_tool_names.append(SendMessageTo.TOOL_NAME)
-            effective_spec = AgentSpecification(name=original_spec.name, role=original_spec.role, description=original_spec.description,
-                                            system_prompt=original_spec.system_prompt, tool_names=modified_tool_names, 
-                                            input_processor_names=original_spec.input_processor_names,
-                                            llm_response_processor_names=original_spec.llm_response_processor_names,
-                                            system_prompt_processor_names=original_spec.system_prompt_processor_names,
-                                            use_xml_tool_format=original_spec.use_xml_tool_format)
+        for config_name, original_config in self._agent_configs_map.items():
+            
+            modified_tools = list(original_config.tools)
+            is_send_message_present = any(isinstance(tool, SendMessageTo) for tool in modified_tools)
+            if not is_send_message_present:
+                modified_tools.append(SendMessageTo())
+
+            # This logic correctly re-uses the user-provided LLM instance when creating the effective config.
+            effective_config = AgentConfig(
+                name=original_config.name, role=original_config.role, description=original_config.description,
+                llm_instance=original_config.llm_instance, # Pass the instance through
+                system_prompt=original_config.system_prompt,
+                tools=modified_tools, 
+                auto_execute_tools=original_config.auto_execute_tools,
+                use_xml_tool_format=original_config.use_xml_tool_format,
+                input_processors=original_config.input_processors,
+                llm_response_processors=original_config.llm_response_processors,
+                system_prompt_processors=original_config.system_prompt_processors
+            )
+
             try:
-                agent_runtime = self.agent_factory.create_agent_runtime(agent_id=agent_id, specification=effective_spec, llm_model_name=llm_model_name_for_agent,
-                                                                    workspace=None, custom_llm_config=llm_config_for_factory, 
-                                                                    custom_tool_config=tool_config_for_factory, auto_execute_tools=auto_execute_tools) 
-                agent_instance = Agent(runtime=agent_runtime)
+                agent_instance = self.agent_factory.create_agent(config=effective_config)
                 temp_agents_list.append(agent_instance)
-                if spec_name == self.coordinator_spec_name:
+                
+                if config_name == self.coordinator_config_name:
                     temp_coordinator_agent = agent_instance
-                logger.debug(f"Agent '{agent_id}' (Role: {original_spec.role}) created for group '{self.group_id}'.")
+                logger.debug(f"Agent '{agent_instance.agent_id}' (Role: {original_config.role}) created for group '{self.group_id}'.")
             except Exception as e:
-                logger.error(f"Failed to create agent '{spec_name}' for group '{self.group_id}': {e}", exc_info=True)
-                raise RuntimeError(f"Failed to initialize agent '{spec_name}' in group '{self.group_id}'.") from e
+                logger.error(f"Failed to create agent for config '{config_name}' for group '{self.group_id}': {e}", exc_info=True)
+                raise RuntimeError(f"Failed to initialize agent for config '{config_name}' in group '{self.group_id}'.") from e
+                
         if not temp_coordinator_agent:
-            raise RuntimeError(f"Coordinator agent '{self.coordinator_spec_name}' could not be instantiated in group '{self.group_id}'.")
+            raise RuntimeError(f"Coordinator agent '{self.coordinator_config_name}' could not be instantiated.")
+        
         self.agents = temp_agents_list
         self.coordinator_agent = temp_coordinator_agent
         self.group_context = AgentGroupContext(group_id=self.group_id, agents=self.agents, coordinator_agent_id=self.coordinator_agent.agent_id)
@@ -116,35 +93,32 @@ class AgentGroup:
         self._is_initialized = True
         logger.info(f"AgentGroup '{self.group_id}' all {len(self.agents)} agents initialized successfully.")
 
-    async def start(self): # pragma: no cover
+    async def start(self):
         if not self._is_initialized: raise RuntimeError(f"AgentGroup '{self.group_id}' must be initialized before starting.")
         if self._is_running: logger.warning(f"AgentGroup '{self.group_id}' is already running."); return
         logger.info(f"Starting all agents in AgentGroup '{self.group_id}'..."); self._is_running = True 
         try:
-            start_tasks = []
             for agent in self.agents:
-                if not agent.is_running: 
-                    agent.start() # This is synchronous
-                    start_tasks.append(asyncio.sleep(0.01)) # Give event loop a chance to pick up agent's loop
-            if start_tasks:
-                await asyncio.gather(*start_tasks)
+                if not agent.is_running:
+                    agent.start()
+            # Give loops a chance to start
+            await asyncio.sleep(0.01)
             logger.info(f"All agents in AgentGroup '{self.group_id}' have been requested to start.")
         except Exception as e:
             self._is_running = False; logger.error(f"Error starting agents in AgentGroup '{self.group_id}': {e}", exc_info=True)
             await self.stop(timeout=2.0); raise
 
-    async def stop(self, timeout: float = 10.0): # pragma: no cover
+    async def stop(self, timeout: float = 10.0):
         if not self._is_running and not any(a.is_running for a in self.agents): 
-                logger.info(f"AgentGroup '{self.group_id}' is already stopped or was never started."); self._is_running = False; return
+            logger.info(f"AgentGroup '{self.group_id}' is already stopped or was never started."); self._is_running = False; return
         logger.info(f"Stopping all agents in AgentGroup '{self.group_id}' with timeout {timeout}s...")
         stop_tasks = [agent.stop(timeout=timeout) for agent in self.agents]
         results = await asyncio.gather(*stop_tasks, return_exceptions=True)
         for agent, result in zip(self.agents, results):
             if isinstance(result, Exception): logger.error(f"Error stopping agent '{agent.agent_id}': {result}", exc_info=result)
-            else: logger.debug(f"Agent '{agent.agent_id}' stopped.")
         self._is_running = False; logger.info(f"All agents in AgentGroup '{self.group_id}' have been requested to stop.")
 
-    async def process_task_for_coordinator(self, initial_input_content: str, user_id: Optional[str] = None) -> Any: # pragma: no cover
+    async def process_task_for_coordinator(self, initial_input_content: str, user_id: Optional[str] = None) -> Any:
         if not self.coordinator_agent: raise RuntimeError(f"Coordinator agent not set in group '{self.group_id}'.")
         await self.start() 
         final_response_aggregator = ""
@@ -156,40 +130,25 @@ class AgentGroup:
                 nonlocal final_response_aggregator
                 try:
                     async for complete_response in streamer.stream_assistant_final_messages():
-                        if isinstance(complete_response, CompleteResponse):
-                            final_response_aggregator += complete_response.content
-                        else:
-                            logger.warning(f"Expected CompleteResponse but got {type(complete_response)}.")
-                    logger.info(f"Coordinator '{self.coordinator_agent.agent_id}' final message stream ended. Aggregated Length: {len(final_response_aggregator)}")
+                        final_response_aggregator += complete_response.content
                 except Exception as e_stream:
-                    logger.error(f"Error streaming final output from coordinator '{self.coordinator_agent.agent_id}': {e_stream}", exc_info=True)
+                    logger.error(f"Error streaming final output from coordinator: {e_stream}", exc_info=True)
             output_stream_listener_task = asyncio.create_task(listen_for_final_output())
-            message_metadata = {"user_id": user_id} if user_id else {}
-            input_message = AgentInputUserMessage(content=initial_input_content, metadata=message_metadata)
-            logger.info(f"AgentGroup '{self.group_id}': Posting task to coordinator '{self.coordinator_agent.agent_id}'.")
+            input_message = AgentInputUserMessage(content=initial_input_content, metadata={"user_id": user_id} if user_id else {})
             await self.coordinator_agent.post_user_message(input_message)
             if output_stream_listener_task: await output_stream_listener_task
-            logger.info(f"AgentGroup '{self.group_id}': Coordinator task processing complete. Response length: {len(final_response_aggregator)}")
             return final_response_aggregator
-        except Exception as e:
-            logger.error(f"Error in AgentGroup '{self.group_id}' process_task_for_coordinator: {e}", exc_info=True); raise
         finally:
             if output_stream_listener_task and not output_stream_listener_task.done():
                 output_stream_listener_task.cancel()
-                try: await output_stream_listener_task
-                except asyncio.CancelledError: logger.debug("Coordinator output listener task cancelled.")
-            if streamer and hasattr(streamer, 'close') and asyncio.iscoroutinefunction(streamer.close):
-                 await streamer.close()
+            if streamer: await streamer.close()
 
+    def get_agent_by_id(self, agent_id: str) -> Optional[Agent]:
+        return next((agent for agent in self.agents if agent.agent_id == agent_id), None)
 
-    def get_agent_by_id(self, agent_id: str) -> Optional[Agent]: # pragma: no cover
-        for agent in self.agents:
-            if agent.agent_id == agent_id: return agent
-        return None
-
-    def get_agents_by_role(self, role_name: str) -> List[Agent]: # pragma: no cover
-        return [agent for agent in self.agents if agent.context.specification.role == role_name]
+    def get_agents_by_role(self, role_name: str) -> List[Agent]:
+        return [agent for agent in self.agents if agent.context.config.role == role_name]
 
     @property
-    def is_running(self) -> bool: # pragma: no cover
+    def is_running(self) -> bool:
         return self._is_running and any(a.is_running for a in self.agents)

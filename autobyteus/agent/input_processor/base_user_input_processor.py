@@ -3,29 +3,26 @@ import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from .processor_meta import AgentUserInputMessageProcessorMeta 
-
 if TYPE_CHECKING:
     from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage 
     from autobyteus.agent.context import AgentContext # Composite AgentContext
 
 logger = logging.getLogger(__name__)
 
-class BaseAgentUserInputMessageProcessor(ABC, metaclass=AgentUserInputMessageProcessorMeta):
+class BaseAgentUserInputMessageProcessor(ABC):
     """
     Abstract base class for agent user input message processors.
     These processors can modify an AgentInputUserMessage, specifically from a user,
     before it is converted to an LLMUserMessage.
-    Concrete subclasses are auto-registered using AgentUserInputMessageProcessorMeta.
+    Subclasses should be instantiated and passed to the AgentSpecification.
     """
 
-    @classmethod
-    def get_name(cls) -> str:
+    def get_name(self) -> str:
         """
         Returns the unique registration name for this processor.
         Defaults to the class name. Can be overridden by subclasses.
         """
-        return cls.__name__
+        return self.__class__.__name__
 
     @abstractmethod
     async def process(self,

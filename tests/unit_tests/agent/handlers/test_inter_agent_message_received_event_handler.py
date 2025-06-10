@@ -1,3 +1,4 @@
+# file: autobyteus/tests/unit_tests/agent/handlers/test_inter_agent_message_received_event_handler.py
 import pytest
 import logging
 from unittest.mock import MagicMock, patch
@@ -17,7 +18,8 @@ async def test_handle_inter_agent_message_success(inter_agent_handler: InterAgen
     sender_id = "sender_agent_123"
     content = "This is a test message from another agent."
     message_type = InterAgentMessageType.TASK_ASSIGNMENT
-    recipient_role = agent_context.specification.role # Use specification for role
+    # CORRECTED: Get role from agent_context.config, not agent_context.specification
+    recipient_role = agent_context.config.role
 
     inter_agent_msg = InterAgentMessage(
         sender_agent_id=sender_id,
