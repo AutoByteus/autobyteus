@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 class ToolRegistry(metaclass=SingletonMeta):
     """
-    Manages ToolDefinitions (name, description, tool_class), populated exclusively via
-    programmatic registration. Creates tool instances using class constructors and ToolConfig.
+    Manages ToolDefinitions and creates tool instances. It can create instances
+    from a tool_class or by using a custom_factory provided in the definition.
     """
     _definitions: Dict[str, ToolDefinition] = {}
 
@@ -26,7 +26,7 @@ class ToolRegistry(metaclass=SingletonMeta):
 
     def register_tool(self, definition: ToolDefinition):
         """
-        Registers a tool definition (name, description, tool_class) programmatically.
+        Registers a tool definition.
 
         Args:
             definition: The ToolDefinition object to register.
@@ -41,7 +41,7 @@ class ToolRegistry(metaclass=SingletonMeta):
         if tool_name in self._definitions:
             logger.warning(f"Overwriting existing tool definition for name: '{tool_name}'")
         ToolRegistry._definitions[tool_name] = definition
-        logger.info(f"Successfully registered tool definition: '{tool_name}' with class '{definition.tool_class.__name__}'")
+        logger.info(f"Successfully registered tool definition: '{tool_name}'")
 
     def get_tool_definition(self, name: str) -> Optional[ToolDefinition]:
         """
@@ -60,17 +60,18 @@ class ToolRegistry(metaclass=SingletonMeta):
 
     def create_tool(self, name: str, config: Optional[ToolConfig] = None) -> 'BaseTool':
         """
-        Creates a tool instance using the class constructor and optional ToolConfig.
+        Creates a tool instance using its definition, either from a factory or a class.
 
         Args:
             name: The name of the tool to create.
-            config: Optional ToolConfig with constructor parameters.
+            config: Optional ToolConfig with constructor parameters for class-based tools
+                    or to be passed to a custom factory.
 
         Returns:
             The tool instance if the definition exists.
 
         Raises:
-            ValueError: If the tool definition is not found.
+            ValueError: If the tool definition is not found or is invalid.
             TypeError: If tool instantiation fails.
         """
         definition = self.get_tool_definition(name)
@@ -78,21 +79,33 @@ class ToolRegistry(metaclass=SingletonMeta):
             logger.error(f"Cannot create tool: No definition found for name '{name}'")
             raise ValueError(f"No tool definition found for name '{name}'")
         
-        tool_class = definition.tool_class
-        
-        # Prepare constructor arguments from config
-        constructor_kwargs = {}
-        if config:
-            constructor_kwargs = config.get_constructor_kwargs()
-        
         try:
-            logger.info(f"Creating tool instance for '{name}' using class '{tool_class.__name__}' with config: {constructor_kwargs}")
-            tool_instance = tool_class(**constructor_kwargs)
+            # Prefer the custom factory if it exists
+            if definition.custom_factory:
+                logger.info(f"Creating tool instance for '{name}' using its custom factory.")
+                # Pass the config to the factory. The factory can choose to use it or not.
+                tool_instance = definition.custom_factory(config)
+            
+            # Fall back to instantiating the tool_class
+            elif definition.tool_class:
+                constructor_kwargs = {}
+                if config:
+                    constructor_kwargs = config.get_constructor_kwargs()
+                
+                logger.info(f"Creating tool instance for '{name}' using class '{definition.tool_class.__name__}' with config: {constructor_kwargs}")
+                tool_instance = definition.tool_class(**constructor_kwargs)
+            
+            else:
+                # This case should be prevented by ToolDefinition's validation
+                raise ValueError(f"ToolDefinition for '{name}' is invalid: missing both tool_class and custom_factory.")
+
             logger.debug(f"Successfully created tool instance for '{name}'")
             return tool_instance
+
         except Exception as e:
-            logger.error(f"Failed to create tool instance for '{name}': {e}", exc_info=True)
-            raise TypeError(f"Failed to create tool '{name}' with class '{tool_class.__name__}': {e}")
+            creator_type = "factory" if definition.custom_factory else f"class '{definition.tool_class.__name__}'"
+            logger.error(f"Failed to create tool instance for '{name}' using {creator_type}: {e}", exc_info=True)
+            raise TypeError(f"Failed to create tool '{name}': {e}") from e
 
     def list_tools(self) -> List[ToolDefinition]:
         """

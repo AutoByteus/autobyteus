@@ -31,6 +31,7 @@ from .config_service import McpConfigService
 from .connection_manager import McpConnectionManager
 from .schema_mapper import McpSchemaMapper 
 from .tool import GenericMcpTool
+from .factory import McpToolFactory
 from .registrar import McpToolRegistrar
 
 __all__ = [
@@ -46,5 +47,6 @@ __all__ = [
     "McpConnectionManager",
     "McpSchemaMapper",
     "GenericMcpTool",
+    "McpToolFactory",
     "McpToolRegistrar",
 ]

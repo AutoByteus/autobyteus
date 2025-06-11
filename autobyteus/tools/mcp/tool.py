@@ -1,6 +1,7 @@
 # file: autobyteus/autobyteus/mcp/tool.py
 import logging
 from typing import Any, Optional, TYPE_CHECKING
+import asyncio
 
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.parameter_schema import ParameterSchema
@@ -102,7 +103,8 @@ class GenericMcpTool(BaseTool):
             raise RuntimeError(f"Failed to acquire MCP session for server '{self._mcp_server_id}': {e}") from e
 
         try:
-            result = session.call_tool(self._mcp_remote_tool_name, args=kwargs)
+            # The arguments dictionary is passed positionally.
+            result = await session.call_tool(self._mcp_remote_tool_name, kwargs)
             logger.info(f"GenericMcpTool '{self._instance_name}': Remote tool '{self._mcp_remote_tool_name}' executed successfully. Result preview: {str(result)[:100]}...")
             return result
         except Exception as e:

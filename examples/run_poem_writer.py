@@ -198,9 +198,7 @@ async def main(args: argparse.Namespace):
     try:
         logger.info(f"Starting interactive session for agent {agent.agent_id} via agent_cli.run()...")
         await agent_cli.run(
-            agent=agent,
-            show_tool_logs=not args.no_tool_logs, 
-            initial_prompt=args.topic
+            agent=agent
         )
         logger.info(f"Interactive session for agent {agent.agent_id} finished.")
     except KeyboardInterrupt: 

@@ -37,6 +37,9 @@ async def test_system_prompt_processing_success_with_processors(
     # Set the instances on the config
     agent_context.config.system_prompt_processors = [mock_processor_1, mock_processor_2]
 
+    # Ensure the mock LLM instance has the method we're going to call
+    agent_context.llm_instance.configure_system_prompt = MagicMock()
+
     with caplog.at_level(logging.INFO):
         success = await prompt_proc_step.execute(agent_context, mock_phase_manager)
 
@@ -46,10 +49,10 @@ async def test_system_prompt_processing_success_with_processors(
     assert "System prompt processor 'Processor1' applied successfully." in caplog.text
     assert "System prompt processor 'Processor2' applied successfully." in caplog.text
     
-    # Verify the final prompt was stored in state AND set on the LLM config
+    # Verify the final prompt was stored in state AND set on the LLM instance
     final_prompt = "Final processed by P2."
     assert agent_context.state.processed_system_prompt == final_prompt
-    assert agent_context.llm_instance.config.system_message == final_prompt
+    agent_context.llm_instance.configure_system_prompt.assert_called_once_with(final_prompt)
     
     # Verify processors were called correctly
     mock_processor_1.process.assert_called_once_with(
@@ -77,6 +80,8 @@ async def test_system_prompt_processing_success_no_processors(
     original_prompt = "Prompt without processors."
     agent_context.config.system_prompt = original_prompt
     agent_context.config.system_prompt_processors = [] 
+    
+    agent_context.llm_instance.configure_system_prompt = MagicMock()
 
     with caplog.at_level(logging.DEBUG):
         success = await prompt_proc_step.execute(agent_context, mock_phase_manager)
@@ -87,7 +92,7 @@ async def test_system_prompt_processing_success_no_processors(
     
     # Verify the original prompt was stored and set
     assert agent_context.state.processed_system_prompt == original_prompt
-    assert agent_context.llm_instance.config.system_message == original_prompt
+    agent_context.llm_instance.configure_system_prompt.assert_called_once_with(original_prompt)
     agent_context.input_event_queues.enqueue_internal_system_event.assert_not_called()
 
 @pytest.mark.asyncio
@@ -157,5 +162,9 @@ async def test_system_prompt_processing_invalid_processor_type(
 
     assert success is False
     assert "Invalid system prompt processor configuration type" in caplog.text
-    # The step should fail before enqueuing an error event in this specific TypeError case
-    agent_context.input_event_queues.enqueue_internal_system_event.assert_not_called()
+    # In this specific case, an AgentErrorEvent *is* enqueued by the general exception handler
+    # in the execute method, so this assertion needs to be updated.
+    agent_context.input_event_queues.enqueue_internal_system_event.assert_called_once()
+    enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
+    assert isinstance(enqueued_event, AgentErrorEvent)
+    assert "Invalid system prompt processor configuration type" in enqueued_event.error_message

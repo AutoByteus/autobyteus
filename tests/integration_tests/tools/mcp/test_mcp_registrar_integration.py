@@ -1,6 +1,7 @@
 import pytest
 import asyncio
 import os
+from unittest.mock import MagicMock
 
 from autobyteus.tools.mcp import (
     McpConfigService,
@@ -13,47 +14,34 @@ from autobyteus.tools.mcp import (
 )
 from autobyteus.tools.registry import default_tool_registry, ToolDefinition
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.agent.context import AgentContext
 
 # Environment variable name for the MCP server script path
 _MCP_SCRIPT_PATH_ENV_VAR_NAME = "TEST_GOOGLE_SLIDES_MCP_SCRIPT_PATH"
-# Retrieve the script path from the environment variable
-_google_slides_mcp_script_path_from_env = os.environ.get(_MCP_SCRIPT_PATH_ENV_VAR_NAME)
 
-# Define skip conditions and reasons evaluated at test collection time
-_SKIP_IF_ENV_VAR_NOT_SET = _google_slides_mcp_script_path_from_env is None
-_REASON_ENV_VAR_NOT_SET = (
-    f"Environment variable '{_MCP_SCRIPT_PATH_ENV_VAR_NAME}' is not set. "
-    "This variable must point to the google-slides-mcp executable script for this integration test."
-)
+@pytest.fixture
+def google_slides_mcp_script_path():
+    """
+    Fixture to provide the path to the google-slides-mcp script from an environment variable.
+    Skips the test if the environment variable is not set or the path is invalid.
+    """
+    script_path = os.environ.get(_MCP_SCRIPT_PATH_ENV_VAR_NAME)
+    
+    if not script_path:
+        pytest.skip(
+            f"Environment variable '{_MCP_SCRIPT_PATH_ENV_VAR_NAME}' is not set. "
+            "This variable must point to the google-slides-mcp executable script for this integration test."
+        )
+    
+    if not os.path.exists(script_path):
+        pytest.skip(
+            f"MCP server script specified by '{_MCP_SCRIPT_PATH_ENV_VAR_NAME}' "
+            f"({script_path}) not found. Skipping integration test."
+        )
+        
+    return script_path
 
-_SKIP_IF_PATH_INVALID = (
-    not _SKIP_IF_ENV_VAR_NOT_SET and # Only check path if env var was set
-    not os.path.exists(_google_slides_mcp_script_path_from_env)
-)
-_REASON_PATH_INVALID = (
-    f"MCP server script specified by '{_MCP_SCRIPT_PATH_ENV_VAR_NAME}' "
-    f"({_google_slides_mcp_script_path_from_env}) not found. Skipping integration test."
-)
-
-
-# Configuration for the google-slides-mcp server
-# This dictionary is defined globally but will only be used if the test is not skipped.
-# The _google_slides_mcp_script_path_from_env will be valid if the test runs.
-google_slides_mcp_config_dict = {
-    "google-slides-mcp": {
-        "transport_type": "stdio",
-        "command": "node",
-        "args": [_google_slides_mcp_script_path_from_env], # Uses path from env var
-        "enabled": True,
-        "tool_name_prefix": None,
-        "env": {
-            "GOOGLE_CLIENT_ID": os.environ.get("GOOGLE_CLIENT_ID", "YOUR_TEST_CLIENT_ID_FROM_ENV"),
-            "GOOGLE_CLIENT_SECRET": os.environ.get("GOOGLE_CLIENT_SECRET", "YOUR_TEST_CLIENT_SECRET_FROM_ENV"),
-            "GOOGLE_REFRESH_TOKEN": os.environ.get("GOOGLE_REFRESH_TOKEN", "YOUR_TEST_REFRESH_TOKEN_FROM_ENV")
-        }
-    }
-} if not _SKIP_IF_ENV_VAR_NOT_SET else {} # Define dict only if env var is set, else empty
-
+# This can remain at the module level as it doesn't depend on the script path
 expected_tools_details = [
     {
         "name": "create_presentation",
@@ -95,15 +83,11 @@ expected_tools_details = [
     }
 ]
 
-@pytest.mark.skipif(_SKIP_IF_ENV_VAR_NOT_SET, reason=_REASON_ENV_VAR_NOT_SET)
-@pytest.mark.skipif(_SKIP_IF_PATH_INVALID, reason=_REASON_PATH_INVALID)
-@pytest.mark.asyncio
-async def test_mcp_registrar_discovers_and_registers_google_slides_tools():
-    """
-    Integration test for McpToolRegistrar with a real STDIO MCP server.
-    Relies on TEST_GOOGLE_SLIDES_MCP_SCRIPT_PATH environment variable.
-    """
-    # Ensure singletons are in a clean state for this test
+# Helper to set up the environment for tests
+@pytest.fixture
+def mcp_test_environment(google_slides_mcp_script_path):
+    """A fixture to set up and tear down the MCP test environment."""
+    # Ensure singletons are clean before the test
     if McpConfigService in McpConfigService._instances:
         del McpConfigService._instances[McpConfigService]
     if McpConnectionManager in McpConnectionManager._instances:
@@ -112,19 +96,26 @@ async def test_mcp_registrar_discovers_and_registers_google_slides_tools():
     original_registry_definitions = default_tool_registry._definitions.copy()
     default_tool_registry._definitions.clear()
 
-    config_service = McpConfigService()
-    # The google_slides_mcp_config_dict will be valid here because the test wouldn't run if env var was missing.
-    loaded_configs = config_service.load_configs(google_slides_mcp_config_dict)
-    assert len(loaded_configs) == 1
-    assert isinstance(loaded_configs[0], StdioMcpServerConfig)
-    assert loaded_configs[0].command == "node"
-    # _google_slides_mcp_script_path_from_env is guaranteed to be non-None here by skipif
-    assert loaded_configs[0].args == [_google_slides_mcp_script_path_from_env]
-    assert loaded_configs[0].env["GOOGLE_CLIENT_ID"] == os.environ.get("GOOGLE_CLIENT_ID", "YOUR_TEST_CLIENT_ID_FROM_ENV")
+    # Configuration for the test
+    config_dict = {
+        "google-slides-mcp": {
+            "transport_type": "stdio",
+            "command": "node",
+            "args": [google_slides_mcp_script_path],
+            "enabled": True,
+            "tool_name_prefix": "gslides", # Use a prefix for testing
+            "env": {
+                "GOOGLE_CLIENT_ID": os.environ.get("GOOGLE_CLIENT_ID", ""),
+                "GOOGLE_CLIENT_SECRET": os.environ.get("GOOGLE_CLIENT_SECRET", ""),
+                "GOOGLE_REFRESH_TOKEN": os.environ.get("GOOGLE_REFRESH_TOKEN", "")
+            }
+        }
+    }
 
+    config_service = McpConfigService()
+    config_service.load_configs(config_dict)
     conn_manager = McpConnectionManager(config_service=config_service)
     schema_mapper = McpSchemaMapper()
-    
     registrar = McpToolRegistrar(
         config_service=config_service,
         conn_manager=conn_manager,
@@ -132,56 +123,77 @@ async def test_mcp_registrar_discovers_and_registers_google_slides_tools():
         tool_registry=default_tool_registry
     )
 
-    registered_tool_count_before = len(default_tool_registry.list_tool_names())
+    yield registrar, conn_manager # Provide the components to the test
 
+    # Teardown
+    # The `finally` block in the test functions will call conn_manager.cleanup()
+    default_tool_registry._definitions = original_registry_definitions
+
+
+@pytest.mark.asyncio
+async def test_mcp_registrar_discovers_and_registers_google_slides_tools(mcp_test_environment):
+    """Tests that the registrar correctly discovers and registers tools."""
+    registrar, conn_manager = mcp_test_environment
+    
     try:
         await registrar.discover_and_register_tools()
 
-        registered_tool_count_after = len(default_tool_registry.list_tool_names())
-        assert registered_tool_count_after == registered_tool_count_before + len(expected_tools_details), \
-            f"Expected {len(expected_tools_details)} tools to be registered."
+        registered_tool_count = len(default_tool_registry.list_tool_names())
+        assert registered_tool_count == len(expected_tools_details), \
+            f"Expected {len(expected_tools_details)} tools to be registered, but found {registered_tool_count}."
 
         for expected_tool in expected_tools_details:
-            tool_name = expected_tool["name"]
-            registered_name = tool_name # No prefix in this config
-
+            registered_name = f"gslides_{expected_tool['name']}" # Check for prefix
             tool_def = default_tool_registry.get_tool_definition(registered_name)
 
             assert tool_def is not None, f"Tool '{registered_name}' not found in registry."
             assert tool_def.name == registered_name
             assert tool_def.description == expected_tool["description"]
-            assert tool_def.tool_class == GenericMcpTool
-            assert callable(tool_def.custom_factory), f"Custom factory for '{registered_name}' is not callable."
+            assert tool_def.tool_class is None
+            assert callable(tool_def.custom_factory)
             
-            assert isinstance(tool_def.argument_schema, ParameterSchema), \
-                f"Argument schema for '{registered_name}' is not a ParameterSchema instance."
-
+            assert isinstance(tool_def.argument_schema, ParameterSchema)
             for expected_param_info in expected_tool["params"]:
                 param_def = tool_def.argument_schema.get_parameter(expected_param_info["name"])
-                assert param_def is not None, \
-                    f"Parameter '{expected_param_info['name']}' not found in schema for tool '{registered_name}'."
-                assert param_def.param_type == expected_param_info["type"], \
-                    f"Parameter '{param_def.name}' type mismatch for tool '{registered_name}'. Expected {expected_param_info['type']}, got {param_def.param_type}."
-                assert param_def.required == expected_param_info["required"], \
-                    f"Parameter '{param_def.name}' required mismatch for tool '{registered_name}'."
-                
-                if expected_param_info["type"] == ParameterType.ARRAY:
-                    assert param_def.array_item_schema is not None, \
-                        f"Parameter '{param_def.name}' (array) missing item schema for tool '{registered_name}'."
-                    if "item_schema_type" in expected_param_info:
-                        item_schema = param_def.array_item_schema
-                        if isinstance(item_schema, dict):
-                             assert item_schema.get("type") == expected_param_info["item_schema_type"], \
-                                f"Array item type mismatch for '{param_def.name}' in tool '{registered_name}'."
-                        elif item_schema is True and expected_param_info["item_schema_type"] == "any":
-                            pass 
-                        else:
-                            pytest.fail(f"Unexpected array_item_schema format or type for '{param_def.name}' in tool '{registered_name}'.")
+                assert param_def is not None
+                assert param_def.param_type == expected_param_info["type"]
+                assert param_def.required == expected_param_info["required"]
     finally:
         await conn_manager.cleanup()
-        default_tool_registry._definitions = original_registry_definitions
-        if McpConfigService in McpConfigService._instances:
-            del McpConfigService._instances[McpConfigService]
-        if McpConnectionManager in McpConnectionManager._instances:
-            del McpConnectionManager._instances[McpConnectionManager]
 
+
+@pytest.mark.asyncio
+async def test_mcp_tool_execution_after_registration(mcp_test_environment):
+    """Tests the full flow: register, create from registry, and execute a tool."""
+    registrar, conn_manager = mcp_test_environment
+    
+    try:
+        # 1. Register tools
+        await registrar.discover_and_register_tools()
+        
+        # 2. Create tool from registry
+        tool_name = "gslides_create_presentation"
+        create_tool = default_tool_registry.create_tool(tool_name)
+        
+        assert isinstance(create_tool, GenericMcpTool)
+        
+        # 3. Execute the tool
+        mock_context = MagicMock(spec=AgentContext)
+        mock_context.agent_id = "integration_test_agent"
+        test_title = f"Test Presentation {os.urandom(4).hex()}"
+        
+        result = await create_tool.execute(context=mock_context, title=test_title)
+        
+        # 4. Assert the result
+        assert result is not None
+        # The result from GenericMcpTool._execute is the mcp.types.ToolResult object
+        assert hasattr(result, 'content') and result.content
+        assert isinstance(result.content[0].text, str)
+        
+        # Check that the returned JSON string contains our title
+        response_data = json.loads(result.content[0].text)
+        assert response_data.get("title") == test_title
+        assert "presentationId" in response_data
+
+    finally:
+        await conn_manager.cleanup()

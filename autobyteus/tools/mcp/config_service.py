@@ -12,10 +12,11 @@ from .types import (
     StreamableHttpMcpServerConfig,
     McpTransportType
 )
+from autobyteus.utils.singleton import SingletonMeta
 
 logger = logging.getLogger(__name__)
 
-class McpConfigService:
+class McpConfigService(metaclass=SingletonMeta):
     """Loads, validates, and provides MCP Server Configuration objects (BaseMcpConfig and its subclasses)."""
 
     def __init__(self):
@@ -255,4 +256,3 @@ class McpConfigService:
     def clear_configs(self) -> None:
         self._configs.clear()
         logger.info("All MCP server configurations cleared from McpConfigService.")
-

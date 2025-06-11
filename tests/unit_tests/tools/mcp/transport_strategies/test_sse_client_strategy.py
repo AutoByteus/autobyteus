@@ -15,9 +15,8 @@ def mock_sse_config():
     )
 
 @pytest.mark.asyncio
-async def test_sse_establish_connection_raises_not_implemented(mock_sse_config: SseMcpServerConfig):
+async def test_sse_create_client_handle_raises_not_implemented(mock_sse_config: SseMcpServerConfig):
     strategy = SseClientStrategy()
     
     with pytest.raises(NotImplementedError, match="SSE transport client strategy not fully implemented for server 'test_sse_server'"):
-        await strategy.establish_connection(mock_sse_config)
-
+        await strategy.create_client_handle(mock_sse_config)
