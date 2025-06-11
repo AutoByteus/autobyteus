@@ -216,7 +216,7 @@ if __name__ == "__main__": # pragma: no cover
     parser.add_argument("--topic", type=str, default=None, help="Optional: The initial topic for the first poem.")
     parser.add_argument("--output-dir", type=str, default=None, help="Directory to save the poem(s). Defaults to a temporary directory.")
     parser.add_argument("--poem-filename", type=str, default="poem_interactive.txt", help="Filename for the saved poem.")
-    parser.add_argument("--llm-model", type=str, default="GPT_4o_API", help=f"The LLM model to use. Call --help-models for list.")
+    parser.add_argument("--llm-model", type=str, default="GEMINI_2_0_FLASH_API", help=f"The LLM model to use. Call --help-models for list.")
     parser.add_argument("--help-models", action="store_true", help="Display available LLM models and exit.")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging. This will create detailed agent_logs.txt and a separate queue_logs.txt for noisy logs.")
     parser.add_argument("--no-tool-logs", action="store_true", 

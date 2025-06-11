@@ -6,7 +6,6 @@ from autobyteus.llm.utils.llm_config import LLMConfig
 
 if TYPE_CHECKING:
     from autobyteus.llm.base_llm import BaseLLM
-    from autobyteus.llm.llm_factory import LLMFactory
 
 logger = logging.getLogger(__name__)
 

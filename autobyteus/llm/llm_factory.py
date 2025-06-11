@@ -1,6 +1,5 @@
 from typing import List, Set, Optional, Dict
 import logging
-import inspect
 
 from autobyteus.llm.autobyteus_provider import AutobyteusModelProvider
 from autobyteus.llm.models import LLMModel
@@ -11,9 +10,9 @@ from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.api.claude_llm import ClaudeLLM
 from autobyteus.llm.api.mistral_llm import MistralLLM
 from autobyteus.llm.api.openai_llm import OpenAILLM
-from autobyteus.llm.api.ollama_llm import OllamaLLM
 from autobyteus.llm.api.deepseek_llm import DeepSeekLLM
 from autobyteus.llm.api.grok_llm import GrokLLM
+from autobyteus.llm.api.gemini_llm import GeminiLLM
 from autobyteus.llm.ollama_provider import OllamaModelProvider
 from autobyteus.utils.singleton import SingletonMeta
 
@@ -185,10 +184,30 @@ class LLMFactory(metaclass=SingletonMeta):
             ),
             # GEMINI Provider Models
             LLMModel(
+                name="GEMINI_2_5_PRO_API",
+                value="gemini-2.5-pro",
+                provider=LLMProvider.GEMINI,
+                llm_class=GeminiLLM,
+                canonical_name="gemini-2.5-pro",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(1.25, 5.00)
+                )
+            ),
+            LLMModel(
+                name="GEMINI_2_0_FLASH_API",
+                value="gemini-2.0-flash",
+                provider=LLMProvider.GEMINI,
+                llm_class=GeminiLLM,
+                canonical_name="gemini-2.0-flash",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(0.075, 0.30)
+                )
+            ),
+            LLMModel(
                 name="GEMINI_1_5_PRO_API",
                 value="gemini-1-5-pro",
                 provider=LLMProvider.GEMINI,
-                llm_class=OpenAILLM,
+                llm_class=GeminiLLM,
                 canonical_name="gemini-1.5-pro",
                 default_config=LLMConfig(
                     pricing_config=TokenPricingConfig(1.25, 5.00)
@@ -198,7 +217,7 @@ class LLMFactory(metaclass=SingletonMeta):
                 name="GEMINI_1_5_FLASH_API",
                 value="gemini-1-5-flash",
                 provider=LLMProvider.GEMINI,
-                llm_class=OpenAILLM,
+                llm_class=GeminiLLM,
                 canonical_name="gemini-1.5-flash",
                 default_config=LLMConfig(
                     pricing_config=TokenPricingConfig(0.075, 0.30)

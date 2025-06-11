@@ -1,0 +1,130 @@
+2025-06-11 15:21:09,170 - WARNING - autobyteus.llm.ollama_provider:53 - Could not connect to Ollama server at http://localhost:11434. Please ensure Ollama is running. Error: [Errno 61] Connection refused
+2025-06-11 15:21:09,170 - ERROR - autobyteus.llm.autobyteus_provider:31 - Client initialization failed: AUTOBYTEUS_API_KEY environment variable is required. Please set it before initializing the client.
+2025-06-11 15:21:09,286 - INFO - autobyteus.agent.context.agent_runtime_state:56 - AgentRuntimeState initialized for agent_id 'PoemWriterAgent_CreativePoet_5470'. Initial phase: uninitialized. Workspace linked. InputQueues pending initialization. Output data via notifier.
+2025-06-11 15:21:09,286 - INFO - autobyteus.agent.factory.agent_factory:85 - Agent 'PoemWriterAgent_CreativePoet_5470': LLM instance 'GeminiLLM' and 1 tools prepared and stored in state.
+2025-06-11 15:21:09,286 - INFO - autobyteus.agent.context.agent_context:42 - AgentContext composed for agent_id 'PoemWriterAgent_CreativePoet_5470'. Config and State linked.
+2025-06-11 15:21:09,286 - INFO - autobyteus.agent.handlers.event_handler_registry:19 - EventHandlerRegistry initialized.
+2025-06-11 15:21:09,286 - INFO - autobyteus.agent.handlers.user_input_message_event_handler:26 - UserInputMessageEventHandler initialized.
+2025-06-11 15:21:09,286 - INFO - autobyteus.agent.handlers.event_handler_registry:49 - Handler 'UserInputMessageEventHandler' registered for event class 'UserMessageReceivedEvent'.
+2025-06-11 15:21:09,286 - INFO - autobyteus.agent.handlers.inter_agent_message_event_handler:22 - InterAgentMessageReceivedEventHandler initialized.
+2025-06-11 15:21:09,286 - INFO - autobyteus.agent.handlers.event_handler_registry:49 - Handler 'InterAgentMessageReceivedEventHandler' registered for event class 'InterAgentMessageReceivedEvent'.
+2025-06-11 15:21:09,286 - INFO - autobyteus.agent.handlers.llm_complete_response_received_event_handler:26 - LLMCompleteResponseReceivedEventHandler initialized.
+2025-06-11 15:21:09,286 - INFO - autobyteus.agent.handlers.event_handler_registry:49 - Handler 'LLMCompleteResponseReceivedEventHandler' registered for event class 'LLMCompleteResponseReceivedEvent'.
+2025-06-11 15:21:09,286 - INFO - autobyteus.agent.handlers.tool_invocation_request_event_handler:27 - ToolInvocationRequestEventHandler initialized.
+2025-06-11 15:21:09,286 - INFO - autobyteus.agent.handlers.event_handler_registry:49 - Handler 'ToolInvocationRequestEventHandler' registered for event class 'PendingToolInvocationEvent'.
+2025-06-11 15:21:09,286 - INFO - autobyteus.agent.handlers.tool_result_event_handler:23 - ToolResultEventHandler initialized.
+2025-06-11 15:21:09,286 - INFO - autobyteus.agent.handlers.event_handler_registry:49 - Handler 'ToolResultEventHandler' registered for event class 'ToolResultEvent'.
+2025-06-11 15:21:09,286 - INFO - autobyteus.agent.handlers.generic_event_handler:20 - GenericEventHandler initialized.
+2025-06-11 15:21:09,286 - INFO - autobyteus.agent.handlers.event_handler_registry:49 - Handler 'GenericEventHandler' registered for event class 'GenericEvent'.
+2025-06-11 15:21:09,286 - INFO - autobyteus.agent.handlers.tool_execution_approval_event_handler:23 - ToolExecutionApprovalEventHandler initialized.
+2025-06-11 15:21:09,286 - INFO - autobyteus.agent.handlers.event_handler_registry:49 - Handler 'ToolExecutionApprovalEventHandler' registered for event class 'ToolExecutionApprovalEvent'.
+2025-06-11 15:21:09,286 - INFO - autobyteus.agent.handlers.llm_user_message_ready_event_handler:27 - LLMUserMessageReadyEventHandler initialized.
+2025-06-11 15:21:09,286 - INFO - autobyteus.agent.handlers.event_handler_registry:49 - Handler 'LLMUserMessageReadyEventHandler' registered for event class 'LLMUserMessageReadyEvent'.
+2025-06-11 15:21:09,286 - INFO - autobyteus.agent.handlers.approved_tool_invocation_event_handler:25 - ApprovedToolInvocationEventHandler initialized.
+2025-06-11 15:21:09,286 - INFO - autobyteus.agent.handlers.event_handler_registry:49 - Handler 'ApprovedToolInvocationEventHandler' registered for event class 'ApprovedToolInvocationEvent'.
+2025-06-11 15:21:09,286 - INFO - autobyteus.agent.handlers.event_handler_registry:49 - Handler 'LifecycleEventLogger' registered for event class 'AgentReadyEvent'.
+2025-06-11 15:21:09,286 - INFO - autobyteus.agent.handlers.event_handler_registry:49 - Handler 'LifecycleEventLogger' registered for event class 'AgentStoppedEvent'.
+2025-06-11 15:21:09,287 - INFO - autobyteus.agent.handlers.event_handler_registry:49 - Handler 'LifecycleEventLogger' registered for event class 'AgentErrorEvent'.
+2025-06-11 15:21:09,287 - INFO - autobyteus.agent.factory.agent_factory:90 - Instantiating AgentRuntime for agent_id: 'PoemWriterAgent_CreativePoet_5470' with config: 'PoemWriterAgent'.
+2025-06-11 15:21:09,287 - INFO - autobyteus.agent.runtime.agent_thread_pool_manager:35 - Singleton AgentThreadPoolManager initialized its ThreadPoolExecutor (max_workers=default).
+2025-06-11 15:21:09,287 - INFO - autobyteus.agent.runtime.agent_worker:56 - AgentWorker initialized for agent_id 'PoemWriterAgent_CreativePoet_5470'.
+2025-06-11 15:21:09,287 - INFO - autobyteus.agent.runtime.agent_runtime:44 - AgentRuntime initialized for agent_id 'PoemWriterAgent_CreativePoet_5470'.
+2025-06-11 15:21:09,287 - INFO - autobyteus.agent.agent:33 - Agent facade initialized for agent_id 'PoemWriterAgent_CreativePoet_5470'.
+2025-06-11 15:21:09,287 - INFO - autobyteus.agent.factory.agent_factory:122 - Agent 'PoemWriterAgent_CreativePoet_5470' created and stored successfully.
+2025-06-11 15:21:09,287 - INFO - autobyteus.cli.agent_cli:135 - Starting interactive CLI session for agent 'PoemWriterAgent_CreativePoet_5470'.
+2025-06-11 15:21:09,287 - INFO - autobyteus.agent.streaming.agent_event_stream:92 - AgentEventStream initialized for agent_id 'PoemWriterAgent_CreativePoet_5470'. Notifier listener status: Active.
+2025-06-11 15:21:09,287 - INFO - autobyteus.agent.agent:96 - Agent 'PoemWriterAgent_CreativePoet_5470' requesting runtime to start.
+2025-06-11 15:21:09,287 - INFO - autobyteus.agent.runtime.agent_runtime:87 - AgentRuntime for 'PoemWriterAgent_CreativePoet_5470': Starting worker.
+2025-06-11 15:21:09,287 - INFO - autobyteus.agent.runtime.agent_worker:95 - AgentWorker 'PoemWriterAgent_CreativePoet_5470': Starting...
+2025-06-11 15:21:09,287 - INFO - autobyteus.agent.runtime.agent_worker:106 - AgentWorker 'PoemWriterAgent_CreativePoet_5470': Thread 'AgentThreadPool_0' started. Setting up asyncio event loop.
+2025-06-11 15:21:09,287 - INFO - autobyteus.agent.runtime.agent_runtime:90 - AgentRuntime for 'PoemWriterAgent_CreativePoet_5470': Worker start command issued. Worker will initialize itself.
+2025-06-11 15:21:09,287 - INFO - autobyteus.agent.streaming.agent_event_stream:254 - AgentEventStream (agent_id: PoemWriterAgent_CreativePoet_5470): Starting to stream all_events() from internal generic queue.
+2025-06-11 15:21:09,287 - INFO - autobyteus.agent.runtime.agent_worker:125 - AgentWorker 'PoemWriterAgent_CreativePoet_5470' async_run(): Starting.
+2025-06-11 15:21:09,287 - INFO - autobyteus.agent.runtime.agent_worker:64 - Agent 'PoemWriterAgent_CreativePoet_5470': Starting internal initialization process using AgentBootstrapper.
+2025-06-11 15:21:09,287 - INFO - autobyteus.agent.bootstrap_steps.agent_bootstrapper:51 - Agent 'PoemWriterAgent_CreativePoet_5470': AgentBootstrapper starting execution.
+2025-06-11 15:21:09,287 - INFO - autobyteus.agent.bootstrap_steps.agent_runtime_queue_initialization_step:29 - Agent 'PoemWriterAgent_CreativePoet_5470': Executing AgentRuntimeQueueInitializationStep (for input queues).
+2025-06-11 15:21:09,287 - INFO - autobyteus.agent.events.agent_input_event_queue_manager:41 - AgentInputEventQueueManager initialized.
+2025-06-11 15:21:09,287 - INFO - autobyteus.agent.bootstrap_steps.agent_runtime_queue_initialization_step:39 - Agent 'PoemWriterAgent_CreativePoet_5470': AgentInputEventQueueManager initialized and set in agent state.
+2025-06-11 15:21:09,287 - INFO - autobyteus.agent.context.agent_phase_manager:46 - Agent 'PoemWriterAgent_CreativePoet_5470' phase transitioning from uninitialized to initializing_prompt.
+2025-06-11 15:21:09,288 - INFO - autobyteus.agent.events.notifiers:30 - AgentExternalEventNotifier (NotifierID: 0893904a-c3c5-4f86-b606-b5e3d65c0579, AgentID: PoemWriterAgent_CreativePoet_5470) emitted AGENT_PHASE_INITIALIZING_PROMPT_STARTED. Kwarg keys for emit: ['agent_id', 'payload']
+2025-06-11 15:21:09,288 - INFO - autobyteus.agent.bootstrap_steps.system_prompt_processing_step:29 - Agent 'PoemWriterAgent_CreativePoet_5470': Executing SystemPromptProcessingStep.
+2025-06-11 15:21:09,288 - INFO - autobyteus.agent.system_prompt_processor.tool_description_injector_processor:109 - ToolDescriptionInjectorProcessor: System prompt for agent 'PoemWriterAgent_CreativePoet_5470' processed. Placeholder '{{tools}}' was handled with XML descriptions.
+2025-06-11 15:21:09,288 - INFO - autobyteus.agent.bootstrap_steps.system_prompt_processing_step:63 - Agent 'PoemWriterAgent_CreativePoet_5470': System prompt processor 'ToolDescriptionInjector' applied successfully.
+2025-06-11 15:21:09,288 - INFO - autobyteus.agent.system_prompt_processor.tool_usage_example_injector_processor:169 - ToolUsageExampleInjector: System prompt for agent 'PoemWriterAgent_CreativePoet_5470' processed. Placeholder '{{tool_examples}}' replaced with XML tool usage examples.
+2025-06-11 15:21:09,288 - INFO - autobyteus.agent.bootstrap_steps.system_prompt_processing_step:63 - Agent 'PoemWriterAgent_CreativePoet_5470': System prompt processor 'ToolUsageExampleInjector' applied successfully.
+2025-06-11 15:21:09,288 - INFO - autobyteus.agent.bootstrap_steps.system_prompt_processing_step:77 - Agent 'PoemWriterAgent_CreativePoet_5470': Final processed system prompt configured on LLM instance. Final length: 936.
+2025-06-11 15:21:09,288 - INFO - autobyteus.agent.bootstrap_steps.system_prompt_processing_step:84 - Agent 'PoemWriterAgent_CreativePoet_5470': Final processed system prompt:
+---
+You are a world-class poet. Your task is to write a creative and beautiful poem on the given topic.
+After composing the poem, you MUST use the 'FileWriter' tool to save your work.
+When using the tool, you MUST use the absolute file path '/private/var/folders/86/vjx7kp157kxg0465hbgv3xmh0000gn/T/poem_writer_interactive_hpklub1v/poem_interactive.txt' for the 'path' argument.
+Conclude your response with only the tool call necessary to save the poem.
+
+Tools available:
+
+<command name="FileWriter">
+    <arg name="path" type="string" description="Parameter 'path' for tool 'FileWriter'. This is expected to be a path." required="true" />
+    <arg name="content" type="string" description="Parameter 'content' for tool 'FileWriter'." required="true" />
+</command>
+
+Tool Usage Examples (XML Format):
+
+
+<command name="FileWriter">
+    <arg name="path">/path/to/example.txt</arg>
+    <arg name="content">Example text content.</arg>
+</command>
+---
+2025-06-11 15:21:09,288 - INFO - autobyteus.agent.bootstrap_steps.agent_bootstrapper:70 - Agent 'PoemWriterAgent_CreativePoet_5470': All bootstrap steps completed successfully. Enqueuing AgentReadyEvent.
+2025-06-11 15:21:09,288 - INFO - autobyteus.agent.runtime.agent_worker:136 - AgentWorker 'PoemWriterAgent_CreativePoet_5470' initialized successfully. Entering main event loop.
+2025-06-11 15:21:09,288 - INFO - autobyteus.cli.agent_cli:118 - [Agent Status: initializing_prompt]
+2025-06-11 15:21:09,288 - INFO - autobyteus.agent.handlers.lifecycle_event_logger:43 - Agent 'PoemWriterAgent_CreativePoet_5470' Logged AgentReadyEvent. Current agent phase: initializing_prompt
+2025-06-11 15:21:09,288 - INFO - autobyteus.agent.context.agent_phase_manager:46 - Agent 'PoemWriterAgent_CreativePoet_5470' phase transitioning from initializing_prompt to idle.
+2025-06-11 15:21:09,288 - INFO - autobyteus.agent.events.notifiers:30 - AgentExternalEventNotifier (NotifierID: 0893904a-c3c5-4f86-b606-b5e3d65c0579, AgentID: PoemWriterAgent_CreativePoet_5470) emitted AGENT_PHASE_IDLE_ENTERED. Kwarg keys for emit: ['agent_id', 'payload']
+2025-06-11 15:21:09,288 - INFO - autobyteus.cli.agent_cli:124 - [Agent is now idle.]
+2025-06-11 15:21:44,874 - INFO - autobyteus.agent.context.agent_phase_manager:46 - Agent 'PoemWriterAgent_CreativePoet_5470' phase transitioning from idle to processing_user_input.
+2025-06-11 15:21:44,878 - INFO - autobyteus.agent.events.notifiers:30 - AgentExternalEventNotifier (NotifierID: 0893904a-c3c5-4f86-b606-b5e3d65c0579, AgentID: PoemWriterAgent_CreativePoet_5470) emitted AGENT_PHASE_PROCESSING_USER_INPUT_STARTED. Kwarg keys for emit: ['agent_id', 'payload']
+2025-06-11 15:21:44,878 - INFO - autobyteus.agent.handlers.user_input_message_event_handler:38 - Agent 'PoemWriterAgent_CreativePoet_5470' handling UserMessageReceivedEvent: 'poem about how to get close with ai models to get the best response...'
+2025-06-11 15:21:44,878 - INFO - autobyteus.agent.handlers.user_input_message_event_handler:77 - Agent 'PoemWriterAgent_CreativePoet_5470' processed AgentInputUserMessage and enqueued LLMUserMessageReadyEvent.
+2025-06-11 15:21:44,878 - INFO - autobyteus.cli.agent_cli:118 - [Agent Status: processing_user_input]
+2025-06-11 15:21:44,879 - INFO - autobyteus.agent.context.agent_phase_manager:46 - Agent 'PoemWriterAgent_CreativePoet_5470' phase transitioning from processing_user_input to awaiting_llm_response.
+2025-06-11 15:21:44,879 - INFO - autobyteus.agent.events.notifiers:30 - AgentExternalEventNotifier (NotifierID: 0893904a-c3c5-4f86-b606-b5e3d65c0579, AgentID: PoemWriterAgent_CreativePoet_5470) emitted AGENT_PHASE_AWAITING_LLM_RESPONSE_STARTED. Kwarg keys for emit: ['agent_id', 'payload']
+2025-06-11 15:21:44,879 - INFO - autobyteus.agent.handlers.llm_user_message_ready_event_handler:48 - Agent 'PoemWriterAgent_CreativePoet_5470' handling LLMUserMessageReadyEvent: 'poem about how to get close with ai models to get the best response...'
+2025-06-11 15:21:44,881 - INFO - autobyteus.cli.agent_cli:118 - [Agent Status: awaiting_llm_response]
+2025-06-11 15:21:46,143 - INFO - autobyteus.agent.events.notifiers:30 - AgentExternalEventNotifier (NotifierID: 0893904a-c3c5-4f86-b606-b5e3d65c0579, AgentID: PoemWriterAgent_CreativePoet_5470) emitted AGENT_DATA_ASSISTANT_CHUNK. Kwarg keys for emit: ['agent_id', 'payload']
+2025-06-11 15:21:46,253 - INFO - autobyteus.agent.events.notifiers:30 - AgentExternalEventNotifier (NotifierID: 0893904a-c3c5-4f86-b606-b5e3d65c0579, AgentID: PoemWriterAgent_CreativePoet_5470) emitted AGENT_DATA_ASSISTANT_CHUNK. Kwarg keys for emit: ['agent_id', 'payload']
+2025-06-11 15:21:46,491 - INFO - autobyteus.agent.events.notifiers:30 - AgentExternalEventNotifier (NotifierID: 0893904a-c3c5-4f86-b606-b5e3d65c0579, AgentID: PoemWriterAgent_CreativePoet_5470) emitted AGENT_DATA_ASSISTANT_CHUNK. Kwarg keys for emit: ['agent_id', 'payload']
+2025-06-11 15:21:46,816 - INFO - autobyteus.agent.events.notifiers:30 - AgentExternalEventNotifier (NotifierID: 0893904a-c3c5-4f86-b606-b5e3d65c0579, AgentID: PoemWriterAgent_CreativePoet_5470) emitted AGENT_DATA_ASSISTANT_CHUNK. Kwarg keys for emit: ['agent_id', 'payload']
+2025-06-11 15:21:47,186 - INFO - autobyteus.agent.events.notifiers:30 - AgentExternalEventNotifier (NotifierID: 0893904a-c3c5-4f86-b606-b5e3d65c0579, AgentID: PoemWriterAgent_CreativePoet_5470) emitted AGENT_DATA_ASSISTANT_CHUNK. Kwarg keys for emit: ['agent_id', 'payload']
+2025-06-11 15:21:47,565 - INFO - autobyteus.agent.events.notifiers:30 - AgentExternalEventNotifier (NotifierID: 0893904a-c3c5-4f86-b606-b5e3d65c0579, AgentID: PoemWriterAgent_CreativePoet_5470) emitted AGENT_DATA_ASSISTANT_CHUNK. Kwarg keys for emit: ['agent_id', 'payload']
+2025-06-11 15:21:48,369 - INFO - autobyteus.agent.events.notifiers:30 - AgentExternalEventNotifier (NotifierID: 0893904a-c3c5-4f86-b606-b5e3d65c0579, AgentID: PoemWriterAgent_CreativePoet_5470) emitted AGENT_DATA_ASSISTANT_CHUNK. Kwarg keys for emit: ['agent_id', 'payload']
+2025-06-11 15:21:48,732 - INFO - autobyteus.agent.events.notifiers:30 - AgentExternalEventNotifier (NotifierID: 0893904a-c3c5-4f86-b606-b5e3d65c0579, AgentID: PoemWriterAgent_CreativePoet_5470) emitted AGENT_DATA_ASSISTANT_CHUNK. Kwarg keys for emit: ['agent_id', 'payload']
+2025-06-11 15:21:48,743 - INFO - autobyteus.agent.events.notifiers:30 - AgentExternalEventNotifier (NotifierID: 0893904a-c3c5-4f86-b606-b5e3d65c0579, AgentID: PoemWriterAgent_CreativePoet_5470) emitted AGENT_DATA_ASSISTANT_CHUNK. Kwarg keys for emit: ['agent_id', 'payload']
+2025-06-11 15:21:48,745 - INFO - autobyteus.agent.events.notifiers:30 - AgentExternalEventNotifier (NotifierID: 0893904a-c3c5-4f86-b606-b5e3d65c0579, AgentID: PoemWriterAgent_CreativePoet_5470) emitted AGENT_DATA_ASSISTANT_CHUNK. Kwarg keys for emit: ['agent_id', 'payload']
+2025-06-11 15:21:48,745 - INFO - autobyteus.agent.events.notifiers:30 - AgentExternalEventNotifier (NotifierID: 0893904a-c3c5-4f86-b606-b5e3d65c0579, AgentID: PoemWriterAgent_CreativePoet_5470) emitted AGENT_DATA_ASSISTANT_CHUNK_STREAM_END. Kwarg keys for emit: ['agent_id']
+2025-06-11 15:21:48,745 - INFO - autobyteus.agent.handlers.llm_user_message_ready_event_handler:123 - Agent 'PoemWriterAgent_CreativePoet_5470' enqueued LLMCompleteResponseReceivedEvent from LLMUserMessageReadyEventHandler.
+2025-06-11 15:21:48,746 - INFO - autobyteus.agent.context.agent_phase_manager:46 - Agent 'PoemWriterAgent_CreativePoet_5470' phase transitioning from awaiting_llm_response to analyzing_llm_response.
+2025-06-11 15:21:48,746 - INFO - autobyteus.agent.events.notifiers:30 - AgentExternalEventNotifier (NotifierID: 0893904a-c3c5-4f86-b606-b5e3d65c0579, AgentID: PoemWriterAgent_CreativePoet_5470) emitted AGENT_PHASE_ANALYZING_LLM_RESPONSE_STARTED. Kwarg keys for emit: ['agent_id', 'payload']
+2025-06-11 15:21:48,746 - INFO - autobyteus.agent.handlers.llm_complete_response_received_event_handler:36 - Agent 'PoemWriterAgent_CreativePoet_5470' handling LLMCompleteResponseReceivedEvent. Response Length: 1208, IsErrorFlagged: False, TokenUsage: prompt_tokens=20 completion_tokens=287 total_tokens=307 prompt_cost=None completion_cost=None total_cost=None
+2025-06-11 15:21:48,747 - INFO - autobyteus.agent.handlers.llm_complete_response_received_event_handler:108 - Agent 'PoemWriterAgent_CreativePoet_5470': No LLMResponseProcessor handled the response. Emitting the current LLM response as a complete response for this leg.
+2025-06-11 15:21:48,747 - INFO - autobyteus.agent.events.notifiers:30 - AgentExternalEventNotifier (NotifierID: 0893904a-c3c5-4f86-b606-b5e3d65c0579, AgentID: PoemWriterAgent_CreativePoet_5470) emitted AGENT_DATA_ASSISTANT_COMPLETE_RESPONSE. Kwarg keys for emit: ['agent_id', 'payload']
+2025-06-11 15:21:48,747 - INFO - autobyteus.agent.context.agent_phase_manager:46 - Agent 'PoemWriterAgent_CreativePoet_5470' phase transitioning from analyzing_llm_response to idle.
+2025-06-11 15:21:48,747 - INFO - autobyteus.agent.events.notifiers:30 - AgentExternalEventNotifier (NotifierID: 0893904a-c3c5-4f86-b606-b5e3d65c0579, AgentID: PoemWriterAgent_CreativePoet_5470) emitted AGENT_PHASE_IDLE_ENTERED. Kwarg keys for emit: ['agent_id', 'payload']
+2025-06-11 15:21:48,748 - INFO - autobyteus.cli.agent_cli:118 - [Agent Status: analyzing_llm_response]
+2025-06-11 15:21:48,748 - INFO - autobyteus.cli.agent_cli:124 - [Agent is now idle.]
+2025-06-11 15:23:04,920 - INFO - autobyteus.cli.agent_cli:219 - Cleaning up and shutting down interactive session...
+2025-06-11 15:23:04,921 - INFO - autobyteus.agent.streaming.queue_streamer:52 - Stream from queue 'agent_PoemWriterAgent_CreativePoet_5470_internal_generic_stream_events' was cancelled.
+2025-06-11 15:23:04,921 - INFO - autobyteus.cli.agent_cli:145 - CLI event processing task cancelled.
+2025-06-11 15:23:04,921 - INFO - autobyteus.cli.agent_cli:228 - Stopping agent...
+2025-06-11 15:23:04,921 - INFO - autobyteus.agent.agent:100 - Agent 'PoemWriterAgent_CreativePoet_5470' requesting runtime to stop (timeout: 10.0s).
+2025-06-11 15:23:04,921 - INFO - autobyteus.agent.context.agent_phase_manager:46 - Agent 'PoemWriterAgent_CreativePoet_5470' phase transitioning from idle to shutting_down.
+2025-06-11 15:23:04,922 - INFO - autobyteus.agent.events.notifiers:30 - AgentExternalEventNotifier (NotifierID: 0893904a-c3c5-4f86-b606-b5e3d65c0579, AgentID: PoemWriterAgent_CreativePoet_5470) emitted AGENT_PHASE_SHUTTING_DOWN_STARTED. Kwarg keys for emit: ['agent_id', 'payload']
+2025-06-11 15:23:04,922 - INFO - autobyteus.agent.handlers.lifecycle_event_logger:46 - Agent 'PoemWriterAgent_CreativePoet_5470' Logged AgentStoppedEvent. Current agent phase: shutting_down
+2025-06-11 15:23:04,923 - INFO - autobyteus.agent.runtime.agent_worker:160 - AgentWorker 'PoemWriterAgent_CreativePoet_5470' async_run() loop has finished.
+2025-06-11 15:23:04,923 - INFO - autobyteus.agent.runtime.agent_runtime:96 - AgentRuntime 'PoemWriterAgent_CreativePoet_5470': Worker thread completed successfully.
+2025-06-11 15:23:04,923 - INFO - autobyteus.agent.context.agent_phase_manager:46 - Agent 'PoemWriterAgent_CreativePoet_5470' phase transitioning from shutting_down to shutdown_complete.
+2025-06-11 15:23:04,923 - INFO - autobyteus.agent.events.notifiers:30 - AgentExternalEventNotifier (NotifierID: 0893904a-c3c5-4f86-b606-b5e3d65c0579, AgentID: PoemWriterAgent_CreativePoet_5470) emitted AGENT_PHASE_SHUTDOWN_COMPLETED. Kwarg keys for emit: ['agent_id', 'payload']
+2025-06-11 15:23:04,927 - INFO - autobyteus.agent.runtime.agent_runtime:121 - AgentRuntime for 'PoemWriterAgent_CreativePoet_5470' stop() method completed.
+2025-06-11 15:23:04,927 - INFO - autobyteus.cli.agent_cli:231 - Closing event stream...
+2025-06-11 15:23:04,927 - INFO - autobyteus.agent.streaming.agent_event_stream:217 - AgentEventStream for 'PoemWriterAgent_CreativePoet_5470': close() called. Unregistering listeners and signaling internal queues.
+2025-06-11 15:23:04,927 - INFO - autobyteus.cli.agent_cli:233 - Interactive session finished.
