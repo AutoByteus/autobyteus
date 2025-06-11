@@ -18,21 +18,20 @@ class McpTransportClientStrategy(ABC):
     """
 
     @abstractmethod
-    async def establish_connection(self, config: 'BaseMcpConfig') -> Tuple['MCPClientHandle', Any, Any]:
+    async def create_client_handle(self, config: 'BaseMcpConfig') -> 'MCPClientHandle':
         """
-        Establishes a connection based on the provided configuration.
+        Creates an asynchronous context manager (client handle) for the connection
+        based on the provided configuration.
 
         Args:
             config: The specific McpServerConfig instance (e.g., StdioMcpServerConfig).
 
         Returns:
-            A tuple containing:
-            - client_handle: The handle returned by the mcp client factory (needs __aenter__/__aexit__).
-            - read_stream: The stream for reading data from the MCP server.
-            - write_stream: The stream for writing data to the MCP server.
+            client_handle: The async context manager that, when entered, will yield
+                           the read and write streams for the transport.
         
         Raises:
             NotImplementedError: If the config type is not supported by the strategy.
-            RuntimeError: If connection establishment fails.
+            RuntimeError: If handle creation fails.
         """
         pass

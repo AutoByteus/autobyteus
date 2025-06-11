@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, List, Optional
 
 from .base_bootstrap_step import BaseBootstrapStep
 from .agent_runtime_queue_initialization_step import AgentRuntimeQueueInitializationStep
+from .workspace_context_initialization_step import WorkspaceContextInitializationStep
 from .system_prompt_processing_step import SystemPromptProcessingStep
 from autobyteus.agent.events import AgentReadyEvent
 
@@ -29,6 +30,7 @@ class AgentBootstrapper:
         if steps is None:
             self.bootstrap_steps: List[BaseBootstrapStep] = [
                 AgentRuntimeQueueInitializationStep(),
+                WorkspaceContextInitializationStep(),
                 SystemPromptProcessingStep(),
             ]
             logger.debug("AgentBootstrapper initialized with default steps.")

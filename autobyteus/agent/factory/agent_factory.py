@@ -71,12 +71,12 @@ class AgentFactory(metaclass=SingletonMeta):
 
     def _create_runtime(self, 
                         agent_id: str, 
-                        config: AgentConfig,
-                        workspace: Optional[BaseAgentWorkspace] = None
+                        config: AgentConfig
                         ) -> 'AgentRuntime': 
         from autobyteus.agent.runtime.agent_runtime import AgentRuntime 
 
-        runtime_state = AgentRuntimeState(agent_id=agent_id, workspace=workspace)
+        # The workspace is now passed directly from the config
+        runtime_state = AgentRuntimeState(agent_id=agent_id, workspace=config.workspace)
         
         # --- Set pre-initialized instances on the state ---
         runtime_state.llm_instance = config.llm_instance
@@ -96,8 +96,7 @@ class AgentFactory(metaclass=SingletonMeta):
 
     def create_agent(
         self,
-        config: AgentConfig,
-        workspace: Optional[BaseAgentWorkspace] = None
+        config: AgentConfig
     ) -> Agent:
         """
         Creates a new agent based on the provided AgentConfig, stores it,
@@ -114,7 +113,6 @@ class AgentFactory(metaclass=SingletonMeta):
         runtime = self._create_runtime(
             agent_id=agent_id,
             config=config,
-            workspace=workspace
         )
 
         agent = Agent(runtime=runtime)

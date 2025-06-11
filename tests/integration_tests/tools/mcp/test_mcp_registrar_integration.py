@@ -16,44 +16,31 @@ from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefiniti
 
 # Environment variable name for the MCP server script path
 _MCP_SCRIPT_PATH_ENV_VAR_NAME = "TEST_GOOGLE_SLIDES_MCP_SCRIPT_PATH"
-# Retrieve the script path from the environment variable
-_google_slides_mcp_script_path_from_env = os.environ.get(_MCP_SCRIPT_PATH_ENV_VAR_NAME)
 
-# Define skip conditions and reasons evaluated at test collection time
-_SKIP_IF_ENV_VAR_NOT_SET = _google_slides_mcp_script_path_from_env is None
-_REASON_ENV_VAR_NOT_SET = (
-    f"Environment variable '{_MCP_SCRIPT_PATH_ENV_VAR_NAME}' is not set. "
-    "This variable must point to the google-slides-mcp executable script for this integration test."
-)
+@pytest.fixture
+def google_slides_mcp_script_path():
+    """
+    Fixture to provide the path to the google-slides-mcp script from an environment variable.
+    Skips the test if the environment variable is not set or the path is invalid.
+    This approach ensures that environment loading from conftest.py has occurred.
+    """
+    script_path = os.environ.get(_MCP_SCRIPT_PATH_ENV_VAR_NAME)
+    
+    if not script_path:
+        pytest.skip(
+            f"Environment variable '{_MCP_SCRIPT_PATH_ENV_VAR_NAME}' is not set. "
+            "This variable must point to the google-slides-mcp executable script for this integration test."
+        )
+    
+    if not os.path.exists(script_path):
+        pytest.skip(
+            f"MCP server script specified by '{_MCP_SCRIPT_PATH_ENV_VAR_NAME}' "
+            f"({script_path}) not found. Skipping integration test."
+        )
+        
+    return script_path
 
-_SKIP_IF_PATH_INVALID = (
-    not _SKIP_IF_ENV_VAR_NOT_SET and # Only check path if env var was set
-    not os.path.exists(_google_slides_mcp_script_path_from_env)
-)
-_REASON_PATH_INVALID = (
-    f"MCP server script specified by '{_MCP_SCRIPT_PATH_ENV_VAR_NAME}' "
-    f"({_google_slides_mcp_script_path_from_env}) not found. Skipping integration test."
-)
-
-
-# Configuration for the google-slides-mcp server
-# This dictionary is defined globally but will only be used if the test is not skipped.
-# The _google_slides_mcp_script_path_from_env will be valid if the test runs.
-google_slides_mcp_config_dict = {
-    "google-slides-mcp": {
-        "transport_type": "stdio",
-        "command": "node",
-        "args": [_google_slides_mcp_script_path_from_env], # Uses path from env var
-        "enabled": True,
-        "tool_name_prefix": None,
-        "env": {
-            "GOOGLE_CLIENT_ID": os.environ.get("GOOGLE_CLIENT_ID", "YOUR_TEST_CLIENT_ID_FROM_ENV"),
-            "GOOGLE_CLIENT_SECRET": os.environ.get("GOOGLE_CLIENT_SECRET", "YOUR_TEST_CLIENT_SECRET_FROM_ENV"),
-            "GOOGLE_REFRESH_TOKEN": os.environ.get("GOOGLE_REFRESH_TOKEN", "YOUR_TEST_REFRESH_TOKEN_FROM_ENV")
-        }
-    }
-} if not _SKIP_IF_ENV_VAR_NOT_SET else {} # Define dict only if env var is set, else empty
-
+# This can remain at the module level as it doesn't depend on the script path
 expected_tools_details = [
     {
         "name": "create_presentation",
@@ -95,14 +82,31 @@ expected_tools_details = [
     }
 ]
 
-@pytest.mark.skipif(_SKIP_IF_ENV_VAR_NOT_SET, reason=_REASON_ENV_VAR_NOT_SET)
-@pytest.mark.skipif(_SKIP_IF_PATH_INVALID, reason=_REASON_PATH_INVALID)
+
 @pytest.mark.asyncio
-async def test_mcp_registrar_discovers_and_registers_google_slides_tools():
+async def test_mcp_registrar_discovers_and_registers_google_slides_tools(google_slides_mcp_script_path):
     """
     Integration test for McpToolRegistrar with a real STDIO MCP server.
-    Relies on TEST_GOOGLE_SLIDES_MCP_SCRIPT_PATH environment variable.
+    Relies on the google_slides_mcp_script_path fixture which gets the path from
+    the TEST_GOOGLE_SLIDES_MCP_SCRIPT_PATH environment variable and handles skipping.
     """
+    # Configuration for the google-slides-mcp server, defined inside the test
+    # using the path provided by the fixture.
+    google_slides_mcp_config_dict = {
+        "google-slides-mcp": {
+            "transport_type": "stdio",
+            "command": "node",
+            "args": [google_slides_mcp_script_path], # Uses path from fixture
+            "enabled": True,
+            "tool_name_prefix": None,
+            "env": {
+                "GOOGLE_CLIENT_ID": os.environ.get("GOOGLE_CLIENT_ID", "YOUR_TEST_CLIENT_ID_FROM_ENV"),
+                "GOOGLE_CLIENT_SECRET": os.environ.get("GOOGLE_CLIENT_SECRET", "YOUR_TEST_CLIENT_SECRET_FROM_ENV"),
+                "GOOGLE_REFRESH_TOKEN": os.environ.get("GOOGLE_REFRESH_TOKEN", "YOUR_TEST_REFRESH_TOKEN_FROM_ENV")
+            }
+        }
+    }
+
     # Ensure singletons are in a clean state for this test
     if McpConfigService in McpConfigService._instances:
         del McpConfigService._instances[McpConfigService]
@@ -113,13 +117,12 @@ async def test_mcp_registrar_discovers_and_registers_google_slides_tools():
     default_tool_registry._definitions.clear()
 
     config_service = McpConfigService()
-    # The google_slides_mcp_config_dict will be valid here because the test wouldn't run if env var was missing.
+    
     loaded_configs = config_service.load_configs(google_slides_mcp_config_dict)
     assert len(loaded_configs) == 1
     assert isinstance(loaded_configs[0], StdioMcpServerConfig)
     assert loaded_configs[0].command == "node"
-    # _google_slides_mcp_script_path_from_env is guaranteed to be non-None here by skipif
-    assert loaded_configs[0].args == [_google_slides_mcp_script_path_from_env]
+    assert loaded_configs[0].args == [google_slides_mcp_script_path]
     assert loaded_configs[0].env["GOOGLE_CLIENT_ID"] == os.environ.get("GOOGLE_CLIENT_ID", "YOUR_TEST_CLIENT_ID_FROM_ENV")
 
     conn_manager = McpConnectionManager(config_service=config_service)
@@ -184,4 +187,3 @@ async def test_mcp_registrar_discovers_and_registers_google_slides_tools():
             del McpConfigService._instances[McpConfigService]
         if McpConnectionManager in McpConnectionManager._instances:
             del McpConnectionManager._instances[McpConnectionManager]
-
