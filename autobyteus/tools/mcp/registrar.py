@@ -8,7 +8,8 @@ from autobyteus.tools.mcp import (
     McpConfigService,
     McpConnectionManager,
     McpSchemaMapper,
-    GenericMcpTool # BaseMcpConfig and its subclasses are used via McpConfigService
+    GenericMcpTool,
+    McpToolFactory # Import the new factory
 )
 
 from autobyteus.tools.registry import ToolRegistry, ToolDefinition
@@ -59,13 +60,12 @@ class McpToolRegistrar:
         registered_count = 0
         for server_config in all_server_configs: # server_config is a BaseMcpConfig subclass instance
             if not server_config.enabled:
-                logger.info(f"MCP server '{server_config.server_id}' is disabled. Skipping.") # RENAMED
+                logger.info(f"MCP server '{server_config.server_id}' is disabled. Skipping.")
                 continue
 
-            logger.info(f"Discovering tools from MCP server: '{server_config.server_id}' ({server_config.transport_type.value})") # RENAMED
+            logger.info(f"Discovering tools from MCP server: '{server_config.server_id}' ({server_config.transport_type.value})")
             try:
-                # server_config.server_id is the correct identifier for get_session
-                session = await self._conn_manager.get_session(server_config.server_id) # RENAMED
+                session = await self._conn_manager.get_session(server_config.server_id)
                 
                 remote_tools_result: mcp_types.ListToolsResult 
                 if hasattr(session, 'list_tools') and asyncio.iscoroutinefunction(session.list_tools):
@@ -73,20 +73,20 @@ class McpToolRegistrar:
                 elif hasattr(session, 'list_tools'): 
                     remote_tools_result = session.list_tools() # type: ignore
                 else:
-                    logger.error(f"ClientSession for server '{server_config.server_id}' does not have a 'list_tools' method.") # RENAMED
+                    logger.error(f"ClientSession for server '{server_config.server_id}' does not have a 'list_tools' method.")
                     continue
                 
                 actual_remote_tools: list[mcp_types.Tool] = []
                 if remote_tools_result and hasattr(remote_tools_result, 'tools'):
                     actual_remote_tools = remote_tools_result.tools
                 else:
-                    logger.warning(f"ListToolsResult from server '{server_config.server_id}' is None or has no 'tools' attribute. Result: {remote_tools_result}") # RENAMED
+                    logger.warning(f"ListToolsResult from server '{server_config.server_id}' is None or has no 'tools' attribute. Result: {remote_tools_result}")
 
-                logger.info(f"Discovered {len(actual_remote_tools)} tools from server '{server_config.server_id}'.") # RENAMED
+                logger.info(f"Discovered {len(actual_remote_tools)} tools from server '{server_config.server_id}'.")
 
                 for remote_tool in actual_remote_tools: 
                     try:
-                        logger.debug(f"Processing remote tool '{remote_tool.name}' from server '{server_config.server_id}'.") # RENAMED
+                        logger.debug(f"Processing remote tool '{remote_tool.name}' from server '{server_config.server_id}'.")
                         
                         actual_arg_schema = self._schema_mapper.map_to_autobyteus_schema(remote_tool.inputSchema)
                         actual_desc = remote_tool.description
@@ -95,10 +95,11 @@ class McpToolRegistrar:
                         if server_config.tool_name_prefix:
                             registered_name = f"{server_config.tool_name_prefix.rstrip('_')}_{remote_tool.name}"
 
-                        factory_func = self._create_factory_for_tool(
-                            mcp_server_id=server_config.server_id, # RENAMED
+                        # Instantiate our new explicit factory
+                        tool_factory = McpToolFactory(
+                            mcp_server_id=server_config.server_id,
                             mcp_remote_tool_name=remote_tool.name,
-                            connection_manager=self._conn_manager,
+                            mcp_connection_manager=self._conn_manager,
                             registered_tool_name=registered_name,
                             tool_description=actual_desc,
                             tool_argument_schema=actual_arg_schema
@@ -113,45 +114,22 @@ class McpToolRegistrar:
                             argument_schema=actual_arg_schema,
                             usage_xml=usage_xml,
                             usage_json_dict=usage_json_dict,
-                            tool_class=GenericMcpTool, 
-                            custom_factory=factory_func, 
-                            config_schema=None 
+                            # Provide the factory method, not the class
+                            custom_factory=tool_factory.create_tool, 
+                            config_schema=None, # MCP tools don't have instantiation config via ToolConfig
+                            tool_class=None # Explicitly set tool_class to None
                         )
 
                         self._tool_registry.register_tool(tool_def)
-                        logger.info(f"Successfully registered MCP tool '{remote_tool.name}' from server '{server_config.server_id}' as '{registered_name}'.") # RENAMED
+                        logger.info(f"Successfully registered MCP tool '{remote_tool.name}' from server '{server_config.server_id}' as '{registered_name}'.")
                         registered_count +=1
                     except Exception as e_tool:
-                        logger.error(f"Failed to process or register remote tool '{remote_tool.name}' from server '{server_config.server_id}': {e_tool}", exc_info=True) # RENAMED
+                        logger.error(f"Failed to process or register remote tool '{remote_tool.name}' from server '{server_config.server_id}': {e_tool}", exc_info=True)
             
             except Exception as e_server:
-                logger.error(f"Failed to discover tools from MCP server '{server_config.server_id}': {e_server}", exc_info=True) # RENAMED
+                logger.error(f"Failed to discover tools from MCP server '{server_config.server_id}': {e_server}", exc_info=True)
         
         logger.info(f"MCP tool discovery and registration process completed. Total tools registered: {registered_count}.")
-
-    def _create_factory_for_tool(self,
-                                 mcp_server_id: str, # RENAMED from mcp_server_name
-                                 mcp_remote_tool_name: str,
-                                 connection_manager: McpConnectionManager,
-                                 registered_tool_name: str,
-                                 tool_description: str,
-                                 tool_argument_schema: ParameterSchema
-                                 ) -> Callable[[Optional[ToolConfig]], BaseTool]:
-        def mcp_tool_factory(tool_config: Optional[ToolConfig] = None) -> GenericMcpTool:
-            if tool_config and tool_config.params:
-                 logger.debug(f"McpToolFactory for remote '{mcp_remote_tool_name}' on server '{mcp_server_id}' received ToolConfig with params: {list(tool_config.params.keys())}") # RENAMED
-
-            return GenericMcpTool(
-                mcp_server_id=mcp_server_id, # This is already named mcp_server_id in GenericMcpTool constructor
-                mcp_remote_tool_name=mcp_remote_tool_name,
-                mcp_connection_manager=connection_manager,
-                name=registered_tool_name,
-                description=tool_description,
-                argument_schema=tool_argument_schema
-            )
-            
-        logger.debug(f"Created factory for MCP tool '{mcp_remote_tool_name}' (server '{mcp_server_id}') to be registered as '{registered_tool_name}'.") # RENAMED
-        return mcp_tool_factory
 
     def _generate_usage_xml(self, name: str, description: str, arg_schema: Optional[ParameterSchema]) -> str:
         import xml.sax.saxutils

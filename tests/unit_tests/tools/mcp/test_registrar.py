@@ -8,10 +8,11 @@ from autobyteus.tools.mcp.config_service import McpConfigService
 from autobyteus.tools.mcp.connection_manager import McpConnectionManager
 from autobyteus.tools.mcp.schema_mapper import McpSchemaMapper
 from autobyteus.tools.mcp.types import StdioMcpServerConfig, McpTransportType
-from autobyteus.tools.mcp.tool import GenericMcpTool # For type checking registered class
+from autobyteus.tools.mcp.tool import GenericMcpTool
+from autobyteus.tools.mcp.factory import McpToolFactory
 
 from autobyteus.tools.registry import ToolRegistry, ToolDefinition
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterType
+from autobyteus.tools.parameter_schema import ParameterDefinition, ParameterSchema, ParameterType
 
 # Mock external mcp.types
 MockMcpToolType = MagicMock() # Represents mcp.types.Tool
@@ -84,38 +85,35 @@ async def test_discover_and_register_tools_success(registrar: McpToolRegistrar, 
     # Check that ToolRegistry.register_tool was called with a ToolDefinition
     mock_tool_registry.register_tool.assert_called_once()
     registered_def_arg = mock_tool_registry.register_tool.call_args[0][0]
+    
     assert isinstance(registered_def_arg, ToolDefinition)
     assert registered_def_arg.name == "s1_toolA" # Prefixed
     assert registered_def_arg.description == "Tool A description"
     assert registered_def_arg.argument_schema == mapped_schema_tool1
-    assert registered_def_arg.tool_class == GenericMcpTool
-    assert callable(registered_def_arg.custom_factory) # Check if factory is callable
-
-    # Test the factory itself
-    factory = registered_def_arg.custom_factory
-    tool_instance_from_factory = factory(None) # Call with no ToolConfig
-    assert isinstance(tool_instance_from_factory, GenericMcpTool)
-    assert tool_instance_from_factory._mcp_server_id == "server1"
-    assert tool_instance_from_factory._mcp_remote_tool_name == "toolA"
+    
+    # Assert that a factory is used, and no class is specified.
+    assert registered_def_arg.tool_class is None
+    assert callable(registered_def_arg.custom_factory)
 
 
 @pytest.mark.asyncio
-async def test_discover_and_register_no_configs(registrar: McpToolRegistrar, mock_config_service):
+async def test_discover_and_register_no_configs(registrar: McpToolRegistrar, mock_config_service, mock_conn_manager, mock_tool_registry):
     mock_config_service.get_all_configs.return_value = []
     await registrar.discover_and_register_tools()
     mock_conn_manager.get_session.assert_not_called()
     mock_tool_registry.register_tool.assert_not_called()
 
 @pytest.mark.asyncio
-async def test_discover_and_register_disabled_server(registrar: McpToolRegistrar, mock_config_service):
+async def test_discover_and_register_disabled_server(registrar: McpToolRegistrar, mock_config_service, mock_conn_manager, mock_tool_registry):
     server_config_disabled = StdioMcpServerConfig(server_id="disabled_server", command="cmd", enabled=False)
     mock_config_service.get_all_configs.return_value = [server_config_disabled]
     
     await registrar.discover_and_register_tools()
     mock_conn_manager.get_session.assert_not_called()
+    mock_tool_registry.register_tool.assert_not_called()
 
 @pytest.mark.asyncio
-async def test_discover_and_register_get_session_fails(registrar: McpToolRegistrar, mock_config_service, mock_conn_manager):
+async def test_discover_and_register_get_session_fails(registrar: McpToolRegistrar, mock_config_service, mock_conn_manager, mock_tool_registry):
     server_config1 = StdioMcpServerConfig(server_id="server_err", command="cmd", enabled=True)
     mock_config_service.get_all_configs.return_value = [server_config1]
     mock_conn_manager.get_session.side_effect = RuntimeError("Session connection failed")
@@ -124,7 +122,7 @@ async def test_discover_and_register_get_session_fails(registrar: McpToolRegistr
     mock_tool_registry.register_tool.assert_not_called()
 
 @pytest.mark.asyncio
-async def test_discover_and_register_list_tools_fails(registrar: McpToolRegistrar, mock_config_service, mock_conn_manager):
+async def test_discover_and_register_list_tools_fails(registrar: McpToolRegistrar, mock_config_service, mock_conn_manager, mock_tool_registry):
     server_config1 = StdioMcpServerConfig(server_id="server_list_err", command="cmd", enabled=True)
     mock_config_service.get_all_configs.return_value = [server_config1]
     
@@ -156,4 +154,3 @@ def test_generate_usage_json(registrar: McpToolRegistrar):
     assert json_dict["description"] == "Tool for testing."
     assert "p1" in json_dict["inputSchema"]["properties"]
     assert json_dict["inputSchema"]["required"] == ["p1"]
-

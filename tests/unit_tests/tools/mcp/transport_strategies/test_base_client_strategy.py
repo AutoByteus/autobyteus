@@ -4,8 +4,8 @@ from autobyteus.tools.mcp.transport_strategies import McpTransportClientStrategy
 
 def test_mcp_transport_client_strategy_is_abc():
     # Check if it's an ABC by trying to instantiate it, which should fail
-    with pytest.raises(TypeError, match="Can't instantiate abstract class McpTransportClientStrategy with abstract method establish_connection"):
+    with pytest.raises(TypeError, match="Can't instantiate abstract class McpTransportClientStrategy with abstract method create_client_handle"):
         McpTransportClientStrategy() # type: ignore
 
     # Check if it has the abstract method
-    assert 'establish_connection' in McpTransportClientStrategy.__abstractmethods__
+    assert 'create_client_handle' in McpTransportClientStrategy.__abstractmethods__

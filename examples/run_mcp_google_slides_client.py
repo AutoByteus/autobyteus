@@ -3,6 +3,7 @@ import logging
 import sys
 import os
 import json
+import argparse
 from pathlib import Path
 from datetime import datetime
 
@@ -36,12 +37,39 @@ except ImportError as e:
     sys.exit(1)
 
 # --- Basic Logging Setup ---
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',
-    stream=sys.stdout,
-)
+# A logger for this script
 logger = logging.getLogger("mcp_client_example")
+
+def setup_logging(debug: bool = False):
+    """Configures logging for the script.
+    
+    Args:
+        debug (bool): If True, sets the logging level to DEBUG. Otherwise, INFO.
+    """
+    log_level = logging.DEBUG if debug else logging.INFO
+    
+    # Get the root logger
+    root_logger = logging.getLogger()
+    
+    # Clear existing handlers to avoid duplicate messages
+    if root_logger.hasHandlers():
+        for handler in root_logger.handlers[:]:
+            root_logger.removeHandler(handler)
+    
+    # Configure the logger
+    logging.basicConfig(
+        level=log_level,
+        format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',
+        stream=sys.stdout,
+    )
+    
+    # If in debug mode, also set the autobyteus library logger to DEBUG
+    if debug:
+        logging.getLogger("autobyteus").setLevel(logging.DEBUG)
+        logger.info("Debug logging enabled.")
+    else:
+        # Keep library logs at a higher level to reduce noise
+        logging.getLogger("autobyteus").setLevel(logging.INFO)
 
 # --- Environment Variable Checks ---
 def check_required_env_vars():
@@ -170,6 +198,12 @@ async def main():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run an MCP client to interact with the Google Slides MCP server.")
+    parser.add_argument("--debug", action="store_true", help="Enable debug level logging on the console.")
+    args = parser.parse_args()
+    
+    setup_logging(debug=args.debug)
+
     try:
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit) as e:

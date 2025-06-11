@@ -60,7 +60,8 @@ async def test_execute_success(generic_mcp_tool_instance: GenericMcpTool, mock_c
     result = await generic_mcp_tool_instance._execute(context=mock_agent_context, **remote_tool_args)
 
     mock_connection_manager.get_session.assert_awaited_once_with("test_server_123")
-    mock_session.call_tool.assert_called_once_with("remote_calculator", args=remote_tool_args)
+    # Verify the positional call, which is the fix.
+    mock_session.call_tool.assert_called_once_with("remote_calculator", remote_tool_args)
     assert result == expected_result
 
 @pytest.mark.asyncio
@@ -88,4 +89,3 @@ async def test_execute_no_connection_manager_set_temporarily(sample_arg_schema, 
     )
     with pytest.raises(RuntimeError, match="McpConnectionManager not available"):
        await tool_instance._execute(context=mock_agent_context)
-

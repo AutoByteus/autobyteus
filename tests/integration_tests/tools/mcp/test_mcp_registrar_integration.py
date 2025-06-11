@@ -153,8 +153,10 @@ async def test_mcp_registrar_discovers_and_registers_google_slides_tools(google_
             assert tool_def is not None, f"Tool '{registered_name}' not found in registry."
             assert tool_def.name == registered_name
             assert tool_def.description == expected_tool["description"]
-            assert tool_def.tool_class == GenericMcpTool
-            assert callable(tool_def.custom_factory), f"Custom factory for '{registered_name}' is not callable."
+            
+            # UPDATED: Assert that MCP tools are registered with a factory, not a class.
+            assert tool_def.tool_class is None, "MCP tools should be registered with a factory, not a class."
+            assert callable(tool_def.custom_factory), "MCP tools should have a callable custom factory."
             
             assert isinstance(tool_def.argument_schema, ParameterSchema), \
                 f"Argument schema for '{registered_name}' is not a ParameterSchema instance."

@@ -4,7 +4,7 @@ from abc import ABCMeta
 from typing import Dict, Any 
 
 from autobyteus.tools.registry import default_tool_registry, ToolDefinition
-from autobyteus.tools.parameter_schema import ParameterSchema # Updated import path
+from autobyteus.tools.parameter_schema import ParameterSchema
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,8 @@ class ToolMeta(ABCMeta):
             definition = ToolDefinition(
                 name=tool_name, 
                 description=general_description, 
-                tool_class=cls,
+                tool_class=cls, # Standard tools are registered with a class
+                custom_factory=None, # And no custom factory
                 argument_schema=argument_schema, 
                 usage_xml=usage_xml,
                 usage_json_dict=usage_json_dict,

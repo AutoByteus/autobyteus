@@ -100,27 +100,36 @@ class McpConnectionManager(metaclass=SingletonMeta):
                 await exit_stack.aclose()
                 raise RuntimeError(f"Failed to create MCP session for server_id '{server_id}': {e}") from e
 
+    async def _close_session_internal(self, server_id: str) -> None:
+        """Internal method to close a session. Assumes the lock is already held."""
+        if server_id in self._managed_connections:
+            _, exit_stack = self._managed_connections.pop(server_id)
+            logger.info(f"Closing MCP connection for server_id: '{server_id}'...")
+            await exit_stack.aclose()
+            logger.info(f"MCP connection for server_id: '{server_id}' closed.")
+        else:
+            logger.debug(f"No active session found to close for server_id: '{server_id}'.")
+
     async def close_session(self, server_id: str) -> None:
+        """Safely closes a single MCP session by its ID."""
         async with self._lock:
-            if server_id in self._managed_connections:
-                _, exit_stack = self._managed_connections.pop(server_id)
-                logger.info(f"Closing MCP connection for server_id: '{server_id}'...")
-                await exit_stack.aclose()
-                logger.info(f"MCP connection for server_id: '{server_id}' closed.")
-            else:
-                logger.debug(f"No active session found to close for server_id: '{server_id}'.")
+            await self._close_session_internal(server_id)
 
     async def close_all_sessions(self) -> None:
+        """Safely closes all active MCP sessions."""
         logger.info("Closing all active MCP sessions and their resources.")
         async with self._lock:
+            # Create a copy of keys to iterate over, as we will be modifying the dictionary
             server_ids_to_close = list(self._managed_connections.keys())
             for server_id in server_ids_to_close:
                 # Use a separate try/except for each connection to ensure all are attempted
                 try:
-                    await self.close_session(server_id)
+                    # Call the internal method that doesn't try to re-acquire the lock
+                    await self._close_session_internal(server_id)
                 except Exception as e:
                     logger.error(f"Error while closing connection for server_id '{server_id}': {e}", exc_info=True)
         
+        # This clear is slightly redundant as _close_session_internal pops items, but it's safe.
         self._managed_connections.clear()
         logger.info("All MCP sessions have been requested to close.")
 
