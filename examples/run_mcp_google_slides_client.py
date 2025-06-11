@@ -30,7 +30,15 @@ except ImportError:
 # --- Imports for the MCP Client Example ---
 
 try:
-    from autobyteus.tools.mcp import McpConfigService, McpConnectionManager
+    # High-level components for the full workflow
+    from autobyteus.tools.mcp import (
+        McpConfigService,
+        McpConnectionManager,
+        McpSchemaMapper,
+        McpToolRegistrar,
+    )
+    from autobyteus.tools.registry import default_tool_registry
+    from autobyteus.agent.context import AgentContext
 except ImportError as e:
     print(f"Error importing autobyteus components: {e}", file=sys.stderr)
     print("Please ensure that the autobyteus library is installed and accessible in your PYTHONPATH.", file=sys.stderr)
@@ -41,34 +49,21 @@ except ImportError as e:
 logger = logging.getLogger("mcp_client_example")
 
 def setup_logging(debug: bool = False):
-    """Configures logging for the script.
-    
-    Args:
-        debug (bool): If True, sets the logging level to DEBUG. Otherwise, INFO.
-    """
+    """Configures logging for the script."""
     log_level = logging.DEBUG if debug else logging.INFO
-    
-    # Get the root logger
     root_logger = logging.getLogger()
-    
-    # Clear existing handlers to avoid duplicate messages
     if root_logger.hasHandlers():
         for handler in root_logger.handlers[:]:
             root_logger.removeHandler(handler)
-    
-    # Configure the logger
     logging.basicConfig(
         level=log_level,
         format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',
         stream=sys.stdout,
     )
-    
-    # If in debug mode, also set the autobyteus library logger to DEBUG
     if debug:
         logging.getLogger("autobyteus").setLevel(logging.DEBUG)
         logger.info("Debug logging enabled.")
     else:
-        # Keep library logs at a higher level to reduce noise
         logging.getLogger("autobyteus").setLevel(logging.INFO)
 
 # --- Environment Variable Checks ---
@@ -82,51 +77,51 @@ def check_required_env_vars():
     }
     env_values = {}
     missing_vars = []
-
     for key, var_name in required_vars.items():
         value = os.environ.get(var_name)
         if not value:
             missing_vars.append(var_name)
         else:
             env_values[key] = value
-
     if missing_vars:
-        logger.error("This example requires the following environment variables to be set:")
-        for var in missing_vars:
-            logger.error(f"  - {var}")
-        logger.error("Please set them in your environment or in the .env file at the project root.")
+        logger.error("This example requires the following environment variables to be set: %s", missing_vars)
         sys.exit(1)
-        
     if not Path(env_values["script_path"]).exists():
         logger.error(f"The script path specified by TEST_GOOGLE_SLIDES_MCP_SCRIPT_PATH does not exist: {env_values['script_path']}")
         sys.exit(1)
-
     return env_values
 
 async def main():
     """
-    Main function to configure and run the MCP client for the Google Slides server.
+    Main function demonstrating the full end-to-end MCP integration workflow.
     """
-    logger.info("--- Starting MCP Google Slides Client Example ---")
+    logger.info("--- Starting MCP Integration Workflow Example ---")
     
     env_vars = check_required_env_vars()
     
-    # 1. Instantiate the core AutoByteUs MCP services.
-    # McpConfigService loads and manages server configurations.
-    # McpConnectionManager uses these configs to create and manage connections.
+    # 1. Instantiate all the core MCP and registry components.
     config_service = McpConfigService()
     conn_manager = McpConnectionManager(config_service=config_service)
+    schema_mapper = McpSchemaMapper()
+    tool_registry = default_tool_registry # Use the default singleton registry
+    
+    registrar = McpToolRegistrar(
+        config_service=config_service,
+        conn_manager=conn_manager,
+        schema_mapper=schema_mapper,
+        tool_registry=tool_registry
+    )
 
     # 2. Define the configuration for the MCP server.
-    # This is the same configuration structure used in the integration test.
-    # The server_id "google-slides-mcp" is a unique key for this connection.
+    server_id = "google-slides-mcp"
+    tool_prefix = "gslides" # We will use this prefix to look up the tool
     google_slides_mcp_config = {
-        "google-slides-mcp": {
+        server_id: {
             "transport_type": "stdio",
             "command": "node",
             "args": [env_vars["script_path"]],
             "enabled": True,
-            "tool_name_prefix": "gslides", # Optional: prefixes all tool names, e.g., "gslides_create_presentation"
+            "tool_name_prefix": tool_prefix,
             "env": {
                 "GOOGLE_CLIENT_ID": env_vars["google_client_id"],
                 "GOOGLE_CLIENT_SECRET": env_vars["google_client_secret"],
@@ -134,71 +129,76 @@ async def main():
             }
         }
     }
-
-    # 3. Load the configuration into the service.
     config_service.load_configs(google_slides_mcp_config)
-    logger.info("Loaded MCP server configuration for 'google-slides-mcp'.")
+    logger.info(f"Loaded MCP server configuration for '{server_id}'.")
 
     # The `finally` block ensures the connection manager cleans up resources
-    # (i.e., terminates the Node.js server subprocess) even if an error occurs.
     try:
-        # 4. Get a client session from the connection manager.
-        # This will start the server subprocess and establish communication.
-        logger.info("Establishing connection to the MCP server...")
-        session = await conn_manager.get_session("google-slides-mcp")
-        logger.info("Connection successful!")
+        # 3. Discover and register tools from the configured server.
+        # This populates the default_tool_registry with tool definitions.
+        logger.info("Discovering and registering remote tools...")
+        await registrar.discover_and_register_tools()
+        logger.info(f"Tool registration complete. Available tools in registry: {tool_registry.list_tool_names()}")
 
-        # 5. List the tools available on the remote server.
-        list_tools_result = await session.list_tools()
-        tool_names = [tool.name for tool in list_tools_result.tools]
-        logger.info(f"Discovered {len(tool_names)} tools on the server: {tool_names}")
-
-        # 6. Call a remote tool: `create_presentation`.
-        presentation_title = f"AutoByteUs MCP Client Demo - {datetime.now().isoformat()}"
-        logger.info(f"Calling tool 'create_presentation' with title: '{presentation_title}'")
+        # 4. Create an instance of a specific tool using the ToolRegistry.
+        # The tool name is prefixed as defined in our configuration.
+        create_tool_name = f"{tool_prefix}_create_presentation"
+        summarize_tool_name = f"{tool_prefix}_summarize_presentation"
         
-        create_result = await session.call_tool(
-            "create_presentation",
-            {"title": presentation_title}
+        logger.info(f"Creating an instance of the '{create_tool_name}' tool from the registry...")
+        create_presentation_tool = tool_registry.create_tool(create_tool_name)
+        
+        logger.info(f"Creating an instance of the '{summarize_tool_name}' tool from the registry...")
+        summarize_presentation_tool = tool_registry.create_tool(summarize_tool_name)
+
+        # 5. Execute the tool using its standard .execute() method.
+        # This is the same way any other AutoByteUs tool is executed.
+        presentation_title = f"AutoByteUs E2E Demo - {datetime.now().isoformat()}"
+        logger.info(f"Executing '{create_tool_name}' with title: '{presentation_title}'")
+        
+        # We need a dummy context for the tool call
+        dummy_context = AgentContext(agent_id="mcp_example_runner")
+        
+        # The result is the raw mcp.types.ToolResult object from the remote call
+        create_result = await create_presentation_tool.execute(
+            context=dummy_context,
+            title=presentation_title
         )
         
-        # The tool returns the full presentation object as a JSON string.
-        # We need to parse it to extract the ID.
         presentation_response_text = create_result.content[0].text
         presentation_object = json.loads(presentation_response_text)
         actual_presentation_id = presentation_object.get("presentationId")
 
         if not actual_presentation_id:
-            raise ValueError(f"Could not find 'presentationId' in the response from 'create_presentation'. Response: {presentation_response_text[:200]}...")
+            raise ValueError(f"Could not find 'presentationId' in the response. Response: {presentation_response_text[:200]}...")
 
-        logger.info(f"Tool 'create_presentation' executed. Extracted Presentation ID: {actual_presentation_id}")
+        logger.info(f"Tool '{create_tool_name}' executed. Extracted Presentation ID: {actual_presentation_id}")
 
-        # 7. Use the extracted ID in a second tool call: `summarize_presentation`.
-        logger.info(f"Calling tool 'summarize_presentation' for presentation ID: {actual_presentation_id}")
-        
-        summary_result = await session.call_tool(
-            "summarize_presentation",
-            {"presentationId": actual_presentation_id}
+        # 6. Execute the second tool.
+        logger.info(f"Executing '{summarize_tool_name}' for presentation ID: {actual_presentation_id}")
+        summary_result = await summarize_presentation_tool.execute(
+            context=dummy_context,
+            presentationId=actual_presentation_id
         )
         
         presentation_summary = summary_result.content[0].text
-        logger.info(f"Tool 'summarize_presentation' executed successfully.")
+        logger.info(f"Tool '{summarize_tool_name}' executed successfully.")
         print("\n--- Presentation Summary ---")
         print(presentation_summary)
         print("--------------------------\n")
 
     except Exception as e:
-        logger.error(f"An error occurred during MCP interaction: {e}", exc_info=True)
+        logger.error(f"An error occurred during the workflow: {e}", exc_info=True)
     finally:
-        # 8. Clean up all connections.
+        # 7. Clean up all connections.
         logger.info("Cleaning up MCP connections...")
         await conn_manager.cleanup()
         logger.info("Cleanup complete.")
-        logger.info("--- MCP Google Slides Client Example Finished ---")
+        logger.info("--- MCP Integration Workflow Example Finished ---")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run an MCP client to interact with the Google Slides MCP server.")
+    parser = argparse.ArgumentParser(description="Run the full MCP registration and execution workflow.")
     parser.add_argument("--debug", action="store_true", help="Enable debug level logging on the console.")
     args = parser.parse_args()
     
