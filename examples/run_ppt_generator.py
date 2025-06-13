@@ -6,8 +6,6 @@ import argparse
 from pathlib import Path
 from typing import Optional
 
-from autobyteus.tools.registry import ToolRegistry, ToolDefinition
-from autobyteus.tools.tool_config import ToolConfig
 
 # --- Boilerplate to make packages discoverable ---
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -42,7 +40,7 @@ try:
     from autobyteus.agent.factory.agent_factory import default_agent_factory
     from autobyteus.cli import agent_cli
     from autobyteus.tools import tool
-    from autobyteus.tools.registry import ToolRegistry, default_tool_registry
+    from autobyteus.tools.registry import default_tool_registry
     from autobyteus.llm.llm_factory import LLMFactory
     from autobyteus.llm.utils.llm_config import LLMConfig
 except ImportError as e:
