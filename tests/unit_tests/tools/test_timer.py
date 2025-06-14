@@ -1,6 +1,7 @@
 import pytest
 import asyncio
 import re
+import xml.sax.saxutils
 from unittest.mock import patch, MagicMock, Mock, call
 from autobyteus.tools.timer import Timer
 from autobyteus.tools.tool_config import ToolConfig
@@ -75,8 +76,10 @@ def test_get_argument_schema_for_execution():
 
 def test_tool_usage_xml_output():
     xml_output = Timer.tool_usage_xml()
+    description = Timer.get_description()
+    escaped_desc = xml.sax.saxutils.escape(description)
     
-    assert '<command name="Timer">' in xml_output
+    assert f'<command name="Timer" description="{escaped_desc}">' in xml_output
     assert '</command>' in xml_output
 
     duration_match = re.search(r'<arg name="duration".*?/>', xml_output)

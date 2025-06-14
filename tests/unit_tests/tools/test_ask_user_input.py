@@ -1,6 +1,7 @@
 import pytest
 import asyncio
 from unittest.mock import Mock, patch
+import xml.sax.saxutils
 from autobyteus.tools.registry import default_tool_registry 
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.agent.context import AgentContext
@@ -39,7 +40,9 @@ def test_ask_user_input_definition():
 def test_ask_user_input_tool_usage_xml_output():
     definition = default_tool_registry.get_tool_definition(TOOL_NAME_ASK_USER)
     xml_output = definition.usage_xml
-    assert f'<command name="{TOOL_NAME_ASK_USER}">' in xml_output
+    description = definition.description
+    escaped_desc = xml.sax.saxutils.escape(description)
+    assert f'<command name="{TOOL_NAME_ASK_USER}" description="{escaped_desc}">' in xml_output
     assert '<arg name="request" type="string" description="Parameter \'request\' for tool \'AskUserInput\'." required="true" />' in xml_output
 
 def test_ask_user_input_tool_usage_json_output():

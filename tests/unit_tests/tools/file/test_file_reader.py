@@ -1,6 +1,7 @@
 import pytest
 import os
 from unittest.mock import Mock
+import xml.sax.saxutils
 
 import autobyteus.tools.file.file_reader 
 
@@ -55,13 +56,13 @@ def test_file_reader_tool_usage_xml_output():
     assert definition is not None
     xml_output = definition.usage_xml 
     
-    assert f'<command name="{TOOL_NAME_FILE_READER}">' in xml_output
-    # Description for path now includes the heuristic string
-    expected_desc = "Parameter 'path' for tool 'FileReader'. This is expected to be a path."
-    # XML escape the description for assertion
-    import xml.sax.saxutils
-    escaped_desc = xml.sax.saxutils.escape(expected_desc)
-    assert f'<arg name="path" type="string" description="{escaped_desc}" required="true" />' in xml_output # MODIFIED type from file_path
+    description = definition.description
+    escaped_desc = xml.sax.saxutils.escape(description)
+    assert f'<command name="{TOOL_NAME_FILE_READER}" description="{escaped_desc}">' in xml_output
+    
+    expected_param_desc = "Parameter 'path' for tool 'FileReader'. This is expected to be a path."
+    escaped_param_desc = xml.sax.saxutils.escape(expected_param_desc)
+    assert f'<arg name="path" type="string" description="{escaped_param_desc}" required="true" />' in xml_output
     assert '</command>' in xml_output
 
 def test_file_reader_tool_usage_json_output():

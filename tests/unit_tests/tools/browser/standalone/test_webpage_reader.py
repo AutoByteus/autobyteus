@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
+import xml.sax.saxutils
 from autobyteus.tools.browser.standalone.webpage_reader import WebPageReader
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType # Updated
 from autobyteus.tools.tool_config import ToolConfig
@@ -46,7 +47,9 @@ def test_get_argument_schema_for_execution(webpage_reader_tool_default: WebPageR
 
 def test_tool_usage_xml_output(webpage_reader_tool_default: WebPageReader):
     xml_output = webpage_reader_tool_default.tool_usage_xml()
-    assert '<command name="WebPageReader">' in xml_output
+    description = webpage_reader_tool_default.get_description()
+    escaped_desc = xml.sax.saxutils.escape(description)
+    assert f'<command name="WebPageReader" description="{escaped_desc}">' in xml_output
     assert '<arg name="url" type="string"' in xml_output
 
 def test_tool_usage_json_output(webpage_reader_tool_default: WebPageReader):
@@ -131,5 +134,4 @@ async def test_webpage_reader_playwright_error(webpage_reader_tool_default: WebP
         with pytest.raises(RuntimeError, match="WebPageReader failed for URL .* Playwright goto failed"):
             await webpage_reader_tool_default.execute(mock_agent_context, url=url)
         
-        mock_close.assert_called_once() # Ensure close is called
-
+        mock_close.assert_called_once()

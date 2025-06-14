@@ -1,9 +1,12 @@
+# File: tests/unit_tests/tools/test_image_downloader.py
+
 import os
 import asyncio
 import aiohttp
 import pytest
 import tempfile
 import shutil
+import xml.sax.saxutils
 from unittest.mock import patch, AsyncMock, MagicMock, Mock
 from autobyteus.tools.image_downloader import ImageDownloader
 from autobyteus.tools.tool_config import ToolConfig
@@ -47,7 +50,7 @@ def test_get_config_schema_for_instantiation():
     
     param = schema.get_parameter('custom_download_folder')
     assert isinstance(param, ParameterDefinition)
-    assert param.param_type == ParameterType.STRING # MODIFIED from DIRECTORY_PATH
+    assert param.param_type == ParameterType.STRING
     assert not param.required
     assert param.default_value is None
     assert "default download folder" in param.description
@@ -67,16 +70,19 @@ def test_get_argument_schema_for_execution():
     folder_param = schema.get_parameter('folder')
     assert isinstance(folder_param, ParameterDefinition)
     assert folder_param.name == "folder"
-    assert folder_param.param_type == ParameterType.STRING # MODIFIED from DIRECTORY_PATH
+    assert folder_param.param_type == ParameterType.STRING
     assert folder_param.required is False
     assert "Optional. Custom directory path" in folder_param.description
 
 def test_tool_usage_xml_output():
     xml_output = ImageDownloader.tool_usage_xml()
-    assert '<command name="ImageDownloader">' in xml_output
+    description = ImageDownloader.get_description()
+    escaped_desc = xml.sax.saxutils.escape(description)
+    
+    assert f'<command name="ImageDownloader" description="{escaped_desc}">' in xml_output
     assert '<arg name="url" type="string"' in xml_output
     assert 'required="true"' in xml_output
-    assert '<arg name="folder" type="string"' in xml_output # MODIFIED from directory_path
+    assert '<arg name="folder" type="string"' in xml_output
     assert 'required="false"' in xml_output 
     assert '</command>' in xml_output
 
@@ -90,7 +96,7 @@ def test_tool_usage_json_output():
     assert "url" in input_schema["properties"]
     assert "folder" in input_schema["properties"]
     assert input_schema["properties"]["url"]["type"] == "string"
-    assert input_schema["properties"]["folder"]["type"] == "string" # Was directory_path, mapped to string
+    assert input_schema["properties"]["folder"]["type"] == "string"
     assert "url" in input_schema["required"]
     assert "folder" not in input_schema["required"]
 
@@ -141,11 +147,11 @@ async def test_execute_success(temp_dir_for_image_downloader, mock_agent_context
 
 @pytest.mark.asyncio
 async def test_execute_with_optional_folder_override(temp_dir_for_image_downloader, mock_agent_context):
-    default_dl_folder = temp_dir_for_image_downloader / "default_dl"
+    default_dl_folder = os.path.join(temp_dir_for_image_downloader, "default_dl")
     os.makedirs(default_dl_folder)
     downloader = ImageDownloader(config=ToolConfig(params={'custom_download_folder': str(default_dl_folder)}))
     
-    override_dl_folder = temp_dir_for_image_downloader / "override_dl"
+    override_dl_folder = os.path.join(temp_dir_for_image_downloader, "override_dl")
 
     url = 'https://example.com/another.png'
     

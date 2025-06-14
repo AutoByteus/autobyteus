@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
+import xml.sax.saxutils
 from autobyteus.tools.base_tool import BaseTool # For type checking the tool
 from autobyteus.agent.message.send_message_to import SendMessageTo
 from autobyteus.agent.context import AgentContext, AgentConfig
@@ -73,7 +74,9 @@ def test_get_argument_schema(send_message_tool: SendMessageTo):
 
 def test_tool_usage_xml_output(send_message_tool: SendMessageTo):
     xml_output = send_message_tool.tool_usage_xml()
-    assert f'<command name="{SendMessageTo.TOOL_NAME}">' in xml_output
+    description = send_message_tool.get_description()
+    escaped_desc = xml.sax.saxutils.escape(description)
+    assert f'<command name="{SendMessageTo.TOOL_NAME}" description="{escaped_desc}">' in xml_output
     assert '<arg name="recipient_role_name" type="string"' in xml_output
     assert '<arg name="content" type="string"' in xml_output
     assert '<arg name="message_type" type="string"' in xml_output

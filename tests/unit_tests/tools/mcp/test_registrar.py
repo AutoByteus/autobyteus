@@ -1,6 +1,7 @@
 # file: autobyteus/tests/unit_tests/tools/mcp/test_registrar.py
 import pytest
 import asyncio
+import xml.sax.saxutils
 from unittest.mock import MagicMock, AsyncMock, patch, ANY
 
 from autobyteus.tools.mcp.registrar import McpToolRegistrar
@@ -139,8 +140,8 @@ def test_generate_usage_xml(registrar: McpToolRegistrar):
     schema.add_parameter(ParameterDefinition("p2", ParameterType.INTEGER, "Desc 2", False, default_value=10))
     xml = registrar._generate_usage_xml("TestTool", "Tool for testing.", schema)
     
-    assert "<command name=\"TestTool\">" in xml
-    assert "<!-- Description: Tool for testing. -->" in xml
+    escaped_desc = xml.sax.saxutils.escape("Tool for testing.")
+    assert f'<command name="TestTool" description="{escaped_desc}">' in xml
     assert "<arg name=\"p1\" type=\"string\" description=\"Desc 1\" required=\"true\" />" in xml
     assert "<arg name=\"p2\" type=\"integer\" description=\"Desc 2\" required=\"false\" default=\"10\" />" in xml
     assert "</command>" in xml

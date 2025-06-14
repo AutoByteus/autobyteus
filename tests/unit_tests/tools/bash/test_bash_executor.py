@@ -2,6 +2,7 @@ import pytest
 import asyncio
 import subprocess
 from unittest.mock import AsyncMock, patch, Mock 
+import xml.sax.saxutils
 
 from autobyteus.tools.registry import default_tool_registry 
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
@@ -45,7 +46,10 @@ def test_bash_executor_tool_usage_xml_output():
     assert definition is not None
     xml_output = definition.usage_xml 
     
-    assert f'<command name="{TOOL_NAME}">' in xml_output
+    description = definition.description
+    escaped_desc = xml.sax.saxutils.escape(description)
+    
+    assert f'<command name="{TOOL_NAME}" description="{escaped_desc}">' in xml_output
     assert '<arg name="command" type="string" description="Parameter \'command\' for tool \'BashExecutor\'." required="true" />' in xml_output
     assert '</command>' in xml_output
 
