@@ -4,7 +4,7 @@ from typing import Optional, Any
 from unittest.mock import MagicMock
 
 from autobyteus.tools.base_tool import BaseTool
-from autobyteus.tools.functional_tool import tool
+from autobyteus.tools.functional_tool import tool, FunctionalTool
 from autobyteus.tools.parameter_schema import ParameterSchema
 from autobyteus.tools.registry import ToolRegistry, ToolDefinition
 from autobyteus.tools.tool_config import ToolConfig
@@ -14,7 +14,7 @@ from autobyteus.tools.tool_config import ToolConfig
 class DummyToolNoConfig(BaseTool):
     """A simple tool that doesn't use configuration."""
     def __init__(self, config: Optional[ToolConfig] = None):
-        super().__init__()
+        super().__init__(config=config)
         self.config_received = config
 
     @classmethod
@@ -28,7 +28,7 @@ class DummyToolNoConfig(BaseTool):
 class DummyToolWithConfig(BaseTool):
     """A tool that uses a ToolConfig object."""
     def __init__(self, config: Optional[ToolConfig] = None):
-        super().__init__()
+        super().__init__(config=config)
         self.value = "default"
         if config:
             self.value = config.get("value", "default")
@@ -44,7 +44,7 @@ class DummyToolWithConfig(BaseTool):
 class DummyToolFailsInit(BaseTool):
     """A tool that always fails on instantiation."""
     def __init__(self, config: Optional[ToolConfig] = None):
-        super().__init__()
+        super().__init__(config=config)
         raise ValueError("Initialization failed")
 
     @classmethod
@@ -57,8 +57,8 @@ class DummyToolFailsInit(BaseTool):
 
 class DummyFactoryTool(BaseTool):
     """A tool created by a factory."""
-    def __init__(self, source: str):
-        super().__init__()
+    def __init__(self, source: str, config: Optional[ToolConfig] = None):
+        super().__init__(config=config)
         self.source = source
 
     @classmethod
@@ -74,7 +74,8 @@ def dummy_factory(config: Optional[ToolConfig] = None) -> DummyFactoryTool:
     source = "factory_default"
     if config and config.get("source_override"):
         source = config.get("source_override")
-    return DummyFactoryTool(source=source)
+    # The factory must now also pass the config to the tool's constructor
+    return DummyFactoryTool(source=source, config=config)
 
 # --- Pytest Fixtures ---
 
@@ -82,12 +83,9 @@ def dummy_factory(config: Optional[ToolConfig] = None) -> DummyFactoryTool:
 def clean_registry(monkeypatch):
     """Provides a clean ToolRegistry instance for each test."""
     registry = ToolRegistry()
-    # To properly clean for functional tools, we need to clear the definitions dict directly.
-    # This is because they are registered at module import time.
     original_defs = registry._definitions.copy()
     registry._definitions.clear()
     yield registry
-    # Restore original definitions
     registry._definitions = original_defs
 
 
@@ -187,7 +185,7 @@ def test_create_simple_class_based_tool(clean_registry: ToolRegistry, no_config_
 
 @pytest.mark.asyncio
 async def test_create_class_based_tool_with_config(clean_registry: ToolRegistry, with_config_def: ToolDefinition):
-    """Tests creating a class-based tool, passing a ToolConfig. THIS VALIDATES THE BUG FIX."""
+    """Tests creating a class-based tool, passing a ToolConfig."""
     clean_registry.register_tool(with_config_def)
     
     # Create without config
@@ -195,13 +193,13 @@ async def test_create_class_based_tool_with_config(clean_registry: ToolRegistry,
     assert isinstance(tool_instance_default, DummyToolWithConfig)
     mock_context = MagicMock()
     mock_context.agent_id = "test-agent-for-config-tool"
-    assert await tool_instance_default._execute(mock_context) == "default"
+    assert await tool_instance_default.execute(mock_context) == "default"
 
     # Create with config
     config = ToolConfig(params={"value": "custom_value"})
     tool_instance_custom = clean_registry.create_tool("DummyToolWithConfig", config=config)
     assert isinstance(tool_instance_custom, DummyToolWithConfig)
-    assert await tool_instance_custom._execute(mock_context) == "custom_value"
+    assert await tool_instance_custom.execute(mock_context) == "custom_value"
 
 @pytest.mark.asyncio
 async def test_create_factory_based_tool(clean_registry: ToolRegistry, factory_def: ToolDefinition):
@@ -213,45 +211,40 @@ async def test_create_factory_based_tool(clean_registry: ToolRegistry, factory_d
     # Create without config
     tool_instance_default = clean_registry.create_tool("DummyFactoryTool")
     assert isinstance(tool_instance_default, DummyFactoryTool)
-    assert await tool_instance_default._execute(mock_context) == "created from factory_default"
+    assert await tool_instance_default.execute(mock_context) == "created from factory_default"
+    assert tool_instance_default._config is None
 
     # Create with config passed to factory
     config = ToolConfig(params={"source_override": "factory_custom"})
     tool_instance_custom = clean_registry.create_tool("DummyFactoryTool", config=config)
     assert isinstance(tool_instance_custom, DummyFactoryTool)
-    assert await tool_instance_custom._execute(mock_context) == "created from factory_custom"
+    assert await tool_instance_custom.execute(mock_context) == "created from factory_custom"
+    assert tool_instance_custom._config == config
 
 @pytest.mark.asyncio
 async def test_create_functional_tool_from_registry(clean_registry: ToolRegistry):
-    """Tests creating a functional tool instance from the registry."""
-    # Define the functional tool locally. When this line runs, the @tool decorator
-    # is executed, which creates a ToolDefinition and registers it with the ToolRegistry.
-    # The `clean_registry` fixture ensures we start with an empty registry.
+    """Tests creating a functional tool instance from the registry after the refactor."""
     @tool(name="MyFunctionalTool")
     async def dummy_func(context: Any, text: str) -> str:
         """A simple functional tool for testing."""
         return f"processed: {text}"
     
-    # The decorator itself returns one instance for convenience.
-    instance_from_decorator = dummy_func
-
-    # 1. Verify it was registered.
+    # 1. Verify it was registered with the correct definition type
     definition = clean_registry.get_tool_definition("MyFunctionalTool")
     assert definition is not None
     assert definition.name == "MyFunctionalTool"
     assert "simple functional tool" in definition.description
-    assert definition.tool_class is not None # The decorator created a class
-    assert definition.custom_factory is None
+    assert definition.tool_class is None
+    assert callable(definition.custom_factory)
 
     # 2. Create a new instance using the registry.
     instance_from_registry = clean_registry.create_tool("MyFunctionalTool")
 
     # 3. Verify the new instance.
-    assert isinstance(instance_from_registry, BaseTool)
-    assert instance_from_registry is not instance_from_decorator  # It's a NEW instance.
+    assert isinstance(instance_from_registry, FunctionalTool)
+    assert instance_from_registry is not dummy_func
 
     # 4. Verify the new instance works correctly.
-    # Create a mock context object that has the 'agent_id' attribute.
     mock_context = MagicMock()
     mock_context.agent_id = "test-agent-123"
     result = await instance_from_registry.execute(context=mock_context, text="hello")

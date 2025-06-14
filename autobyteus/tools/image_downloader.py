@@ -23,7 +23,7 @@ class ImageDownloader(BaseTool):
     supported_formats = ['.jpeg', '.jpg', '.gif', '.png', '.webp']
     
     def __init__(self, config: Optional[ToolConfig] = None):
-        super().__init__()
+        super().__init__(config=config)
         
         custom_download_folder = None
         if config:
@@ -53,7 +53,7 @@ class ImageDownloader(BaseTool):
         schema.add_parameter(
             ParameterDefinition(
                 name="folder", 
-                param_type=ParameterType.STRING, # MODIFIED from DIRECTORY_PATH
+                param_type=ParameterType.STRING,
                 description="Optional. Custom directory path to save this specific image. Overrides instance default.",
                 required=False 
             )
@@ -65,7 +65,7 @@ class ImageDownloader(BaseTool):
         schema = ParameterSchema()
         schema.add_parameter(ParameterDefinition(
             name="custom_download_folder",
-            param_type=ParameterType.STRING, # MODIFIED from DIRECTORY_PATH
+            param_type=ParameterType.STRING,
             description="Custom directory path where downloaded images will be saved by default. If not specified, uses the system's default download folder.",
             required=False,
             default_value=None 
@@ -107,6 +107,7 @@ class ImageDownloader(BaseTool):
 
             self.last_downloaded_image = filepath 
             logger.info(f"The image is downloaded and stored at: {filepath}")
+            self.emit(EventType.IMAGE_DOWNLOADED, image_path=filepath)
             return f"The image is downloaded and stored at: {filepath}"
         except aiohttp.ClientError as e:
             logger.error(f"Failed to download image from {url}. Network error: {str(e)}", exc_info=True)

@@ -17,11 +17,13 @@ class ToolMeta(ABCMeta):
         super().__init__(name, bases, dct)
 
         # Skip registration for special classes that are not meant to be standalone tools.
-        if name in ['BaseTool', 'GenericMcpTool'] or getattr(cls, "__abstractmethods__", None):
+        # FunctionalTool is now the explicit wrapper but shouldn't be registered itself.
+        if name in ['BaseTool', 'GenericMcpTool', 'FunctionalTool'] or getattr(cls, "__abstractmethods__", None):
              logger.debug(f"Skipping registration for abstract or special tool class: {name}")
              return
 
         try:
+            # Use the class itself to get the metadata, not an instance.
             tool_name = cls.get_name()
             if not tool_name or not isinstance(tool_name, str):
                 logger.error(f"Tool class {name} must return a valid string from static get_name(). Skipping registration.")
@@ -61,7 +63,7 @@ class ToolMeta(ABCMeta):
             instantiation_config_schema: ParameterSchema = None 
             if hasattr(cls, 'get_config_schema'):
                 try:
-                    instantiation_config_schema = cls.get_config_schema() 
+                    instantiation_config_schema = cls.get_config_schema()
                     if instantiation_config_schema is not None and not isinstance(instantiation_config_schema, ParameterSchema): 
                         logger.warning(f"Tool class {name} ({tool_name}) get_config_schema() returned non-ParameterSchema type: {type(instantiation_config_schema)}. Treating as no config schema.")
                         instantiation_config_schema = None

@@ -136,19 +136,19 @@ def check_required_env_vars():
     return env_values
 
 def print_all_tool_schemas(registry: ToolRegistry):
-    """Iterates through the tool registry and prints the JSON schema for each tool."""
-    print("\n--- All Registered Tool Schemas ---")
-    tool_names = sorted(registry.list_tool_names())
-    for tool_name in tool_names:
+    """Iterates through the tool registry and prints the JSON schema for each tool from its definition."""
+    print("\n--- All Registered Tool Schemas (from ToolDefinition) ---")
+    all_definitions = registry.list_tools()
+    for tool_definition in sorted(all_definitions, key=lambda d: d.name):
         try:
-            tool_instance = registry.create_tool(tool_name)
-            tool_json_schema = tool_instance.tool_usage_json()
-            print(f"\n# Tool: {tool_name}")
+            # Get the schema directly from the definition object
+            tool_json_schema = tool_definition.usage_json_dict
+            print(f"\n# Tool: {tool_definition.name}")
             print(json.dumps(tool_json_schema, indent=2))
         except Exception as e:
-            print(f"\n# Tool: {tool_name}")
-            print(f"  Error getting schema: {e}")
-    print("\n-------------------------------------\n")
+            print(f"\n# Tool: {tool_definition.name}")
+            print(f"  Error getting schema from definition: {e}")
+    print("\n--------------------------------------------------------\n")
 
 
 async def main():
@@ -195,13 +195,11 @@ async def main():
     # The `finally` block ensures the connection manager cleans up resources
     try:
         # 3. Discover and register tools from the configured server.
-        # This populates the default_tool_registry with tool definitions.
         logger.info("Discovering and registering remote tools...")
         await registrar.discover_and_register_tools()
         logger.info(f"Tool registration complete. Available tools in registry: {tool_registry.list_tool_names()}")
 
         # 4. Create an instance of a specific tool using the ToolRegistry.
-        # The tool name is prefixed as defined in our configuration.
         create_tool_name = f"{tool_prefix}_create_presentation"
         summarize_tool_name = f"{tool_prefix}_summarize_presentation"
         
@@ -212,11 +210,9 @@ async def main():
         summarize_presentation_tool = tool_registry.create_tool(summarize_tool_name)
 
         # 5. Execute the tool using its standard .execute() method.
-        # This is the same way any other AutoByteUs tool is executed.
         presentation_title = f"AutoByteUs E2E Demo - {datetime.now().isoformat()}"
         logger.info(f"Executing '{create_tool_name}' with title: '{presentation_title}'")
         
-        # We need a dummy context for the tool call
         dummy_llm = DummyLLM()
         dummy_config = AgentConfig(
             name="mcp_example_runner_agent",
@@ -229,7 +225,6 @@ async def main():
         dummy_state = AgentRuntimeState(agent_id="mcp_example_runner")
         dummy_context = AgentContext(agent_id="mcp_example_runner", config=dummy_config, state=dummy_state)
         
-        # The result is the raw mcp.types.ToolResult object from the remote call
         create_result = await create_presentation_tool.execute(
             context=dummy_context,
             title=presentation_title

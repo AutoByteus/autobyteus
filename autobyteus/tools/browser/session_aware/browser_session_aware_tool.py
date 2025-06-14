@@ -1,12 +1,14 @@
 # File: autobyteus/tools/browser/session_aware/browser_session_aware_tool.py
 
 from autobyteus.tools.base_tool import BaseTool
+from autobyteus.tools.tool_config import ToolConfig
 from autobyteus.tools.browser.session_aware.shared_browser_session_manager import SharedBrowserSessionManager
 from autobyteus.events.event_types import EventType
+from typing import Optional
 
 class BrowserSessionAwareTool(BaseTool):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, config: Optional[ToolConfig] = None):
+        super().__init__(config=config)
         self.shared_browser_session_manager = SharedBrowserSessionManager()
 
     async def _execute(self, **kwargs):

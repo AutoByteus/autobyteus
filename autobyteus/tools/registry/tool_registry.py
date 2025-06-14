@@ -1,4 +1,4 @@
-# file: autobyteus/autobyteus/tools/registry/tool_registry.py
+# file: autobyteus/tools/registry/tool_registry.py
 import logging
 from typing import Dict, List, Optional, Type, TYPE_CHECKING
 
@@ -88,12 +88,10 @@ class ToolRegistry(metaclass=SingletonMeta):
             
             # Fall back to instantiating the tool_class
             elif definition.tool_class:
-                constructor_kwargs = {}
-                if config:
-                    constructor_kwargs = config.get_constructor_kwargs()
-                
-                logger.info(f"Creating tool instance for '{name}' using class '{definition.tool_class.__name__}' with config: {constructor_kwargs}")
-                tool_instance = definition.tool_class(**constructor_kwargs)
+                # For class-based tools, the convention is to pass the ToolConfig object
+                # itself to the constructor under the 'config' keyword argument.
+                logger.info(f"Creating tool instance for '{name}' using class '{definition.tool_class.__name__}' and passing ToolConfig.")
+                tool_instance = definition.tool_class(config=config)
             
             else:
                 # This case should be prevented by ToolDefinition's validation

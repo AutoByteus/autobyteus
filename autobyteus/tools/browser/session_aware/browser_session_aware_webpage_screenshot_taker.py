@@ -16,10 +16,9 @@ logger = logging.getLogger(__name__)
 class BrowserSessionAwareWebPageScreenshotTaker(BrowserSessionAwareTool):
     """
     A session-aware tool to take a screenshot of the current page in a shared browser session.
-    Screenshot settings (full_page, image_format) can be configured at instantiation.
     """
     def __init__(self, config: Optional[ToolConfig] = None): 
-        super().__init__()
+        super().__init__(config=config)
         
         self.full_page: bool = True 
         self.image_format: str = "png" 
@@ -53,7 +52,7 @@ class BrowserSessionAwareWebPageScreenshotTaker(BrowserSessionAwareTool):
         ))
         schema.add_parameter(ParameterDefinition(
             name="file_name", 
-            param_type=ParameterType.STRING, # MODIFIED from FILE_PATH
+            param_type=ParameterType.STRING,
             description="The local file path (including filename and extension, e.g., 'session_screenshots/page.png') where the screenshot will be saved.",
             required=True
         ))

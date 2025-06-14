@@ -39,9 +39,10 @@ def mock_agent_context():
     return ctx
 
 def test_generic_mcp_tool_properties(generic_mcp_tool_instance: GenericMcpTool, sample_arg_schema):
-    assert generic_mcp_tool_instance.get_instance_name() == "MyCalculator"
-    assert generic_mcp_tool_instance.get_instance_description() == "A remote calculator tool."
-    assert generic_mcp_tool_instance.get_instance_argument_schema() == sample_arg_schema
+    # Test that the instance methods return the specific data they were initialized with
+    assert generic_mcp_tool_instance.get_name() == "MyCalculator"
+    assert generic_mcp_tool_instance.get_description() == "A remote calculator tool."
+    assert generic_mcp_tool_instance.get_argument_schema() == sample_arg_schema
     
     # Test BaseTool static methods (they should return generic info for GenericMcpTool class itself)
     assert GenericMcpTool.get_name() == "GenericMcpTool"
@@ -57,10 +58,10 @@ async def test_execute_success(generic_mcp_tool_instance: GenericMcpTool, mock_c
     expected_result = {"result": "calculation complete"}
     mock_session.call_tool.return_value = expected_result
 
+    # BaseTool.execute calls the internal _execute, so we test that directly
     result = await generic_mcp_tool_instance._execute(context=mock_agent_context, **remote_tool_args)
 
     mock_connection_manager.get_session.assert_awaited_once_with("test_server_123")
-    # Verify the positional call, which is the fix.
     mock_session.call_tool.assert_called_once_with("remote_calculator", remote_tool_args)
     assert result == expected_result
 

@@ -39,8 +39,6 @@ def test_factory_initialization(mcp_tool_factory: McpToolFactory):
 
 def test_factory_creates_correct_tool_instance(mcp_tool_factory: McpToolFactory, mock_connection_manager, sample_arg_schema):
     """Tests the create_tool method."""
-    # Create the tool instance using the factory
-    # Pass a dummy ToolConfig to ensure the factory handles it gracefully (by ignoring it)
     dummy_config = ToolConfig(params={"some_other_param": "value"})
     tool_instance = mcp_tool_factory.create_tool(config=dummy_config)
 
@@ -52,7 +50,7 @@ def test_factory_creates_correct_tool_instance(mcp_tool_factory: McpToolFactory,
     assert tool_instance._mcp_remote_tool_name == "remote_calculator"
     assert tool_instance._mcp_connection_manager == mock_connection_manager
     
-    # 3. Check if the instance properties are set correctly
-    assert tool_instance.get_instance_name() == "MyCalculator"
-    assert tool_instance.get_instance_description() == "A remote calculator tool."
-    assert tool_instance.get_instance_argument_schema() == sample_arg_schema
+    # 3. Check if the instance properties are set correctly by calling the overridden methods
+    assert tool_instance.get_name() == "MyCalculator"
+    assert tool_instance.get_description() == "A remote calculator tool."
+    assert tool_instance.get_argument_schema() == sample_arg_schema

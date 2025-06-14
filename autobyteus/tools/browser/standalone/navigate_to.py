@@ -1,4 +1,5 @@
 from autobyteus.tools.base_tool import BaseTool
+from autobyteus.tools.tool_config import ToolConfig
 from brui_core.ui_integrator import UIIntegrator
 from urllib.parse import urlparse
 from typing import Optional, TYPE_CHECKING, Any
@@ -17,8 +18,8 @@ class NavigateTo(BaseTool, UIIntegrator):
     It initializes and closes its own browser instance for each navigation.
     """
 
-    def __init__(self): # No instantiation config
-        BaseTool.__init__(self)
+    def __init__(self, config: Optional[ToolConfig] = None):
+        BaseTool.__init__(self, config=config)
         UIIntegrator.__init__(self)
         logger.debug("NavigateTo (standalone) tool initialized.")
 
@@ -36,37 +37,24 @@ class NavigateTo(BaseTool, UIIntegrator):
             required=True
         ))
         return schema
-    
-    # get_config_schema() returns None by default from BaseTool (no instantiation config)
 
-    async def _execute(self, context: 'AgentContext', url: str) -> str: # Named parameter 'url'
-        """
-        Navigates to the specified URL.
-        'url' argument is validated by BaseTool.execute().
-        """
+    async def _execute(self, context: 'AgentContext', url: str) -> str:
         logger.info(f"NavigateTo (standalone) for agent {context.agent_id} navigating to: {url}")
 
         if not self._is_valid_url(url):
-            # This specific validation can remain here as it's semantic for URLs
-            # beyond what ParameterType.STRING can check.
             error_msg = f"Invalid URL format: {url}. Must include scheme (e.g., http, https) and netloc."
             logger.warning(f"NavigateTo (standalone) validation error for agent {context.agent_id}: {error_msg}")
-            # Raising ValueError here is fine; BaseTool.execute might catch it or let it propagate.
-            # For consistency, it's better if BaseTool validation is the primary source of ValueErrors for args.
-            # ParameterType.STRING could have a regex for URL pattern in schema if desired.
-            # For now, keeping this explicit validation.
             raise ValueError(error_msg)
 
         try:
-            await self.initialize() # Initialize Playwright from UIIntegrator
+            await self.initialize()
             if not self.page:
                  logger.error("Playwright page not initialized in NavigateTo (standalone).")
                  raise RuntimeError("Playwright page not available for NavigateTo.")
 
-            # Consider making wait_until configurable or using a more robust option like "networkidle"
             response = await self.page.goto(url, wait_until="domcontentloaded", timeout=60000) 
             
-            if response and response.ok: # Check if response is not None before response.ok
+            if response and response.ok:
                 success_msg = f"Successfully navigated to {url}"
                 logger.info(f"NavigateTo (standalone) for agent {context.agent_id}: {success_msg}")
                 return success_msg
@@ -74,15 +62,15 @@ class NavigateTo(BaseTool, UIIntegrator):
                 status = response.status if response else "Unknown"
                 failure_msg = f"Navigation to {url} failed with status {status}"
                 logger.warning(f"NavigateTo (standalone) for agent {context.agent_id}: {failure_msg}")
-                return failure_msg # Return failure message, not raise error for HTTP status
+                return failure_msg
         except Exception as e:
             logger.error(f"Error during NavigateTo (standalone) for URL '{url}', agent {context.agent_id}: {e}", exc_info=True)
             raise RuntimeError(f"NavigateTo (standalone) failed for URL '{url}': {str(e)}")
         finally:
-            await self.close() # Close Playwright from UIIntegrator
+            await self.close()
 
     @staticmethod
-    def _is_valid_url(url_string: str) -> bool: # Added type hint
+    def _is_valid_url(url_string: str) -> bool:
         try:
             result = urlparse(url_string)
             return all([result.scheme, result.netloc])

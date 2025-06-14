@@ -29,16 +29,6 @@ class GenericMcpTool(BaseTool):
                  argument_schema: ParameterSchema):
         """
         Initializes the GenericMcpTool instance.
-        These parameters are typically captured and passed by a factory function
-        created by the McpToolRegistrar.
-
-        Args:
-            mcp_server_id: The unique name/identifier of the MCP server configuration.
-            mcp_remote_tool_name: The actual name of the tool on the remote MCP server.
-            mcp_connection_manager: Reference to the McpConnectionManager.
-            name: The registered name for this tool in AutoByteUs (e.g., prefixed name).
-            description: The description for this tool (from remote tool).
-            argument_schema: The ParameterSchema for this tool's arguments (mapped from remote tool).
         """
         super().__init__() 
         
@@ -51,6 +41,9 @@ class GenericMcpTool(BaseTool):
         self._instance_argument_schema = argument_schema
         
         # Override the class methods with instance-specific versions
+        self.get_name = self.get_instance_name
+        self.get_description = self.get_instance_description
+        self.get_argument_schema = self.get_instance_argument_schema
         self.tool_usage_xml = self._instance_tool_usage_xml
         self.tool_usage_json = self._instance_tool_usage_json
         
@@ -65,17 +58,17 @@ class GenericMcpTool(BaseTool):
         description = self.get_instance_description()
         arg_schema = self.get_instance_argument_schema()
         
-        xml_parts = [f"<command name=\"{name}\">"]
-        escaped_tool_description = xml.sax.saxutils.escape(str(description)) if description is not None else "No description provided."
-        xml_parts.append(f"    <!-- Description: {escaped_tool_description} -->")
+        escaped_description = xml.sax.saxutils.escape(str(description)) if description is not None else ""
+        command_tag = f'<command name="{name}" description="{escaped_description}">'
+        xml_parts = [command_tag]
 
         if arg_schema and arg_schema.parameters:
             for param in arg_schema.parameters:
                 arg_tag = f"    <arg name=\"{param.name}\""
                 arg_tag += f" type=\"{param.param_type.value}\""
                 if param.description:
-                    escaped_description = xml.sax.saxutils.escape(param.description)
-                    arg_tag += f" description=\"{escaped_description}\""
+                    escaped_param_desc = xml.sax.saxutils.escape(param.description)
+                    arg_tag += f" description=\"{escaped_param_desc}\""
                 arg_tag += f" required=\"{'true' if param.required else 'false'}\""
 
                 if param.default_value is not None:
@@ -139,24 +132,11 @@ class GenericMcpTool(BaseTool):
     def get_argument_schema(cls) -> Optional[ParameterSchema]:
         return None 
 
-
     async def _execute(self, context: 'AgentContext', **kwargs: Any) -> Any:
         """
         Executes the remote MCP tool call.
-
-        Args:
-            context: The agent's context.
-            **kwargs: Arguments for the remote tool, matching its mapped schema.
-
-        Returns:
-            The result from the remote MCP tool.
-        
-        Raises:
-            RuntimeError: If session acquisition or tool call fails.
         """
-        # Note: self.__class__.get_name() inside super().execute() will still return "GenericMcpTool"
-        # which is acceptable for the generic logging in BaseTool.
-        # The important part is that the schema generation is now instance-specific.
+        # self.get_name() will now call the instance's lambda and return the specific name
         tool_name_for_log = self.get_instance_name()
         logger.info(f"GenericMcpTool '{tool_name_for_log}': Executing remote tool '{self._mcp_remote_tool_name}' "
                     f"on server '{self._mcp_server_id}' with args: {kwargs}")

@@ -2,6 +2,7 @@
 import logging
 import asyncio 
 import json
+import xml.sax.saxutils
 from typing import Callable, Optional, Any, Dict
 
 # Consolidated imports from the autobyteus.autobyteus.mcp package public API
@@ -137,19 +138,17 @@ class McpToolRegistrar:
         logger.info(f"MCP tool discovery and registration process completed. Total tools registered: {registered_count}.")
 
     def _generate_usage_xml(self, name: str, description: str, arg_schema: Optional[ParameterSchema]) -> str:
-        import xml.sax.saxutils
-
-        xml_parts = [f"<command name=\"{name}\">"]
-        escaped_tool_description = xml.sax.saxutils.escape(str(description)) if description is not None else "No description provided."
-        xml_parts.append(f"    <!-- Description: {escaped_tool_description} -->")
+        escaped_description = xml.sax.saxutils.escape(str(description)) if description is not None else ""
+        command_tag = f'<command name="{name}" description="{escaped_description}">'
+        xml_parts = [command_tag]
         
         if arg_schema and arg_schema.parameters:
             for param in arg_schema.parameters: 
                 arg_tag = f"    <arg name=\"{param.name}\""
                 arg_tag += f" type=\"{param.param_type.value}\""
                 if param.description:
-                    escaped_description = xml.sax.saxutils.escape(param.description)
-                    arg_tag += f" description=\"{escaped_description}\""
+                    escaped_param_desc = xml.sax.saxutils.escape(param.description)
+                    arg_tag += f" description=\"{escaped_param_desc}\""
                 arg_tag += f" required=\"{'true' if param.required else 'false'}\""
 
                 if param.default_value is not None:

@@ -3,6 +3,7 @@
 import logging
 from abc import ABC, abstractmethod
 from typing import Optional, Any, TYPE_CHECKING, List as TypingList, Dict
+import xml.sax.saxutils
 
 from autobyteus.events.event_emitter import EventEmitter
 from autobyteus.events.event_types import EventType
@@ -10,27 +11,31 @@ from autobyteus.events.event_types import EventType
 from .tool_meta import ToolMeta
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
-    from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition # Updated import path
+    from autobyteus.tools.parameter_schema import ParameterSchema
+    from autobyteus.tools.tool_config import ToolConfig
 
 logger = logging.getLogger('autobyteus')
 
 class BaseTool(ABC, EventEmitter, metaclass=ToolMeta):
     """
     Abstract base class for all tools, with auto-registration via ToolMeta.
-    ...
     """
-    def __init__(self):
+    def __init__(self, config: Optional['ToolConfig'] = None):
         super().__init__()
         self.agent_id: Optional[str] = None
+        # The config is stored primarily for potential use by subclasses or future base features.
+        self._config = config
         logger.debug(f"BaseTool instance initializing for potential class {self.__class__.__name__}")
 
     @classmethod
     def get_name(cls) -> str:
+        """Returns the registered name of the tool."""
         return cls.__name__
     
     @classmethod
     @abstractmethod
     def get_description(cls) -> str:
+        """Returns the description of the tool."""
         raise NotImplementedError("Subclasses must implement get_description().")
 
     @classmethod
@@ -39,7 +44,6 @@ class BaseTool(ABC, EventEmitter, metaclass=ToolMeta):
         """
         Return a ParameterSchema defining the arguments this tool accepts for execution.
         Return None if the tool accepts no arguments.
-        Must be implemented by subclasses.
         """
         raise NotImplementedError("Subclasses must implement get_argument_schema().")
 
@@ -47,26 +51,29 @@ class BaseTool(ABC, EventEmitter, metaclass=ToolMeta):
     def get_config_schema(cls) -> Optional['ParameterSchema']: 
         """
         Return the ParameterSchema for tool *instantiation* parameters.
-        This is optional. If a tool needs parameters during its construction,
-        it can override this method.
-        By default, tools have no instantiation config.
+        This is optional. By default, tools have no instantiation config.
         """
         return None
 
     @classmethod
     def tool_usage_xml(cls) -> str:
+        """Generates the XML usage string based on the tool's class schema."""
         arg_schema = cls.get_argument_schema()
+        tool_name = cls.get_name()
+        description = cls.get_description()
         
-        xml_parts = [f"<command name=\"{cls.get_name()}\">"]
+        escaped_description = xml.sax.saxutils.escape(description) if description else ""
+        command_tag = f'<command name="{tool_name}" description="{escaped_description}">'
+        
+        xml_parts = [command_tag]
         
         if arg_schema and arg_schema.parameters:
             for param in arg_schema.parameters: 
                 arg_tag = f"    <arg name=\"{param.name}\""
                 arg_tag += f" type=\"{param.param_type.value}\""
                 if param.description:
-                    import xml.sax.saxutils
-                    escaped_description = xml.sax.saxutils.escape(param.description)
-                    arg_tag += f" description=\"{escaped_description}\""
+                    escaped_param_desc = xml.sax.saxutils.escape(param.description)
+                    arg_tag += f" description=\"{escaped_param_desc}\""
                 arg_tag += f" required=\"{'true' if param.required else 'false'}\""
 
                 if param.default_value is not None:
@@ -85,6 +92,7 @@ class BaseTool(ABC, EventEmitter, metaclass=ToolMeta):
 
     @classmethod
     def tool_usage_json(cls) -> Dict[str, Any]:
+        """Generates the JSON usage dictionary based on the tool's class schema."""
         name = cls.get_name()
         description = cls.get_description()
         arg_schema = cls.get_argument_schema() 
@@ -107,13 +115,14 @@ class BaseTool(ABC, EventEmitter, metaclass=ToolMeta):
 
     def set_agent_id(self, agent_id: str):
         if not isinstance(agent_id, str) or not agent_id:
-            logger.error(f"Attempted to set invalid agent_id: {agent_id} for tool {self.__class__.get_name()}")
+            logger.error(f"Attempted to set invalid agent_id: {agent_id} for tool {self.get_name()}")
             return
         self.agent_id = agent_id
         logger.debug(f"Agent ID '{agent_id}' set for tool instance '{self.__class__.get_name()}'")
 
     async def execute(self, context: 'AgentContext', **kwargs):
-        tool_name = self.__class__.get_name()
+        # In this context, self.get_name() will call the instance-specific method if it exists.
+        tool_name = self.get_name()
         if self.agent_id is None:
             self.set_agent_id(context.agent_id)
         elif self.agent_id != context.agent_id:
@@ -123,7 +132,7 @@ class BaseTool(ABC, EventEmitter, metaclass=ToolMeta):
             )
             self.set_agent_id(context.agent_id)
         
-        arg_schema = self.__class__.get_argument_schema() 
+        arg_schema = self.get_argument_schema() 
         if arg_schema:
             is_valid, errors = arg_schema.validate_config(kwargs)
             if not is_valid:
