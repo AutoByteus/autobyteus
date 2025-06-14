@@ -1,10 +1,11 @@
 # file: autobyteus/autobyteus/mcp/tool.py
 import logging
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING, Dict
 import asyncio
+import xml.sax.saxutils
 
 from autobyteus.tools.base_tool import BaseTool
-from autobyteus.tools.parameter_schema import ParameterSchema
+from autobyteus.tools.parameter_schema import ParameterSchema, ParameterType
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
     from .connection_manager import McpConnectionManager 
@@ -15,11 +16,12 @@ class GenericMcpTool(BaseTool):
     """
     A generic tool wrapper for executing tools on a remote MCP server.
     This tool is instantiated by a custom factory specific to a discovered
-    remote MCP tool.
+    remote MCP tool. It overrides the base class's schema generation methods
+    to provide instance-specific details.
     """
 
     def __init__(self,
-                 mcp_server_id: str, # This now corresponds to McpConfig.server_name
+                 mcp_server_id: str,
                  mcp_remote_tool_name: str,
                  mcp_connection_manager: 'McpConnectionManager',
                  name: str, 
@@ -31,8 +33,7 @@ class GenericMcpTool(BaseTool):
         created by the McpToolRegistrar.
 
         Args:
-            mcp_server_id: The unique name/identifier of the MCP server configuration
-                           (corresponds to McpConfig.server_name).
+            mcp_server_id: The unique name/identifier of the MCP server configuration.
             mcp_remote_tool_name: The actual name of the tool on the remote MCP server.
             mcp_connection_manager: Reference to the McpConnectionManager.
             name: The registered name for this tool in AutoByteUs (e.g., prefixed name).
@@ -41,7 +42,7 @@ class GenericMcpTool(BaseTool):
         """
         super().__init__() 
         
-        self._mcp_server_id = mcp_server_id # This is McpConfig.server_name
+        self._mcp_server_id = mcp_server_id
         self._mcp_remote_tool_name = mcp_remote_tool_name
         self._mcp_connection_manager = mcp_connection_manager
         
@@ -49,8 +50,71 @@ class GenericMcpTool(BaseTool):
         self._instance_description = description
         self._instance_argument_schema = argument_schema
         
-        logger.info(f"GenericMcpTool instance created for remote tool '{mcp_remote_tool_name}' on server '{self._mcp_server_id}'. " # Log uses mcp_server_id which is server_name
-                    f"Registered in AutoByteUs as '{self._instance_name}'.")
+        # Override the class methods with instance-specific versions
+        self.tool_usage_xml = self._instance_tool_usage_xml
+        self.tool_usage_json = self._instance_tool_usage_json
+        
+        logger.info(f"GenericMcpTool instance created for remote tool '{mcp_remote_tool_name}' on server '{self._mcp_server_id}'. "
+                    f"Registered in AutoByteUs as '{self._instance_name}'. Schema methods overridden.")
+
+    # --- Instance-specific schema generation methods ---
+
+    def _instance_tool_usage_xml(self) -> str:
+        """Generates the XML usage string using instance-specific data."""
+        name = self.get_instance_name()
+        description = self.get_instance_description()
+        arg_schema = self.get_instance_argument_schema()
+        
+        xml_parts = [f"<command name=\"{name}\">"]
+        escaped_tool_description = xml.sax.saxutils.escape(str(description)) if description is not None else "No description provided."
+        xml_parts.append(f"    <!-- Description: {escaped_tool_description} -->")
+
+        if arg_schema and arg_schema.parameters:
+            for param in arg_schema.parameters:
+                arg_tag = f"    <arg name=\"{param.name}\""
+                arg_tag += f" type=\"{param.param_type.value}\""
+                if param.description:
+                    escaped_description = xml.sax.saxutils.escape(param.description)
+                    arg_tag += f" description=\"{escaped_description}\""
+                arg_tag += f" required=\"{'true' if param.required else 'false'}\""
+
+                if param.default_value is not None:
+                    arg_tag += f" default=\"{xml.sax.saxutils.escape(str(param.default_value))}\""
+                if param.param_type == ParameterType.ENUM and param.enum_values:
+                    escaped_enum_values = [xml.sax.saxutils.escape(ev) for ev in param.enum_values]
+                    arg_tag += f" enum_values=\"{','.join(escaped_enum_values)}\""
+                
+                arg_tag += " />"
+                xml_parts.append(arg_tag)
+        else:
+            xml_parts.append("    <!-- This tool takes no arguments -->")
+            
+        xml_parts.append("</command>")
+        return "\n".join(xml_parts)
+
+    def _instance_tool_usage_json(self) -> Dict[str, Any]:
+        """Generates the JSON usage dictionary using instance-specific data."""
+        name = self.get_instance_name()
+        description = self.get_instance_description()
+        arg_schema = self.get_instance_argument_schema()
+
+        input_schema_dict = {}
+        if arg_schema:
+            input_schema_dict = arg_schema.to_json_schema_dict()
+        else:
+            input_schema_dict = {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+            
+        return {
+            "name": name,
+            "description": str(description) if description is not None else "No description provided.",
+            "inputSchema": input_schema_dict,
+        }
+
+    # --- Getters for instance-specific data ---
 
     def get_instance_name(self) -> str:
         return self._instance_name
@@ -60,6 +124,8 @@ class GenericMcpTool(BaseTool):
 
     def get_instance_argument_schema(self) -> ParameterSchema:
         return self._instance_argument_schema
+
+    # --- Base class methods that are NOT overridden at instance level ---
 
     @classmethod
     def get_name(cls) -> str:
@@ -88,25 +154,27 @@ class GenericMcpTool(BaseTool):
         Raises:
             RuntimeError: If session acquisition or tool call fails.
         """
-        logger.info(f"GenericMcpTool '{self._instance_name}': Executing remote tool '{self._mcp_remote_tool_name}' "
-                    f"on server '{self._mcp_server_id}' with args: {kwargs}") # Log uses mcp_server_id which is server_name
+        # Note: self.__class__.get_name() inside super().execute() will still return "GenericMcpTool"
+        # which is acceptable for the generic logging in BaseTool.
+        # The important part is that the schema generation is now instance-specific.
+        tool_name_for_log = self.get_instance_name()
+        logger.info(f"GenericMcpTool '{tool_name_for_log}': Executing remote tool '{self._mcp_remote_tool_name}' "
+                    f"on server '{self._mcp_server_id}' with args: {kwargs}")
         
         if not self._mcp_connection_manager: 
-             logger.error(f"GenericMcpTool '{self._instance_name}': McpConnectionManager is not set. Cannot execute.")
+             logger.error(f"GenericMcpTool '{tool_name_for_log}': McpConnectionManager is not set. Cannot execute.")
              raise RuntimeError("McpConnectionManager not available in GenericMcpTool instance.")
 
         try:
-            # self._mcp_server_id is the server_name to use for getting the session
             session = await self._mcp_connection_manager.get_session(self._mcp_server_id)
         except Exception as e:
-            logger.error(f"GenericMcpTool '{self._instance_name}': Failed to get MCP session for server '{self._mcp_server_id}': {e}", exc_info=True) # Log uses mcp_server_id
+            logger.error(f"GenericMcpTool '{tool_name_for_log}': Failed to get MCP session for server '{self._mcp_server_id}': {e}", exc_info=True)
             raise RuntimeError(f"Failed to acquire MCP session for server '{self._mcp_server_id}': {e}") from e
 
         try:
-            # The arguments dictionary is passed positionally.
             result = await session.call_tool(self._mcp_remote_tool_name, kwargs)
-            logger.info(f"GenericMcpTool '{self._instance_name}': Remote tool '{self._mcp_remote_tool_name}' executed successfully. Result preview: {str(result)[:100]}...")
+            logger.info(f"GenericMcpTool '{tool_name_for_log}': Remote tool '{self._mcp_remote_tool_name}' executed successfully. Result preview: {str(result)[:100]}...")
             return result
         except Exception as e:
-            logger.error(f"GenericMcpTool '{self._instance_name}': Error calling remote tool '{self._mcp_remote_tool_name}' on server '{self._mcp_server_id}': {e}", exc_info=True) # Log uses mcp_server_id
+            logger.error(f"GenericMcpTool '{tool_name_for_log}': Error calling remote tool '{self._mcp_remote_tool_name}' on server '{self._mcp_server_id}': {e}", exc_info=True)
             raise RuntimeError(f"Error calling remote MCP tool '{self._mcp_remote_tool_name}': {e}") from e

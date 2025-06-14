@@ -6,6 +6,7 @@ import json
 import argparse
 from pathlib import Path
 from datetime import datetime
+from typing import AsyncIterator, Optional, List
 
 # --- Boilerplate to make the script runnable from the project root ---
 
@@ -37,8 +38,11 @@ try:
         McpSchemaMapper,
         McpToolRegistrar,
     )
-    from autobyteus.tools.registry import default_tool_registry
-    from autobyteus.agent.context import AgentContext
+    from autobyteus.tools.registry import ToolRegistry, default_tool_registry
+    from autobyteus.agent.context import AgentContext, AgentConfig, AgentRuntimeState
+    from autobyteus.llm.base_llm import BaseLLM
+    from autobyteus.llm.user_message import LLMUserMessage
+    from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 except ImportError as e:
     print(f"Error importing autobyteus components: {e}", file=sys.stderr)
     print("Please ensure that the autobyteus library is installed and accessible in your PYTHONPATH.", file=sys.stderr)
@@ -47,6 +51,46 @@ except ImportError as e:
 # --- Basic Logging Setup ---
 # A logger for this script
 logger = logging.getLogger("mcp_client_example")
+
+# --- Dummy LLM for creating AgentContext ---
+class DummyLLM(BaseLLM):
+    """A dummy LLM implementation required to instantiate AgentConfig."""
+    def __init__(self):
+        # We need to provide a model and config to the BaseLLM constructor.
+        # Let's use a dummy model configuration.
+        from autobyteus.llm.models import LLMModel
+        from autobyteus.llm.utils.llm_config import LLMConfig
+        from autobyteus.llm.llm_factory import default_llm_factory
+
+        # Ensure factory is initialized to access models
+        default_llm_factory.ensure_initialized()
+
+        # Pick any existing model for the dummy, e.g., the first one available.
+        try:
+            # Iterating through LLMModel is now possible due to metaclass
+            dummy_model_instance = next(iter(LLMModel))
+        except StopIteration:
+            # This is a fallback in case no models are registered, which is unlikely but safe.
+            raise RuntimeError("No LLMModels are registered in the factory. Cannot create DummyLLM.")
+        
+        super().__init__(model=dummy_model_instance, llm_config=LLMConfig())
+
+    def configure_system_prompt(self, system_prompt: str):
+        # This is on BaseLLM. My no-op implementation is fine.
+        super().configure_system_prompt(system_prompt)
+
+    async def _send_user_message_to_llm(self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs) -> CompleteResponse:
+        """Dummy implementation for sending a message."""
+        logger.debug("DummyLLM._send_user_message_to_llm called.")
+        return CompleteResponse(content="This is a dummy response from a dummy LLM.", usage=None)
+
+    async def _stream_user_message_to_llm(
+        self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs
+    ) -> AsyncIterator[ChunkResponse]:
+        """Dummy implementation for streaming a message."""
+        logger.debug("DummyLLM._stream_user_message_to_llm called.")
+        yield ChunkResponse(content="This is a dummy response from a dummy LLM.", is_complete=True, usage=None)
+
 
 def setup_logging(debug: bool = False):
     """Configures logging for the script."""
@@ -90,6 +134,22 @@ def check_required_env_vars():
         logger.error(f"The script path specified by TEST_GOOGLE_SLIDES_MCP_SCRIPT_PATH does not exist: {env_values['script_path']}")
         sys.exit(1)
     return env_values
+
+def print_all_tool_schemas(registry: ToolRegistry):
+    """Iterates through the tool registry and prints the JSON schema for each tool."""
+    print("\n--- All Registered Tool Schemas ---")
+    tool_names = sorted(registry.list_tool_names())
+    for tool_name in tool_names:
+        try:
+            tool_instance = registry.create_tool(tool_name)
+            tool_json_schema = tool_instance.tool_usage_json()
+            print(f"\n# Tool: {tool_name}")
+            print(json.dumps(tool_json_schema, indent=2))
+        except Exception as e:
+            print(f"\n# Tool: {tool_name}")
+            print(f"  Error getting schema: {e}")
+    print("\n-------------------------------------\n")
+
 
 async def main():
     """
@@ -157,7 +217,17 @@ async def main():
         logger.info(f"Executing '{create_tool_name}' with title: '{presentation_title}'")
         
         # We need a dummy context for the tool call
-        dummy_context = AgentContext(agent_id="mcp_example_runner")
+        dummy_llm = DummyLLM()
+        dummy_config = AgentConfig(
+            name="mcp_example_runner_agent",
+            role="tool_runner",
+            description="A dummy agent config for running tools outside of a full agent.",
+            llm_instance=dummy_llm,
+            system_prompt="N/A",
+            tools=[]
+        )
+        dummy_state = AgentRuntimeState(agent_id="mcp_example_runner")
+        dummy_context = AgentContext(agent_id="mcp_example_runner", config=dummy_config, state=dummy_state)
         
         # The result is the raw mcp.types.ToolResult object from the remote call
         create_result = await create_presentation_tool.execute(
@@ -186,11 +256,14 @@ async def main():
         print("\n--- Presentation Summary ---")
         print(presentation_summary)
         print("--------------------------\n")
+        
+        # 7. Print all tool schemas for verification
+        print_all_tool_schemas(tool_registry)
 
     except Exception as e:
         logger.error(f"An error occurred during the workflow: {e}", exc_info=True)
     finally:
-        # 7. Clean up all connections.
+        # 8. Clean up all connections.
         logger.info("Cleaning up MCP connections...")
         await conn_manager.cleanup()
         logger.info("Cleanup complete.")

@@ -1,6 +1,7 @@
 # file: autobyteus/autobyteus/mcp/registrar.py
 import logging
 import asyncio 
+import json
 from typing import Callable, Optional, Any, Dict
 
 # Consolidated imports from the autobyteus.autobyteus.mcp package public API
@@ -86,7 +87,11 @@ class McpToolRegistrar:
 
                 for remote_tool in actual_remote_tools: 
                     try:
-                        logger.debug(f"Processing remote tool '{remote_tool.name}' from server '{server_config.server_id}'.")
+                        # Log the entire tool definition as a JSON object
+                        if hasattr(remote_tool, 'model_dump_json'):
+                             logger.debug(f"Processing remote tool from server '{server_config.server_id}':\n{remote_tool.model_dump_json(indent=2)}")
+                        else: # Fallback for older Pydantic or other objects
+                             logger.debug(f"Processing remote tool '{remote_tool.name}' from server '{server_config.server_id}'. Schema: {remote_tool.inputSchema}")
                         
                         actual_arg_schema = self._schema_mapper.map_to_autobyteus_schema(remote_tool.inputSchema)
                         actual_desc = remote_tool.description

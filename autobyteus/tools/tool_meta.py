@@ -16,8 +16,9 @@ class ToolMeta(ABCMeta):
     def __init__(cls, name, bases, dct):
         super().__init__(name, bases, dct)
 
-        if name == 'BaseTool' or getattr(cls, "__abstractmethods__", None):
-             logger.debug(f"Skipping registration for abstract or BaseTool class: {name}")
+        # Skip registration for special classes that are not meant to be standalone tools.
+        if name in ['BaseTool', 'GenericMcpTool'] or getattr(cls, "__abstractmethods__", None):
+             logger.debug(f"Skipping registration for abstract or special tool class: {name}")
              return
 
         try:
