@@ -1,4 +1,7 @@
 *.pyc
+examples/google_slide
+examples/slides.js
+
 .env
 azure.yaml
 ai_settings.yaml
