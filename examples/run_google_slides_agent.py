@@ -67,11 +67,13 @@ def setup_logging(args: argparse.Namespace):
 
     script_log_level = logging.DEBUG if args.debug else logging.INFO
 
+    # 1. Handler for unformatted interactive output
     interactive_handler = logging.StreamHandler(sys.stdout)
     interactive_logger.addHandler(interactive_handler)
     interactive_logger.setLevel(logging.INFO)
     interactive_logger.propagate = False
 
+    # 2. Handler for formatted console logs
     console_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
     
     class FormattedConsoleFilter(logging.Filter):
@@ -90,7 +92,9 @@ def setup_logging(args: argparse.Namespace):
     root_logger.addHandler(formatted_console_handler)
     root_logger.setLevel(script_log_level) 
     
-    log_file_path = Path("./agent_logs_gslides.txt").resolve()
+    # 3. Handler for the main agent log file
+    log_file_path = Path(args.agent_log_file).resolve()
+    log_file_path.parent.mkdir(parents=True, exist_ok=True)
     agent_file_handler = logging.FileHandler(log_file_path, mode='w')  
     agent_file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s:%(lineno)d - %(message)s')
     agent_file_handler.setFormatter(agent_file_formatter)
@@ -101,6 +105,23 @@ def setup_logging(args: argparse.Namespace):
     autobyteus_logger.setLevel(file_log_level)
     autobyteus_logger.propagate = True
 
+    # 4. Isolate noisy queue manager logs to a separate file in debug mode
+    if args.debug:
+        queue_log_file_path = Path(log_file_path.parent / f"{log_file_path.stem}_queue.log").resolve()
+        
+        queue_file_handler = logging.FileHandler(queue_log_file_path, mode='w')
+        queue_file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+        queue_file_handler.setFormatter(queue_file_formatter)
+        
+        queue_logger = logging.getLogger("autobyteus.agent.events.agent_input_event_queue_manager")
+        
+        queue_logger.setLevel(logging.DEBUG)
+        queue_logger.addHandler(queue_file_handler)
+        queue_logger.propagate = False # IMPORTANT: Stop logs from bubbling up to the main agent_logs.txt
+
+        logger.info(f"Debug mode: Redirecting noisy queue manager DEBUG logs to: {queue_log_file_path}")
+
+    # 5. Configure `autobyteus.cli` package logging
     cli_logger = logging.getLogger("autobyteus.cli")
     cli_logger.setLevel(script_log_level)
     cli_logger.propagate = True
@@ -215,7 +236,7 @@ async def main(args: argparse.Namespace):
             llm_instance=llm_instance,
             system_prompt=system_prompt,
             tools=tools_for_agent,
-            auto_execute_tools=True,  # For simplicity, tools will execute without asking for approval.
+            auto_execute_tools=True,
             use_xml_tool_format=True
         )
 
@@ -241,7 +262,11 @@ if __name__ == "__main__":
     parser.add_argument("--llm-model", type=str, default="GPT_4o_API", help=f"The LLM model to use. Call --help-models for list.")
     parser.add_argument("--help-models", action="store_true", help="Display available LLM models and exit.")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging.")
-    
+    parser.add_argument("--agent-log-file", type=str, default="./agent_logs_gslides.txt", 
+                       help="Path to the log file for autobyteus.* library logs. (Default: ./agent_logs_gslides.txt)")
+    parser.add_argument("--no-tool-logs", action="store_true", 
+                        help="Disable display of [Tool Log (...)] messages on the console by the agent_cli.")
+
     if "--help-models" in sys.argv:
         try:
             LLMFactory.ensure_initialized() 

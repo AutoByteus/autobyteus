@@ -1,6 +1,6 @@
 # file: autobyteus/autobyteus/mcp/tool.py
 import logging
-from typing import Any, Optional, TYPE_CHECKING, Dict
+from typing import Any, Optional, TYPE_CHECKING, Dict, Set
 import asyncio
 import xml.sax.saxutils
 
@@ -151,10 +151,41 @@ class GenericMcpTool(BaseTool):
             logger.error(f"GenericMcpTool '{tool_name_for_log}': Failed to get MCP session for server '{self._mcp_server_id}': {e}", exc_info=True)
             raise RuntimeError(f"Failed to acquire MCP session for server '{self._mcp_server_id}': {e}") from e
 
+        # This block is an explicit way to prevent a deadlock.
+        # The mcp.ClientSession runs a background task to read server responses. If the
+        # current task (this _execute method) blocks the event loop by awaiting
+        # `session.call_tool` directly, the background reader may never get a chance
+        # to run and process the response, causing a deadlock.
+        #
+        # To solve this, we explicitly create a task for the tool call and use
+        # `asyncio.wait` to yield control to the event loop, giving the background
+        # reader a chance to run.
+        tool_call_task = asyncio.create_task(session.call_tool(self._mcp_remote_tool_name, kwargs))
+        pending: Set[asyncio.Task] = {tool_call_task}
+
         try:
-            result = await session.call_tool(self._mcp_remote_tool_name, kwargs)
+            while pending:
+                # The waiter task ensures we yield control at least once.
+                waiter_task = asyncio.create_task(asyncio.sleep(0.01))
+                done, pending = await asyncio.wait(
+                    pending.union({waiter_task}), 
+                    return_when=asyncio.FIRST_COMPLETED
+                )
+
+                # If the waiter task finished, we just loop again to check the tool call task.
+                # If the tool call finished, the loop will exit.
+                if waiter_task in done:
+                    pending.discard(waiter_task) # No longer need to wait on the waiter
+            
+            # At this point, tool_call_task is in the 'done' set.
+            result = await tool_call_task
+            
             logger.info(f"GenericMcpTool '{tool_name_for_log}': Remote tool '{self._mcp_remote_tool_name}' executed successfully. Result preview: {str(result)[:100]}...")
             return result
         except Exception as e:
             logger.error(f"GenericMcpTool '{tool_name_for_log}': Error calling remote tool '{self._mcp_remote_tool_name}' on server '{self._mcp_server_id}': {e}", exc_info=True)
+            # Ensure the task is cancelled if an error occurs during waiting.
+            if not tool_call_task.done():
+                tool_call_task.cancel()
             raise RuntimeError(f"Error calling remote MCP tool '{self._mcp_remote_tool_name}': {e}") from e
+
