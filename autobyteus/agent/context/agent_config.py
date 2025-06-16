@@ -2,9 +2,10 @@
 import logging
 from typing import List, Optional, Union, Tuple, TYPE_CHECKING
 
-# LLMConfig is no longer needed here for the constructor
-from autobyteus.agent.llm_response_processor import XmlToolUsageProcessor, BaseLLMResponseProcessor
 from autobyteus.agent.system_prompt_processor import ToolDescriptionInjectorProcessor, ToolUsageExampleInjectorProcessor, BaseSystemPromptProcessor
+# Correctly import the new master processor and the base class
+from autobyteus.agent.llm_response_processor import ProviderAwareToolUsageProcessor, BaseLLMResponseProcessor
+
 
 if TYPE_CHECKING:
     from autobyteus.tools.base_tool import BaseTool
@@ -20,7 +21,8 @@ class AgentConfig:
     This is the single source of truth for an agent's definition, including
     its identity, capabilities, and default behaviors.
     """
-    DEFAULT_LLM_RESPONSE_PROCESSORS = [XmlToolUsageProcessor()]
+    # Use the new ProviderAwareToolUsageProcessor as the default
+    DEFAULT_LLM_RESPONSE_PROCESSORS = [ProviderAwareToolUsageProcessor()]
     DEFAULT_SYSTEM_PROMPT_PROCESSORS = [ToolDescriptionInjectorProcessor(), ToolUsageExampleInjectorProcessor()]
 
     def __init__(self,
@@ -70,5 +72,4 @@ class AgentConfig:
         logger.debug(f"AgentConfig created for name '{self.name}', role '{self.role}'.")
 
     def __repr__(self) -> str:
-        # llm_model_name removed from repr
         return (f"AgentConfig(name='{self.name}', role='{self.role}', llm_instance='{self.llm_instance.__class__.__name__}', workspace_configured={self.workspace is not None})")

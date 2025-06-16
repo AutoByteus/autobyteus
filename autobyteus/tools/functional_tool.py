@@ -1,8 +1,8 @@
+# file: autobyteus/autobyteus/tools/functional_tool.py
 import inspect
 import logging
 import asyncio 
-import xml.sax.saxutils
-from typing import Callable, Optional, Any, Dict, Tuple, Union, get_origin, get_args, List as TypingList, TYPE_CHECKING
+from typing import Callable, Optional, Any, Dict, Tuple, Union, get_origin, get_args, List as TypingList, TYPE_CHECKING, Type
 
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
@@ -74,44 +74,6 @@ class FunctionalTool(BaseTool):
 
 # --- Helper functions for the decorator ---
 
-def _generate_usage_xml_from_schema(name: str, description: str, arg_schema: Optional[ParameterSchema]) -> str:
-    """Helper to generate XML usage string from derived schema components."""
-    escaped_description = xml.sax.saxutils.escape(description) if description else ""
-    command_tag = f'<command name="{name}" description="{escaped_description}">'
-    xml_parts = [command_tag]
-    
-    if arg_schema and arg_schema.parameters:
-        for param in arg_schema.parameters:
-            arg_tag = f"    <arg name=\"{param.name}\""
-            arg_tag += f" type=\"{param.param_type.value}\""
-            if param.description:
-                escaped_param_desc = xml.sax.saxutils.escape(param.description)
-                arg_tag += f" description=\"{escaped_param_desc}\""
-            arg_tag += f" required=\"{'true' if param.required else 'false'}\""
-            if param.default_value is not None:
-                arg_tag += f" default=\"{xml.sax.saxutils.escape(str(param.default_value))}\""
-            if param.enum_values:
-                arg_tag += f" enum_values=\"{','.join(xml.sax.saxutils.escape(ev) for ev in param.enum_values)}\""
-            arg_tag += " />"
-            xml_parts.append(arg_tag)
-    else:
-        xml_parts.append("    <!-- This tool takes no arguments -->")
-        
-    xml_parts.append("</command>")
-    return "\n".join(xml_parts)
-
-def _generate_usage_json_from_schema(name: str, description: str, arg_schema: Optional[ParameterSchema]) -> Dict[str, Any]:
-    """Helper to generate JSON usage dict from derived schema components."""
-    input_schema_dict = arg_schema.to_json_schema_dict() if arg_schema else {
-        "type": "object", "properties": {}, "required": []
-    }
-    return {
-        "name": name,
-        "description": description,
-        "inputSchema": input_schema_dict,
-    }
-
-
 _TYPE_MAPPING = {
     int: ParameterType.INTEGER,
     float: ParameterType.FLOAT,
@@ -181,63 +143,6 @@ def _get_parameter_type_from_hint(py_type: Any, param_name: str) -> Tuple[Parame
     logger.warning(f"Unmapped type hint {py_type} (actual_type: {actual_type}) for param '{param_name}'. Defaulting to ParameterType.STRING.")
     return ParameterType.STRING, None
 
-# --- The refactored @tool decorator ---
-
-def tool(
-    _func: Optional[Callable] = None,
-    *,
-    name: Optional[str] = None,
-    description: Optional[str] = None,
-    argument_schema: Optional[ParameterSchema] = None,
-    config_schema: Optional[ParameterSchema] = None
-):
-    def decorator(func: Callable) -> FunctionalTool:
-        tool_name = name or func.__name__
-        func_doc = inspect.getdoc(func)
-        tool_desc = description or (func_doc.split('\n\n')[0] if func_doc else f"Functional tool: {tool_name}")
-        
-        sig = inspect.signature(func)
-        is_async = inspect.iscoroutinefunction(func)
-        func_param_names, expects_context, gen_arg_schema = _parse_signature(sig, tool_name)
-        
-        final_arg_schema = argument_schema if argument_schema is not None else gen_arg_schema
-
-        usage_xml = _generate_usage_xml_from_schema(tool_name, tool_desc, final_arg_schema)
-        usage_json = _generate_usage_json_from_schema(tool_name, tool_desc, final_arg_schema)
-
-        def factory(inst_config: Optional[ToolConfig] = None) -> FunctionalTool:
-            return FunctionalTool(
-                original_func=func,
-                name=tool_name,
-                description=tool_desc,
-                argument_schema=final_arg_schema,
-                config_schema=config_schema,
-                is_async=is_async,
-                expects_context=expects_context,
-                func_param_names=func_param_names,
-                instantiation_config=inst_config.params if inst_config else None
-            )
-        
-        tool_def = ToolDefinition(
-            name=tool_name,
-            description=tool_desc,
-            argument_schema=final_arg_schema,
-            usage_xml=usage_xml,
-            usage_json_dict=usage_json,
-            config_schema=config_schema,
-            custom_factory=factory,
-            tool_class=None
-        )
-        default_tool_registry.register_tool(tool_def)
-        
-        return factory()
-
-    if _func is None:
-        return decorator
-    else:
-        return decorator(_func)
-
-
 def _parse_signature(sig: inspect.Signature, tool_name: str) -> Tuple[TypingList[str], bool, ParameterSchema]:
     func_param_names = []
     expects_context = False
@@ -273,3 +178,57 @@ def _parse_signature(sig: inspect.Signature, tool_name: str) -> Tuple[TypingList
         generated_arg_schema.add_parameter(schema_param)
         
     return func_param_names, expects_context, generated_arg_schema
+
+# --- The refactored @tool decorator ---
+
+def tool(
+    _func: Optional[Callable] = None,
+    *,
+    name: Optional[str] = None,
+    description: Optional[str] = None,
+    argument_schema: Optional[ParameterSchema] = None,
+    config_schema: Optional[ParameterSchema] = None
+):
+    def decorator(func: Callable) -> FunctionalTool:
+        tool_name = name or func.__name__
+        func_doc = inspect.getdoc(func)
+        tool_desc = description or (func_doc.split('\n\n')[0] if func_doc else f"Functional tool: {tool_name}")
+        
+        sig = inspect.signature(func)
+        is_async = inspect.iscoroutinefunction(func)
+        func_param_names, expects_context, gen_arg_schema = _parse_signature(sig, tool_name)
+        
+        final_arg_schema = argument_schema if argument_schema is not None else gen_arg_schema
+
+        def factory(inst_config: Optional[ToolConfig] = None) -> FunctionalTool:
+            return FunctionalTool(
+                original_func=func,
+                name=tool_name,
+                description=tool_desc,
+                argument_schema=final_arg_schema,
+                config_schema=config_schema,
+                is_async=is_async,
+                expects_context=expects_context,
+                func_param_names=func_param_names,
+                instantiation_config=inst_config.params if inst_config else None
+            )
+        
+        # The decorator's responsibility is now just to assemble the raw metadata
+        # and create the definition. It does NOT generate usage strings.
+        tool_def = ToolDefinition(
+            name=tool_name,
+            description=tool_desc,
+            argument_schema=final_arg_schema,
+            config_schema=config_schema,
+            custom_factory=factory,
+            tool_class=None
+        )
+        default_tool_registry.register_tool(tool_def)
+        
+        # Return a ready-to-use instance of the tool.
+        return factory()
+
+    if _func is None:
+        return decorator
+    else:
+        return decorator(_func)

@@ -2,10 +2,9 @@
 import logging
 from typing import Any, Optional, TYPE_CHECKING, Dict, Set
 import asyncio
-import xml.sax.saxutils
 
 from autobyteus.tools.base_tool import BaseTool
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterType
+from autobyteus.tools.parameter_schema import ParameterSchema
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
     from .connection_manager import McpConnectionManager 
@@ -16,8 +15,8 @@ class GenericMcpTool(BaseTool):
     """
     A generic tool wrapper for executing tools on a remote MCP server.
     This tool is instantiated by a custom factory specific to a discovered
-    remote MCP tool. It overrides the base class's schema generation methods
-    to provide instance-specific details.
+    remote MCP tool. It overrides the base class's schema methods
+    to provide instance-specific details for execution-time validation.
     """
 
     def __init__(self,
@@ -40,72 +39,15 @@ class GenericMcpTool(BaseTool):
         self._instance_description = description
         self._instance_argument_schema = argument_schema
         
-        # Override the class methods with instance-specific versions
+        # Override the base class's schema-related methods with instance-specific
+        # versions. This is crucial for the BaseTool.execute method to correctly
+        # validate arguments before calling our _execute method.
         self.get_name = self.get_instance_name
         self.get_description = self.get_instance_description
         self.get_argument_schema = self.get_instance_argument_schema
-        self.tool_usage_xml = self._instance_tool_usage_xml
-        self.tool_usage_json = self._instance_tool_usage_json
         
         logger.info(f"GenericMcpTool instance created for remote tool '{mcp_remote_tool_name}' on server '{self._mcp_server_id}'. "
-                    f"Registered in AutoByteUs as '{self._instance_name}'. Schema methods overridden.")
-
-    # --- Instance-specific schema generation methods ---
-
-    def _instance_tool_usage_xml(self) -> str:
-        """Generates the XML usage string using instance-specific data."""
-        name = self.get_instance_name()
-        description = self.get_instance_description()
-        arg_schema = self.get_instance_argument_schema()
-        
-        escaped_description = xml.sax.saxutils.escape(str(description)) if description is not None else ""
-        command_tag = f'<command name="{name}" description="{escaped_description}">'
-        xml_parts = [command_tag]
-
-        if arg_schema and arg_schema.parameters:
-            for param in arg_schema.parameters:
-                arg_tag = f"    <arg name=\"{param.name}\""
-                arg_tag += f" type=\"{param.param_type.value}\""
-                if param.description:
-                    escaped_param_desc = xml.sax.saxutils.escape(param.description)
-                    arg_tag += f" description=\"{escaped_param_desc}\""
-                arg_tag += f" required=\"{'true' if param.required else 'false'}\""
-
-                if param.default_value is not None:
-                    arg_tag += f" default=\"{xml.sax.saxutils.escape(str(param.default_value))}\""
-                if param.param_type == ParameterType.ENUM and param.enum_values:
-                    escaped_enum_values = [xml.sax.saxutils.escape(ev) for ev in param.enum_values]
-                    arg_tag += f" enum_values=\"{','.join(escaped_enum_values)}\""
-                
-                arg_tag += " />"
-                xml_parts.append(arg_tag)
-        else:
-            xml_parts.append("    <!-- This tool takes no arguments -->")
-            
-        xml_parts.append("</command>")
-        return "\n".join(xml_parts)
-
-    def _instance_tool_usage_json(self) -> Dict[str, Any]:
-        """Generates the JSON usage dictionary using instance-specific data."""
-        name = self.get_instance_name()
-        description = self.get_instance_description()
-        arg_schema = self.get_instance_argument_schema()
-
-        input_schema_dict = {}
-        if arg_schema:
-            input_schema_dict = arg_schema.to_json_schema_dict()
-        else:
-            input_schema_dict = {
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
-            
-        return {
-            "name": name,
-            "description": str(description) if description is not None else "No description provided.",
-            "inputSchema": input_schema_dict,
-        }
+                    f"Registered in AutoByteUs as '{self._instance_name}'.")
 
     # --- Getters for instance-specific data ---
 
@@ -136,7 +78,7 @@ class GenericMcpTool(BaseTool):
         """
         Executes the remote MCP tool call.
         """
-        # self.get_name() will now call the instance's lambda and return the specific name
+        # self.get_name() will now call the instance's method and return the specific name
         tool_name_for_log = self.get_instance_name()
         logger.info(f"GenericMcpTool '{tool_name_for_log}': Executing remote tool '{self._mcp_remote_tool_name}' "
                     f"on server '{self._mcp_server_id}' with args: {kwargs}")
@@ -188,4 +130,3 @@ class GenericMcpTool(BaseTool):
             if not tool_call_task.done():
                 tool_call_task.cancel()
             raise RuntimeError(f"Error calling remote MCP tool '{self._mcp_remote_tool_name}': {e}") from e
-

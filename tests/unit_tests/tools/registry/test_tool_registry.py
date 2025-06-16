@@ -96,8 +96,6 @@ def no_config_def() -> ToolDefinition:
         name="DummyToolNoConfig",
         description="A dummy tool without config.",
         argument_schema=None,
-        usage_xml="<command name='DummyToolNoConfig'></command>",
-        usage_json_dict={"name": "DummyToolNoConfig", "description": "..."},
         tool_class=DummyToolNoConfig
     )
 
@@ -108,8 +106,6 @@ def with_config_def() -> ToolDefinition:
         name="DummyToolWithConfig",
         description="A dummy tool with config.",
         argument_schema=None,
-        usage_xml="<command name='DummyToolWithConfig'></command>",
-        usage_json_dict={"name": "DummyToolWithConfig", "description": "..."},
         tool_class=DummyToolWithConfig
     )
 
@@ -120,8 +116,6 @@ def factory_def() -> ToolDefinition:
         name="DummyFactoryTool",
         description="A dummy tool created by a factory.",
         argument_schema=None,
-        usage_xml="<command name='DummyFactoryTool'></command>",
-        usage_json_dict={"name": "DummyFactoryTool", "description": "..."},
         custom_factory=dummy_factory
     )
 
@@ -149,8 +143,6 @@ def test_register_overwrites_existing(clean_registry: ToolRegistry, no_config_de
         name="DummyToolNoConfig", # Same name
         description="An updated description.",
         argument_schema=None,
-        usage_xml="...",
-        usage_json_dict={},
         tool_class=DummyToolNoConfig
     )
     clean_registry.register_tool(new_def)
@@ -187,12 +179,12 @@ def test_create_simple_class_based_tool(clean_registry: ToolRegistry, no_config_
 async def test_create_class_based_tool_with_config(clean_registry: ToolRegistry, with_config_def: ToolDefinition):
     """Tests creating a class-based tool, passing a ToolConfig."""
     clean_registry.register_tool(with_config_def)
+    mock_context = MagicMock()
+    mock_context.agent_id = "test-agent-for-config-tool"
     
     # Create without config
     tool_instance_default = clean_registry.create_tool("DummyToolWithConfig")
     assert isinstance(tool_instance_default, DummyToolWithConfig)
-    mock_context = MagicMock()
-    mock_context.agent_id = "test-agent-for-config-tool"
     assert await tool_instance_default.execute(mock_context) == "default"
 
     # Create with config
@@ -262,8 +254,6 @@ def test_create_tool_instantiation_fails_raises_error(clean_registry: ToolRegist
         name="DummyToolFailsInit",
         description="...",
         argument_schema=None,
-        usage_xml="...",
-        usage_json_dict={},
         tool_class=DummyToolFailsInit
     )
     clean_registry.register_tool(fail_def)
