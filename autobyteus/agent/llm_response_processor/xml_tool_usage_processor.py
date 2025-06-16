@@ -1,4 +1,3 @@
-# file: autobyteus/autobyteus/agent/llm_response_processor/xml_tool_usage_processor.py
 import xml.etree.ElementTree as ET
 import re
 import uuid # For generating tool invocation IDs
@@ -14,6 +13,7 @@ from .base_processor import BaseLLMResponseProcessor
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext 
     from autobyteus.agent.events import LLMCompleteResponseReceivedEvent
+    from autobyteus.llm.utils.response_types import CompleteResponse
 
 logger = logging.getLogger(__name__)
 
@@ -30,14 +30,15 @@ class XmlToolUsageProcessor(BaseLLMResponseProcessor):
     def get_name(self) -> str:
         return "xml_tool_usage"
 
-    async def process_response(self, response: str, context: 'AgentContext', triggering_event: 'LLMCompleteResponseReceivedEvent') -> bool:
+    async def process_response(self, response: 'CompleteResponse', context: 'AgentContext', triggering_event: 'LLMCompleteResponseReceivedEvent') -> bool:
         """
         Processes the response to find and handle XML tool commands.
         The 'triggering_event' parameter is currently ignored by this processor.
         """
-        logger.debug(f"XmlToolUsageProcessor attempting to process response (first 500 chars): {response[:500]}...")
+        response_text = response.content
+        logger.debug(f"XmlToolUsageProcessor attempting to process response (first 500 chars): {response_text[:500]}...")
 
-        match = re.search(r"<command\b[^>]*>.*?</command\s*>", response, re.DOTALL | re.IGNORECASE)
+        match = re.search(r"<command\b[^>]*>.*?</command\s*>", response_text, re.DOTALL | re.IGNORECASE)
 
         if match:
             xml_content = match.group(0)
@@ -63,7 +64,6 @@ class XmlToolUsageProcessor(BaseLLMResponseProcessor):
                             f"{tool_invocation.name} (ID: {tool_invocation.id}), args: {tool_invocation.arguments}. Enqueuing event."
                         )
                         tool_event = PendingToolInvocationEvent(tool_invocation=tool_invocation)
-                        # MODIFIED: Use context.input_event_queues
                         await context.input_event_queues.enqueue_tool_invocation_request(tool_event) 
                         return True
                     else:
@@ -96,10 +96,16 @@ class XmlToolUsageProcessor(BaseLLMResponseProcessor):
         xml_no_cdata = re.sub(r'<!\[CDATA\[.*?\]\]>', cdata_replacer, xml_content, flags=re.DOTALL)
 
         def escape_arg_value(match_obj: re.Match) -> str:
-            open_tag = match_obj.group(1)  
-            content = match_obj.group(2) 
-            close_tag = match_obj.group(3) 
+            open_tag = match_obj.group(1)
+            content = match_obj.group(2)
+            close_tag = match_obj.group(3)
+
+            # Heuristic: If content seems to contain child XML tags, do not escape it.
+            # Let the main parser handle it. This allows for structured XML within arguments.
+            if re.search(r'<\s*[a-zA-Z]', content.strip()):
+                return f"{open_tag}{content}{close_tag}"
             
+            # Otherwise, it's likely plain text that might need escaping.
             if not content.startswith("__CDATA_PLACEHOLDER_"):
                 escaped_content = escape(content)
             else:

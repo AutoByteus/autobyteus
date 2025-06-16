@@ -71,7 +71,7 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
                         
                         # Pass the original event to the processor
                         handled_by_this_processor = await processor_instance.process_response(
-                            response=complete_response_text, 
+                            response=complete_response, 
                             context=context, 
                             triggering_event=event
                         ) 

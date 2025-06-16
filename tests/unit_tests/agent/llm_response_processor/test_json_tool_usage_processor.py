@@ -4,10 +4,11 @@ from unittest.mock import MagicMock, AsyncMock, patch
 
 from autobyteus.agent.llm_response_processor.json_tool_usage_processor import JsonToolUsageProcessor
 from autobyteus.agent.context import AgentContext
-from autobyteus.agent.events import AgentInputEventQueueManager
+from autobyteus.agent.events import AgentInputEventQueueManager, LLMCompleteResponseReceivedEvent
 from autobyteus.agent.events import PendingToolInvocationEvent
 from autobyteus.agent.tool_invocation import ToolInvocation
 from autobyteus.agent.context.agent_config import AgentConfig
+from autobyteus.llm.utils.response_types import CompleteResponse
 
 @pytest.fixture
 def json_processor() -> JsonToolUsageProcessor:
@@ -60,7 +61,13 @@ async def test_valid_json_variants_parse_correctly(
     expected_tool_name: str,
     expected_arguments: dict
 ):
-    result = await json_processor.process_response(response_text, mock_agent_context)
+    complete_response = CompleteResponse(content=response_text)
+    triggering_event = LLMCompleteResponseReceivedEvent(complete_response=complete_response)
+    result = await json_processor.process_response(
+        response=complete_response,
+        context=mock_agent_context,
+        triggering_event=triggering_event
+    )
 
     assert result is True
     mock_agent_context.input_event_queues.enqueue_tool_invocation_request.assert_awaited_once()
@@ -91,7 +98,13 @@ async def test_invalid_or_no_json_command(
     response_text: str
 ):
     with patch('autobyteus.agent.llm_response_processor.json_tool_usage_processor.logger') as mock_logger:
-        result = await json_processor.process_response(response_text, mock_agent_context)
+        complete_response = CompleteResponse(content=response_text)
+        triggering_event = LLMCompleteResponseReceivedEvent(complete_response=complete_response)
+        result = await json_processor.process_response(
+            response=complete_response,
+            context=mock_agent_context,
+            triggering_event=triggering_event
+        )
 
     assert result is False
     mock_agent_context.input_event_queues.enqueue_tool_invocation_request.assert_not_awaited()
@@ -105,7 +118,13 @@ async def test_json_with_null_arguments_field(
     expected_tool_name = "NullArgsTool"
     expected_arguments = {} 
 
-    result = await json_processor.process_response(response_text, mock_agent_context)
+    complete_response = CompleteResponse(content=response_text)
+    triggering_event = LLMCompleteResponseReceivedEvent(complete_response=complete_response)
+    result = await json_processor.process_response(
+        response=complete_response,
+        context=mock_agent_context,
+        triggering_event=triggering_event
+    )
 
     assert result is True
     mock_agent_context.input_event_queues.enqueue_tool_invocation_request.assert_awaited_once()
@@ -131,7 +150,13 @@ async def test_json_extraction_from_noisy_response(
     expected_tool_name = "ExtractTest"
     expected_arguments = {"data": "important"}
 
-    result = await json_processor.process_response(response_text, mock_agent_context)
+    complete_response = CompleteResponse(content=response_text)
+    triggering_event = LLMCompleteResponseReceivedEvent(complete_response=complete_response)
+    result = await json_processor.process_response(
+        response=complete_response,
+        context=mock_agent_context,
+        triggering_event=triggering_event
+    )
 
     assert result is True
     mock_agent_context.input_event_queues.enqueue_tool_invocation_request.assert_awaited_once()
@@ -145,14 +170,26 @@ async def test_arguments_parsing_string_vs_dict(
     mock_agent_context: MagicMock
 ):
     response_str_args = '{"tool_name": "StringArgsTool", "arguments": "{\\"param\\": \\"value\\"}"}'
-    result_str = await json_processor.process_response(response_str_args, mock_agent_context)
+    complete_response_str = CompleteResponse(content=response_str_args)
+    triggering_event_str = LLMCompleteResponseReceivedEvent(complete_response=complete_response_str)
+    result_str = await json_processor.process_response(
+        response=complete_response_str,
+        context=mock_agent_context,
+        triggering_event=triggering_event_str
+    )
     assert result_str is True
     call_args_str = mock_agent_context.input_event_queues.enqueue_tool_invocation_request.call_args[0][0]
     assert call_args_str.tool_invocation.arguments == {"param": "value"}
     mock_agent_context.input_event_queues.enqueue_tool_invocation_request.reset_mock()
 
     response_dict_args = '{"tool_name": "DictArgsTool", "arguments": {"param": "value"}}'
-    result_dict = await json_processor.process_response(response_dict_args, mock_agent_context)
+    complete_response_dict = CompleteResponse(content=response_dict_args)
+    triggering_event_dict = LLMCompleteResponseReceivedEvent(complete_response=complete_response_dict)
+    result_dict = await json_processor.process_response(
+        response=complete_response_dict,
+        context=mock_agent_context,
+        triggering_event=triggering_event_dict
+    )
     assert result_dict is True
     call_args_dict = mock_agent_context.input_event_queues.enqueue_tool_invocation_request.call_args[0][0]
     assert call_args_dict.tool_invocation.arguments == {"param": "value"}
@@ -163,7 +200,13 @@ async def test_empty_json_object_no_action(
     mock_agent_context: MagicMock
 ):
     response_text = "{}"
-    result = await json_processor.process_response(response_text, mock_agent_context)
+    complete_response = CompleteResponse(content=response_text)
+    triggering_event = LLMCompleteResponseReceivedEvent(complete_response=complete_response)
+    result = await json_processor.process_response(
+        response=complete_response,
+        context=mock_agent_context,
+        triggering_event=triggering_event
+    )
     assert result is False
     mock_agent_context.input_event_queues.enqueue_tool_invocation_request.assert_not_awaited()
 
@@ -173,11 +216,23 @@ async def test_json_with_non_string_tool_name_no_action(
     mock_agent_context: MagicMock
 ):
     response_text = '{"tool_name": 123, "arguments": {}}'
-    result = await json_processor.process_response(response_text, mock_agent_context)
+    complete_response = CompleteResponse(content=response_text)
+    triggering_event = LLMCompleteResponseReceivedEvent(complete_response=complete_response)
+    result = await json_processor.process_response(
+        response=complete_response,
+        context=mock_agent_context,
+        triggering_event=triggering_event
+    )
     assert result is False
     mock_agent_context.input_event_queues.enqueue_tool_invocation_request.assert_not_awaited()
 
     response_text_bool = '{"tool_name": true, "arguments": {}}' 
-    result_bool = await json_processor.process_response(response_text_bool, mock_agent_context)
+    complete_response_bool = CompleteResponse(content=response_text_bool)
+    triggering_event_bool = LLMCompleteResponseReceivedEvent(complete_response=complete_response_bool)
+    result_bool = await json_processor.process_response(
+        response=complete_response_bool,
+        context=mock_agent_context,
+        triggering_event=triggering_event_bool
+    )
     assert result_bool is False 
     mock_agent_context.input_event_queues.enqueue_tool_invocation_request.assert_not_awaited()

@@ -4,10 +4,11 @@ from unittest.mock import MagicMock, AsyncMock, patch
 
 from autobyteus.agent.llm_response_processor.xml_tool_usage_processor import XmlToolUsageProcessor
 from autobyteus.agent.context import AgentContext
-from autobyteus.agent.events import AgentInputEventQueueManager
+from autobyteus.agent.events import AgentInputEventQueueManager, LLMCompleteResponseReceivedEvent
 from autobyteus.agent.events import PendingToolInvocationEvent
 from autobyteus.agent.tool_invocation import ToolInvocation
 from autobyteus.agent.context.agent_config import AgentConfig
+from autobyteus.llm.utils.response_types import CompleteResponse
 
 @pytest.fixture
 def xml_processor() -> XmlToolUsageProcessor:
@@ -57,8 +58,14 @@ async def test_valid_xml_command_parses_correctly(
         name="SearchTool",
         arguments={"query": "best sci-fi movies", "limit": "5"}
     )
-
-    result = await xml_processor.process_response(response_text, mock_agent_context)
+    
+    complete_response = CompleteResponse(content=response_text)
+    triggering_event = LLMCompleteResponseReceivedEvent(complete_response=complete_response)
+    result = await xml_processor.process_response(
+        response=complete_response,
+        context=mock_agent_context,
+        triggering_event=triggering_event
+    )
 
     assert result is True
     mock_agent_context.input_event_queues.enqueue_tool_invocation_request.assert_awaited_once()
@@ -77,7 +84,13 @@ async def test_response_without_xml_command(
     mock_agent_context: MagicMock
 ):
     response_text = "This is a plain text response without any command."
-    result = await xml_processor.process_response(response_text, mock_agent_context)
+    complete_response = CompleteResponse(content=response_text)
+    triggering_event = LLMCompleteResponseReceivedEvent(complete_response=complete_response)
+    result = await xml_processor.process_response(
+        response=complete_response,
+        context=mock_agent_context,
+        triggering_event=triggering_event
+    )
 
     assert result is False
     mock_agent_context.input_event_queues.enqueue_tool_invocation_request.assert_not_awaited()
@@ -90,7 +103,13 @@ async def test_malformed_xml_command(
     response_text = "<command name='BrokenTool'><arg name='p1'>v1</arg an_error_here <arg name='p2'>v2</arg></command>"
     
     with patch('autobyteus.agent.llm_response_processor.xml_tool_usage_processor.logger') as mock_logger:
-        result = await xml_processor.process_response(response_text, mock_agent_context)
+        complete_response = CompleteResponse(content=response_text)
+        triggering_event = LLMCompleteResponseReceivedEvent(complete_response=complete_response)
+        result = await xml_processor.process_response(
+            response=complete_response,
+            context=mock_agent_context,
+            triggering_event=triggering_event
+        )
     
     assert result is False
     mock_agent_context.input_event_queues.enqueue_tool_invocation_request.assert_not_awaited()
@@ -106,7 +125,13 @@ async def test_xml_command_missing_name_attribute(
     response_text = "<command><arg name='query'>test</arg></command>"
     
     with patch('autobyteus.agent.llm_response_processor.xml_tool_usage_processor.logger') as mock_logger:
-        result = await xml_processor.process_response(response_text, mock_agent_context)
+        complete_response = CompleteResponse(content=response_text)
+        triggering_event = LLMCompleteResponseReceivedEvent(complete_response=complete_response)
+        result = await xml_processor.process_response(
+            response=complete_response,
+            context=mock_agent_context,
+            triggering_event=triggering_event
+        )
 
     assert result is False
     mock_agent_context.input_event_queues.enqueue_tool_invocation_request.assert_not_awaited()
@@ -122,7 +147,14 @@ async def test_xml_with_special_characters_in_args(
     response_text_escaped = '<command name="SpecialTool"><arg name="param">A &amp; B &lt; C &gt; D</arg></command>'
     expected_args_escaped = {"param": "A & B < C > D"}
 
-    result = await xml_processor.process_response(response_text_escaped, mock_agent_context)
+    complete_response_esc = CompleteResponse(content=response_text_escaped)
+    triggering_event_esc = LLMCompleteResponseReceivedEvent(complete_response=complete_response_esc)
+    result = await xml_processor.process_response(
+        response=complete_response_esc,
+        context=mock_agent_context,
+        triggering_event=triggering_event_esc
+    )
+
     assert result is True
     call_args = mock_agent_context.input_event_queues.enqueue_tool_invocation_request.call_args[0][0]
     assert call_args.tool_invocation.arguments == expected_args_escaped
@@ -131,7 +163,14 @@ async def test_xml_with_special_characters_in_args(
     response_text_unescaped = '<command name="SpecialTool"><arg name="param">A & B < C > D</arg></command>'
     expected_args_unescaped = {"param": "A & B < C > D"} 
 
-    result_unescaped = await xml_processor.process_response(response_text_unescaped, mock_agent_context)
+    complete_response_unesc = CompleteResponse(content=response_text_unescaped)
+    triggering_event_unesc = LLMCompleteResponseReceivedEvent(complete_response=complete_response_unesc)
+    result_unescaped = await xml_processor.process_response(
+        response=complete_response_unesc,
+        context=mock_agent_context,
+        triggering_event=triggering_event_unesc
+    )
+
     assert result_unescaped is True
     call_args_unescaped = mock_agent_context.input_event_queues.enqueue_tool_invocation_request.call_args[0][0]
     assert call_args_unescaped.tool_invocation.arguments == expected_args_unescaped
@@ -149,7 +188,14 @@ async def test_xml_with_cdata_in_args(
     expected_arguments = {
         "script": 'function greet() { if (a < b && b > c) { console.log("Hello & World"); } }'
     }
-    result = await xml_processor.process_response(response_text, mock_agent_context)
+
+    complete_response = CompleteResponse(content=response_text)
+    triggering_event = LLMCompleteResponseReceivedEvent(complete_response=complete_response)
+    result = await xml_processor.process_response(
+        response=complete_response,
+        context=mock_agent_context,
+        triggering_event=triggering_event
+    )
 
     assert result is True
     mock_agent_context.input_event_queues.enqueue_tool_invocation_request.assert_awaited_once()
@@ -164,7 +210,13 @@ async def test_xml_with_empty_arguments_tag_value(
     response_text = '<command name="EmptyArgTool"><arg name="param1"></arg><arg name="param2">value2</arg></command>'
     expected_arguments = {"param1": "", "param2": "value2"}
 
-    result = await xml_processor.process_response(response_text, mock_agent_context)
+    complete_response = CompleteResponse(content=response_text)
+    triggering_event = LLMCompleteResponseReceivedEvent(complete_response=complete_response)
+    result = await xml_processor.process_response(
+        response=complete_response,
+        context=mock_agent_context,
+        triggering_event=triggering_event
+    )
 
     assert result is True
     mock_agent_context.input_event_queues.enqueue_tool_invocation_request.assert_awaited_once()
@@ -179,7 +231,13 @@ async def test_xml_command_with_no_args(
     response_text = '<command name="NoArgTool"></command>'
     expected_arguments = {}
 
-    result = await xml_processor.process_response(response_text, mock_agent_context)
+    complete_response = CompleteResponse(content=response_text)
+    triggering_event = LLMCompleteResponseReceivedEvent(complete_response=complete_response)
+    result = await xml_processor.process_response(
+        response=complete_response,
+        context=mock_agent_context,
+        triggering_event=triggering_event
+    )
 
     assert result is True
     mock_agent_context.input_event_queues.enqueue_tool_invocation_request.assert_awaited_once()
@@ -194,7 +252,13 @@ async def test_xml_command_tag_case_insensitivity_in_regex(
 ):
     response_text = '<COMMAND name="CaseTestTool"><arg name="data">test</arg></COMMAND>'
     
-    result = await xml_processor.process_response(response_text, mock_agent_context)
+    complete_response = CompleteResponse(content=response_text)
+    triggering_event = LLMCompleteResponseReceivedEvent(complete_response=complete_response)
+    result = await xml_processor.process_response(
+        response=complete_response,
+        context=mock_agent_context,
+        triggering_event=triggering_event
+    )
     
     assert result is True
     mock_agent_context.input_event_queues.enqueue_tool_invocation_request.assert_awaited_once()
@@ -216,7 +280,13 @@ async def test_xml_complex_arg_content_is_stringified(
     </command>
     """
     
-    result = await xml_processor.process_response(response_text.replace("name=\"details\"", "name='details'"), mock_agent_context) 
+    complete_response = CompleteResponse(content=response_text)
+    triggering_event = LLMCompleteResponseReceivedEvent(complete_response=complete_response)
+    result = await xml_processor.process_response(
+        response=complete_response,
+        context=mock_agent_context,
+        triggering_event=triggering_event
+    )
     
     assert result is True 
     call_args = mock_agent_context.input_event_queues.enqueue_tool_invocation_request.call_args[0][0]

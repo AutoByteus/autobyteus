@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext # MODIFIED IMPORT
     from autobyteus.agent.events import LLMCompleteResponseReceivedEvent
+    from autobyteus.llm.utils.response_types import CompleteResponse
 
 logger = logging.getLogger(__name__)
 
@@ -27,14 +28,14 @@ class BaseLLMResponseProcessor(ABC):
         return self.__class__.__name__
 
     @abstractmethod
-    async def process_response(self, response: str, context: 'AgentContext', triggering_event: 'LLMCompleteResponseReceivedEvent') -> bool:
+    async def process_response(self, response: 'CompleteResponse', context: 'AgentContext', triggering_event: 'LLMCompleteResponseReceivedEvent') -> bool:
         """
-        Processes the LLM's response string. If an actionable item is found (e.g.,
+        Processes the LLM's response object. If an actionable item is found (e.g.,
         a tool invocation), this method should enqueue the corresponding event
         (e.g., PendingToolInvocationEvent) into the context's queues and return True.
 
         Args:
-            response: The textual response from the LLM.
+            response: The CompleteResponse object from the LLM.
             context: The agent's context, providing access to queues and other state.
             triggering_event: The original LLMCompleteResponseReceivedEvent that triggered this processing.
                               This provides access to the full event payload for more complex processors.

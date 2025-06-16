@@ -1,4 +1,3 @@
-# file: autobyteus/autobyteus/agent/llm_response_processor/json_tool_usage_processor.py
 import json
 import re
 import logging
@@ -12,6 +11,7 @@ from .base_processor import BaseLLMResponseProcessor
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext 
     from autobyteus.agent.events import LLMCompleteResponseReceivedEvent
+    from autobyteus.llm.utils.response_types import CompleteResponse
 
 logger = logging.getLogger(__name__)
 
@@ -23,14 +23,15 @@ class JsonToolUsageProcessor(BaseLLMResponseProcessor):
     def get_name(self) -> str:
         return "json_tool_usage"
 
-    async def process_response(self, response: str, context: 'AgentContext', triggering_event: 'LLMCompleteResponseReceivedEvent') -> bool:
+    async def process_response(self, response: 'CompleteResponse', context: 'AgentContext', triggering_event: 'LLMCompleteResponseReceivedEvent') -> bool:
         """
         Processes the response to find and handle JSON tool commands.
         The 'triggering_event' parameter is currently ignored by this processor.
         """
-        logger.debug(f"JsonToolUsageProcessor attempting to process response (first 500 chars): {response[:500]}...")
+        response_text = response.content
+        logger.debug(f"JsonToolUsageProcessor attempting to process response (first 500 chars): {response_text[:500]}...")
 
-        json_str = self._extract_json_string(response)
+        json_str = self._extract_json_string(response_text)
         if not json_str:
             logger.debug("No JSON string could be reliably extracted from the response.")
             return False
