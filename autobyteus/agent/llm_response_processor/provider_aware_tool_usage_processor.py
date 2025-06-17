@@ -1,10 +1,10 @@
 # file: autobyteus/autobyteus/agent/llm_response_processor/provider_aware_tool_usage_processor.py
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from .base_processor import BaseLLMResponseProcessor
-from .providers.xml_response_processor_provider import XmlResponseProcessorProvider
-from .providers.json_response_processor_provider import JsonResponseProcessorProvider
+from autobyteus.tools.usage.parsers import ProviderAwareToolUsageParser
+from autobyteus.agent.events import PendingToolInvocationEvent
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
@@ -15,14 +15,12 @@ logger = logging.getLogger(__name__)
 
 class ProviderAwareToolUsageProcessor(BaseLLMResponseProcessor):
     """
-    A "master" tool usage processor that internally delegates to a
-    provider-specific processor based on the agent's configuration. This class
-    uses lazy initialization for its providers to improve efficiency.
+    A "master" tool usage processor that uses a high-level parser from the
+    `tools` module to extract tool invocations, and then enqueues the
+    necessary agent events based on the parsed results.
     """
     def __init__(self):
-        # Providers are lazy-loaded to avoid unnecessary instantiation.
-        self._xml_provider: Optional[XmlResponseProcessorProvider] = None
-        self._json_provider: Optional[JsonResponseProcessorProvider] = None
+        self._parser = ProviderAwareToolUsageParser()
         logger.debug("ProviderAwareToolUsageProcessor initialized.")
 
     def get_name(self) -> str:
@@ -30,34 +28,21 @@ class ProviderAwareToolUsageProcessor(BaseLLMResponseProcessor):
 
     async def process_response(self, response: 'CompleteResponse', context: 'AgentContext', triggering_event: 'LLMCompleteResponseReceivedEvent') -> bool:
         """
-        Selects the correct underlying processor based on agent configuration
-        (XML vs JSON, and the specific LLM provider) and delegates the call.
+        Uses a ProviderAwareToolUsageParser to get a list of tool invocations,
+        and then enqueues a PendingToolInvocationEvent for each one.
         """
-        # --- Start of Bug Fix ---
-        # The provider is on the model, which is on the llm_instance in the context.
-        llm_provider = None
-        if context.llm_instance and context.llm_instance.model:
-            llm_provider = context.llm_instance.model.provider
-        else:
-            logger.warning(f"Agent '{context.agent_id}': LLM instance or model not available in context. Cannot determine provider for tool response processing.")
-        # --- End of Bug Fix ---
+        # 1. Delegate parsing to the high-level parser
+        tool_invocations = self._parser.parse(response, context)
+
+        # 2. Handle the agent-specific task of enqueuing events
+        if not tool_invocations:
+            return False
+
+        logger.info(f"Agent '{context.agent_id}': Parsed {len(tool_invocations)} tool invocations. Enqueuing events.")
+        for invocation in tool_invocations:
+            logger.info(f"Agent '{context.agent_id}' ({self.get_name()}) identified tool invocation: {invocation.name}. Enqueuing event.")
+            await context.input_event_queues.enqueue_tool_invocation_request(
+                PendingToolInvocationEvent(tool_invocation=invocation)
+            )
         
-        # 1. Select and lazy-load the correct format provider (XML or JSON)
-        if context.config.use_xml_tool_format:
-            if self._xml_provider is None:
-                self._xml_provider = XmlResponseProcessorProvider()
-            provider = self._xml_provider
-            format_name = "XML"
-        else:
-            if self._json_provider is None:
-                self._json_provider = JsonResponseProcessorProvider()
-            provider = self._json_provider
-            format_name = "JSON"
-
-        # 2. Use the selected provider to get the specific processor for the LLM
-        processor = provider.get_processor(llm_provider)
-
-        logger.debug(f"ProviderAwareToolUsageProcessor selected delegate processor '{processor.get_name()}' for format '{format_name}' and LLM provider '{llm_provider.name if llm_provider else 'Unknown'}'.")
-
-        # 3. Delegate the processing to the selected processor
-        return await processor.process_response(response, context, triggering_event)
+        return True

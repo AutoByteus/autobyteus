@@ -3,88 +3,89 @@ import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 
 from autobyteus.agent.llm_response_processor import ProviderAwareToolUsageProcessor
-from autobyteus.agent.context import AgentContext, AgentConfig
-from autobyteus.agent.events import LLMCompleteResponseReceivedEvent
-from autobyteus.llm.base_llm import BaseLLM
-from autobyteus.llm.models import LLMModel
-from autobyteus.llm.providers import LLMProvider
+from autobyteus.agent.context import AgentContext
+from autobyteus.agent.events import LLMCompleteResponseReceivedEvent, PendingToolInvocationEvent
+from autobyteus.agent.tool_invocation import ToolInvocation
 from autobyteus.llm.utils.response_types import CompleteResponse
 
 @pytest.fixture
-def mock_context_factory():
-    def _factory(use_xml: bool, provider: LLMProvider):
-        # Create mocks for the nested objects to accurately reflect the real structure
-        mock_model = MagicMock(spec=LLMModel)
-        mock_model.provider = provider
-
-        mock_llm_instance = MagicMock(spec=BaseLLM)
-        mock_llm_instance.model = mock_model
-
-        mock_config = MagicMock(spec=AgentConfig)
-        mock_config.use_xml_tool_format = use_xml
-        
-        # Create the main context mock and assign the nested mocks
-        context = MagicMock(spec=AgentContext)
-        context.agent_id = "test_agent_123"
-        context.config = mock_config
-        context.llm_instance = mock_llm_instance
-        
-        context.input_event_queues = AsyncMock()
-        context.input_event_queues.enqueue_tool_invocation_request = AsyncMock()
-        return context
-    return _factory
+def mock_context() -> MagicMock:
+    """Fixture for a mock AgentContext."""
+    context = MagicMock(spec=AgentContext)
+    context.agent_id = "test_agent_123"
+    context.input_event_queues = AsyncMock()
+    context.input_event_queues.enqueue_tool_invocation_request = AsyncMock()
+    return context
 
 @pytest.mark.asyncio
-@patch('autobyteus.agent.llm_response_processor.provider_aware_tool_usage_processor.XmlResponseProcessorProvider')
-@patch('autobyteus.agent.llm_response_processor.provider_aware_tool_usage_processor.JsonResponseProcessorProvider')
-async def test_delegates_to_xml_provider(mock_json_provider_cls, mock_xml_provider_cls, mock_context_factory):
+@patch('autobyteus.agent.llm_response_processor.provider_aware_tool_usage_processor.ProviderAwareToolUsageParser')
+async def test_processor_uses_parser_and_enqueues_events(mock_parser_class, mock_context):
     """
-    Verify it uses the XML provider when context.config.use_xml_tool_format is True.
+    Tests that the processor uses the parser and enqueues events for each parsed invocation.
     """
     # Arrange
-    master_processor = ProviderAwareToolUsageProcessor()
-    mock_context = mock_context_factory(use_xml=True, provider=LLMProvider.ANTHROPIC)
+    # Create mock tool invocations that the mock parser will return
+    mock_invocations = [
+        ToolInvocation(id="call_1", name="tool_one", arguments={"a": 1}),
+        ToolInvocation(id="call_2", name="tool_two", arguments={"b": 2}),
+    ]
     
-    mock_specific_processor = AsyncMock()
-    mock_xml_provider_cls.return_value.get_processor.return_value = mock_specific_processor
+    # Configure the mock parser instance
+    mock_parser_instance = mock_parser_class.return_value
+    mock_parser_instance.parse.return_value = mock_invocations
+
+    # The processor to test
+    processor = ProviderAwareToolUsageProcessor()
     
-    response = CompleteResponse(content="<tool_calls></tool_calls>")
+    # Dummy response and event
+    response = CompleteResponse(content="some llm response")
     trigger_event = LLMCompleteResponseReceivedEvent(complete_response=response)
 
     # Act
-    await master_processor.process_response(response, mock_context, trigger_event)
+    result = await processor.process_response(response, mock_context, trigger_event)
 
     # Assert
-    mock_xml_provider_cls.assert_called_once()
-    # Verify the provider was correctly retrieved from the nested mock structure
-    mock_xml_provider_cls.return_value.get_processor.assert_called_once_with(LLMProvider.ANTHROPIC)
-    mock_json_provider_cls.assert_not_called()
-    mock_specific_processor.process_response.assert_awaited_once_with(response, mock_context, trigger_event)
+    # Verify that the processor indicated it handled the response
+    assert result is True
+    
+    # Verify the parser was instantiated and its `parse` method was called correctly
+    mock_parser_class.assert_called_once()
+    mock_parser_instance.parse.assert_called_once_with(response, mock_context)
+    
+    # Verify that an event was enqueued for each invocation returned by the parser
+    assert mock_context.input_event_queues.enqueue_tool_invocation_request.await_count == 2
+    
+    # Check the content of the enqueued events
+    first_call_event: PendingToolInvocationEvent = mock_context.input_event_queues.enqueue_tool_invocation_request.await_args_list[0][0][0]
+    assert first_call_event.tool_invocation is mock_invocations[0]
 
+    second_call_event: PendingToolInvocationEvent = mock_context.input_event_queues.enqueue_tool_invocation_request.await_args_list[1][0][0]
+    assert second_call_event.tool_invocation is mock_invocations[1]
 
 @pytest.mark.asyncio
-@patch('autobyteus.agent.llm_response_processor.provider_aware_tool_usage_processor.XmlResponseProcessorProvider')
-@patch('autobyteus.agent.llm_response_processor.provider_aware_tool_usage_processor.JsonResponseProcessorProvider')
-async def test_delegates_to_json_provider(mock_json_provider_cls, mock_xml_provider_cls, mock_context_factory):
+@patch('autobyteus.agent.llm_response_processor.provider_aware_tool_usage_processor.ProviderAwareToolUsageParser')
+async def test_processor_does_nothing_when_parser_returns_empty(mock_parser_class, mock_context):
     """
-    Verify it uses the JSON provider when context.config.use_xml_tool_format is False.
+    Tests that the processor does nothing if the parser finds no tool invocations.
     """
     # Arrange
-    master_processor = ProviderAwareToolUsageProcessor()
-    mock_context = mock_context_factory(use_xml=False, provider=LLMProvider.OPENAI)
-    
-    mock_specific_processor = AsyncMock()
-    mock_json_provider_cls.return_value.get_processor.return_value = mock_specific_processor
-    
-    response = CompleteResponse(content="{}")
+    # Configure the mock parser to return an empty list
+    mock_parser_instance = mock_parser_class.return_value
+    mock_parser_instance.parse.return_value = []
+
+    processor = ProviderAwareToolUsageProcessor()
+    response = CompleteResponse(content="some llm response")
     trigger_event = LLMCompleteResponseReceivedEvent(complete_response=response)
 
     # Act
-    await master_processor.process_response(response, mock_context, trigger_event)
+    result = await processor.process_response(response, mock_context, trigger_event)
 
     # Assert
-    mock_json_provider_cls.assert_called_once()
-    # Verify the provider was correctly retrieved from the nested mock structure
-    mock_json_provider_cls.return_value.get_processor.assert_called_once_with(LLMProvider.OPENAI)
-    mock_xml_provider_cls.assert_not_called()
-    mock_specific_processor.process_response.assert_awaited_once_with(response, mock_context, trigger_event)
+    # Verify that the processor indicated it did *not* handle the response
+    assert result is False
+    
+    # Verify the parser was still called
+    mock_parser_instance.parse.assert_called_once_with(response, mock_context)
+    
+    # Verify no events were enqueued
+    mock_context.input_event_queues.enqueue_tool_invocation_request.assert_not_awaited()
