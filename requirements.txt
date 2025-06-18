@@ -8,6 +8,7 @@ mistralai
 boto3
 botocore
 anthropic==0.37.1
+certifi==2025.4.26
 Jinja2
 ollama==0.4.5
 mistral_common
