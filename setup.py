@@ -16,6 +16,7 @@ common_dependencies = [
     "ollama==0.4.5",
     "mistral_common",
     "certifi==2025.4.26",
+    'numpy==2.2.5',
     "aiohttp",
     "autobyteus-llm-client==1.1.0",
     "brui-core==1.0.8",
