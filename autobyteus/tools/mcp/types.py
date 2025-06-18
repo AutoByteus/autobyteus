@@ -4,13 +4,16 @@ from typing import List, Dict, Any, Optional, Type
 from dataclasses import dataclass, field, InitVar
 from enum import Enum
 
+from autobyteus.tools.base_tool import BaseTool
+
 logger = logging.getLogger(__name__)
 
 class McpTransportType(str, Enum):
-    """Enumeration of supported MCP transport types."""
+    """Enumeration for the different types of MCP transport strategies."""
     STDIO = "stdio"
-    SSE = "sse" 
+    SSE = "sse"
     STREAMABLE_HTTP = "streamable_http"
+    WEBSOCKET = "websocket"
 
 @dataclass
 class BaseMcpConfig:
@@ -94,3 +97,22 @@ class StreamableHttpMcpServerConfig(BaseMcpConfig):
             raise ValueError(f"StreamableHttpMcpServerConfig '{self.server_id}' 'token' must be a string if provided.") 
         if not isinstance(self.headers, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in self.headers.items()):
             raise ValueError(f"StreamableHttpMcpServerConfig '{self.server_id}' 'headers' must be a Dict[str, str].")
+
+@dataclass
+class WebSocketMcpServerConfig(BaseMcpConfig):
+    """Configuration for a WebSocket MCP server."""
+    uri: Optional[str] = None
+    transport_type: McpTransportType = field(default=McpTransportType.WEBSOCKET, init=False)
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.transport_type = McpTransportType.WEBSOCKET
+
+        if not self.uri or not isinstance(self.uri, str) or not self.uri.strip():
+            raise ValueError(f"WebSocketMcpServerConfig '{self.server_id}' 'uri' must be provided and be a non-empty string.")
+
+class McpTool(BaseTool):
+    """
+    A generic tool that represents a function exposed by an MCP server.
+    """
+    pass

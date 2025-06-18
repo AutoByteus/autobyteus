@@ -10,6 +10,7 @@ from .types import (
     StdioMcpServerConfig,
     SseMcpServerConfig,
     StreamableHttpMcpServerConfig,
+    WebSocketMcpServerConfig,
     McpTransportType
 )
 from autobyteus.utils.singleton import SingletonMeta
@@ -52,7 +53,8 @@ class McpConfigService(metaclass=SingletonMeta):
         transport_specific_params_key_map = {
             McpTransportType.STDIO: "stdio_params",
             McpTransportType.SSE: "sse_params",
-            McpTransportType.STREAMABLE_HTTP: "streamable_http_params"
+            McpTransportType.STREAMABLE_HTTP: "streamable_http_params",
+            McpTransportType.WEBSOCKET: "websocket_params",
         }
 
         if transport_type in transport_specific_params_key_map:
@@ -88,7 +90,8 @@ class McpConfigService(metaclass=SingletonMeta):
             if k not in ['enabled', 'tool_name_prefix', 'transport_type', 
                          transport_specific_params_key_map.get(McpTransportType.STDIO),
                          transport_specific_params_key_map.get(McpTransportType.SSE),
-                         transport_specific_params_key_map.get(McpTransportType.STREAMABLE_HTTP)]
+                         transport_specific_params_key_map.get(McpTransportType.STREAMABLE_HTTP),
+                         transport_specific_params_key_map.get(McpTransportType.WEBSOCKET)]
         }
         constructor_params.update(other_top_level_keys_to_copy)
 
@@ -100,6 +103,8 @@ class McpConfigService(metaclass=SingletonMeta):
                 return SseMcpServerConfig(**constructor_params)
             elif transport_type == McpTransportType.STREAMABLE_HTTP:
                 return StreamableHttpMcpServerConfig(**constructor_params)
+            elif transport_type == McpTransportType.WEBSOCKET:
+                return WebSocketMcpServerConfig(**constructor_params)
             else:
                 # This path should ideally not be taken if transport_type is validated upfront.
                 raise ValueError(f"Unsupported McpTransportType '{transport_type}' for server '{server_id}'. Cannot create specific config.")
