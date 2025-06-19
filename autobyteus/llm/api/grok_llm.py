@@ -78,30 +78,27 @@ class GrokLLM(BaseLLM):
             full_message = response.choices[0].message
 
             # Extract reasoning_content if present
-            if hasattr(full_message, "reasoning_content"):
-                reasoning = full_message.reasoning_content or ""
-            else:
-                reasoning = full_message.get("reasoning_content", "")
+            reasoning = None
+            if hasattr(full_message, "reasoning_content") and full_message.reasoning_content:
+                reasoning = full_message.reasoning_content
+            elif "reasoning_content" in full_message and full_message["reasoning_content"]:
+                reasoning = full_message["reasoning_content"]
 
             # Extract main content
-            if hasattr(full_message, "content"):
-                main_content = full_message.content or ""
-            else:
-                main_content = full_message.get("content", "")
+            main_content = ""
+            if hasattr(full_message, "content") and full_message.content:
+                main_content = full_message.content
+            elif "content" in full_message and full_message["content"]:
+                main_content = full_message["content"]
 
-            # Construct display content with delimiters if reasoning exists
-            if reasoning:
-                display_content = f"<llm_reasoning_token>{reasoning}</llm_reasoning_token>\n{main_content}"
-                self.add_assistant_message(main_content, reasoning_content=reasoning)
-            else:
-                display_content = main_content
-                self.add_assistant_message(main_content)
+            self.add_assistant_message(main_content, reasoning_content=reasoning)
 
             token_usage = self._create_token_usage(response.usage)
             logger.info("Received response from Grok API with usage data")
             
             return CompleteResponse(
-                content=display_content,
+                content=main_content,
+                reasoning=reasoning,
                 usage=token_usage
             )
         except Exception as e:
@@ -113,6 +110,7 @@ class GrokLLM(BaseLLM):
     ) -> AsyncGenerator[ChunkResponse, None]:
         """
         Streams the response from the Grok API.
+        Yields reasoning and content in separate chunks.
         """
         content = []
 
@@ -133,9 +131,7 @@ class GrokLLM(BaseLLM):
         logger.debug(f"Prepared streaming message content: {content}")
 
         # Initialize variables to track reasoning and main content
-        reasoning_content = ""
-        first_reasoning_emitted = False
-        reasoning_closed = False
+        accumulated_reasoning = ""
         accumulated_content = ""
 
         try:
@@ -151,63 +147,38 @@ class GrokLLM(BaseLLM):
             for chunk in stream:
                 chunk: ChatCompletionChunk
 
-                # Process reasoning tokens: yield immediately and accumulate.
+                # Process reasoning tokens
                 reasoning_chunk = getattr(chunk.choices[0].delta, "reasoning_content", None)
-                if reasoning_chunk is not None:
-                    if not first_reasoning_emitted:
-                        # Prepend the opening tag for the first reasoning chunk.
-                        yield ChunkResponse(
-                            content=f"<llm_reasoning_token>{reasoning_chunk}",
-                            is_complete=False
-                        )
-                        first_reasoning_emitted = True
-                    else:
-                        yield ChunkResponse(
-                            content=reasoning_chunk,
-                            is_complete=False
-                        )
-                    # Accumulate the raw reasoning token (without the prepended tag)
-                    reasoning_content += reasoning_chunk
+                if reasoning_chunk:
+                    accumulated_reasoning += reasoning_chunk
+                    yield ChunkResponse(
+                        content="",
+                        reasoning=reasoning_chunk
+                    )
 
-                # Process main content tokens.
+                # Process main content tokens
                 main_token = chunk.choices[0].delta.content
-                if main_token is not None:
-                    if first_reasoning_emitted and not reasoning_closed:
-                        # Before yielding the first main content token, close the reasoning section.
-                        yield ChunkResponse(
-                            content="</llm_reasoning_token>\n",
-                            is_complete=False
-                        )
-                        reasoning_closed = True
+                if main_token:
                     accumulated_content += main_token
                     yield ChunkResponse(
                         content=main_token,
-                        is_complete=False
+                        reasoning=None
                     )
 
-                # Yield token usage if available.
+                # Yield token usage if available in the final chunk
                 if hasattr(chunk, "usage") and chunk.usage is not None:
                     token_usage = self._create_token_usage(chunk.usage)
                     yield ChunkResponse(
                         content="",
+                        reasoning=None,
                         is_complete=True,
                         usage=token_usage
                     )
-
-            # End of stream: if only reasoning tokens were received and the closing tag has not been yielded,
-            # yield it now.
-            if first_reasoning_emitted and not reasoning_closed:
-                yield ChunkResponse(
-                    content="</llm_reasoning_token>\n",
-                    is_complete=False
-                )
             
-            # After streaming, add the assistant message with or without reasoning content.
-            if reasoning_content:
-                self.add_assistant_message(accumulated_content, reasoning_content=reasoning_content)
-            else:
-                self.add_assistant_message(accumulated_content)
+            # After streaming, add the fully accumulated assistant message to history
+            self.add_assistant_message(accumulated_content, reasoning_content=accumulated_reasoning)
             logger.info("Completed streaming response from Grok API")
+            
         except Exception as e:
             logger.error(f"Error in Grok API streaming: {str(e)}")
             raise ValueError(f"Error in Grok API streaming: {str(e)}")

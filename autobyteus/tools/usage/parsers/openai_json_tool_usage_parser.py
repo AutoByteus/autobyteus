@@ -21,6 +21,7 @@ class OpenAiJsonToolUsageParser(BaseToolUsageParser):
     2. A raw list of tool call objects.
     3. Simplified tool calls from fine-tuned models (e.g., {"name": "...", "arguments": {...}}).
     4. A single tool call object not wrapped in a list.
+    5. Tool calls wrapped in a `{"tool": ...}` structure for prompt consistency.
     """
     def get_name(self) -> str:
         return "openai_json_tool_usage_parser"
@@ -79,17 +80,27 @@ class OpenAiJsonToolUsageParser(BaseToolUsageParser):
             
         if not isinstance(tool_calls, list):
             # Handle the case where a single tool call is returned as a dictionary, not in a list.
-            # This can be in simplified format OR full format.
-            if isinstance(data, dict) and (('name' in data and 'arguments' in data) or 'function' in data):
-                 tool_calls = [data]
-            else:
-                logger.warning(f"Expected a list of tool calls, but couldn't find one in the response. Data type: {type(data)}. Skipping.")
-                return invocations
+            if isinstance(data, dict):
+                 # Check for a 'tool' wrapper. If present, the content is the call.
+                if "tool" in data and isinstance(data.get("tool"), dict):
+                    tool_calls = [data] # The list contains the wrapped object
+                # Otherwise, check for standard function/simplified formats.
+                elif ('name' in data and 'arguments' in data) or 'function' in data:
+                    tool_calls = [data]
+        
+        if not isinstance(tool_calls, list):
+            logger.warning(f"Expected a list of tool calls, but couldn't find one in the response. Data type: {type(data)}. Skipping.")
+            return invocations
 
         for call_data in tool_calls:
             if not isinstance(call_data, dict):
                 logger.debug(f"Skipping non-dict item in tool_calls: {call_data}")
                 continue
+
+            # Handle if the call is wrapped in a 'tool' key.
+            # This makes the parser compatible with the new example format.
+            if "tool" in call_data and isinstance(call_data.get("tool"), dict):
+                call_data = call_data["tool"]
 
             # A tool call ID is required for tracking, but the model may not provide one.
             # If it's missing, we generate one.

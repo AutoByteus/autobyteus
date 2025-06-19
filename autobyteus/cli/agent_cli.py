@@ -1,4 +1,3 @@
-# file: autobyteus/autobyteus/cli/agent_cli.py
 import asyncio
 import logging
 import sys
@@ -6,6 +5,7 @@ from typing import Optional, List, Dict, Any
 import json 
 
 from autobyteus.agent.agent import Agent
+from autobyteus.agent.context.phases import AgentOperationalPhase
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.agent.streaming.agent_event_stream import AgentEventStream
 from autobyteus.agent.streaming.stream_events import StreamEvent, StreamEventType
@@ -32,12 +32,21 @@ class InteractiveCLIManager:
         self.current_line_empty = True
         self.agent_has_spoken_this_turn = False
         self.pending_approval_data: Optional[ToolInvocationApprovalRequestedData] = None
+        self.is_thinking = False
 
     def _ensure_new_line(self):
         """Ensures the cursor is on a new line if the current one isn't empty."""
         if not self.current_line_empty:
             sys.stdout.write("\n")
             sys.stdout.flush()
+            self.current_line_empty = True
+
+    def _end_thinking_block(self):
+        """Adds a newline to terminate the thinking block if it was active."""
+        if self.is_thinking:
+            sys.stdout.write("\n")
+            sys.stdout.flush()
+            self.is_thinking = False
             self.current_line_empty = True
 
     def _display_tool_approval_prompt(self):
@@ -61,6 +70,16 @@ class InteractiveCLIManager:
 
     async def handle_stream_event(self, event: StreamEvent):
         """Processes a single StreamEvent and updates the CLI display."""
+        # A block of thinking ends if any event other than a reasoning chunk arrives.
+        is_reasoning_only_chunk = (
+            event.event_type == StreamEventType.ASSISTANT_CHUNK and
+            isinstance(event.data, AssistantChunkData) and
+            bool(event.data.reasoning) and not bool(event.data.content)
+        )
+        if not is_reasoning_only_chunk:
+            self._end_thinking_block()
+
+        # Most events should start on a new line.
         if event.event_type != StreamEventType.ASSISTANT_CHUNK:
             self._ensure_new_line()
 
@@ -72,12 +91,28 @@ class InteractiveCLIManager:
             self.agent_turn_complete_event.set()
 
         if event.event_type == StreamEventType.ASSISTANT_CHUNK and isinstance(event.data, AssistantChunkData):
-            if not self.agent_has_spoken_this_turn:
-                sys.stdout.write(f"Agent: ")
-                self.agent_has_spoken_this_turn = True
-            sys.stdout.write(event.data.content)
-            sys.stdout.flush()
-            self.current_line_empty = event.data.content.endswith('\n')
+            # Stream reasoning to stdout without logger formatting.
+            if event.data.reasoning:
+                if not self.is_thinking:
+                    self._ensure_new_line()
+                    sys.stdout.write("Agent: Thinking: ")
+                    sys.stdout.flush()
+                    self.is_thinking = True
+                    self.agent_has_spoken_this_turn = True # Thinking counts as the agent speaking for the turn
+                    self.current_line_empty = False
+                
+                sys.stdout.write(event.data.reasoning)
+                sys.stdout.flush()
+
+            # Stream content to stdout.
+            if event.data.content:
+                if not self.agent_has_spoken_this_turn:
+                    self._ensure_new_line()
+                    sys.stdout.write(f"Agent: ")
+                    self.agent_has_spoken_this_turn = True
+                sys.stdout.write(event.data.content)
+                sys.stdout.flush()
+                self.current_line_empty = event.data.content.endswith('\n')
             
             if self.show_token_usage and event.data.is_complete and event.data.usage:
                 self._ensure_new_line()
@@ -88,11 +123,20 @@ class InteractiveCLIManager:
                 )
 
         elif event.event_type == StreamEventType.ASSISTANT_COMPLETE_RESPONSE and isinstance(event.data, AssistantCompleteResponseData):
+            # The reasoning has already been streamed. Do not log it again.
+            
             if not self.agent_has_spoken_this_turn:
-                sys.stdout.write(f"Agent: {event.data.content}\n")
-                sys.stdout.flush()
+                # This case handles responses that might not have streamed any content chunks (e.g., only a tool call).
+                # We still need to ensure the agent's turn is visibly terminated with a newline.
+                self._ensure_new_line()
+                
+                # If there's final content that wasn't in a chunk, print it.
+                if event.data.content:
+                    sys.stdout.write(f"Agent: {event.data.content}\n")
+                    sys.stdout.flush()
 
             if self.show_token_usage and event.data.usage:
+                self._ensure_new_line()
                 usage = event.data.usage
                 logger.info(
                     f"[Token Usage: Prompt={usage.prompt_tokens}, "
@@ -100,7 +144,7 @@ class InteractiveCLIManager:
                 )
 
             self.current_line_empty = True
-            self.agent_has_spoken_this_turn = False
+            self.agent_has_spoken_this_turn = False # Reset for next turn
 
         elif event.event_type == StreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED and isinstance(event.data, ToolInvocationApprovalRequestedData):
             self.pending_approval_data = event.data
@@ -111,11 +155,18 @@ class InteractiveCLIManager:
                 logger.info(f"[Tool Log: {event.data.log_entry}]")
 
         elif event.event_type == StreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION and isinstance(event.data, AgentOperationalPhaseTransitionData):
-            phase_msg = f"[Agent Status: {event.data.new_phase.value}"
-            if event.data.tool_name:
-                phase_msg += f" ({event.data.tool_name})"
-            phase_msg += "]"
-            logger.info(phase_msg)
+            if event.data.new_phase == AgentOperationalPhase.EXECUTING_TOOL:
+                tool_name = event.data.tool_name or "a tool"
+                sys.stdout.write(f"Agent: Waiting for tool '{tool_name}' to complete...\n")
+                sys.stdout.flush()
+                self.current_line_empty = True
+                self.agent_has_spoken_this_turn = True
+            else:
+                phase_msg = f"[Agent Status: {event.data.new_phase.value}"
+                if event.data.tool_name:
+                    phase_msg += f" ({event.data.tool_name})"
+                phase_msg += "]"
+                logger.info(phase_msg)
 
         elif event.event_type == StreamEventType.ERROR_EVENT and isinstance(event.data, ErrorEventData):
             logger.error(f"[Error: {event.data.message} (Source: {event.data.source})]")

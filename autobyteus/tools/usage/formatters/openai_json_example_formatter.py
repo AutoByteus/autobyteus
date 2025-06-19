@@ -12,6 +12,7 @@ class OpenAiJsonExampleFormatter(BaseExampleFormatter):
     """
     Formats a tool usage example into a format resembling an entry in the
     OpenAI JSON 'tool_calls' array, intended for prompting a model.
+    The output is wrapped in a 'tool' key for consistency in prompts.
     """
 
     def provide(self, tool_definition: 'ToolDefinition') -> Dict:
@@ -26,12 +27,15 @@ class OpenAiJsonExampleFormatter(BaseExampleFormatter):
 
         # This format contains the 'function' wrapper with a stringified 'arguments' field.
         # This aligns with the structure often seen inside an OpenAI API tool_calls object.
-        return {
+        function_call = {
             "function": {
                 "name": tool_name,
                 "arguments": json.dumps(arguments),
             },
         }
+
+        # Wrap in a 'tool' key for consistency in prompt generation.
+        return {"tool": function_call}
 
     def _generate_placeholder_value(self, param_def: ParameterDefinition) -> Any:
         if param_def.default_value is not None: return param_def.default_value
