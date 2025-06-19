@@ -37,9 +37,13 @@ def complex_tool_def():
 def test_provide_default_json_example_for_complex_tool(formatter: DefaultJsonExampleFormatter, complex_tool_def: ToolDefinition):
     json_output = formatter.provide(complex_tool_def)
     
-    assert json_output["name"] == "ComplexTool"
-    expected_args = {
+    assert "tool" in json_output
+    tool_call = json_output["tool"]
+    
+    assert tool_call["function"] == "ComplexTool"
+    
+    expected_params = {
         "input_path": "example_input_path",
         "retries": 3
     }
-    assert json_output["arguments"] == expected_args
+    assert tool_call["parameters"] == expected_params

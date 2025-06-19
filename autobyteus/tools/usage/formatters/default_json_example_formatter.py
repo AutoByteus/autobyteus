@@ -9,7 +9,8 @@ if TYPE_CHECKING:
 
 class DefaultJsonExampleFormatter(BaseExampleFormatter):
     """
-    Formats a tool usage example into a generic, provider-agnostic JSON format.
+    Formats a tool usage example into a generic JSON format, inspired by
+    the default XML format.
     """
 
     def provide(self, tool_definition: 'ToolDefinition') -> Dict:
@@ -23,8 +24,10 @@ class DefaultJsonExampleFormatter(BaseExampleFormatter):
                     arguments[param_def.name] = self._generate_placeholder_value(param_def)
 
         return {
-            "name": tool_name,
-            "arguments": arguments,
+            "tool": {
+                "function": tool_name,
+                "parameters": arguments,
+            },
         }
 
     def _generate_placeholder_value(self, param_def: ParameterDefinition) -> Any:

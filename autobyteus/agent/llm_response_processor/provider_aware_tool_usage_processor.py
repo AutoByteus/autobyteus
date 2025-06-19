@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from .base_processor import BaseLLMResponseProcessor
 from autobyteus.tools.usage.parsers import ProviderAwareToolUsageParser
+from autobyteus.tools.usage.parsers.exceptions import ToolUsageParseException
 from autobyteus.agent.events import PendingToolInvocationEvent
 
 if TYPE_CHECKING:
@@ -20,6 +21,7 @@ class ProviderAwareToolUsageProcessor(BaseLLMResponseProcessor):
     necessary agent events based on the parsed results.
     """
     def __init__(self):
+        # The original implementation was correct. This processor creates its own parser.
         self._parser = ProviderAwareToolUsageParser()
         logger.debug("ProviderAwareToolUsageProcessor initialized.")
 
@@ -30,11 +32,15 @@ class ProviderAwareToolUsageProcessor(BaseLLMResponseProcessor):
         """
         Uses a ProviderAwareToolUsageParser to get a list of tool invocations,
         and then enqueues a PendingToolInvocationEvent for each one.
+        Propagates ToolUsageParseException if parsing fails.
         """
-        # 1. Delegate parsing to the high-level parser
-        tool_invocations = self._parser.parse(response, context)
+        try:
+            # Delegate parsing to the high-level parser
+            tool_invocations = self._parser.parse(response, context)
+        except ToolUsageParseException:
+            # Re-raise the exception to be caught by the event handler
+            raise
 
-        # 2. Handle the agent-specific task of enqueuing events
         if not tool_invocations:
             return False
 

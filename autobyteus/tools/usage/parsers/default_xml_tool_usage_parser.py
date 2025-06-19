@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Dict, Any, List
 
 from autobyteus.agent.tool_invocation import ToolInvocation
 from .base_parser import BaseToolUsageParser
+from .exceptions import ToolUsageParseException
 
 if TYPE_CHECKING:
     from autobyteus.llm.utils.response_types import CompleteResponse
@@ -29,8 +30,6 @@ class DefaultXmlToolUsageParser(BaseToolUsageParser):
         logger.debug(f"{self.get_name()} attempting to parse response (first 500 chars): {response_text[:500]}...")
         
         invocations: List[ToolInvocation] = []
-        # Regex to find either a <tools> block or a single <tool> block.
-        # It prioritizes finding the larger <tools> block if both are present.
         match = re.search(r"<tools\b[^>]*>.*?</tools\s*>|<tool\b[^>]*>.*?</tool\s*>", response_text, re.DOTALL | re.IGNORECASE)
         if not match:
             logger.debug(f"No <tools> or <tool> block found by {self.get_name()}.")
@@ -49,7 +48,6 @@ class DefaultXmlToolUsageParser(BaseToolUsageParser):
                     logger.debug("Found <tools> but no <tool> children.")
                     return invocations
             elif root.tag.lower() == "tool":
-                # Handle single tool call not wrapped in <tools>
                 tool_elements = [root]
             else:
                 logger.warning(f"Root XML tag is '{root.tag}', not 'tools' or 'tool'. Skipping parsing.")
@@ -57,7 +55,6 @@ class DefaultXmlToolUsageParser(BaseToolUsageParser):
 
             for tool_elem in tool_elements:
                 tool_name = tool_elem.attrib.get("name")
-                # Use provided ID or generate one if missing
                 tool_id = tool_elem.attrib.get("id") or str(uuid.uuid4())
                 arguments = self._parse_arguments_from_xml(tool_elem)
 
@@ -68,28 +65,43 @@ class DefaultXmlToolUsageParser(BaseToolUsageParser):
                     logger.warning(f"Parsed a <tool> element but its 'name' attribute is missing or empty.")
         
         except (ET.ParseError, xml.parsers.expat.ExpatError) as e:
-            logger.debug(f"XML parsing error for content '{processed_xml[:200]}' by {self.get_name()}: {e}")
+            error_msg = f"XML parsing error in '{self.get_name()}': {e}. Content: '{processed_xml[:200]}'"
+            logger.debug(error_msg)
+            # Raise a specific exception to be caught upstream.
+            raise ToolUsageParseException(error_msg, original_exception=e)
+        
         except Exception as e:
             logger.error(f"Unexpected error in {self.get_name()} processing XML: {e}. XML Content: {xml_content[:200]}", exc_info=True)
+            # Also wrap unexpected errors for consistent handling.
+            raise ToolUsageParseException(f"Unexpected error during XML parsing: {e}", original_exception=e)
 
         return invocations
 
     def _preprocess_xml_for_parsing(self, xml_content: str) -> str:
-        # This preprocessing is a safeguard against malformed XML from the LLM,
-        # specifically to handle unescaped characters within argument tags.
+        """
+        Preprocesses raw XML string from an LLM to fix common errors before parsing.
+        """
+        processed_content = re.sub(
+            r'(<arg\s+name\s*=\s*")([^"]+?)>',
+            r'\1\2">',
+            xml_content,
+            flags=re.IGNORECASE
+        )
+        if processed_content != xml_content:
+            logger.debug("Preprocessor fixed a missing quote in an <arg> tag.")
+
         cdata_sections: Dict[str, str] = {}
         def cdata_replacer(match_obj: re.Match) -> str:
             placeholder = f"__CDATA_PLACEHOLDER_{len(cdata_sections)}__"
             cdata_sections[placeholder] = match_obj.group(0)
             return placeholder
 
-        xml_no_cdata = re.sub(r'<!\[CDATA\[.*?\]\]>', cdata_replacer, xml_content, flags=re.DOTALL)
+        xml_no_cdata = re.sub(r'<!\[CDATA\[.*?\]\]>', cdata_replacer, processed_content, flags=re.DOTALL)
 
         def escape_arg_value(match_obj: re.Match) -> str:
             open_tag = match_obj.group(1)
             content = match_obj.group(2)
             close_tag = match_obj.group(3)
-            # Do not escape if content seems to contain XML tags itself (nested structure)
             if re.search(r'<\s*/?[a-zA-Z]', content.strip()):
                 return f"{open_tag}{content}{close_tag}"
             escaped_content = escape(content) if not content.startswith("__CDATA_PLACEHOLDER_") else content
@@ -117,9 +129,7 @@ class DefaultXmlToolUsageParser(BaseToolUsageParser):
         for arg_element in arguments_container.findall('arg'):
             arg_name = arg_element.attrib.get('name')
             if arg_name:
-                # Using itertext to handle mixed content and nested tags gracefully, then joining.
                 raw_text = "".join(arg_element.itertext())
-                # Unescape to handle XML entities like &amp;, &lt;, etc.
                 unescaped_value = unescape(raw_text)
                 arguments[arg_name] = unescaped_value
         return arguments

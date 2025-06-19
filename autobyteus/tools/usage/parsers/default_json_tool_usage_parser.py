@@ -15,101 +15,92 @@ logger = logging.getLogger(__name__)
 
 class DefaultJsonToolUsageParser(BaseToolUsageParser):
     """
-    A default parser for tool usage commands formatted as JSON.
-    This serves as a fallback and attempts a best-effort parsing.
+    A default parser for tool usage commands formatted as custom JSON.
+    It expects a 'tool' object with 'function' and 'parameters' keys.
     """
     def get_name(self) -> str:
         return "default_json_tool_usage_parser"
 
     def parse(self, response: 'CompleteResponse') -> List[ToolInvocation]:
-        invocations: List[ToolInvocation] = []
-        response_text = self.extract_json_from_response(response.content)
+        response_text = self._extract_json_from_response(response.content)
         if not response_text:
-            return invocations
-
-        try:
-            parsed_json = json.loads(response_text)
-            tool_calls = []
-
-            if isinstance(parsed_json, list):
-                tool_calls = parsed_json
-            elif isinstance(parsed_json, dict):
-                if "tool_calls" in parsed_json and isinstance(parsed_json["tool_calls"], list):
-                    tool_calls = parsed_json["tool_calls"]
-                else:
-                    tool_calls = [parsed_json]
-            else:
-                return invocations
-
-            for tool_data in tool_calls:
-                if not isinstance(tool_data, dict):
-                    continue
-                
-                function_obj = tool_data.get("function") if isinstance(tool_data.get("function"), dict) else {}
-                tool_name = tool_data.get("name") or function_obj.get("name")
-                
-                args = tool_data.get("arguments")
-                if args is None: args = tool_data.get("args")
-                if args is None: args = function_obj.get("arguments")
-                
-                if args is None:
-                    logger.debug(f"Skipping tool call because 'arguments' or 'args' key is missing: {tool_data}")
-                    continue
-
-                if isinstance(args, str):
-                    try:
-                        arguments = json.loads(args)
-                    except json.JSONDecodeError:
-                        logger.warning(f"Could not parse arguments string in default parser: {args}")
-                        continue
-                elif isinstance(args, dict):
-                    arguments = args
-                elif args is None:
-                    arguments = {}
-                else:
-                    logger.warning(f"Unsupported type for arguments field: {type(args)}. Skipping tool call.")
-                    continue
-
-                tool_id = tool_data.get("id", str(uuid.uuid4()))
-
-                if tool_name and isinstance(tool_name, str):
-                    invocation = ToolInvocation(name=tool_name, arguments=arguments, id=tool_id)
-                    invocations.append(invocation)
-
-            return invocations
-
-        except (json.JSONDecodeError, TypeError) as e:
-            logger.debug(f"Default JSON parser failed to parse content: {e}")
             return []
 
-    def extract_json_from_response(self, text: str) -> Optional[str]:
+        try:
+            data = json.loads(response_text)
+        except json.JSONDecodeError:
+            logger.debug(f"Could not parse extracted text as JSON. Text: {response_text[:200]}")
+            return []
+
+        tool_calls_data = []
+        if isinstance(data, list):
+            tool_calls_data = data
+        elif isinstance(data, dict):
+            if "tools" in data and isinstance(data.get("tools"), list):
+                tool_calls_data = data["tools"]
+            else:
+                tool_calls_data = [data]
+        else:
+            return []
+
+        invocations: List[ToolInvocation] = []
+        for call_data in tool_calls_data:
+            if not isinstance(call_data, dict):
+                continue
+
+            tool_block = call_data.get("tool")
+            if not isinstance(tool_block, dict):
+                continue
+            
+            tool_name = tool_block.get("function")
+            arguments = tool_block.get("parameters")
+
+            if not tool_name or not isinstance(tool_name, str):
+                logger.debug(f"Skipping malformed tool block (missing or invalid 'function'): {tool_block}")
+                continue
+            
+            if arguments is None:
+                arguments = {}
+            
+            if not isinstance(arguments, dict):
+                logger.debug(f"Skipping tool block with invalid 'parameters' type ({type(arguments)}): {tool_block}")
+                continue
+            
+            # The custom format does not have a tool ID, so we generate one.
+            tool_id = str(uuid.uuid4())
+            try:
+                tool_invocation = ToolInvocation(name=tool_name, arguments=arguments, id=tool_id)
+                invocations.append(tool_invocation)
+            except Exception as e:
+                logger.error(f"Unexpected error creating ToolInvocation for tool '{tool_name}': {e}", exc_info=True)
+        
+        return invocations
+
+    def _extract_json_from_response(self, text: str) -> Optional[str]:
         match = re.search(r"```(?:json)?\s*([\s\S]+?)\s*```", text)
         if match:
             return match.group(1).strip()
         
-        stripped_text = text.strip()
-        if (stripped_text.startswith('{') and stripped_text.endswith('}')) or \
-           (stripped_text.startswith('[') and stripped_text.endswith(']')):
-            try:
-                json.loads(stripped_text)
-                return stripped_text
-            except json.JSONDecodeError:
-                pass
-
-        first_brace = text.find('{')
+        # Try to find a JSON object or array in the text
         first_bracket = text.find('[')
-        start_index = -1
+        first_brace = text.find('{')
 
-        if first_brace == -1 and first_bracket == -1: return None
-        if first_brace != -1 and first_bracket != -1: start_index = min(first_brace, first_bracket)
-        elif first_brace != -1: start_index = first_brace
-        else: start_index = first_bracket
-            
+        if first_brace == -1 and first_bracket == -1:
+            return None
+
+        start_index = -1
+        if first_bracket != -1 and first_brace != -1:
+            start_index = min(first_bracket, first_brace)
+        elif first_bracket != -1:
+            start_index = first_bracket
+        else: # first_brace != -1
+            start_index = first_brace
+
         json_substring = text[start_index:]
         try:
+            # Check if the substring is valid JSON
             json.loads(json_substring)
             return json_substring
         except json.JSONDecodeError:
             logger.debug(f"Found potential start of JSON, but substring was not valid: {json_substring[:100]}")
-            
-        return None
+            return None

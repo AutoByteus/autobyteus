@@ -16,6 +16,7 @@ class ToolManifestProvider:
     """
     SCHEMA_HEADER = "## Tool Definition:"
     EXAMPLE_HEADER = "## Example Usage:"
+    JSON_EXAMPLE_HEADER = "To use this tool, you MUST output a JSON object in the following format:"
 
     def provide(self,
                 tool_definitions: List['ToolDefinition'],
@@ -33,6 +34,7 @@ class ToolManifestProvider:
             A single string containing the formatted manifest.
         """
         tool_blocks = []
+
         for td in tool_definitions:
             try:
                 if use_xml:
@@ -46,11 +48,14 @@ class ToolManifestProvider:
                     schema = td.get_usage_json(provider=provider)
                     example = td.get_usage_json_example(provider=provider)
                     if schema and example:
-                        tool_block_json = {
-                            "tool_definition": schema,
-                            "example_call": example
-                        }
-                        tool_blocks.append(json.dumps(tool_block_json, indent=2))
+                        # Per user feedback, wrap schema in a 'tool' key.
+                        schema_wrapped = {"tool": schema}
+                        schema_str = json.dumps(schema_wrapped, indent=2)
+                        
+                        # Example is already formatted correctly by the example formatter.
+                        example_str = json.dumps(example, indent=2)
+
+                        tool_blocks.append(f"{self.SCHEMA_HEADER}\n{schema_str}\n\n{self.JSON_EXAMPLE_HEADER}\n{example_str}")
                     else:
                         logger.warning(f"Could not generate schema or example for JSON tool '{td.name}'.")
 
@@ -58,6 +63,6 @@ class ToolManifestProvider:
                 logger.error(f"Failed to generate manifest block for tool '{td.name}': {e}", exc_info=True)
 
         if use_xml:
-            return "\n\n".join(tool_blocks)
-        else:
+            return "\n\n---\n\n".join(tool_blocks)
+        else: 
             return "[\n" + ",\n".join(tool_blocks) + "\n]"
