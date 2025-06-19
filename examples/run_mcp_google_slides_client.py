@@ -34,7 +34,6 @@ try:
     # High-level components for the full workflow
     from autobyteus.tools.mcp import (
         McpConfigService,
-        McpConnectionManager,
         McpSchemaMapper,
         McpToolRegistrar,
     )
@@ -161,13 +160,12 @@ async def main():
     
     # 1. Instantiate all the core MCP and registry components.
     config_service = McpConfigService()
-    conn_manager = McpConnectionManager(config_service=config_service)
     schema_mapper = McpSchemaMapper()
     tool_registry = default_tool_registry # Use the default singleton registry
     
+    # The registrar now internally manages the call handlers.
     registrar = McpToolRegistrar(
         config_service=config_service,
-        conn_manager=conn_manager,
         schema_mapper=schema_mapper,
         tool_registry=tool_registry
     )
@@ -192,7 +190,6 @@ async def main():
     config_service.load_configs(google_slides_mcp_config)
     logger.info(f"Loaded MCP server configuration for '{server_id}'.")
 
-    # The `finally` block ensures the connection manager cleans up resources
     try:
         # 3. Discover and register tools from the configured server.
         logger.info("Discovering and registering remote tools...")
@@ -203,6 +200,10 @@ async def main():
         create_tool_name = f"{tool_prefix}_create_presentation"
         summarize_tool_name = f"{tool_prefix}_summarize_presentation"
         
+        if create_tool_name not in tool_registry.list_tool_names():
+            logger.error(f"Tool '{create_tool_name}' was not found in the registry. Aborting.")
+            return
+
         logger.info(f"Creating an instance of the '{create_tool_name}' tool from the registry...")
         create_presentation_tool = tool_registry.create_tool(create_tool_name)
         
@@ -230,6 +231,11 @@ async def main():
             title=presentation_title
         )
         
+        # The result from a tool call is a ToolResult object. Its content needs to be accessed.
+        # We also need to handle cases where content might be empty or not text.
+        if not create_result.content or not hasattr(create_result.content[0], 'text'):
+            raise ValueError(f"Unexpected result format from tool '{create_tool_name}'. Full result: {create_result}")
+
         presentation_response_text = create_result.content[0].text
         presentation_object = json.loads(presentation_response_text)
         actual_presentation_id = presentation_object.get("presentationId")
@@ -246,6 +252,9 @@ async def main():
             presentationId=actual_presentation_id
         )
         
+        if not summary_result.content or not hasattr(summary_result.content[0], 'text'):
+            raise ValueError(f"Unexpected result format from tool '{summarize_tool_name}'. Full result: {summary_result}")
+
         presentation_summary = summary_result.content[0].text
         logger.info(f"Tool '{summarize_tool_name}' executed successfully.")
         print("\n--- Presentation Summary ---")
@@ -257,12 +266,8 @@ async def main():
 
     except Exception as e:
         logger.error(f"An error occurred during the workflow: {e}", exc_info=True)
-    finally:
-        # 8. Clean up all connections.
-        logger.info("Cleaning up MCP connections...")
-        await conn_manager.cleanup()
-        logger.info("Cleanup complete.")
-        logger.info("--- MCP Integration Workflow Example Finished ---")
+    
+    logger.info("--- MCP Integration Workflow Example Finished ---")
 
 
 if __name__ == "__main__":

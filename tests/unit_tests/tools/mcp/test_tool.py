@@ -1,19 +1,20 @@
 # file: autobyteus/tests/unit_tests/tools/mcp/test_tool.py
 import pytest
-import asyncio
 from unittest.mock import MagicMock, AsyncMock
 
 from autobyteus.tools.mcp.tool import GenericMcpTool
-from autobyteus.tools.mcp.connection_manager import McpConnectionManager
+from autobyteus.tools.mcp.call_handlers.base_handler import McpCallHandler
+from autobyteus.tools.mcp.types import StdioMcpServerConfig, BaseMcpConfig
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
-from autobyteus.agent.context import AgentContext # For type hinting context
-
-# Mock mcp.ClientSession for these tests
-MockMcpClientSession = AsyncMock()
+from autobyteus.agent.context import AgentContext
 
 @pytest.fixture
-def mock_connection_manager():
-    return AsyncMock(spec=McpConnectionManager)
+def mock_call_handler():
+    return AsyncMock(spec=McpCallHandler)
+
+@pytest.fixture
+def mock_server_config():
+    return StdioMcpServerConfig(server_id="test_server_123", command="test_cmd")
 
 @pytest.fixture
 def sample_arg_schema():
@@ -22,11 +23,11 @@ def sample_arg_schema():
     return schema
 
 @pytest.fixture
-def generic_mcp_tool_instance(mock_connection_manager, sample_arg_schema):
+def generic_mcp_tool_instance(mock_call_handler, mock_server_config, sample_arg_schema):
     return GenericMcpTool(
-        mcp_server_id="test_server_123",
+        mcp_server_config=mock_server_config,
         mcp_remote_tool_name="remote_calculator",
-        mcp_connection_manager=mock_connection_manager,
+        mcp_call_handler=mock_call_handler,
         name="MyCalculator",
         description="A remote calculator tool.",
         argument_schema=sample_arg_schema
@@ -44,49 +45,42 @@ def test_generic_mcp_tool_properties(generic_mcp_tool_instance: GenericMcpTool, 
     assert generic_mcp_tool_instance.get_description() == "A remote calculator tool."
     assert generic_mcp_tool_instance.get_argument_schema() == sample_arg_schema
     
-    # Test BaseTool static methods (they should return generic info for GenericMcpTool class itself)
+    # Test BaseTool static methods
     assert GenericMcpTool.get_name() == "GenericMcpTool"
     assert "generic wrapper" in GenericMcpTool.get_description()
-    assert GenericMcpTool.get_argument_schema() is None # The class itself has no fixed schema
+    assert GenericMcpTool.get_argument_schema() is None
 
 @pytest.mark.asyncio
-async def test_execute_success(generic_mcp_tool_instance: GenericMcpTool, mock_connection_manager, mock_agent_context):
-    mock_session = MockMcpClientSession()
-    mock_connection_manager.get_session.return_value = mock_session
-    
+async def test_execute_success(generic_mcp_tool_instance: GenericMcpTool, mock_call_handler, mock_server_config, mock_agent_context):
     remote_tool_args = {"param1": "value1", "param2": 100}
     expected_result = {"result": "calculation complete"}
-    mock_session.call_tool.return_value = expected_result
+    mock_call_handler.handle_call.return_value = expected_result
 
-    # BaseTool.execute calls the internal _execute, so we test that directly
     result = await generic_mcp_tool_instance._execute(context=mock_agent_context, **remote_tool_args)
 
-    mock_connection_manager.get_session.assert_awaited_once_with("test_server_123")
-    mock_session.call_tool.assert_called_once_with("remote_calculator", remote_tool_args)
+    mock_call_handler.handle_call.assert_awaited_once_with(
+        config=mock_server_config,
+        remote_tool_name="remote_calculator",
+        arguments=remote_tool_args
+    )
     assert result == expected_result
 
 @pytest.mark.asyncio
-async def test_execute_get_session_fails(generic_mcp_tool_instance: GenericMcpTool, mock_connection_manager, mock_agent_context):
-    mock_connection_manager.get_session.side_effect = RuntimeError("Connection failed")
+async def test_execute_handler_fails(generic_mcp_tool_instance: GenericMcpTool, mock_call_handler, mock_agent_context):
+    mock_call_handler.handle_call.side_effect = RuntimeError("Handler failed")
     
-    with pytest.raises(RuntimeError, match="Failed to acquire MCP session for server 'test_server_123': Connection failed"):
+    with pytest.raises(RuntimeError, match="Handler failed"):
         await generic_mcp_tool_instance._execute(context=mock_agent_context, param1="test")
 
 @pytest.mark.asyncio
-async def test_execute_call_tool_fails(generic_mcp_tool_instance: GenericMcpTool, mock_connection_manager, mock_agent_context):
-    mock_session = MockMcpClientSession()
-    mock_connection_manager.get_session.return_value = mock_session
-    mock_session.call_tool.side_effect = RuntimeError("Remote call error")
-
-    with pytest.raises(RuntimeError, match="Error calling remote MCP tool 'remote_calculator': Remote call error"):
-        await generic_mcp_tool_instance._execute(context=mock_agent_context, param1="test")
-
-@pytest.mark.asyncio
-async def test_execute_no_connection_manager_set_temporarily(sample_arg_schema, mock_agent_context):
-    # Test the internal check if _mcp_connection_manager was None (though constructor requires it)
+async def test_execute_no_handler_set_temporarily(mock_server_config, sample_arg_schema, mock_agent_context):
     tool_instance = GenericMcpTool(
-        mcp_server_id="s", mcp_remote_tool_name="r", mcp_connection_manager=None, # type: ignore
-        name="n", description="d", argument_schema=sample_arg_schema
+        mcp_server_config=mock_server_config,
+        mcp_remote_tool_name="r",
+        mcp_call_handler=None, # type: ignore
+        name="n", 
+        description="d", 
+        argument_schema=sample_arg_schema
     )
-    with pytest.raises(RuntimeError, match="McpConnectionManager not available"):
+    with pytest.raises(RuntimeError, match="McpCallHandler not available"):
        await tool_instance._execute(context=mock_agent_context)

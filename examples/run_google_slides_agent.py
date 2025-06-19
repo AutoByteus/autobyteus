@@ -29,7 +29,6 @@ try:
     # For MCP Tool Integration
     from autobyteus.tools.mcp import (
         McpConfigService,
-        McpConnectionManager,
         McpSchemaMapper,
         McpToolRegistrar,
     )
@@ -161,13 +160,12 @@ async def main(args: argparse.Namespace):
 
     # 1. Instantiate all the core MCP and registry components.
     config_service = McpConfigService()
-    conn_manager = McpConnectionManager(config_service=config_service)
     schema_mapper = McpSchemaMapper()
     tool_registry = default_tool_registry
     
+    # The registrar now uses the handler architecture and no longer needs a connection manager.
     registrar = McpToolRegistrar(
         config_service=config_service,
-        conn_manager=conn_manager,
         schema_mapper=schema_mapper,
         tool_registry=tool_registry
     )
@@ -191,7 +189,6 @@ async def main(args: argparse.Namespace):
     }
     config_service.load_configs(google_slides_mcp_config)
 
-    # The `finally` block ensures the connection manager cleans up resources
     try:
         # 3. Discover and register tools from the configured server.
         logger.info("Discovering and registering remote Google Slides tools...")
@@ -218,8 +215,6 @@ async def main(args: argparse.Namespace):
         logger.info(f"Creating LLM instance for model: {args.llm_model}")
         llm_instance = default_llm_factory.create_llm(model_identifier=args.llm_model)
 
-        # UPDATED: The system prompt now only uses the {{tools}} placeholder.
-        # The new ToolManifestInjectorProcessor will inject both the schema and an example.
         system_prompt = (
             "You are a helpful assistant with expertise in creating and managing Google Slides presentations.\n"
             "You have access to a set of specialized tools for this purpose.\n\n"
@@ -238,7 +233,7 @@ async def main(args: argparse.Namespace):
             system_prompt=system_prompt,
             tools=tools_for_agent,
             auto_execute_tools=True,
-            use_xml_tool_format=True
+            use_xml_tool_format=False
         )
 
         agent = default_agent_factory.create_agent(config=gslides_agent_config)
@@ -251,12 +246,10 @@ async def main(args: argparse.Namespace):
 
     except Exception as e:
         logger.error(f"An error occurred during the agent workflow: {e}", exc_info=True)
-    finally:
-        # 7. Clean up all MCP connections.
-        logger.info("Cleaning up MCP connections...")
-        await conn_manager.cleanup()
-        logger.info("Cleanup complete.")
-        logger.info("--- Google Slides Agent Example Finished ---")
+    
+    # The 'finally' block for cleanup is no longer needed because the new handler
+    # architecture is stateless and does not hold persistent connections.
+    logger.info("--- Google Slides Agent Example Finished ---")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the GoogleSlidesAgent interactively.")
@@ -290,3 +283,4 @@ if __name__ == "__main__":
         logger.error(f"An unhandled error occurred at the top level: {e}", exc_info=True)
     finally:
         logger.info("Exiting script.")
+

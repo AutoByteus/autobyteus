@@ -188,7 +188,7 @@ async def main(args: argparse.Namespace):
         system_prompt=system_prompt,
         tools=tools_for_agent, # Pass the list of tool instances
         auto_execute_tools=False, # We want to approve the file write
-        use_xml_tool_format=True
+        use_xml_tool_format=False
     )
 
     # Use the default factory to create the agent

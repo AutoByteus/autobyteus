@@ -33,6 +33,12 @@ class InteractiveCLIManager:
         self.agent_has_spoken_this_turn = False
         self.pending_approval_data: Optional[ToolInvocationApprovalRequestedData] = None
         self.is_thinking = False
+        self.is_in_content_block = False
+
+    def reset_turn_state(self):
+        """Resets flags that are tracked on a per-turn basis."""
+        self.agent_has_spoken_this_turn = False
+        self.is_in_content_block = False
 
     def _ensure_new_line(self):
         """Ensures the cursor is on a new line if the current one isn't empty."""
@@ -106,10 +112,11 @@ class InteractiveCLIManager:
 
             # Stream content to stdout.
             if event.data.content:
-                if not self.agent_has_spoken_this_turn:
+                if not self.is_in_content_block:
                     self._ensure_new_line()
-                    sys.stdout.write(f"Agent: ")
+                    sys.stdout.write("Agent: ")
                     self.agent_has_spoken_this_turn = True
+                    self.is_in_content_block = True
                 sys.stdout.write(event.data.content)
                 sys.stdout.flush()
                 self.current_line_empty = event.data.content.endswith('\n')
@@ -144,7 +151,7 @@ class InteractiveCLIManager:
                 )
 
             self.current_line_empty = True
-            self.agent_has_spoken_this_turn = False # Reset for next turn
+            self.reset_turn_state() # Reset for next turn
 
         elif event.event_type == StreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED and isinstance(event.data, ToolInvocationApprovalRequestedData):
             self.pending_approval_data = event.data
@@ -218,7 +225,7 @@ async def run(agent: Agent, show_tool_logs: bool = True, show_token_usage: bool 
             logger.info(f"Initial prompt provided: '{initial_prompt}'")
             print(f"You: {initial_prompt}") # Mirroring user input is fine with print
             agent_turn_complete_event.clear()
-            cli_manager.agent_has_spoken_this_turn = False
+            cli_manager.reset_turn_state()
             await agent.post_user_message(AgentInputUserMessage(content=initial_prompt))
             await agent_turn_complete_event.wait()
         
@@ -256,7 +263,7 @@ async def run(agent: Agent, show_tool_logs: bool = True, show_token_usage: bool 
                     continue
 
                 logger.debug(f"User input received, posting to agent: '{user_input}'")
-                cli_manager.agent_has_spoken_this_turn = False
+                cli_manager.reset_turn_state()
                 await agent.post_user_message(AgentInputUserMessage(content=user_input))
 
             await agent_turn_complete_event.wait()

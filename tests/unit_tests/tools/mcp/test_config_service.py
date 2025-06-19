@@ -1,4 +1,4 @@
-# file: autobyteus/tests/unit_tests/mcp/test_config_service.py
+# file: autobyteus/tests/unit_tests/tools/mcp/test_config_service.py
 import pytest
 import json
 import os
@@ -106,12 +106,8 @@ VALID_HTTP_CONFIG_LIST_ITEM = {
 
 @pytest.fixture
 def mcp_config_service() -> McpConfigService:
-    service = McpConfigService()
-    # Ensure it's clean for each test, though singleton might handle this.
-    # This explicit clear might be redundant if singleton always returns same instance
-    # but good for safety if tests run in parallel or affect global state.
-    service.clear_configs()
-    return service
+    # Use a new instance for each test to ensure isolation
+    return McpConfigService()
 
 def test_load_configs_from_list_valid_stdio(mcp_config_service: McpConfigService):
     configs_data = [VALID_STDIO_CONFIG_LIST_ITEM]
@@ -227,12 +223,9 @@ def test_load_configs_from_file_dict_format_user_example4_defaults(mcp_config_se
 @pytest.mark.parametrize("invalid_data, error_message_match", [
     ([{"transport_type": "stdio"}], "missing 'server_id' field"),
     ({"myid": {"transport_type": "invalid_type"}}, "Invalid 'transport_type' string 'invalid_type'"),
-    # For StdioMcpServerConfig, 'command' is now Optional but has validation for non-empty string if provided.
-    # Test cases in StdioMcpServerConfig's __post_init__ cover command validation more directly.
-    # Here, testing config service's ability to pass through for underlying validation or catch TypeErrors.
-    ({"myid": {"transport_type": "stdio", "stdio_params": {"command": 123}}}, "command' must be a non-empty string"),
-    ({"myid": {"transport_type": "sse", "sse_params": {"url": None}}}, "'url' must be a non-empty string"),
-    ({"myid": {"transport_type": "streamable_http", "streamable_http_params": {}}}, "'url' must be a non-empty string"),
+    ({"myid": {"transport_type": "stdio", "stdio_params": {"command": 123}}}, "incompatible parameters for STDIO config"),
+    ({"myid": {"transport_type": "sse", "sse_params": {"url": None}}}, "incompatible parameters for SSE config"),
+    ({"myid": {"transport_type": "streamable_http", "streamable_http_params": {}}}, "incompatible parameters for STREAMABLE_HTTP config"),
 ])
 def test_load_configs_invalid_data_raises_value_error(mcp_config_service: McpConfigService, invalid_data, error_message_match):
     with pytest.raises(ValueError, match=error_message_match):
