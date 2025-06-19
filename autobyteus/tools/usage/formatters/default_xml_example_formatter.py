@@ -9,13 +9,13 @@ if TYPE_CHECKING:
     from autobyteus.tools.registry import ToolDefinition
 
 class DefaultXmlExampleFormatter(BaseExampleFormatter):
-    """Formats a tool usage example into a standardized XML <tool_call> string."""
+    """Formats a tool usage example into a standardized XML <tool> string."""
 
     def provide(self, tool_definition: 'ToolDefinition') -> str:
         tool_name = tool_definition.name
         arg_schema = tool_definition.argument_schema
 
-        example_xml_parts = [f'<tool_call name="{tool_name}">']
+        example_xml_parts = [f'<tool name="{tool_name}">']
         arguments_part = []
 
         if arg_schema and arg_schema.parameters:
@@ -30,9 +30,9 @@ class DefaultXmlExampleFormatter(BaseExampleFormatter):
             example_xml_parts.extend(arguments_part)
             example_xml_parts.append("    </arguments>")
         else:
-            example_xml_parts.append("    <!-- This tool call takes no arguments -->")
+            example_xml_parts.append("    <!-- This tool takes no arguments -->")
 
-        example_xml_parts.append("</tool_call>")
+        example_xml_parts.append("</tool>")
         return "\n".join(example_xml_parts)
 
     def _generate_placeholder_value(self, param_def: ParameterDefinition) -> Any:

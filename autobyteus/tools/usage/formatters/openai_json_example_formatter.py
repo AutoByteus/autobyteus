@@ -1,6 +1,5 @@
 # file: autobyteus/autobyteus/tools/usage/formatters/openai_json_example_formatter.py
 import json
-import uuid
 from typing import Dict, Any, TYPE_CHECKING
 
 from autobyteus.tools.parameter_schema import ParameterType, ParameterDefinition
@@ -10,7 +9,10 @@ if TYPE_CHECKING:
     from autobyteus.tools.registry import ToolDefinition
 
 class OpenAiJsonExampleFormatter(BaseExampleFormatter):
-    """Formats a tool usage example into the OpenAI JSON tool_calls format."""
+    """
+    Formats a tool usage example into a format resembling an entry in the
+    OpenAI JSON 'tool_calls' array, intended for prompting a model.
+    """
 
     def provide(self, tool_definition: 'ToolDefinition') -> Dict:
         tool_name = tool_definition.name
@@ -22,9 +24,9 @@ class OpenAiJsonExampleFormatter(BaseExampleFormatter):
                 if param_def.required or param_def.default_value is not None:
                     arguments[param_def.name] = self._generate_placeholder_value(param_def)
 
+        # This format contains the 'function' wrapper with a stringified 'arguments' field.
+        # This aligns with the structure often seen inside an OpenAI API tool_calls object.
         return {
-            "id": f"call_{uuid.uuid4().hex[:8]}",
-            "type": "function",
             "function": {
                 "name": tool_name,
                 "arguments": json.dumps(arguments),

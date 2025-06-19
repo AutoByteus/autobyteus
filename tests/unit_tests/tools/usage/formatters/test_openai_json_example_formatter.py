@@ -35,13 +35,21 @@ def complex_tool_def():
     )
 
 def test_provide_openai_json_example_for_complex_tool(formatter: OpenAiJsonExampleFormatter, complex_tool_def: ToolDefinition):
+    """
+    Tests that the formatter produces the format with the 'function' wrapper.
+    """
     json_output = formatter.provide(complex_tool_def)
     
-    assert json_output["type"] == "function"
+    assert "name" not in json_output
+    assert "function" in json_output
+    
     function_part = json_output["function"]
     assert function_part["name"] == "ComplexTool"
     
+    # Assert arguments is a JSON string
+    assert isinstance(function_part["arguments"], str)
     arguments = json.loads(function_part["arguments"])
+    
     expected_args = {
         "input_path": "example_input_path",
         "retries": 3

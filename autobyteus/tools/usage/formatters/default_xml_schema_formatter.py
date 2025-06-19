@@ -21,8 +21,9 @@ class DefaultXmlSchemaFormatter(BaseSchemaFormatter):
         xml_parts = [tool_tag]
 
         if arg_schema and arg_schema.parameters:
+            xml_parts.append("    <arguments>")
             for param in arg_schema.parameters:
-                arg_tag = f'    <arg name="{param.name}"'
+                arg_tag = f'        <arg name="{param.name}"'
                 arg_tag += f' type="{param.param_type.value}"'
                 if param.description:
                     escaped_param_desc = xml.sax.saxutils.escape(param.description)
@@ -37,6 +38,7 @@ class DefaultXmlSchemaFormatter(BaseSchemaFormatter):
 
                 arg_tag += " />"
                 xml_parts.append(arg_tag)
+            xml_parts.append("    </arguments>")
         else:
             xml_parts.append("    <!-- This tool takes no arguments -->")
 

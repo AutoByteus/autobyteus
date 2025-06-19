@@ -1,3 +1,4 @@
+# file: autobyteus/examples/run_google_slides_agent.py
 import asyncio
 import logging
 import argparse
@@ -217,16 +218,16 @@ async def main(args: argparse.Namespace):
         logger.info(f"Creating LLM instance for model: {args.llm_model}")
         llm_instance = default_llm_factory.create_llm(model_identifier=args.llm_model)
 
+        # UPDATED: The system prompt now only uses the {{tools}} placeholder.
+        # The new ToolManifestInjectorProcessor will inject both the schema and an example.
         system_prompt = (
             "You are a helpful assistant with expertise in creating and managing Google Slides presentations.\n"
             "You have access to a set of specialized tools for this purpose.\n\n"
             "When asked to create a presentation, you should use the 'gslides_create_presentation' tool.\n"
             "When asked to add content, you should find out what kind of content and use the 'gslides_batch_update_presentation' tool with the correct request objects.\n"
             "When asked to summarize a presentation, use the 'gslides_summarize_presentation' tool.\n\n"
-            "Here are the tools available to you:\n"
-            "{{tools}}\n\n"
-            "Here are some examples of how to use them:\n"
-            "{{tool_examples}}"
+            "Here is the manifest of tools available to you, including their definitions and examples:\n"
+            "{{tools}}"
         )
 
         gslides_agent_config = AgentConfig(

@@ -2,8 +2,8 @@
 import logging
 from typing import List, Optional, Union, Tuple, TYPE_CHECKING
 
-from autobyteus.agent.system_prompt_processor import ToolDescriptionInjectorProcessor, ToolUsageExampleInjectorProcessor, BaseSystemPromptProcessor
 # Correctly import the new master processor and the base class
+from autobyteus.agent.system_prompt_processor import ToolManifestInjectorProcessor, BaseSystemPromptProcessor
 from autobyteus.agent.llm_response_processor import ProviderAwareToolUsageProcessor, BaseLLMResponseProcessor
 
 
@@ -23,7 +23,8 @@ class AgentConfig:
     """
     # Use the new ProviderAwareToolUsageProcessor as the default
     DEFAULT_LLM_RESPONSE_PROCESSORS = [ProviderAwareToolUsageProcessor()]
-    DEFAULT_SYSTEM_PROMPT_PROCESSORS = [ToolDescriptionInjectorProcessor(), ToolUsageExampleInjectorProcessor()]
+    # Use the new, single, unified processor as the default
+    DEFAULT_SYSTEM_PROMPT_PROCESSORS = [ToolManifestInjectorProcessor()]
 
     def __init__(self,
                  name: str,

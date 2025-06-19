@@ -1,3 +1,4 @@
+# file: autobyteus/examples/run_poem_writer.py
 import asyncio
 import logging
 import argparse
@@ -154,16 +155,15 @@ async def main(args: argparse.Namespace):
     # The file_writer tool is an instance ready to be used
     tools_for_agent = [file_writer]
     
-    # --- System prompt now uses placeholders for tool descriptions and examples ---
+    # UPDATED: The system prompt now only uses the {{tools}} placeholder.
+    # The new ToolManifestInjectorProcessor will inject both the schema and an example.
     system_prompt = (
         f"You are a world-class poet. Your task is to write a creative and beautiful poem on the given topic.\n"
         f"After composing the poem, you MUST use the '{file_writer.get_name()}' tool to save your work.\n"
         f"When using the tool, you MUST use the absolute file path '{poem_output_path.as_posix()}' for the 'path' argument.\n"
         f"Conclude your response with only the tool call necessary to save the poem.\n\n"
-        f"Tools available:\n"
-        f"{{{{tools}}}}" # Placeholder for tool descriptions
-        f"\n\n"
-        f"{{{{tool_examples}}}}" # Placeholder for tool examples
+        f"Here is the manifest of tools available to you, including their definitions and examples:\n"
+        f"{{{{tools}}}}"
     )
 
     try:

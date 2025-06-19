@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 class DefaultXmlToolUsageParser(BaseToolUsageParser):
     """
     Parses LLM responses for tool usage commands formatted as XML.
-    It looks for a <tool_calls> block and parses each <tool_call> within it,
-    returning a list of ToolInvocation objects.
+    It looks for either a <tools> block (for multiple calls) or a
+    single <tool> block.
     """
     def get_name(self) -> str:
         return "default_xml_tool_usage_parser"
@@ -29,9 +29,11 @@ class DefaultXmlToolUsageParser(BaseToolUsageParser):
         logger.debug(f"{self.get_name()} attempting to parse response (first 500 chars): {response_text[:500]}...")
         
         invocations: List[ToolInvocation] = []
-        match = re.search(r"<tool_calls\b[^>]*>.*?</tool_calls\s*>", response_text, re.DOTALL | re.IGNORECASE)
+        # Regex to find either a <tools> block or a single <tool> block.
+        # It prioritizes finding the larger <tools> block if both are present.
+        match = re.search(r"<tools\b[^>]*>.*?</tools\s*>|<tool\b[^>]*>.*?</tool\s*>", response_text, re.DOTALL | re.IGNORECASE)
         if not match:
-            logger.debug(f"No <tool_calls> block found by {self.get_name()}.")
+            logger.debug(f"No <tools> or <tool> block found by {self.get_name()}.")
             return invocations
 
         xml_content = match.group(0)
@@ -39,25 +41,31 @@ class DefaultXmlToolUsageParser(BaseToolUsageParser):
 
         try:
             root = ET.fromstring(processed_xml)
-            if root.tag.lower() != "tool_calls":
-                logger.warning(f"Root XML tag is '{root.tag}', not 'tool_calls'. Skipping parsing.")
+            tool_elements = []
+
+            if root.tag.lower() == "tools":
+                tool_elements = root.findall('tool')
+                if not tool_elements:
+                    logger.debug("Found <tools> but no <tool> children.")
+                    return invocations
+            elif root.tag.lower() == "tool":
+                # Handle single tool call not wrapped in <tools>
+                tool_elements = [root]
+            else:
+                logger.warning(f"Root XML tag is '{root.tag}', not 'tools' or 'tool'. Skipping parsing.")
                 return invocations
 
-            tool_call_elements = root.findall('tool_call')
-            if not tool_call_elements:
-                logger.debug("Found <tool_calls> but no <tool_call> children.")
-                return invocations
-
-            for tool_call_elem in tool_call_elements:
-                tool_name = tool_call_elem.attrib.get("name")
-                tool_id = tool_call_elem.attrib.get("id", str(uuid.uuid4()))
-                arguments = self._parse_arguments_from_xml(tool_call_elem)
+            for tool_elem in tool_elements:
+                tool_name = tool_elem.attrib.get("name")
+                # Use provided ID or generate one if missing
+                tool_id = tool_elem.attrib.get("id") or str(uuid.uuid4())
+                arguments = self._parse_arguments_from_xml(tool_elem)
 
                 if tool_name:
                     tool_invocation = ToolInvocation(name=tool_name, arguments=arguments, id=tool_id)
                     invocations.append(tool_invocation)
                 else:
-                    logger.warning(f"Parsed a <tool_call> element but its 'name' attribute is missing or empty.")
+                    logger.warning(f"Parsed a <tool> element but its 'name' attribute is missing or empty.")
         
         except (ET.ParseError, xml.parsers.expat.ExpatError) as e:
             logger.debug(f"XML parsing error for content '{processed_xml[:200]}' by {self.get_name()}: {e}")
@@ -67,6 +75,8 @@ class DefaultXmlToolUsageParser(BaseToolUsageParser):
         return invocations
 
     def _preprocess_xml_for_parsing(self, xml_content: str) -> str:
+        # This preprocessing is a safeguard against malformed XML from the LLM,
+        # specifically to handle unescaped characters within argument tags.
         cdata_sections: Dict[str, str] = {}
         def cdata_replacer(match_obj: re.Match) -> str:
             placeholder = f"__CDATA_PLACEHOLDER_{len(cdata_sections)}__"
@@ -79,7 +89,8 @@ class DefaultXmlToolUsageParser(BaseToolUsageParser):
             open_tag = match_obj.group(1)
             content = match_obj.group(2)
             close_tag = match_obj.group(3)
-            if re.search(r'<\s*[a-zA-Z]', content.strip()):
+            # Do not escape if content seems to contain XML tags itself (nested structure)
+            if re.search(r'<\s*/?[a-zA-Z]', content.strip()):
                 return f"{open_tag}{content}{close_tag}"
             escaped_content = escape(content) if not content.startswith("__CDATA_PLACEHOLDER_") else content
             return f"{open_tag}{escaped_content}{close_tag}"
@@ -100,13 +111,15 @@ class DefaultXmlToolUsageParser(BaseToolUsageParser):
         arguments: Dict[str, Any] = {}
         arguments_container = command_element.find('arguments')
         if arguments_container is None:
-            arguments_container = command_element
+            logger.debug(f"No <arguments> tag found in <tool name='{command_element.attrib.get('name')}'>. No arguments will be parsed.")
+            return arguments
         
         for arg_element in arguments_container.findall('arg'):
             arg_name = arg_element.attrib.get('name')
             if arg_name:
-                text_parts = [text_node.strip() for text_node in arg_element.itertext() if text_node.strip()]
-                raw_text = "".join(text_parts)
+                # Using itertext to handle mixed content and nested tags gracefully, then joining.
+                raw_text = "".join(arg_element.itertext())
+                # Unescape to handle XML entities like &amp;, &lt;, etc.
                 unescaped_value = unescape(raw_text)
                 arguments[arg_name] = unescaped_value
         return arguments

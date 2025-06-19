@@ -36,10 +36,11 @@ def complex_tool_def():
 def test_provide_xml_example_for_complex_tool(formatter: DefaultXmlExampleFormatter, complex_tool_def: ToolDefinition):
     xml_output = formatter.provide(complex_tool_def)
     
-    assert '<tool_call name="ComplexTool">' in xml_output
+    # Assert the new unified tag <tool> is used
+    assert '<tool name="ComplexTool">' in xml_output
     assert '<arguments>' in xml_output
     assert '<arg name="input_path">example_input_path</arg>' in xml_output
     assert '<arg name="retries">3</arg>' in xml_output
     assert '<arg name="output_path">' not in xml_output
     assert '</arguments>' in xml_output
-    assert '</tool_call>' in xml_output
+    assert '</tool>' in xml_output
