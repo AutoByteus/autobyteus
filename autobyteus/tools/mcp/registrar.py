@@ -111,15 +111,12 @@ class McpToolRegistrar:
                             tool_argument_schema=actual_arg_schema
                         )
                         
-                        usage_xml = self._generate_usage_xml(registered_name, actual_desc, actual_arg_schema)
-                        usage_json_dict = self._generate_usage_json(registered_name, actual_desc, actual_arg_schema)
-
+                        # UPDATED: The ToolDefinition no longer takes pre-generated usage strings.
+                        # It generates them on demand.
                         tool_def = ToolDefinition(
                             name=registered_name,
                             description=actual_desc,
                             argument_schema=actual_arg_schema,
-                            usage_xml=usage_xml,
-                            usage_json_dict=usage_json_dict,
                             # Provide the factory method, not the class
                             custom_factory=tool_factory.create_tool, 
                             config_schema=None, # MCP tools don't have instantiation config via ToolConfig
@@ -137,47 +134,5 @@ class McpToolRegistrar:
         
         logger.info(f"MCP tool discovery and registration process completed. Total tools registered: {registered_count}.")
 
-    def _generate_usage_xml(self, name: str, description: str, arg_schema: Optional[ParameterSchema]) -> str:
-        escaped_description = xml.sax.saxutils.escape(str(description)) if description is not None else ""
-        command_tag = f'<command name="{name}" description="{escaped_description}">'
-        xml_parts = [command_tag]
-        
-        if arg_schema and arg_schema.parameters:
-            for param in arg_schema.parameters: 
-                arg_tag = f"    <arg name=\"{param.name}\""
-                arg_tag += f" type=\"{param.param_type.value}\""
-                if param.description:
-                    escaped_param_desc = xml.sax.saxutils.escape(param.description)
-                    arg_tag += f" description=\"{escaped_param_desc}\""
-                arg_tag += f" required=\"{'true' if param.required else 'false'}\""
-
-                if param.default_value is not None:
-                    arg_tag += f" default=\"{xml.sax.saxutils.escape(str(param.default_value))}\""
-                if param.param_type == ParameterType.ENUM and param.enum_values:
-                    escaped_enum_values = [xml.sax.saxutils.escape(ev) for ev in param.enum_values]
-                    arg_tag += f" enum_values=\"{','.join(escaped_enum_values)}\""
-                
-                arg_tag += " />"
-                xml_parts.append(arg_tag)
-        else:
-            xml_parts.append("    <!-- This tool takes no arguments -->")
-            
-        xml_parts.append("</command>")
-        return "\n".join(xml_parts)
-
-    def _generate_usage_json(self, name: str, description: str, arg_schema: Optional[ParameterSchema]) -> Dict[str, Any]:
-        input_schema_dict: Dict[str, Any]
-        if arg_schema:
-            input_schema_dict = arg_schema.to_json_schema_dict()
-        else: 
-            input_schema_dict = {
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
-            
-        return {
-            "name": name,
-            "description": str(description) if description is not None else "No description provided.",
-            "inputSchema": input_schema_dict,
-        }
+    # REMOVED: _generate_usage_xml and _generate_usage_json methods are now obsolete.
+    # The ToolDefinition class handles usage generation through its providers.

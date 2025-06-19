@@ -61,7 +61,62 @@ def test_no_or_invalid_tool_calls_in_response(parser: OpenAiJsonToolUsageParser,
     # Assert
     assert len(invocations) == 0
 
-# --- NEW TESTS FOR ENHANCED FLEXIBILITY ---
+# --- NEW TESTS FOR "tool" WRAPPER (for prompt consistency) ---
+
+def test_parse_single_tool_call_with_tool_wrapper(parser: OpenAiJsonToolUsageParser):
+    # Arrange
+    payload = {
+        "tool": {
+            "id": "call_wrap123",
+            "type": "function",
+            "function": {
+                "name": "wrapped_tool",
+                "arguments": '{"param": "value"}'
+            }
+        }
+    }
+    response = CompleteResponse(content=json.dumps(payload))
+
+    # Act
+    invocations = parser.parse(response)
+
+    # Assert
+    assert len(invocations) == 1
+    invocation = invocations[0]
+    assert invocation.name == "wrapped_tool"
+    assert invocation.arguments == {"param": "value"}
+    assert invocation.id == "call_wrap123"
+
+def test_parse_multiple_tool_calls_with_tool_wrapper(parser: OpenAiJsonToolUsageParser):
+    # Arrange
+    payload = [
+        {
+            "tool": {
+                "id": "call_wrap1",
+                "function": {"name": "tool_one", "arguments": '{}'}
+            }
+        },
+        {
+            "tool": {
+                "id": "call_wrap2",
+                "function": {"name": "tool_two", "arguments": '{"arg": 1}'}
+            }
+        }
+    ]
+    response = CompleteResponse(content=json.dumps(payload))
+
+    # Act
+    invocations = parser.parse(response)
+
+    # Assert
+    assert len(invocations) == 2
+    assert invocations[0].name == "tool_one"
+    assert invocations[0].id == "call_wrap1"
+    assert invocations[1].name == "tool_two"
+    assert invocations[1].id == "call_wrap2"
+    assert invocations[1].arguments == {"arg": 1}
+
+# --- TESTS FOR ENHANCED FLEXIBILITY ---
 
 def test_parse_simplified_format_from_finetuned_model(parser: OpenAiJsonToolUsageParser):
     # Arrange

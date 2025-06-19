@@ -36,14 +36,17 @@ def complex_tool_def():
 
 def test_provide_openai_json_example_for_complex_tool(formatter: OpenAiJsonExampleFormatter, complex_tool_def: ToolDefinition):
     """
-    Tests that the formatter produces the format with the 'function' wrapper.
+    Tests that the formatter produces the format with the 'tool' -> 'function' wrapper
+    for consistency in prompts.
     """
     json_output = formatter.provide(complex_tool_def)
     
-    assert "name" not in json_output
-    assert "function" in json_output
-    
-    function_part = json_output["function"]
+    assert "tool" in json_output
+    tool_part = json_output["tool"]
+
+    assert "function" in tool_part
+    function_part = tool_part["function"]
+
     assert function_part["name"] == "ComplexTool"
     
     # Assert arguments is a JSON string

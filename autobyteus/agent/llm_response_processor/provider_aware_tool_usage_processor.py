@@ -21,7 +21,6 @@ class ProviderAwareToolUsageProcessor(BaseLLMResponseProcessor):
     necessary agent events based on the parsed results.
     """
     def __init__(self):
-        # The original implementation was correct. This processor creates its own parser.
         self._parser = ProviderAwareToolUsageParser()
         logger.debug("ProviderAwareToolUsageProcessor initialized.")
 
