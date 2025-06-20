@@ -41,6 +41,8 @@ class TokenPricingConfigRegistry:
 
         # Gemini models
         LLMModel.GEMINI_1_0_PRO_API.value: TokenPricingConfig(0.00000025, 0.0000005),
+        LLMModel.GEMINI_2_0_FLASH_API.value: TokenPricingConfig(0.0000001, 0.0000002),
+        LLMModel.GEMINI_2_5_PRO_API.value: TokenPricingConfig(0.000001, 0.000002),
         LLMModel.GEMINI_1_5_PRO_API.value: TokenPricingConfig(0.0000005, 0.000001),
         LLMModel.GEMINI_1_5_PRO_EXPERIMENTAL_API.value: TokenPricingConfig(0.0000005, 0.000001),
         LLMModel.GEMINI_1_5_FLASH_API.value: TokenPricingConfig(0.0000001, 0.0000002),

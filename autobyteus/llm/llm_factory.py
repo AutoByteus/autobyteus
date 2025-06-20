@@ -190,15 +190,15 @@ class LLMFactory(metaclass=SingletonMeta):
                 llm_class=GeminiLLM,
                 canonical_name="gemini-2.5-pro",
                 default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(1.25, 5.00)
+                    pricing_config=TokenPricingConfig(0.000001, 0.000002)
                 )
             ),
             LLMModel(
                 name="GEMINI_2_0_FLASH_API",
-                value="gemini-2.0-flash",
+                value="gemini-2.0-flash-preview-image-generation",
                 provider=LLMProvider.GEMINI,
                 llm_class=GeminiLLM,
-                canonical_name="gemini-2.0-flash",
+                canonical_name="gemini-2.0-flash-preview-image-generation",
                 default_config=LLMConfig(
                     pricing_config=TokenPricingConfig(0.075, 0.30)
                 )
