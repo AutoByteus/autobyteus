@@ -37,6 +37,7 @@ class InteractiveCLIManager:
 
     def reset_turn_state(self):
         """Resets flags that are tracked on a per-turn basis."""
+        self._end_thinking_block()
         self.agent_has_spoken_this_turn = False
         self.is_in_content_block = False
 
@@ -48,12 +49,12 @@ class InteractiveCLIManager:
             self.current_line_empty = True
 
     def _end_thinking_block(self):
-        """Adds a newline to terminate the thinking block if it was active."""
+        """Closes the <Thinking> block if it was active."""
         if self.is_thinking:
-            sys.stdout.write("\n")
+            sys.stdout.write("\n</Thinking>")
             sys.stdout.flush()
             self.is_thinking = False
-            self.current_line_empty = True
+            self.current_line_empty = False
 
     def _display_tool_approval_prompt(self):
         """Displays the tool approval prompt using stored pending data."""
@@ -97,25 +98,30 @@ class InteractiveCLIManager:
             self.agent_turn_complete_event.set()
 
         if event.event_type == StreamEventType.ASSISTANT_CHUNK and isinstance(event.data, AssistantChunkData):
+            # If this is the first output from the agent this turn, print the "Agent: " prefix.
+            if not self.agent_has_spoken_this_turn:
+                self._ensure_new_line()
+                sys.stdout.write("Agent:\n")
+                sys.stdout.flush()
+                self.agent_has_spoken_this_turn = True
+                self.current_line_empty = True
+
             # Stream reasoning to stdout without logger formatting.
             if event.data.reasoning:
                 if not self.is_thinking:
-                    self._ensure_new_line()
-                    sys.stdout.write("Agent: Thinking: ")
+                    sys.stdout.write("<Thinking>\n")
                     sys.stdout.flush()
                     self.is_thinking = True
-                    self.agent_has_spoken_this_turn = True # Thinking counts as the agent speaking for the turn
-                    self.current_line_empty = False
+                    self.current_line_empty = True # We just printed a newline
                 
                 sys.stdout.write(event.data.reasoning)
                 sys.stdout.flush()
+                self.current_line_empty = event.data.reasoning.endswith('\n')
 
             # Stream content to stdout.
             if event.data.content:
                 if not self.is_in_content_block:
-                    self._ensure_new_line()
-                    sys.stdout.write("Agent: ")
-                    self.agent_has_spoken_this_turn = True
+                    self._ensure_new_line() # Ensures content starts on a new line after </Thinking>
                     self.is_in_content_block = True
                 sys.stdout.write(event.data.content)
                 sys.stdout.flush()
