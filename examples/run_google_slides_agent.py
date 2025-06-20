@@ -38,7 +38,7 @@ try:
     from autobyteus.agent.context.agent_config import AgentConfig
     from autobyteus.llm.models import LLMModel
     from autobyteus.llm.llm_factory import default_llm_factory, LLMFactory
-    from autobyteus.agent.factory.agent_factory import default_agent_factory
+    from autobyteus.agent.factory.agent_factory import AgentFactory
     from autobyteus.cli import agent_cli
 except ImportError as e:
     print(f"Error importing autobyteus components: {e}", file=sys.stderr)
@@ -236,7 +236,7 @@ async def main(args: argparse.Namespace):
             use_xml_tool_format=False
         )
 
-        agent = default_agent_factory.create_agent(config=gslides_agent_config)
+        agent = AgentFactory().create_agent(config=gslides_agent_config)
         logger.info(f"Google Slides Agent instance created: {agent.agent_id}")
 
         # 6. Run the agent in an interactive CLI session.
@@ -283,4 +283,3 @@ if __name__ == "__main__":
         logger.error(f"An unhandled error occurred at the top level: {e}", exc_info=True)
     finally:
         logger.info("Exiting script.")
-

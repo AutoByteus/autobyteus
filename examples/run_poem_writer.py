@@ -32,7 +32,7 @@ try:
     from autobyteus.agent.context.agent_config import AgentConfig
     from autobyteus.llm.models import LLMModel
     from autobyteus.llm.llm_factory import default_llm_factory
-    from autobyteus.agent.factory.agent_factory import default_agent_factory
+    from autobyteus.agent.factory.agent_factory import AgentFactory
     from autobyteus.cli import agent_cli
     from autobyteus.tools.file.file_writer import file_writer
 except ImportError as e: # pragma: no cover
@@ -191,8 +191,8 @@ async def main(args: argparse.Namespace):
         use_xml_tool_format=False
     )
 
-    # Use the default factory to create the agent
-    agent = default_agent_factory.create_agent(config=poem_writer_config)
+    # Use the AgentFactory to create the agent
+    agent = AgentFactory().create_agent(config=poem_writer_config)
     logger.info(f"Agent instance created: {agent.agent_id}")
 
     try:

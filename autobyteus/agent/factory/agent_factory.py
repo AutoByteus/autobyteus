@@ -139,5 +139,3 @@ class AgentFactory(metaclass=SingletonMeta):
     def list_active_agent_ids(self) -> List[str]:
         """Returns a list of IDs of all active agents managed by this factory."""
         return list(self._active_agents.keys())
-
-default_agent_factory = AgentFactory()
