@@ -62,16 +62,16 @@ class WorkerEventDispatcher:
 
             if current_phase_before_dispatch == AgentOperationalPhase.IDLE:
                 if isinstance(event, (UserMessageReceivedEvent, InterAgentMessageReceivedEvent)):
-                    self.phase_manager.notify_processing_input_started(trigger_info=type(event).__name__)
+                    await self.phase_manager.notify_processing_input_started(trigger_info=type(event).__name__)
             
             if isinstance(event, LLMUserMessageReadyEvent):
                 if current_phase_before_dispatch not in [AgentOperationalPhase.AWAITING_LLM_RESPONSE, AgentOperationalPhase.ERROR]:
-                    self.phase_manager.notify_awaiting_llm_response()
+                    await self.phase_manager.notify_awaiting_llm_response()
             elif isinstance(event, PendingToolInvocationEvent):
                 if not context.auto_execute_tools:
-                    self.phase_manager.notify_tool_execution_pending_approval(event.tool_invocation)
+                    await self.phase_manager.notify_tool_execution_pending_approval(event.tool_invocation)
                 else: 
-                    self.phase_manager.notify_tool_execution_started(event.tool_invocation.name)
+                    await self.phase_manager.notify_tool_execution_started(event.tool_invocation.name)
             elif isinstance(event, ToolExecutionApprovalEvent):
                 tool_name_for_approval: Optional[str] = None
                 pending_invocation = context.state.pending_tool_approvals.get(event.tool_invocation_id) 
@@ -81,16 +81,16 @@ class WorkerEventDispatcher:
                     logger.warning(f"WorkerEventDispatcher '{agent_id}': Could not find pending invocation for ID '{event.tool_invocation_id}' to get tool name for phase notification.")
                     tool_name_for_approval = "unknown_tool" 
 
-                self.phase_manager.notify_tool_execution_resumed_after_approval(
+                await self.phase_manager.notify_tool_execution_resumed_after_approval(
                     approved=event.is_approved, 
                     tool_name=tool_name_for_approval
                 )
             elif isinstance(event, ToolResultEvent):
                  if context.current_phase == AgentOperationalPhase.EXECUTING_TOOL: 
-                    self.phase_manager.notify_processing_tool_result(event.tool_name)
+                    await self.phase_manager.notify_processing_tool_result(event.tool_name)
             elif isinstance(event, LLMCompleteResponseReceivedEvent):
                 if context.current_phase == AgentOperationalPhase.AWAITING_LLM_RESPONSE:
-                    self.phase_manager.notify_analyzing_llm_response()
+                    await self.phase_manager.notify_analyzing_llm_response()
 
             try:
                 logger.debug(f"WorkerEventDispatcher '{agent_id}' (Phase: {context.current_phase.value}) dispatching '{event_class_name}' to {handler_class_name}.")
@@ -98,19 +98,19 @@ class WorkerEventDispatcher:
                 logger.debug(f"WorkerEventDispatcher '{agent_id}' (Phase: {context.current_phase.value}) event '{event_class_name}' handled by {handler_class_name}.")
 
                 if isinstance(event, AgentReadyEvent): 
-                    self.phase_manager.notify_initialization_complete() 
+                    await self.phase_manager.notify_initialization_complete() 
                 
                 if isinstance(event, LLMCompleteResponseReceivedEvent):
                     if context.current_phase == AgentOperationalPhase.ANALYZING_LLM_RESPONSE and \
                        not context.state.pending_tool_approvals and \
                        context.input_event_queues.tool_invocation_request_queue.empty():
-                           self.phase_manager.notify_processing_complete_and_idle()
+                           await self.phase_manager.notify_processing_complete_and_idle()
 
             except Exception as e: 
                 error_details = traceback.format_exc()
                 error_msg = f"WorkerEventDispatcher '{agent_id}' error handling '{event_class_name}' with {handler_class_name}: {e}"
                 logger.error(error_msg, exc_info=True)
-                self.phase_manager.notify_error_occurred(error_msg, error_details) 
+                await self.phase_manager.notify_error_occurred(error_msg, error_details) 
                 await context.input_event_queues.enqueue_internal_system_event(
                     AgentErrorEvent(error_message=error_msg, exception_details=error_details)
                 )

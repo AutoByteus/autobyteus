@@ -10,7 +10,7 @@ from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 from autobyteus.agent.streaming.stream_events import StreamEvent, StreamEventType 
 from autobyteus.agent.streaming.stream_event_payloads import ( 
     create_assistant_chunk_data,
-    create_assistant_complete_response_data, # UPDATED import
+    create_assistant_complete_response_data,
     create_tool_interaction_log_entry_data,
     create_agent_operational_phase_transition_data, 
     create_error_event_data,
@@ -65,9 +65,7 @@ class AgentEventStream(EventEmitter):
         
         self._subscribed_notifier_event_types: List[EventType] = [
             EventType.AGENT_PHASE_UNINITIALIZED_ENTERED,
-            # EventType.AGENT_PHASE_INITIALIZING_TOOLS_STARTED, # Removed
-            EventType.AGENT_PHASE_INITIALIZING_PROMPT_STARTED,
-            # EventType.AGENT_PHASE_INITIALIZING_LLM_STARTED, # Removed
+            EventType.AGENT_PHASE_BOOTSTRAPPING_STARTED,
             EventType.AGENT_PHASE_IDLE_ENTERED,
             EventType.AGENT_PHASE_PROCESSING_USER_INPUT_STARTED,
             EventType.AGENT_PHASE_AWAITING_LLM_RESPONSE_STARTED,

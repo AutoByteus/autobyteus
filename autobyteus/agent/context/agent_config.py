@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from autobyteus.agent.input_processor import BaseAgentUserInputMessageProcessor
     from autobyteus.llm.base_llm import BaseLLM
     from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
+    from autobyteus.agent.hooks.base_phase_hook import BasePhaseHook
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,8 @@ class AgentConfig:
                  input_processors: Optional[List['BaseAgentUserInputMessageProcessor']] = None,
                  llm_response_processors: Optional[List['BaseLLMResponseProcessor']] = None,
                  system_prompt_processors: Optional[List['BaseSystemPromptProcessor']] = None,
-                 workspace: Optional['BaseAgentWorkspace'] = None):
+                 workspace: Optional['BaseAgentWorkspace'] = None,
+                 phase_hooks: Optional[List['BasePhaseHook']] = None):
         """
         Initializes the AgentConfig.
 
@@ -56,6 +58,7 @@ class AgentConfig:
             llm_response_processors: A list of LLM response processor instances.
             system_prompt_processors: A list of system prompt processor instances.
             workspace: An optional pre-initialized workspace instance for the agent.
+            phase_hooks: An optional list of phase transition hook instances.
         """
         self.name = name
         self.role = role
@@ -69,6 +72,7 @@ class AgentConfig:
         self.input_processors = input_processors or []
         self.llm_response_processors = llm_response_processors if llm_response_processors is not None else list(self.DEFAULT_LLM_RESPONSE_PROCESSORS)
         self.system_prompt_processors = system_prompt_processors if system_prompt_processors is not None else list(self.DEFAULT_SYSTEM_PROMPT_PROCESSORS)
+        self.phase_hooks = phase_hooks or []
 
         logger.debug(f"AgentConfig created for name '{self.name}', role '{self.role}'.")
 

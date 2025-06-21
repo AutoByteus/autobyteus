@@ -25,7 +25,7 @@ class SystemPromptProcessingStep(BaseBootstrapStep):
                       context: 'AgentContext',
                       phase_manager: 'AgentPhaseManager') -> bool:
         agent_id = context.agent_id
-        phase_manager.notify_initializing_prompt()
+        # The phase is now managed by the AgentBootstrapper.
         logger.info(f"Agent '{agent_id}': Executing SystemPromptProcessingStep.")
 
         try:
@@ -43,8 +43,7 @@ class SystemPromptProcessingStep(BaseBootstrapStep):
             if not processor_instances:
                 logger.debug(f"Agent '{agent_id}': No system prompt processors configured. Using system prompt as is.")
             else:
-                processor_names = [p.get_name() for p in processor_instances]
-                logger.debug(f"Agent '{agent_id}': Applying system prompt processors: {processor_names}")
+                logger.debug(f"Agent '{agent_id}': Found {len(processor_instances)} configured system prompt processors. Applying sequentially.")
                 for processor_instance in processor_instances:
                     if not isinstance(processor_instance, BaseSystemPromptProcessor):
                         error_message = f"Agent '{agent_id}': Invalid system prompt processor configuration type: {type(processor_instance)}. Expected BaseSystemPromptProcessor."
@@ -64,9 +63,10 @@ class SystemPromptProcessingStep(BaseBootstrapStep):
                     except Exception as e_proc: 
                         error_message = f"Agent '{agent_id}': Error applying system prompt processor '{processor_name}': {e_proc}"
                         logger.error(error_message, exc_info=True)
-                        await context.input_event_queues.enqueue_internal_system_event(
-                            AgentErrorEvent(error_message=error_message, exception_details=str(e_proc))
-                        )
+                        if context.state.input_event_queues:
+                            await context.state.input_event_queues.enqueue_internal_system_event(
+                                AgentErrorEvent(error_message=error_message, exception_details=str(e_proc))
+                            )
                         return False # Signal failure of the entire step
             
             context.state.processed_system_prompt = current_system_prompt

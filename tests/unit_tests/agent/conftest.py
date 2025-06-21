@@ -76,7 +76,7 @@ def mock_input_event_queue_manager():
 
 @pytest.fixture
 def mock_phase_manager():
-    """Provides a mocked AgentPhaseManager."""
+    """Provides a mocked AgentPhaseManager with async methods."""
     notifier_mock = AsyncMock(spec=AgentExternalEventNotifier)
     # Mock all notify methods on the notifier to prevent actual event emissions
     for attr_name in dir(AgentExternalEventNotifier):
@@ -85,10 +85,10 @@ def mock_phase_manager():
 
     manager = MagicMock(spec=AgentPhaseManager)
     manager.notifier = notifier_mock 
-    # Mock all notify methods on the phase manager itself
+    # Mock all notify methods on the phase manager itself as ASYNC mocks
     for attr_name in dir(AgentPhaseManager):
         if attr_name.startswith("notify_") and callable(getattr(AgentPhaseManager, attr_name)):
-            setattr(manager, attr_name, MagicMock())
+            setattr(manager, attr_name, AsyncMock())
             
     return manager
 

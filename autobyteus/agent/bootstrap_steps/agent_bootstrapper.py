@@ -50,7 +50,10 @@ class AgentBootstrapper:
             True if all steps completed successfully, False otherwise.
         """
         agent_id = context.agent_id
-        logger.info(f"Agent '{agent_id}': AgentBootstrapper starting execution.")
+        
+        # Set the agent phase to BOOTSTRAPPING and wait for any associated hooks.
+        await phase_manager.notify_bootstrapping_started()
+        logger.info(f"Agent '{agent_id}': AgentBootstrapper starting execution. Phase set to BOOTSTRAPPING.")
 
         for step_index, step_instance in enumerate(self.bootstrap_steps):
             step_name = step_instance.__class__.__name__
@@ -63,7 +66,7 @@ class AgentBootstrapper:
                 logger.error(f"Agent '{agent_id}': {error_message} Halting bootstrap process.")
                 # The step itself is responsible for detailed error logging.
                 # We are responsible for notifying the phase manager to set the agent to an error state.
-                phase_manager.notify_error_occurred(
+                await phase_manager.notify_error_occurred(
                     error_message=f"Critical bootstrap failure at {step_name}",
                     error_details=f"Agent '{agent_id}' failed during bootstrap step '{step_name}'. Check logs for details."
                 )
@@ -76,7 +79,7 @@ class AgentBootstrapper:
         else: # pragma: no cover
             # Should not happen if AgentRuntimeQueueInitializationStep is present and successful
             logger.critical(f"Agent '{agent_id}': Bootstrap succeeded but input queues are not available to enqueue AgentReadyEvent.")
-            phase_manager.notify_error_occurred(
+            await phase_manager.notify_error_occurred(
                 error_message="Input queues unavailable after bootstrap",
                 error_details=f"Agent '{agent_id}' bootstrap process seemed to succeed, but input event queues are missing."
             )

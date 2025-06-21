@@ -113,11 +113,29 @@ class AgentWorker:
         except Exception as e:
             logger.error(f"AgentWorker '{agent_id}': Unhandled exception in _run_managed_thread_loop: {e}", exc_info=True)
             if self.phase_manager and not self.context.current_phase.is_terminal():
-                self.phase_manager.notify_error_occurred(f"Worker thread fatal error: {e}", traceback.format_exc())
+                try:
+                    # Since this is a sync context, we must run the async phase manager method in a temporary event loop.
+                    asyncio.run(self.phase_manager.notify_error_occurred(f"Worker thread fatal error: {e}", traceback.format_exc()))
+                except Exception as run_e:
+                    logger.critical(f"AgentWorker '{agent_id}': Failed to run async error notification from sync context: {run_e}")
         finally:
             if self._worker_loop:
-                # ... (cleanup logic as before) ...
-                self._worker_loop.close()
+                try:
+                    # Gather all remaining tasks and cancel them
+                    tasks = asyncio.all_tasks(loop=self._worker_loop)
+                    for task in tasks:
+                        task.cancel()
+                    
+                    # Wait for all tasks to be cancelled
+                    if tasks:
+                        self._worker_loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+                    
+                    # Shutdown async generators
+                    self._worker_loop.run_until_complete(self._worker_loop.shutdown_asyncgens())
+                except Exception as cleanup_exc: # pragma: no cover
+                    logger.error(f"AgentWorker '{agent_id}': Exception during event loop cleanup: {cleanup_exc}", exc_info=True)
+                finally:
+                    self._worker_loop.close()
             self._is_active = False
 
     async def async_run(self) -> None:
@@ -159,7 +177,6 @@ class AgentWorker:
         finally:
             logger.info(f"AgentWorker '{agent_id}' async_run() loop has finished.")
 
-    # ... (stop, is_alive, etc. as before) ...
     async def _signal_internal_stop(self):
         if self._async_stop_event and not self._async_stop_event.is_set():
             self._async_stop_event.set()

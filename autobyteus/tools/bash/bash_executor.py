@@ -1,7 +1,7 @@
 import asyncio
 import subprocess
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from autobyteus.tools import tool 
 
@@ -10,20 +10,23 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-@tool(name="BashExecutor") # Decorator infers name from function if not provided, but explicit is fine.
-async def bash_executor(context: 'AgentContext', command: str) -> str: # Function name can be same as registered tool name
+@tool(name="BashExecutor")
+async def bash_executor(context: Optional['AgentContext'], command: str, cwd: Optional[str] = None) -> str:
     """
     Executes bash commands and retrieves their standard output.
     'command' is the bash command string to be executed.
+    'cwd' is the optional directory to run the command in.
     Errors during command execution are raised as exceptions.
     """
-    logger.debug(f"Functional BashExecutor tool executing for agent {context.agent_id if context else 'Unknown'}: {command}")
+    agent_id_str = context.agent_id if context else "Non-Agent"
+    logger.debug(f"Functional BashExecutor tool executing for '{agent_id_str}': {command} in cwd: {cwd or 'default'}")
 
     try:
         process = await asyncio.create_subprocess_shell(
             command,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            stderr=asyncio.subprocess.PIPE,
+            cwd=cwd
         )
         stdout, stderr = await process.communicate()
 

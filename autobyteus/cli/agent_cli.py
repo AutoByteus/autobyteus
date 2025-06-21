@@ -174,6 +174,8 @@ class InteractiveCLIManager:
                 sys.stdout.flush()
                 self.current_line_empty = True
                 self.agent_has_spoken_this_turn = True
+            elif event.data.new_phase == AgentOperationalPhase.BOOTSTRAPPING:
+                logger.info("[Agent is initializing...]")
             else:
                 phase_msg = f"[Agent Status: {event.data.new_phase.value}"
                 if event.data.tool_name:

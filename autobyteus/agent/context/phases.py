@@ -7,9 +7,7 @@ class AgentOperationalPhase(str, Enum):
     This is the single source of truth for an agent's current state of operation.
     """
     UNINITIALIZED = "uninitialized"            # Agent object created, but runtime not started or fully set up.
-    # INITIALIZING_TOOLS phase is removed.
-    INITIALIZING_PROMPT = "initializing_prompt" # System prompt is being processed.
-    # INITIALIZING_LLM phase is removed. LLM initialization is now the user's responsibility.
+    BOOTSTRAPPING = "bootstrapping"            # Agent is running its internal initialization/bootstrap sequence.
     IDLE = "idle"                              # Fully initialized and ready for new input.
     
     PROCESSING_USER_INPUT = "processing_user_input"     # Actively processing a user message, typically preparing for an LLM call.
@@ -30,7 +28,7 @@ class AgentOperationalPhase(str, Enum):
     def is_initializing(self) -> bool:
         """Checks if the agent is in any of the initializing phases."""
         return self in [
-            AgentOperationalPhase.INITIALIZING_PROMPT,
+            AgentOperationalPhase.BOOTSTRAPPING,
         ]
 
     def is_processing(self) -> bool:
