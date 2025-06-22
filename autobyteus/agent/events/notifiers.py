@@ -45,12 +45,13 @@ class AgentExternalEventNotifier(EventEmitter):
 
     def notify_phase_uninitialized_entered(self, old_phase: Optional[AgentOperationalPhase]):
         self._emit_phase_change(EventType.AGENT_PHASE_UNINITIALIZED_ENTERED, AgentOperationalPhase.UNINITIALIZED, old_phase)
-    # notify_phase_initializing_tools_started removed.
-    def notify_phase_initializing_prompt_started(self, old_phase: Optional[AgentOperationalPhase]):
-        self._emit_phase_change(EventType.AGENT_PHASE_INITIALIZING_PROMPT_STARTED, AgentOperationalPhase.INITIALIZING_PROMPT, old_phase)
-    # notify_phase_initializing_llm_started removed.
+
+    def notify_phase_bootstrapping_started(self, old_phase: Optional[AgentOperationalPhase]):
+        self._emit_phase_change(EventType.AGENT_PHASE_BOOTSTRAPPING_STARTED, AgentOperationalPhase.BOOTSTRAPPING, old_phase)
+
     def notify_phase_idle_entered(self, old_phase: Optional[AgentOperationalPhase]):
         self._emit_phase_change(EventType.AGENT_PHASE_IDLE_ENTERED, AgentOperationalPhase.IDLE, old_phase)
+
     def notify_phase_processing_user_input_started(self, old_phase: Optional[AgentOperationalPhase], trigger_info: Optional[str] = None):
         data = {"trigger": trigger_info} if trigger_info else {}
         self._emit_phase_change(EventType.AGENT_PHASE_PROCESSING_USER_INPUT_STARTED, AgentOperationalPhase.PROCESSING_USER_INPUT, old_phase, additional_data=data)

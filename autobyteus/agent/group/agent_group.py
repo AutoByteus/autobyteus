@@ -5,7 +5,7 @@ import uuid
 from typing import List, Dict, Optional, Any
 
 from autobyteus.agent.context.agent_config import AgentConfig
-from autobyteus.agent.factory import default_agent_factory
+from autobyteus.agent.factory import AgentFactory
 from autobyteus.agent.agent import Agent 
 from autobyteus.agent.group.agent_group_context import AgentGroupContext
 from autobyteus.agent.message.send_message_to import SendMessageTo
@@ -26,7 +26,7 @@ class AgentGroup:
             raise TypeError("coordinator_config_name must be a non-empty string.")
         
         self.group_id: str = group_id or f"group_{uuid.uuid4()}"
-        self.agent_factory = default_agent_factory() # Get singleton instance
+        self.agent_factory = AgentFactory() # Get singleton instance
         self._agent_configs_map: Dict[str, AgentConfig] = {
             config.name: config for config in agent_configs
         }

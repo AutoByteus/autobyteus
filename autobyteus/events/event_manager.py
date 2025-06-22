@@ -1,115 +1,140 @@
+import logging
+import asyncio
+import inspect
+import functools
+import threading
+from collections import defaultdict
+from dataclasses import dataclass
+from typing import Dict, List, Callable, Optional, Any
+
 from autobyteus.events.event_types import EventType
 from autobyteus.utils.singleton import SingletonMeta
-from typing import Dict, List, Callable, Optional, Any
-from collections import defaultdict
-import asyncio # ADDED
-import inspect # ADDED
-import functools # ADDED for checking partials
 
-class EventError(Exception):
-    """Base exception class for event-related errors."""
-    pass
+logger = logging.getLogger(__name__)
+
+# --- Final, Semantically Clear Data Structures ---
+
+@dataclass(frozen=True)
+class Topic:
+    """A clear, hashable data object representing what to subscribe to."""
+    event_type: EventType
+    sender_id: Optional[str] = None
+
+@dataclass(frozen=True)
+class Subscription:
+    """A clear, hashable data object representing a single subscription."""
+    subscriber_id: str
+    listener: Callable
+
+class SubscriberList:
+    """Manages all Subscriptions for a single Topic in a thread-safe way."""
+    def __init__(self):
+        # The key is subscriber_id. The value is a list of all subscriptions
+        # made by that subscriber for THIS topic.
+        self._subscriptions: Dict[str, List[Subscription]] = defaultdict(list)
+        self._lock = threading.Lock()
+
+    def add(self, subscription: Subscription):
+        with self._lock:
+            # Avoid adding the exact same listener function multiple times for the same subscriber
+            if not any(sub.listener is subscription.listener for sub in self._subscriptions[subscription.subscriber_id]):
+                self._subscriptions[subscription.subscriber_id].append(subscription)
+
+    def remove_subscriber(self, subscriber_id: str):
+        """Removes all subscriptions for a given subscriber ID from this topic."""
+        with self._lock:
+            self._subscriptions.pop(subscriber_id, None)
+
+    def remove_specific(self, subscriber_id: str, listener: Callable):
+        """Removes a specific subscription matching the listener function."""
+        with self._lock:
+            if subscriber_id in self._subscriptions:
+                self._subscriptions[subscriber_id] = [
+                    sub for sub in self._subscriptions[subscriber_id]
+                    if sub.listener is not listener
+                ]
+                if not self._subscriptions[subscriber_id]:
+                    del self._subscriptions[subscriber_id]
+
+    def get_all_listeners(self) -> List[Callable]:
+        with self._lock:
+            all_listeners = []
+            for sub_list in self._subscriptions.values():
+                for sub in sub_list:
+                    all_listeners.append(sub.listener)
+            return all_listeners
+            
+    def is_empty(self) -> bool:
+        with self._lock:
+            return not self._subscriptions
+
+# --- The Final, Intelligent EventManager ---
 
 class EventManager(metaclass=SingletonMeta):
     def __init__(self):
-        # listeners[event_type][target_object_id] = list of callbacks
-        self.listeners: Dict[EventType, Dict[Optional[str], List[Callable]]] = {}
+        self._topics: Dict[Topic, SubscriberList] = defaultdict(SubscriberList)
+        self._lock = threading.Lock()
 
-    def subscribe(self, event: EventType, listener: Callable, target_object_id: Optional[str] = None):
-        """
-        Subscribe a listener to a specific event from a given target_object_id.
-        If target_object_id is None, the subscription is global.
-        """
-        if event not in self.listeners:
-            self.listeners[event] = {}
-        if target_object_id not in self.listeners[event]:
-            self.listeners[event][target_object_id] = []
-        if listener not in self.listeners[event][target_object_id]: # Avoid duplicate subscriptions
-            self.listeners[event][target_object_id].append(listener)
+    def subscribe(self, subscription: Subscription, topic: Topic):
+        """Subscribes a listener to a topic using clear objects."""
+        self._topics[topic].add(subscription)
+    
+    def unsubscribe(self, subscription: Subscription, topic: Topic):
+        """Unsubscribes a specific listener from a specific topic."""
+        if topic in self._topics:
+            self._topics[topic].remove_specific(subscription.subscriber_id, subscription.listener)
+            if self._topics[topic].is_empty():
+                 with self._lock:
+                    self._topics.pop(topic, None)
 
-    def unsubscribe(self, event: EventType, listener: Callable, target_object_id: Optional[str] = None):
-        """
-        Unsubscribe a listener from a specific event/target_object_id combination.
-        If target_object_id is None, it targets the global subscription group for that event.
-        """
-        if event in self.listeners and target_object_id in self.listeners[event]:
-            try:
-                self.listeners[event][target_object_id].remove(listener)
-                if not self.listeners[event][target_object_id]: # pragma: no cover
-                    del self.listeners[event][target_object_id]
-            except ValueError: # pragma: no cover
-                # Listener not found, ignore silently or log
-                pass 
+    def unsubscribe_all_for_subscriber(self, subscriber_id: str):
+        """Atomically removes all subscriptions made by a specific subscriber."""
+        with self._lock:
+            for topic in list(self._topics.keys()):
+                self._topics[topic].remove_subscriber(subscriber_id)
+                if self._topics[topic].is_empty():
+                    del self._topics[topic]
 
-    def _invoke_listener(self, listener: Callable, *args, **kwargs):
-        """
-        Helper to invoke a listener, creating a task if it's a coroutine function.
-        """
-        actual_callable_to_inspect = listener
+    def _invoke_listener(self, listener: Callable, **available_kwargs: Any):
+        actual_callable = listener
         if isinstance(listener, functools.partial):
-            actual_callable_to_inspect = listener.func
-            
-        if inspect.iscoroutinefunction(actual_callable_to_inspect) or \
-           inspect.isasyncgenfunction(actual_callable_to_inspect):
-            asyncio.create_task(listener(*args, **kwargs))
+            actual_callable = listener.func
+
+        try:
+            sig = inspect.signature(actual_callable)
+            params = sig.parameters
+        except (ValueError, TypeError):
+            params = {}
+            has_kwargs = True
         else:
-            # For synchronous listeners, execute directly.
-            # If a synchronous listener itself returns a coroutine (not common for event handlers),
-            # that coroutine would also not be awaited here and would cause a warning.
-            # This fix primarily addresses listeners that are `async def`.
-            listener(*args, **kwargs)
+             has_kwargs = any(p.kind == p.VAR_KEYWORD for p in params.values())
 
-
-    def emit(self, event: EventType, origin_object_id: Optional[str] = None, target_object_id: Optional[str] = None, *args, **kwargs):
-        """
-        Emit an event.
-        If 'target_object_id' is provided in the call to EventEmitter.emit(target=...), 
-        it attempts a more direct notification pathway. The interpretation of this pathway
-        is that listeners subscribed specifically TO THE ORIGIN (sender) are notified.
-        If 'target_object_id' is NOT provided by EventEmitter.emit(target=...), 
-        then listeners subscribed to the ORIGIN (sender) AND global listeners are notified.
+        if has_kwargs:
+            final_args_to_pass = available_kwargs
+        else:
+            final_args_to_pass = {
+                name: available_kwargs[name] for name in params if name in available_kwargs
+            }
         
-        Note: The original comment about `target_object_id` in `EventManager.emit` was slightly
-        ambiguous. The behavior implemented here aligns with `EventEmitter.subscribe_from(sender, ...)`
-        where listeners subscribe to events *from* a specific `sender` (which is `origin_object_id` here).
-        A true "direct message only to target" would require listeners to subscribe against the *target's* ID
-        or a different mechanism.
-        """
-        if event not in self.listeners:
-            return
+        if inspect.iscoroutinefunction(actual_callable):
+            asyncio.create_task(listener(**final_args_to_pass))
+        else:
+            listener(**final_args_to_pass)
 
-        updated_kwargs = {"object_id": origin_object_id, **kwargs}
-
-        # Determine which sets of listeners to notify.
-        # Listeners are stored keyed by the ID of the object they want to hear *from* (or None for global).
+    def emit(self, event_type: EventType, origin_object_id: Optional[str] = None, **kwargs: Any):
+        available_kwargs_for_listeners = {"object_id": origin_object_id, **kwargs}
+        
+        targeted_topic = Topic(event_type, origin_object_id)
+        global_topic = Topic(event_type, None)
 
         listeners_to_call: List[Callable] = []
-
-        if target_object_id is not None:
-            # This case corresponds to emitter.emit(event, target=some_other_emitter)
-            # It implies a more focused emission. Per current EventEmitter.emit and EventManager.subscribe_from,
-            # this notifies listeners who subscribed *from the origin_object_id*.
-            # It does NOT mean "only call listeners on the target_object_id".
-            # The 'target_object_id' parameter in EventManager.emit is perhaps confusingly named
-            # in this context if one expects it to filter listeners TO the target.
-            # It currently acts as a flag to *not* call global listeners.
-            if origin_object_id is not None and origin_object_id in self.listeners[event]:
-                listeners_to_call.extend(self.listeners[event][origin_object_id])
-        else:
-            # Standard broadcast: notify those listening to this specific origin, and global listeners.
-            if origin_object_id is not None and origin_object_id in self.listeners[event]:
-                listeners_to_call.extend(self.listeners[event][origin_object_id])
-            
-            if None in self.listeners[event]: # Global listeners for this event type
-                # Avoid adding duplicates if a listener is somehow in both global and specific
-                for l in self.listeners[event][None]:
-                    if l not in listeners_to_call:
-                        listeners_to_call.extend(self.listeners[event][None])
+        if targeted_topic in self._topics:
+            listeners_to_call.extend(self._topics[targeted_topic].get_all_listeners())
+        if global_topic in self._topics:
+            listeners_to_call.extend(self._topics[global_topic].get_all_listeners())
         
         for listener_cb in listeners_to_call:
             try:
-                self._invoke_listener(listener_cb, *args, **updated_kwargs)
-            except Exception as e: # pragma: no cover
-                # Log error but continue notifying other listeners
-                logging.getLogger(__name__).error(f"Error invoking event listener {getattr(listener_cb, '__name__', 'unknown')} for event {event.name}: {e}", exc_info=True)
-
+                self._invoke_listener(listener_cb, **available_kwargs_for_listeners)
+            except Exception as e:
+                logger.error(f"Error preparing to invoke listener {getattr(listener_cb, '__name__', 'unknown')} for event {event_type.name}: {e}", exc_info=True)

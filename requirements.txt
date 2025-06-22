@@ -8,6 +8,7 @@ mistralai
 boto3
 botocore
 anthropic==0.37.1
+certifi==2025.4.26
 Jinja2
 ollama==0.4.5
 mistral_common
@@ -15,3 +16,4 @@ aiohttp
 autobyteus-llm-client==1.1.0
 brui-core==1.0.8
 mcp[cli]==1.9.1
+numpy==2.2.5

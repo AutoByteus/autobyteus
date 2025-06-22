@@ -2,15 +2,17 @@
 import logging
 from typing import List, Optional, Union, Tuple, TYPE_CHECKING
 
-# LLMConfig is no longer needed here for the constructor
-from autobyteus.agent.llm_response_processor import XmlToolUsageProcessor, BaseLLMResponseProcessor
-from autobyteus.agent.system_prompt_processor import ToolDescriptionInjectorProcessor, ToolUsageExampleInjectorProcessor, BaseSystemPromptProcessor
+# Correctly import the new master processor and the base class
+from autobyteus.agent.system_prompt_processor import ToolManifestInjectorProcessor, BaseSystemPromptProcessor
+from autobyteus.agent.llm_response_processor import ProviderAwareToolUsageProcessor, BaseLLMResponseProcessor
+
 
 if TYPE_CHECKING:
     from autobyteus.tools.base_tool import BaseTool
     from autobyteus.agent.input_processor import BaseAgentUserInputMessageProcessor
     from autobyteus.llm.base_llm import BaseLLM
     from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
+    from autobyteus.agent.hooks.base_phase_hook import BasePhaseHook
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +22,10 @@ class AgentConfig:
     This is the single source of truth for an agent's definition, including
     its identity, capabilities, and default behaviors.
     """
-    DEFAULT_LLM_RESPONSE_PROCESSORS = [XmlToolUsageProcessor()]
-    DEFAULT_SYSTEM_PROMPT_PROCESSORS = [ToolDescriptionInjectorProcessor(), ToolUsageExampleInjectorProcessor()]
+    # Use the new ProviderAwareToolUsageProcessor as the default
+    DEFAULT_LLM_RESPONSE_PROCESSORS = [ProviderAwareToolUsageProcessor()]
+    # Use the new, single, unified processor as the default
+    DEFAULT_SYSTEM_PROMPT_PROCESSORS = [ToolManifestInjectorProcessor()]
 
     def __init__(self,
                  name: str,
@@ -35,7 +39,8 @@ class AgentConfig:
                  input_processors: Optional[List['BaseAgentUserInputMessageProcessor']] = None,
                  llm_response_processors: Optional[List['BaseLLMResponseProcessor']] = None,
                  system_prompt_processors: Optional[List['BaseSystemPromptProcessor']] = None,
-                 workspace: Optional['BaseAgentWorkspace'] = None):
+                 workspace: Optional['BaseAgentWorkspace'] = None,
+                 phase_hooks: Optional[List['BasePhaseHook']] = None):
         """
         Initializes the AgentConfig.
 
@@ -53,6 +58,7 @@ class AgentConfig:
             llm_response_processors: A list of LLM response processor instances.
             system_prompt_processors: A list of system prompt processor instances.
             workspace: An optional pre-initialized workspace instance for the agent.
+            phase_hooks: An optional list of phase transition hook instances.
         """
         self.name = name
         self.role = role
@@ -66,9 +72,9 @@ class AgentConfig:
         self.input_processors = input_processors or []
         self.llm_response_processors = llm_response_processors if llm_response_processors is not None else list(self.DEFAULT_LLM_RESPONSE_PROCESSORS)
         self.system_prompt_processors = system_prompt_processors if system_prompt_processors is not None else list(self.DEFAULT_SYSTEM_PROMPT_PROCESSORS)
+        self.phase_hooks = phase_hooks or []
 
         logger.debug(f"AgentConfig created for name '{self.name}', role '{self.role}'.")
 
     def __repr__(self) -> str:
-        # llm_model_name removed from repr
         return (f"AgentConfig(name='{self.name}', role='{self.role}', llm_instance='{self.llm_instance.__class__.__name__}', workspace_configured={self.workspace is not None})")

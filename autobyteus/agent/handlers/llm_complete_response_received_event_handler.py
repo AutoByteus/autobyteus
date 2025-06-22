@@ -6,6 +6,7 @@ from autobyteus.agent.handlers.base_event_handler import AgentEventHandler
 from autobyteus.agent.events import LLMCompleteResponseReceivedEvent 
 from autobyteus.llm.utils.response_types import CompleteResponse
 from autobyteus.agent.llm_response_processor import BaseLLMResponseProcessor
+from autobyteus.tools.usage.parsers.exceptions import ToolUsageParseException
 
 
 if TYPE_CHECKING:
@@ -30,15 +31,18 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
                      context: 'AgentContext') -> None: 
         complete_response: CompleteResponse = event.complete_response
         complete_response_text = complete_response.content
+        complete_response_reasoning = complete_response.reasoning
         is_error_response = getattr(event, 'is_error', False) 
 
         agent_id = context.agent_id 
         logger.info(
             f"Agent '{agent_id}' handling LLMCompleteResponseReceivedEvent. "
-            f"Response Length: {len(complete_response_text)}, IsErrorFlagged: {is_error_response}, "
-            f"TokenUsage: {complete_response.usage}"
+            f"Response Length: {len(complete_response_text)}, Reasoning Length: {len(complete_response_reasoning) if complete_response_reasoning else 0}, "
+            f"IsErrorFlagged: {is_error_response}, TokenUsage: {complete_response.usage}"
         )
-        logger.debug(f"Agent '{agent_id}' received full LLM response text for processing:\n---\n{complete_response_text}\n---")
+        if complete_response_reasoning:
+            logger.debug(f"Agent '{agent_id}' received LLM reasoning for processing:\n---\n{complete_response_reasoning}\n---")
+        logger.debug(f"Agent '{agent_id}' received full LLM content for processing:\n---\n{complete_response_text}\n---")
 
         any_processor_took_action = False
         
@@ -69,9 +73,9 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
                         processor_name_for_log = processor_instance.get_name()
                         logger.debug(f"Agent '{agent_id}': Attempting to process with LLMResponseProcessor '{processor_name_for_log}'.")
                         
-                        # Pass the original event to the processor
+                        # The processor will now receive a response with clean content
                         handled_by_this_processor = await processor_instance.process_response(
-                            response=complete_response_text, 
+                            response=complete_response, 
                             context=context, 
                             triggering_event=event
                         ) 
@@ -86,6 +90,19 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
                             break 
                         else:
                             logger.debug(f"Agent '{agent_id}': LLMResponseProcessor '{processor_name_for_log}' did not handle the response.")
+
+                    except ToolUsageParseException as e_parse:
+                        # This is the key change: Catch the specific parsing exception
+                        logger.warning(f"Agent '{agent_id}': LLMResponseProcessor '{processor_name_for_log}' failed to parse tool usage: {e_parse}")
+                        if notifier:
+                            notifier.notify_agent_error_output_generation( 
+                                error_source=f"LLMResponseProcessor.{processor_name_for_log}",
+                                error_message="The model's response contained a malformed tool call that could not be understood.",
+                                error_details=str(e_parse)
+                            )
+                        any_processor_took_action = True # Mark as handled to prevent printing raw response
+                        break
+
                     except Exception as e: # pragma: no cover
                         logger.error(f"Agent '{agent_id}': Error while using LLMResponseProcessor '{processor_name_for_log}': {e}. This processor is skipped.", exc_info=True)
                         if notifier:
@@ -112,6 +129,7 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
             
             if notifier:
                 try:
+                    # The complete_response object now contains both content and reasoning
                     notifier.notify_agent_data_assistant_complete_response(complete_response) 
                     logger.debug(f"Agent '{agent_id}' emitted AGENT_DATA_ASSISTANT_COMPLETE_RESPONSE event.")
                 except Exception as e_notify: # pragma: no cover

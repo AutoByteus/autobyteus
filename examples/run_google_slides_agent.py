@@ -1,21 +1,18 @@
-#!/usr/bin/env python3
-"""
-Google Slides Agent CLI
-A script to run an agent that can create and manage Google Slides presentations.
-"""
+# file: autobyteus/examples/run_google_slides_agent.py
 import asyncio
 import logging
-import sys
-import os
 import argparse
 from pathlib import Path
+import sys
+import os
 
-# Ensure the autobyteus package is discoverable
+# --- Boilerplate to make the script runnable from the project root ---
 SCRIPT_DIR = Path(__file__).resolve().parent
 PACKAGE_ROOT = SCRIPT_DIR.parent
-sys.path.insert(0, str(PACKAGE_ROOT))
+if str(PACKAGE_ROOT) not in sys.path:
+    sys.path.insert(0, str(PACKAGE_ROOT))
 
-# Load environment variables from .env file if available
+# Load environment variables from .env file in the project root
 try:
     from dotenv import load_dotenv
     env_file_path = PACKAGE_ROOT / ".env"
@@ -23,38 +20,117 @@ try:
         load_dotenv(env_file_path)
         print(f"Loaded environment variables from: {env_file_path}")
     else:
-        print(f"No .env file found at: {env_file_path}")
+        print(f"Info: No .env file found at: {env_file_path}. Relying on exported environment variables.")
 except ImportError:
-    print("Warning: python-dotenv not installed. Environment variables from .env file will not be loaded.")
+    print("Warning: python-dotenv not installed. Cannot load .env file.")
 
-# Configure logging
-logger = logging.getLogger("google_slides_agent")
+# --- Imports for the Google Slides Agent Example ---
+try:
+    # For MCP Tool Integration
+    from autobyteus.tools.mcp import (
+        McpConfigService,
+        McpSchemaMapper,
+        McpToolRegistrar,
+    )
+    from autobyteus.tools.registry import default_tool_registry
 
-def setup_logging(debug=False):
-    """Configure logging to stderr to avoid interfering with stdout prompts."""
-    log_level = logging.DEBUG if debug else logging.INFO
+    # For Agent creation
+    from autobyteus.agent.context.agent_config import AgentConfig
+    from autobyteus.llm.models import LLMModel
+    from autobyteus.llm.llm_factory import default_llm_factory, LLMFactory
+    from autobyteus.agent.factory.agent_factory import AgentFactory
+    from autobyteus.cli import agent_cli
+except ImportError as e:
+    print(f"Error importing autobyteus components: {e}", file=sys.stderr)
+    print("Please ensure that the autobyteus library is installed and accessible.", file=sys.stderr)
+    sys.exit(1)
+
+# --- Logging Setup ---
+logger = logging.getLogger("google_slides_agent_example")
+interactive_logger = logging.getLogger("autobyteus.cli.interactive")
+
+def setup_logging(args: argparse.Namespace):
+    """
+    Configures logging for the interactive session.
+    """
+    loggers_to_clear = [
+        logging.getLogger(),
+        logging.getLogger("autobyteus"),
+        logging.getLogger("autobyteus.cli"),
+        interactive_logger,
+    ]
+    for l in loggers_to_clear:
+        if l.hasHandlers():
+            for handler in l.handlers[:]:
+                l.removeHandler(handler)
+                if hasattr(handler, 'close'): handler.close()
+
+    script_log_level = logging.DEBUG if args.debug else logging.INFO
+
+    # 1. Handler for unformatted interactive output
+    interactive_handler = logging.StreamHandler(sys.stdout)
+    interactive_logger.addHandler(interactive_handler)
+    interactive_logger.setLevel(logging.INFO)
+    interactive_logger.propagate = False
+
+    # 2. Handler for formatted console logs
+    console_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
     
-    # Clear existing handlers
+    class FormattedConsoleFilter(logging.Filter):
+        def filter(self, record):
+            if record.name.startswith("google_slides_agent_example") or record.name.startswith("autobyteus.cli"):
+                return True
+            if record.levelno >= logging.CRITICAL:
+                return True
+            return False
+
+    formatted_console_handler = logging.StreamHandler(sys.stdout)
+    formatted_console_handler.setFormatter(console_formatter)
+    formatted_console_handler.addFilter(FormattedConsoleFilter())
+    
     root_logger = logging.getLogger()
-    if root_logger.hasHandlers():
-        for handler in root_logger.handlers[:]:
-            root_logger.removeHandler(handler)
+    root_logger.addHandler(formatted_console_handler)
+    root_logger.setLevel(script_log_level) 
     
-    # Configure logging to stderr
-    handler = logging.StreamHandler(sys.stderr)
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
-    handler.setFormatter(formatter)
-    root_logger.addHandler(handler)
-    root_logger.setLevel(log_level)
-    
-    # Set package logging level
-    logging.getLogger("autobyteus").setLevel(log_level)
-    
-    if debug:
-        logger.debug("Debug logging enabled")
+    # 3. Handler for the main agent log file
+    log_file_path = Path(args.agent_log_file).resolve()
+    log_file_path.parent.mkdir(parents=True, exist_ok=True)
+    agent_file_handler = logging.FileHandler(log_file_path, mode='w')  
+    agent_file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s:%(lineno)d - %(message)s')
+    agent_file_handler.setFormatter(agent_file_formatter)
+    file_log_level = logging.DEBUG if args.debug else logging.INFO
 
+    autobyteus_logger = logging.getLogger("autobyteus")
+    autobyteus_logger.addHandler(agent_file_handler)
+    autobyteus_logger.setLevel(file_log_level)
+    autobyteus_logger.propagate = True
+
+    # 4. Isolate noisy queue manager logs to a separate file in debug mode
+    if args.debug:
+        queue_log_file_path = Path(log_file_path.parent / f"{log_file_path.stem}_queue.log").resolve()
+        
+        queue_file_handler = logging.FileHandler(queue_log_file_path, mode='w')
+        queue_file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+        queue_file_handler.setFormatter(queue_file_formatter)
+        
+        queue_logger = logging.getLogger("autobyteus.agent.events.agent_input_event_queue_manager")
+        
+        queue_logger.setLevel(logging.DEBUG)
+        queue_logger.addHandler(queue_file_handler)
+        queue_logger.propagate = False # IMPORTANT: Stop logs from bubbling up to the main agent_logs.txt
+
+        logger.info(f"Debug mode: Redirecting noisy queue manager DEBUG logs to: {queue_log_file_path}")
+
+    # 5. Configure `autobyteus.cli` package logging
+    cli_logger = logging.getLogger("autobyteus.cli")
+    cli_logger.setLevel(script_log_level)
+    cli_logger.propagate = True
+    
+    logger.info(f"Core library logs (excluding CLI) redirected to: {log_file_path} (level: {logging.getLevelName(file_log_level)})")
+
+# --- Environment Variable Checks ---
 def check_required_env_vars():
-    """Check for required environment variables and return them."""
+    """Checks for environment variables required by this example and returns them."""
     required_vars = {
         "script_path": "TEST_GOOGLE_SLIDES_MCP_SCRIPT_PATH",
         "google_client_id": "GOOGLE_CLIENT_ID",
@@ -63,76 +139,44 @@ def check_required_env_vars():
     }
     env_values = {}
     missing_vars = []
-    
     for key, var_name in required_vars.items():
         value = os.environ.get(var_name)
         if not value:
             missing_vars.append(var_name)
         else:
             env_values[key] = value
-            
     if missing_vars:
-        logger.error(f"Missing required environment variables: {', '.join(missing_vars)}")
+        logger.error("This example requires the following environment variables to be set: %s", missing_vars)
         sys.exit(1)
-    
-    # Check if script path exists
-    script_path_obj = Path(env_values["script_path"])
-    if not script_path_obj.exists():
-        logger.error(f"The script path specified by TEST_GOOGLE_SLIDES_MCP_SCRIPT_PATH does not exist: {script_path_obj}")
+    if not Path(env_values["script_path"]).exists():
+        logger.error(f"The script path specified by TEST_GOOGLE_SLIDES_MCP_SCRIPT_PATH does not exist: {env_values['script_path']}")
         sys.exit(1)
-    
-    # Ensure the script is executable
-    if not os.access(script_path_obj, os.X_OK):
-        logger.warning(f"Script at {script_path_obj} is not executable. Attempting to make it executable.")
-        try:
-            script_path_obj.chmod(script_path_obj.stat().st_mode | 0o111)
-            logger.info(f"Made {script_path_obj} executable.")
-        except Exception as e:
-            logger.error(f"Failed to make script executable: {e}")
-            sys.exit(1)
-    
     return env_values
 
-async def main(args):
-    """Main function to set up and run the Google Slides agent."""
-    try:
-        # Import required components
-        from autobyteus.agent.context.agent_config import AgentConfig
-        from autobyteus.llm.models import LLMModel
-        from autobyteus.llm.llm_factory import default_llm_factory
-        from autobyteus.agent.factory.agent_factory import default_agent_factory
-        from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
-        from autobyteus.agent.streaming.agent_event_stream import AgentEventStream
-        from autobyteus.agent.streaming.stream_events import StreamEvent, StreamEventType
-        from autobyteus.agent.streaming.stream_event_payloads import (
-            AssistantChunkData,
-            AssistantCompleteResponseData,
-            ToolInvocationApprovalRequestedData,
-        )
-        from autobyteus.tools.mcp import (
-            McpConfigService, McpConnectionManager, McpSchemaMapper, McpToolRegistrar
-        )
-        from autobyteus.tools.registry import default_tool_registry
-    except ImportError as e:
-        logger.error(f"Error importing autobyteus components: {e}")
-        sys.exit(1)
-    
-    # Check environment variables
+async def main(args: argparse.Namespace):
+    """Main function to configure and run the GoogleSlidesAgent."""
+    logger.info("--- Starting Google Slides Agent Example ---")
     env_vars = check_required_env_vars()
-    
-    # Set up MCP components
-    logger.info("Setting up MCP components...")
+
+    # 1. Instantiate all the core MCP and registry components.
     config_service = McpConfigService()
-    conn_manager = McpConnectionManager(config_service=config_service)
     schema_mapper = McpSchemaMapper()
+    tool_registry = default_tool_registry
     
-    # Configure the MCP server
-    server_id = "google-slides-mcp-stdio"
+    # The registrar now uses the handler architecture and no longer needs a connection manager.
+    registrar = McpToolRegistrar(
+        config_service=config_service,
+        schema_mapper=schema_mapper,
+        tool_registry=tool_registry
+    )
+
+    # 2. Define the configuration for the MCP server.
+    server_id = "google-slides-mcp"
     tool_prefix = "gslides"
-    mcp_config = {
+    google_slides_mcp_config = {
         server_id: {
             "transport_type": "stdio",
-            "command": sys.executable,
+            "command": "node",
             "args": [env_vars["script_path"]],
             "enabled": True,
             "tool_name_prefix": tool_prefix,
@@ -140,219 +184,120 @@ async def main(args):
                 "GOOGLE_CLIENT_ID": env_vars["google_client_id"],
                 "GOOGLE_CLIENT_SECRET": env_vars["google_client_secret"],
                 "GOOGLE_REFRESH_TOKEN": env_vars["google_refresh_token"],
-                "PYTHONPATH": os.environ.get("PYTHONPATH", "")
             }
         }
     }
-    config_service.load_configs(mcp_config)
-    
-    # Create tool registrar
-    registrar = McpToolRegistrar(
-        config_service=config_service,
-        conn_manager=conn_manager,
-        schema_mapper=schema_mapper,
-        tool_registry=default_tool_registry
-    )
-    
+    config_service.load_configs(google_slides_mcp_config)
+
     try:
-        # Discover and register tools
-        logger.info("Discovering Google Slides tools...")
+        # 3. Discover and register tools from the configured server.
+        logger.info("Discovering and registering remote Google Slides tools...")
         await registrar.discover_and_register_tools()
-        registered_tools = default_tool_registry.list_tool_names()
-        logger.info(f"Registered tools: {registered_tools}")
-        
-        if not any(name.startswith(tool_prefix) for name in registered_tools):
-            logger.error(f"No tools with prefix '{tool_prefix}' were registered. Cannot proceed.")
+        logger.info("Remote tool registration complete.")
+
+        # 4. Create tool instances from the registry for our agent.
+        all_tool_names = tool_registry.list_tool_names()
+        gslides_tool_names = [name for name in all_tool_names if name.startswith(tool_prefix)]
+        if not gslides_tool_names:
+            logger.error("No Google Slides tools were found in the registry after discovery. Cannot create agent.")
             return
+
+        logger.info(f"Creating instances for registered Google Slides tools: {gslides_tool_names}")
+        tools_for_agent = [tool_registry.create_tool(name) for name in gslides_tool_names]
         
-        # Create tool instances for the agent
-        mcp_tool_instances = [
-            default_tool_registry.create_tool(name) 
-            for name in registered_tools 
-            if name.startswith(tool_prefix)
-        ]
-        
-        # Set up the agent
-        logger.info("Configuring Google Slides Agent...")
-        system_prompt = (
-            "You are a helpful assistant that can create and manage Google Slides presentations.\n\n"
-            "When a user asks to perform an action with Google Slides, you must use the appropriate tool.\n"
-            "You must ask the user for their Google email address ('user_google_email') if it's not provided, "
-            "as it is a required parameter for all tools to associate the action with a user.\n\n"
-            "Available tools:\n"
-            "{{tools}}\n\n"
-            "{{tool_examples}}"
-        )
-        
-        # Create LLM instance
+        # 5. Configure and create the agent.
+        try:
+            # Validate model exists by attempting to access it.
+            # LLMModel[...] now supports lookup by both name and value.
+            _ = LLMModel[args.llm_model]
+        except KeyError:
+            # Using list(LLMModel) is safe because the metaclass handles iteration
+            all_models = sorted(list(LLMModel), key=lambda m: m.name)
+            
+            # Create formatted lists for the error message
+            available_models_list = [f"  - Name: {m.name:<35} Value: {m.value}" for m in all_models]
+            
+            logger.error(
+                f"LLM Model '{args.llm_model}' is not valid.\n"
+                f"You can use either the model name (e.g., 'GPT_4o_API') or its value (e.g., 'gpt-4o').\n\n"
+                f"Available models:\n" +
+                "\n".join(available_models_list)
+            )
+            sys.exit(1)
+
+        logger.info(f"Creating LLM instance for model: {args.llm_model}")
         llm_instance = default_llm_factory.create_llm(model_identifier=args.llm_model)
-        
-        # Configure the agent
-        agent_config = AgentConfig(
+
+        system_prompt = (
+            "You are a helpful assistant with expertise in creating and managing Google Slides presentations.\n"
+            "You have access to a set of specialized tools for this purpose.\n\n"
+            "When asked to create a presentation, you should use the 'gslides_create_presentation' tool.\n"
+            "When asked to add content, you should find out what kind of content and use the 'gslides_batch_update_presentation' tool with the correct request objects.\n"
+            "When asked to summarize a presentation, use the 'gslides_summarize_presentation' tool.\n\n"
+            "Here is the manifest of tools available to you, including their definitions and examples:\n"
+            "{{tools}}"
+        )
+
+        gslides_agent_config = AgentConfig(
             name="GoogleSlidesAgent",
-            role="Google Slides Assistant",
-            description="An agent that helps users create and manage Google Slides presentations.",
+            role="GoogleSlidesExpert",
+            description="An agent that can create and manage Google Slides presentations using a set of remote tools.",
             llm_instance=llm_instance,
             system_prompt=system_prompt,
-            tools=mcp_tool_instances,
-            auto_execute_tools=False,  # Always require manual approval
-            use_xml_tool_format=True
+            tools=tools_for_agent,
+            auto_execute_tools=False,
+            use_xml_tool_format=False
         )
-        
-        # Create the agent
-        agent = default_agent_factory.create_agent(config=agent_config)
-        logger.info(f"Agent '{agent.agent_id}' created successfully with {len(mcp_tool_instances)} tools")
-        
-        # Start the agent
-        agent.start()
-        
-        # Set up event handling
-        turn_complete = asyncio.Event()
-        agent_has_spoken = False
-        pending_approval = None
-        
-        # Create event streamer
-        streamer = AgentEventStream(agent)
-        
-        # Define event handler
-        async def process_events():
-            nonlocal agent_has_spoken, pending_approval
-            
-            try:
-                async for event in streamer.all_events():
-                    # Handle assistant chunks (streaming responses)
-                    if event.event_type == StreamEventType.ASSISTANT_CHUNK and isinstance(event.data, AssistantChunkData):
-                        if not agent_has_spoken:
-                            sys.stdout.write("\nAgent: ")
-                            sys.stdout.flush()
-                            agent_has_spoken = True
-                        
-                        sys.stdout.write(event.data.content)
-                        sys.stdout.flush()
-                    
-                    # Handle complete responses
-                    elif event.event_type == StreamEventType.ASSISTANT_COMPLETE_RESPONSE and isinstance(event.data, AssistantCompleteResponseData):
-                        if not agent_has_spoken:
-                            sys.stdout.write(f"\nAgent: {event.data.content}\n")
-                            sys.stdout.flush()
-                        else:
-                            sys.stdout.write("\n")
-                            sys.stdout.flush()
-                        
-                        agent_has_spoken = False
-                    
-                    # Handle tool approval requests
-                    elif event.event_type == StreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED and isinstance(event.data, ToolInvocationApprovalRequestedData):
-                        pending_approval = event.data
-                        args_str = str(event.data.arguments)
-                        sys.stdout.write(f"\nTool Call: '{event.data.tool_name}' requests permission to run with arguments:\n{args_str}\n")
-                        sys.stdout.write("Approve? (y/n): ")
-                        sys.stdout.flush()
-                    
-                    # Handle agent idle state
-                    elif event.event_type == StreamEventType.AGENT_IDLE:
-                        logger.debug("Agent is idle")
-                        turn_complete.set()
-            
-            except asyncio.CancelledError:
-                logger.debug("Event processing task cancelled")
-            except Exception as e:
-                logger.error(f"Error in event processing: {e}")
-            finally:
-                logger.debug("Event processing task finished")
-                turn_complete.set()  # Ensure main loop isn't stuck
-        
-        # Start event processing
-        event_task = asyncio.create_task(process_events())
-        
-        # Wait for agent to initialize
-        await turn_complete.wait()
-        turn_complete.clear()
-        
-        # Display welcome message
-        print("\n=== GOOGLE SLIDES AGENT INTERACTIVE SESSION ===")
-        print("Type your messages after the 'You: ' prompt.")
-        print("Type '/exit' or '/quit' to end the session.\n")
-        
-        # Process initial prompt if provided
-        if args.initial_prompt:
-            print(f"You: {args.initial_prompt}")
-            await agent.post_user_message(AgentInputUserMessage(content=args.initial_prompt))
-            turn_complete.clear()
-            await turn_complete.wait()
-        
-        # Main interaction loop
-        while True:
-            if pending_approval:
-                # Handle tool approval
-                approval_input = input()  # Direct input for approval
-                approval_input = approval_input.strip().lower()
-                
-                approval_data = pending_approval
-                pending_approval = None
-                
-                is_approved = approval_input in ["y", "yes"]
-                reason = "User approved via CLI" if is_approved else "User denied via CLI"
-                
-                await agent.post_tool_execution_approval(approval_data.invocation_id, is_approved, reason)
-            else:
-                # Handle user input
-                sys.stdout.write("You: ")
-                sys.stdout.flush()
-                
-                user_input = input()  # Direct input for user messages
-                
-                if user_input.lower() in ["/quit", "/exit"]:
-                    print("Exiting session...")
-                    break
-                
-                if not user_input:
-                    continue
-                
-                # Send message to agent
-                agent_has_spoken = False
-                turn_complete.clear()
-                await agent.post_user_message(AgentInputUserMessage(content=user_input))
-                await turn_complete.wait()
-    
-    except KeyboardInterrupt:
-        print("\nSession interrupted by user.")
+
+        agent = AgentFactory().create_agent(config=gslides_agent_config)
+        logger.info(f"Google Slides Agent instance created: {agent.agent_id}")
+
+        # 6. Run the agent in an interactive CLI session.
+        logger.info(f"Starting interactive session for agent {agent.agent_id}...")
+        await agent_cli.run(agent=agent)
+        logger.info(f"Interactive session for agent {agent.agent_id} finished.")
+
     except Exception as e:
-        logger.error(f"Error in interactive session: {e}")
-    finally:
-        # Clean up
-        if 'event_task' in locals() and not event_task.done():
-            event_task.cancel()
-            try:
-                await event_task
-            except asyncio.CancelledError:
-                pass
-        
-        if 'agent' in locals() and agent.is_running:
-            await agent.stop()
-        
-        if 'streamer' in locals():
-            await streamer.close()
-        
-        if conn_manager:
-            logger.info("Cleaning up MCP connections...")
-            await conn_manager.cleanup()
-        
-        logger.info("Session ended.")
+        logger.error(f"An error occurred during the agent workflow: {e}", exc_info=True)
+    
+    # The 'finally' block for cleanup is no longer needed because the new handler
+    # architecture is stateless and does not hold persistent connections.
+    logger.info("--- Google Slides Agent Example Finished ---")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run an agent that interacts with Google Slides via MCP.")
-    parser.add_argument("--debug", action="store_true", help="Enable debug level logging.")
-    parser.add_argument("--initial-prompt", type=str, default=None, help="Initial prompt to send to the agent.")
-    parser.add_argument("--llm-model", type=str, default="GEMINI_2_0_FLASH_API", help="The LLM model to use.")
-    args = parser.parse_args()
+    parser = argparse.ArgumentParser(description="Run the GoogleSlidesAgent interactively.")
+    parser.add_argument("--llm-model", type=str, default="gpt-4o", help=f"The LLM model to use. Call --help-models for list.")
+    parser.add_argument("--help-models", action="store_true", help="Display available LLM models and exit.")
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging.")
+    parser.add_argument("--agent-log-file", type=str, default="./agent_logs_gslides.txt", 
+                       help="Path to the log file for autobyteus.* library logs. (Default: ./agent_logs_gslides.txt)")
+    parser.add_argument("--no-tool-logs", action="store_true", 
+                        help="Disable display of [Tool Log (...)] messages on the console by the agent_cli.")
+
+    if "--help-models" in sys.argv:
+        try:
+            LLMFactory.ensure_initialized() 
+            print("Available LLM Models (you can use either name or value with --llm-model):")
+            # Using list(LLMModel) is safe because the metaclass handles iteration
+            all_models = sorted(list(LLMModel), key=lambda m: m.name)
+            if not all_models:
+                print("  No models found.")
+            for model in all_models:
+                print(f"  - Name: {model.name:<35} Value: {model.value}")
+        except Exception as e:
+            print(f"Error listing models: {e}")
+        sys.exit(0)
+
+    parsed_args = parser.parse_args()
     
-    setup_logging(debug=args.debug)
-    
+    setup_logging(parsed_args)
+    check_required_env_vars()
+
     try:
-        asyncio.run(main(args))
-    except KeyboardInterrupt:
-        print("\nScript interrupted by user.")
+        asyncio.run(main(parsed_args))
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("Script interrupted by user. Exiting.")
     except Exception as e:
-        logger.error(f"Unhandled error: {e}")
-        sys.exit(1)
+        logger.error(f"An unhandled error occurred at the top level: {e}", exc_info=True)
+    finally:
+        logger.info("Exiting script.")

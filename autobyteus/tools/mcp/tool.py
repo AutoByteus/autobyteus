@@ -1,56 +1,54 @@
-# file: autobyteus/autobyteus/mcp/tool.py
+# file: autobyteus/autobyteus/tools/mcp/tool.py
 import logging
 from typing import Any, Optional, TYPE_CHECKING
-import asyncio
 
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.parameter_schema import ParameterSchema
+
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
-    from .connection_manager import McpConnectionManager 
+    from .call_handlers.base_handler import McpCallHandler
+    from .types import BaseMcpConfig
 
 logger = logging.getLogger(__name__)
 
 class GenericMcpTool(BaseTool):
     """
     A generic tool wrapper for executing tools on a remote MCP server.
-    This tool is instantiated by a custom factory specific to a discovered
-    remote MCP tool.
+    This tool delegates the entire remote call, including connection and
+    protocol specifics, to an MCP call handler.
     """
 
     def __init__(self,
-                 mcp_server_id: str, # This now corresponds to McpConfig.server_name
+                 mcp_server_config: 'BaseMcpConfig',
                  mcp_remote_tool_name: str,
-                 mcp_connection_manager: 'McpConnectionManager',
+                 mcp_call_handler: 'McpCallHandler',
                  name: str, 
                  description: str,
                  argument_schema: ParameterSchema):
         """
         Initializes the GenericMcpTool instance.
-        These parameters are typically captured and passed by a factory function
-        created by the McpToolRegistrar.
-
-        Args:
-            mcp_server_id: The unique name/identifier of the MCP server configuration
-                           (corresponds to McpConfig.server_name).
-            mcp_remote_tool_name: The actual name of the tool on the remote MCP server.
-            mcp_connection_manager: Reference to the McpConnectionManager.
-            name: The registered name for this tool in AutoByteUs (e.g., prefixed name).
-            description: The description for this tool (from remote tool).
-            argument_schema: The ParameterSchema for this tool's arguments (mapped from remote tool).
         """
         super().__init__() 
         
-        self._mcp_server_id = mcp_server_id # This is McpConfig.server_name
+        self._mcp_server_config = mcp_server_config
         self._mcp_remote_tool_name = mcp_remote_tool_name
-        self._mcp_connection_manager = mcp_connection_manager
+        self._mcp_call_handler = mcp_call_handler
         
         self._instance_name = name
         self._instance_description = description
         self._instance_argument_schema = argument_schema
         
-        logger.info(f"GenericMcpTool instance created for remote tool '{mcp_remote_tool_name}' on server '{self._mcp_server_id}'. " # Log uses mcp_server_id which is server_name
+        # Override the base class's schema-related methods with instance-specific
+        # versions for correct validation and usage generation.
+        self.get_name = self.get_instance_name
+        self.get_description = self.get_instance_description
+        self.get_argument_schema = self.get_instance_argument_schema
+        
+        logger.info(f"GenericMcpTool instance created for remote tool '{mcp_remote_tool_name}' on server '{self._mcp_server_config.server_id}'. "
                     f"Registered in AutoByteUs as '{self._instance_name}'.")
+
+    # --- Getters for instance-specific data ---
 
     def get_instance_name(self) -> str:
         return self._instance_name
@@ -60,6 +58,8 @@ class GenericMcpTool(BaseTool):
 
     def get_instance_argument_schema(self) -> ParameterSchema:
         return self._instance_argument_schema
+
+    # --- Base class methods that are NOT overridden at instance level ---
 
     @classmethod
     def get_name(cls) -> str:
@@ -73,40 +73,29 @@ class GenericMcpTool(BaseTool):
     def get_argument_schema(cls) -> Optional[ParameterSchema]:
         return None 
 
-
     async def _execute(self, context: 'AgentContext', **kwargs: Any) -> Any:
         """
-        Executes the remote MCP tool call.
-
-        Args:
-            context: The agent's context.
-            **kwargs: Arguments for the remote tool, matching its mapped schema.
-
-        Returns:
-            The result from the remote MCP tool.
-        
-        Raises:
-            RuntimeError: If session acquisition or tool call fails.
+        Executes the remote MCP tool by delegating to the injected call handler.
         """
-        logger.info(f"GenericMcpTool '{self._instance_name}': Executing remote tool '{self._mcp_remote_tool_name}' "
-                    f"on server '{self._mcp_server_id}' with args: {kwargs}") # Log uses mcp_server_id which is server_name
+        tool_name_for_log = self.get_instance_name()
+        logger.info(f"GenericMcpTool '{tool_name_for_log}': Delegating call for remote tool '{self._mcp_remote_tool_name}' "
+                    f"on server '{self._mcp_server_config.server_id}' to handler.")
         
-        if not self._mcp_connection_manager: 
-             logger.error(f"GenericMcpTool '{self._instance_name}': McpConnectionManager is not set. Cannot execute.")
-             raise RuntimeError("McpConnectionManager not available in GenericMcpTool instance.")
+        if not self._mcp_call_handler:
+             logger.error(f"GenericMcpTool '{tool_name_for_log}': McpCallHandler is not set. Cannot execute.")
+             raise RuntimeError("McpCallHandler not available in GenericMcpTool instance.")
 
         try:
-            # self._mcp_server_id is the server_name to use for getting the session
-            session = await self._mcp_connection_manager.get_session(self._mcp_server_id)
+            # The handler is responsible for the entire end-to-end call.
+            return await self._mcp_call_handler.handle_call(
+                config=self._mcp_server_config,
+                remote_tool_name=self._mcp_remote_tool_name,
+                arguments=kwargs
+            )
         except Exception as e:
-            logger.error(f"GenericMcpTool '{self._instance_name}': Failed to get MCP session for server '{self._mcp_server_id}': {e}", exc_info=True) # Log uses mcp_server_id
-            raise RuntimeError(f"Failed to acquire MCP session for server '{self._mcp_server_id}': {e}") from e
-
-        try:
-            # The arguments dictionary is passed positionally.
-            result = await session.call_tool(self._mcp_remote_tool_name, kwargs)
-            logger.info(f"GenericMcpTool '{self._instance_name}': Remote tool '{self._mcp_remote_tool_name}' executed successfully. Result preview: {str(result)[:100]}...")
-            return result
-        except Exception as e:
-            logger.error(f"GenericMcpTool '{self._instance_name}': Error calling remote tool '{self._mcp_remote_tool_name}' on server '{self._mcp_server_id}': {e}", exc_info=True) # Log uses mcp_server_id
-            raise RuntimeError(f"Error calling remote MCP tool '{self._mcp_remote_tool_name}': {e}") from e
+            logger.error(
+                f"The MCP call handler for tool '{tool_name_for_log}' raised an exception: {e}",
+                exc_info=True
+            )
+            # Re-raise to ensure the agent knows the tool call failed.
+            raise

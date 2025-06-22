@@ -85,7 +85,9 @@ class AgentRuntime:
             return
         
         logger.info(f"AgentRuntime for '{agent_id}': Starting worker.")
-        self.phase_manager.notify_runtime_starting_and_uninitialized()
+        # Removed redundant phase notification. The first meaningful phase change to BOOTSTRAPPING
+        # is triggered by the AgentBootstrapper within the worker's async context.
+        # self.phase_manager.notify_runtime_starting_and_uninitialized()
         self._worker.start() 
         logger.info(f"AgentRuntime for '{agent_id}': Worker start command issued. Worker will initialize itself.")
 
@@ -97,19 +99,27 @@ class AgentRuntime:
         except Exception as e:
             logger.error(f"AgentRuntime '{agent_id}': Worker thread terminated with an exception: {e}", exc_info=True)
             if not self.context.current_phase.is_terminal():
-                self.phase_manager.notify_error_occurred("Worker thread exited unexpectedly.", traceback.format_exc())
+                # Since the phase manager is now async, we must run it in a new event loop.
+                try:
+                    asyncio.run(self.phase_manager.notify_error_occurred("Worker thread exited unexpectedly.", traceback.format_exc()))
+                except Exception as run_e:
+                    logger.critical(f"AgentRuntime '{agent_id}': Failed to run async error notification: {run_e}")
         
         if not self.context.current_phase.is_terminal():
-             self.phase_manager.notify_final_shutdown_complete()
+             # Use asyncio.run() to execute the final async phase transition from a sync callback.
+             try:
+                 asyncio.run(self.phase_manager.notify_final_shutdown_complete())
+             except Exception as run_e:
+                 logger.critical(f"AgentRuntime '{agent_id}': Failed to run async final shutdown notification: {run_e}")
         
     async def stop(self, timeout: float = 10.0) -> None:
         agent_id = self.context.agent_id
         if not self._worker.is_alive() and not self._worker._is_active: 
             if not self.context.current_phase.is_terminal():
-                self.phase_manager.notify_final_shutdown_complete()
+                await self.phase_manager.notify_final_shutdown_complete()
             return
         
-        self.phase_manager.notify_shutdown_initiated() 
+        await self.phase_manager.notify_shutdown_initiated() 
         await self._worker.stop(timeout=timeout) 
         
         if self.context.llm_instance and hasattr(self.context.llm_instance, 'cleanup'):
@@ -117,7 +127,7 @@ class AgentRuntime:
             if asyncio.iscoroutinefunction(cleanup_func): await cleanup_func()
             else: cleanup_func()
         
-        self.phase_manager.notify_final_shutdown_complete() 
+        await self.phase_manager.notify_final_shutdown_complete() 
         logger.info(f"AgentRuntime for '{agent_id}' stop() method completed.")
 
     @property 

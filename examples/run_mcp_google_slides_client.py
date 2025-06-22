@@ -4,6 +4,8 @@ import sys
 import os
 import argparse
 from pathlib import Path
+from datetime import datetime
+from typing import AsyncIterator, Optional, List
 
 # --- Boilerplate to make the script runnable from the project root ---
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -26,20 +28,61 @@ except ImportError:
 # --- Imports for AutoByteUs Agent and MCP Client ---
 try:
     from autobyteus.tools.mcp import (
-        McpConfigService, McpConnectionManager, McpSchemaMapper, McpToolRegistrar
+        McpConfigService,
+        McpSchemaMapper,
+        McpToolRegistrar,
     )
-    from autobyteus.tools.registry import default_tool_registry
-    from autobyteus.agent.context.agent_config import AgentConfig
-    from autobyteus.agent.factory.agent_factory import default_agent_factory
-    from autobyteus.llm.llm_factory import default_llm_factory
-    from autobyteus.llm.models import LLMModel
-    from autobyteus.cli import agent_cli
+    from autobyteus.tools.registry import ToolRegistry, default_tool_registry
+    from autobyteus.agent.context import AgentContext, AgentConfig, AgentRuntimeState
+    from autobyteus.llm.base_llm import BaseLLM
+    from autobyteus.llm.user_message import LLMUserMessage
+    from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 except ImportError as e:
     print(f"Error importing autobyteus components: {e}", file=sys.stderr)
     sys.exit(1)
 
 # --- Logging Setup ---
 logger = logging.getLogger("mcp_agent_runner")
+
+# --- Dummy LLM for creating AgentContext ---
+class DummyLLM(BaseLLM):
+    """A dummy LLM implementation required to instantiate AgentConfig."""
+    def __init__(self):
+        # We need to provide a model and config to the BaseLLM constructor.
+        # Let's use a dummy model configuration.
+        from autobyteus.llm.models import LLMModel
+        from autobyteus.llm.utils.llm_config import LLMConfig
+        from autobyteus.llm.llm_factory import default_llm_factory
+
+        # Ensure factory is initialized to access models
+        default_llm_factory.ensure_initialized()
+
+        # Pick any existing model for the dummy, e.g., the first one available.
+        try:
+            # Iterating through LLMModel is now possible due to metaclass
+            dummy_model_instance = next(iter(LLMModel))
+        except StopIteration:
+            # This is a fallback in case no models are registered, which is unlikely but safe.
+            raise RuntimeError("No LLMModels are registered in the factory. Cannot create DummyLLM.")
+        
+        super().__init__(model=dummy_model_instance, llm_config=LLMConfig())
+
+    def configure_system_prompt(self, system_prompt: str):
+        # This is on BaseLLM. My no-op implementation is fine.
+        super().configure_system_prompt(system_prompt)
+
+    async def _send_user_message_to_llm(self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs) -> CompleteResponse:
+        """Dummy implementation for sending a message."""
+        logger.debug("DummyLLM._send_user_message_to_llm called.")
+        return CompleteResponse(content="This is a dummy response from a dummy LLM.", usage=None)
+
+    async def _stream_user_message_to_llm(
+        self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs
+    ) -> AsyncIterator[ChunkResponse]:
+        """Dummy implementation for streaming a message."""
+        logger.debug("DummyLLM._stream_user_message_to_llm called.")
+        yield ChunkResponse(content="This is a dummy response from a dummy LLM.", is_complete=True, usage=None)
+
 
 def setup_logging(debug: bool = False):
     """Configures logging for the script."""
@@ -97,7 +140,23 @@ def check_required_env_vars():
 
     return env_values
 
-async def main(args: argparse.Namespace):
+def print_all_tool_schemas(registry: ToolRegistry):
+    """Iterates through the tool registry and prints the JSON schema for each tool from its definition."""
+    print("\n--- All Registered Tool Schemas (from ToolDefinition) ---")
+    all_definitions = registry.list_tools()
+    for tool_definition in sorted(all_definitions, key=lambda d: d.name):
+        try:
+            # Get the schema directly from the definition object
+            tool_json_schema = tool_definition.usage_json_dict
+            print(f"\n# Tool: {tool_definition.name}")
+            print(json.dumps(tool_json_schema, indent=2))
+        except Exception as e:
+            print(f"\n# Tool: {tool_definition.name}")
+            print(f"  Error getting schema from definition: {e}")
+    print("\n--------------------------------------------------------\n")
+
+
+async def main():
     """
     Main function to set up and run the Google Slides agent.
     """
@@ -107,13 +166,12 @@ async def main(args: argparse.Namespace):
     
     # 1. Instantiate all the core MCP and registry components.
     config_service = McpConfigService()
-    conn_manager = McpConnectionManager(config_service=config_service)
     schema_mapper = McpSchemaMapper()
     tool_registry = default_tool_registry
     
+    # The registrar now internally manages the call handlers.
     registrar = McpToolRegistrar(
         config_service=config_service,
-        conn_manager=conn_manager,
         schema_mapper=schema_mapper,
         tool_registry=tool_registry
     )
@@ -144,32 +202,54 @@ async def main(args: argparse.Namespace):
 
     try:
         # 3. Discover and register tools from the configured server.
-        logger.info("Discovering and registering remote Google Slides tools...")
+        logger.info("Discovering and registering remote tools...")
         await registrar.discover_and_register_tools()
         registered_tools = tool_registry.list_tool_names()
         logger.info(f"Tool registration complete. Available tools in registry: {registered_tools}")
 
-        if not any(name.startswith(tool_prefix) for name in registered_tools):
-            logger.error(f"No tools with prefix '{tool_prefix}' were registered. Cannot proceed.")
-            logger.error("Please check the MCP server script and its output for errors.")
+        # 4. Create an instance of a specific tool using the ToolRegistry.
+        create_tool_name = f"{tool_prefix}_create_presentation"
+        summarize_tool_name = f"{tool_prefix}_summarize_presentation"
+        
+        if create_tool_name not in tool_registry.list_tool_names():
+            logger.error(f"Tool '{create_tool_name}' was not found in the registry. Aborting.")
             return
 
-        # 4. Create tool instances for the agent.
-        mcp_tool_instances = [
-            tool_registry.create_tool(name) for name in registered_tools if name.startswith(tool_prefix)
-        ]
+        logger.info(f"Creating an instance of the '{create_tool_name}' tool from the registry...")
+        create_presentation_tool = tool_registry.create_tool(create_tool_name)
+        
+        logger.info(f"Creating an instance of the '{summarize_tool_name}' tool from the registry...")
+        summarize_presentation_tool = tool_registry.create_tool(summarize_tool_name)
 
-        # 5. Set up the agent.
-        logger.info("Configuring Google Slides Agent...")
-        system_prompt = (
-            "You are a helpful assistant that can create and manage Google Slides presentations.\n"
-            "When a user asks to perform an action, you must use the available tools.\n"
-            "You must ask the user for their Google email address ('user_google_email') if it's not provided, "
-            "as it is a required parameter for all tools to associate the action with a user for logging and accountability.\n\n"
-            "Available tools:\n"
-            "{{tools}}\n\n"
-            "{{tool_examples}}"
+        # 5. Execute the tool using its standard .execute() method.
+        presentation_title = f"AutoByteUs E2E Demo - {datetime.now().isoformat()}"
+        logger.info(f"Executing '{create_tool_name}' with title: '{presentation_title}'")
+        
+        dummy_llm = DummyLLM()
+        dummy_config = AgentConfig(
+            name="mcp_example_runner_agent",
+            role="tool_runner",
+            description="A dummy agent config for running tools outside of a full agent.",
+            llm_instance=dummy_llm,
+            system_prompt="N/A",
+            tools=[]
         )
+        dummy_state = AgentRuntimeState(agent_id="mcp_example_runner")
+        dummy_context = AgentContext(agent_id="mcp_example_runner", config=dummy_config, state=dummy_state)
+        
+        create_result = await create_presentation_tool.execute(
+            context=dummy_context,
+            title=presentation_title
+        )
+        
+        # The result from a tool call is a ToolResult object. Its content needs to be accessed.
+        # We also need to handle cases where content might be empty or not text.
+        if not create_result.content or not hasattr(create_result.content[0], 'text'):
+            raise ValueError(f"Unexpected result format from tool '{create_tool_name}'. Full result: {create_result}")
+
+        presentation_response_text = create_result.content[0].text
+        presentation_object = json.loads(presentation_response_text)
+        actual_presentation_id = presentation_object.get("presentationId")
 
         llm_instance = default_llm_factory.create_llm(model_identifier=LLMModel.GEMINI_2_0_FLASH_API)
 
@@ -183,23 +263,23 @@ async def main(args: argparse.Namespace):
             auto_execute_tools=False, # Let the user confirm the tool call
             use_xml_tool_format=True
         )
+        
+        if not summary_result.content or not hasattr(summary_result.content[0], 'text'):
+            raise ValueError(f"Unexpected result format from tool '{summarize_tool_name}'. Full result: {summary_result}")
 
-        agent = default_agent_factory.create_agent(config=agent_config)
-        logger.info(f"Agent '{agent.agent_id}' created successfully.")
-
-        # 6. Run the agent interactively.
-        logger.info("Starting interactive session with the agent...")
-        await agent_cli.run(agent=agent)
-        logger.info("Interactive session finished.")
+        presentation_summary = summary_result.content[0].text
+        logger.info(f"Tool '{summarize_tool_name}' executed successfully.")
+        print("\n--- Presentation Summary ---")
+        print(presentation_summary)
+        print("--------------------------\n")
+        
+        # 7. Print all tool schemas for verification
+        print_all_tool_schemas(tool_registry)
 
     except Exception as e:
-        logger.error(f"An error occurred during the agent workflow: {e}", exc_info=True)
-    finally:
-        # 7. Clean up all connections.
-        logger.info("Cleaning up MCP connections...")
-        await conn_manager.cleanup()
-        logger.info("Cleanup complete.")
-        logger.info("--- Google Slides Agent using MCP Finished ---")
+        logger.error(f"An error occurred during the workflow: {e}", exc_info=True)
+    
+    logger.info("--- MCP Integration Workflow Example Finished ---")
 
 
 if __name__ == "__main__":

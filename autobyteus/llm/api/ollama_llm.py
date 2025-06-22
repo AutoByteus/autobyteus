@@ -41,30 +41,26 @@ class OllamaLLM(BaseLLM):
             assistant_message = response['message']['content']
             
             # Detect and process reasoning content using <think> markers
-            reasoning_content = ""
+            reasoning_content = None
             main_content = assistant_message
             if "<think>" in assistant_message and "</think>" in assistant_message:
-                start_index = assistant_message.index("<think>")
-                end_index = assistant_message.index("</think>") + len("</think>")
-                # Extract reasoning content and replace markers with standardized tags
-                reasoning_segment = assistant_message[start_index:end_index]
-                reasoning_content = reasoning_segment.replace("<think>", "<llm_reasoning_token>").replace("</think>", "</llm_reasoning_token>\n")
-                # Remove the reasoning segment from the main content
-                main_content = assistant_message[:start_index] + assistant_message[end_index:]
-                display_content = f"{reasoning_content}\n{main_content}"
-            else:
-                display_content = assistant_message
-
-            self.add_assistant_message(main_content, reasoning_content=reasoning_content if reasoning_content else None)
+                start_index = assistant_message.find("<think>")
+                end_index = assistant_message.find("</think>")
+                if start_index < end_index:
+                    reasoning_content = assistant_message[start_index + len("<think>"):end_index].strip()
+                    main_content = (assistant_message[:start_index] + assistant_message[end_index + len("</think>"):])
+            
+            self.add_assistant_message(main_content, reasoning_content=reasoning_content)
             
             token_usage = TokenUsage(
-                prompt_tokens=0,
-                completion_tokens=0,
-                total_tokens=0
+                prompt_tokens=response.get('prompt_eval_count', 0),
+                completion_tokens=response.get('eval_count', 0),
+                total_tokens=response.get('prompt_eval_count', 0) + response.get('eval_count', 0)
             )
             
             return CompleteResponse(
-                content=display_content,
+                content=main_content.strip(),
+                reasoning=reasoning_content,
                 usage=token_usage
             )
         except httpx.HTTPError as e:
@@ -84,6 +80,8 @@ class OllamaLLM(BaseLLM):
         accumulated_main = ""
         accumulated_reasoning = ""
         in_reasoning = False
+        final_response = None
+        
         try:
             async for part in await self.client.chat(
                 model=self.model.value,
@@ -91,38 +89,41 @@ class OllamaLLM(BaseLLM):
                 stream=True
             ):
                 token = part['message']['content']
-                token_stripped = token.strip()
                 
-                if token_stripped == "<think>":
-                    # Yield the standardized reasoning start marker immediately.
-                    yield ChunkResponse(content="<llm_reasoning_token>", is_complete=False)
+                # Simple state machine for <think> tags
+                if "<think>" in token:
                     in_reasoning = True
-                    continue
-                elif token_stripped == "</think>":
-                    if in_reasoning:
-                        # Yield the standardized reasoning closing marker.
-                        yield ChunkResponse(content="</llm_reasoning_token>", is_complete=False)
+                    # In case token is like "...</think><think>...", handle it
+                    parts = token.split("<think>")
+                    token = parts[-1]
+
+                if "</think>" in token:
                     in_reasoning = False
-                    continue
+                    parts = token.split("</think>")
+                    token = parts[-1]
+
+                if in_reasoning:
+                    accumulated_reasoning += token
+                    yield ChunkResponse(content="", reasoning=token)
                 else:
-                    if in_reasoning:
-                        yield ChunkResponse(content=token, is_complete=False)
-                        accumulated_reasoning += token
-                    else:
-                        yield ChunkResponse(content=token, is_complete=False)
-                        accumulated_main += token
+                    accumulated_main += token
+                    yield ChunkResponse(content=token, reasoning=None)
+
+                if part.get('done'):
+                    final_response = part
             
-            token_usage = TokenUsage(
-                prompt_tokens=0,
-                completion_tokens=0,
-                total_tokens=0
-            )
-            yield ChunkResponse(content="", is_complete=True, usage=token_usage)
+            token_usage = None
+            if final_response:
+                token_usage = TokenUsage(
+                    prompt_tokens=final_response.get('prompt_eval_count', 0),
+                    completion_tokens=final_response.get('eval_count', 0),
+                    total_tokens=final_response.get('prompt_eval_count', 0) + final_response.get('eval_count', 0)
+                )
+
+            yield ChunkResponse(content="", reasoning=None, is_complete=True, usage=token_usage)
             
-            if accumulated_reasoning:
-                self.add_assistant_message(accumulated_main, reasoning_content=accumulated_reasoning)
-            else:
-                self.add_assistant_message(accumulated_main)
+            self.add_assistant_message(accumulated_main, reasoning_content=accumulated_reasoning)
+
         except httpx.HTTPError as e:
             logging.error(f"HTTP Error in Ollama streaming: {e.response.status_code} - {e.response.text}")
             raise

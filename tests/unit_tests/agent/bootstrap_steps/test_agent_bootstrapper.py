@@ -62,6 +62,7 @@ async def test_run_success(agent_context, mock_step_1, mock_step_2):
     success = await bootstrapper.run(agent_context, agent_context.phase_manager)
 
     assert success is True
+    agent_context.phase_manager.notify_bootstrapping_started.assert_awaited_once()
     mock_step_1.execute.assert_awaited_once_with(agent_context, agent_context.phase_manager)
     mock_step_2.execute.assert_awaited_once_with(agent_context, agent_context.phase_manager)
     
@@ -71,7 +72,7 @@ async def test_run_success(agent_context, mock_step_1, mock_step_2):
     assert isinstance(enqueued_event, AgentReadyEvent)
     
     # Verify no error was notified
-    agent_context.phase_manager.notify_error_occurred.assert_not_called()
+    agent_context.phase_manager.notify_error_occurred.assert_not_awaited()
 
 @pytest.mark.asyncio
 async def test_run_fails_and_stops(agent_context, mock_step_1, mock_step_2):
@@ -83,11 +84,12 @@ async def test_run_fails_and_stops(agent_context, mock_step_1, mock_step_2):
     success = await bootstrapper.run(agent_context, agent_context.phase_manager)
 
     assert success is False
+    agent_context.phase_manager.notify_bootstrapping_started.assert_awaited_once()
     mock_step_1.execute.assert_awaited_once()
     mock_step_2.execute.assert_not_awaited() # Second step should not be executed
     
     # Verify error was notified
-    agent_context.phase_manager.notify_error_occurred.assert_called_once()
+    agent_context.phase_manager.notify_error_occurred.assert_awaited_once()
     call_kwargs = agent_context.phase_manager.notify_error_occurred.call_args.kwargs
     # This assertion should now correctly pass
     assert "Critical bootstrap failure at MockStep1" in call_kwargs['error_message']
@@ -106,9 +108,10 @@ async def test_run_fails_if_queues_not_set_after_success(agent_context, mock_ste
     success = await bootstrapper.run(agent_context, agent_context.phase_manager)
 
     assert success is False
+    agent_context.phase_manager.notify_bootstrapping_started.assert_awaited_once()
     mock_step_1.execute.assert_awaited_once()
     
     # Verify error was notified for this specific critical failure
-    agent_context.phase_manager.notify_error_occurred.assert_called_once()
+    agent_context.phase_manager.notify_error_occurred.assert_awaited_once()
     call_kwargs = agent_context.phase_manager.notify_error_occurred.call_args.kwargs
     assert "Input queues unavailable after bootstrap" in call_kwargs['error_message']

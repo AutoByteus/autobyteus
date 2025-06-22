@@ -154,7 +154,8 @@ async def test_all_events_receives_phase_change(streamer: AgentEventStream, real
     """Tests that phase change events are received by the unified stream."""
     async def produce_events():
         await asyncio.sleep(0.05)
-        real_notifier.notify_phase_idle_entered(old_phase=AgentOperationalPhase.INITIALIZING_LLM)
+        # Use a valid phase transition from the new lifecycle
+        real_notifier.notify_phase_idle_entered(old_phase=AgentOperationalPhase.BOOTSTRAPPING)
         # DO NOT call streamer.close() from the producer thread.
 
     consumer_task = asyncio.create_task(_collect_stream_results(streamer.all_events()))
@@ -170,7 +171,7 @@ async def test_all_events_receives_phase_change(streamer: AgentEventStream, real
     assert event.event_type == StreamEventType.AGENT_IDLE
     assert isinstance(event.data, AgentOperationalPhaseTransitionData)
     assert event.data.new_phase == AgentOperationalPhase.IDLE
-    assert event.data.old_phase == AgentOperationalPhase.INITIALIZING_LLM
+    assert event.data.old_phase == AgentOperationalPhase.BOOTSTRAPPING
 
 async def test_all_events_receives_assistant_chunk(streamer: AgentEventStream, real_notifier: AgentExternalEventNotifier):
     """Tests that chunk events are received by the unified stream."""
@@ -246,7 +247,8 @@ async def test_all_events_receives_multiple_mixed_events(streamer: AgentEventStr
 
     async def produce_events():
         await asyncio.sleep(0.02)
-        real_notifier.notify_phase_idle_entered(old_phase=AgentOperationalPhase.UNINITIALIZED)
+        # Use a valid phase transition
+        real_notifier.notify_phase_idle_entered(old_phase=AgentOperationalPhase.BOOTSTRAPPING)
         await asyncio.sleep(0.02)
         real_notifier.notify_agent_data_assistant_chunk(chunk1)
         await asyncio.sleep(0.02)

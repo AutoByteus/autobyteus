@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
+import xml.sax.saxutils
 from autobyteus.tools.browser.standalone.google_search_ui import GoogleSearch
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType # Updated
 from autobyteus.tools.tool_config import ToolConfig # For testing instantiation
@@ -50,7 +51,9 @@ def test_get_argument_schema_for_execution(google_search_tool_default: GoogleSea
 
 def test_tool_usage_xml_output(google_search_tool_default: GoogleSearch):
     xml_output = google_search_tool_default.tool_usage_xml()
-    assert '<command name="GoogleSearch">' in xml_output
+    description = google_search_tool_default.get_description()
+    escaped_desc = xml.sax.saxutils.escape(description)
+    assert f'<command name="GoogleSearch" description="{escaped_desc}">' in xml_output
     assert '<arg name="query" type="string" description="The search query string." required="true" />' in xml_output
 
 def test_tool_usage_json_output(google_search_tool_default: GoogleSearch):
@@ -152,5 +155,4 @@ async def test_google_search_playwright_error(google_search_tool_default: Google
         with pytest.raises(RuntimeError, match="GoogleSearch failed for query 'error test': Playwright navigation failed"):
             await google_search_tool_default.execute(mock_agent_context, query=search_query)
         
-        mock_close.assert_called_once() # Ensure close is called even on error
-
+        mock_close.assert_called_once()

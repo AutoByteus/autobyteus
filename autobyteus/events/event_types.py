@@ -15,9 +15,7 @@ class EventType(Enum):
 
     # --- Agent Phase Transitions ---
     AGENT_PHASE_UNINITIALIZED_ENTERED = "agent_phase_uninitialized_entered"
-    AGENT_PHASE_INITIALIZING_TOOLS_STARTED = "agent_phase_initializing_tools_started"
-    AGENT_PHASE_INITIALIZING_PROMPT_STARTED = "agent_phase_initializing_prompt_started"
-    AGENT_PHASE_INITIALIZING_LLM_STARTED = "agent_phase_initializing_llm_started"
+    AGENT_PHASE_BOOTSTRAPPING_STARTED = "agent_phase_bootstrapping_started"
     AGENT_PHASE_IDLE_ENTERED = "agent_phase_idle_entered"
     AGENT_PHASE_PROCESSING_USER_INPUT_STARTED = "agent_phase_processing_user_input_started"
     AGENT_PHASE_AWAITING_LLM_RESPONSE_STARTED = "agent_phase_awaiting_llm_response_started"

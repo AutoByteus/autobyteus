@@ -17,12 +17,14 @@ class BaseStreamPayload(BaseModel):
 
 class AssistantChunkData(BaseStreamPayload):
     content: str
+    reasoning: Optional[str] = None
     is_complete: bool
     usage: Optional[TokenUsage] = None 
 
 
 class AssistantCompleteResponseData(BaseStreamPayload):
     content: str
+    reasoning: Optional[str] = None
     usage: Optional[TokenUsage] = None 
 
 class ToolInteractionLogEntryData(BaseStreamPayload):
@@ -84,12 +86,14 @@ def create_assistant_chunk_data(chunk_obj: Any) -> AssistantChunkData:
     if hasattr(chunk_obj, 'content') and hasattr(chunk_obj, 'is_complete'):
         return AssistantChunkData(
             content=str(getattr(chunk_obj, 'content', '')),
+            reasoning=getattr(chunk_obj, 'reasoning', None),
             is_complete=bool(getattr(chunk_obj, 'is_complete', False)),
             usage=parsed_usage
         )
     elif isinstance(chunk_obj, dict): 
          return AssistantChunkData(
             content=str(chunk_obj.get('content', '')),
+            reasoning=chunk_obj.get('reasoning', None),
             is_complete=bool(chunk_obj.get('is_complete', False)),
             usage=parsed_usage
         )
@@ -118,11 +122,13 @@ def create_assistant_complete_response_data(complete_resp_obj: Any) -> Assistant
     if hasattr(complete_resp_obj, 'content'):
         return AssistantCompleteResponseData( # Use new class name
             content=str(getattr(complete_resp_obj, 'content', '')),
+            reasoning=getattr(complete_resp_obj, 'reasoning', None),
             usage=parsed_usage
         )
     elif isinstance(complete_resp_obj, dict): 
         return AssistantCompleteResponseData( # Use new class name
             content=str(complete_resp_obj.get('content', '')),
+            reasoning=complete_resp_obj.get('reasoning', None),
             usage=parsed_usage
         )
     raise ValueError(f"Cannot create AssistantCompleteResponseData from {type(complete_resp_obj)}")

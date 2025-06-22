@@ -19,7 +19,7 @@ class Timer(BaseTool, EventEmitter):
     """
 
     def __init__(self, config: Optional[ToolConfig] = None):
-        BaseTool.__init__(self)
+        BaseTool.__init__(self, config=config)
         EventEmitter.__init__(self) 
         
         self.duration: int = 300  

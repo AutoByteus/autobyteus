@@ -4,7 +4,6 @@ import uuid
 from typing import List, Dict, Optional, Any, cast
 
 from autobyteus.agent.context.agent_config import AgentConfig
-from autobyteus.agent.factory import default_agent_factory
 from autobyteus.agent.group.agent_group import AgentGroup
 
 logger = logging.getLogger(__name__)

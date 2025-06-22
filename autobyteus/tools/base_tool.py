@@ -1,8 +1,9 @@
-# File: autobyteus/tools/base_tool.py
+# File: autobyteus/autobyteus/tools/base_tool.py
 
 import logging
 from abc import ABC, abstractmethod
 from typing import Optional, Any, TYPE_CHECKING, List as TypingList, Dict
+import xml.sax.saxutils
 
 from autobyteus.events.event_emitter import EventEmitter
 from autobyteus.events.event_types import EventType
@@ -10,27 +11,31 @@ from autobyteus.events.event_types import EventType
 from .tool_meta import ToolMeta
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
-    from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition # Updated import path
+    from autobyteus.tools.parameter_schema import ParameterSchema
+    from autobyteus.tools.tool_config import ToolConfig
 
 logger = logging.getLogger('autobyteus')
 
 class BaseTool(ABC, EventEmitter, metaclass=ToolMeta):
     """
     Abstract base class for all tools, with auto-registration via ToolMeta.
-    ...
     """
-    def __init__(self):
+    def __init__(self, config: Optional['ToolConfig'] = None):
         super().__init__()
         self.agent_id: Optional[str] = None
+        # The config is stored primarily for potential use by subclasses or future base features.
+        self._config = config
         logger.debug(f"BaseTool instance initializing for potential class {self.__class__.__name__}")
 
     @classmethod
     def get_name(cls) -> str:
+        """Returns the registered name of the tool."""
         return cls.__name__
     
     @classmethod
     @abstractmethod
     def get_description(cls) -> str:
+        """Returns the description of the tool."""
         raise NotImplementedError("Subclasses must implement get_description().")
 
     @classmethod
@@ -39,7 +44,6 @@ class BaseTool(ABC, EventEmitter, metaclass=ToolMeta):
         """
         Return a ParameterSchema defining the arguments this tool accepts for execution.
         Return None if the tool accepts no arguments.
-        Must be implemented by subclasses.
         """
         raise NotImplementedError("Subclasses must implement get_argument_schema().")
 
@@ -47,73 +51,20 @@ class BaseTool(ABC, EventEmitter, metaclass=ToolMeta):
     def get_config_schema(cls) -> Optional['ParameterSchema']: 
         """
         Return the ParameterSchema for tool *instantiation* parameters.
-        This is optional. If a tool needs parameters during its construction,
-        it can override this method.
-        By default, tools have no instantiation config.
+        This is optional. By default, tools have no instantiation config.
         """
         return None
 
-    @classmethod
-    def tool_usage_xml(cls) -> str:
-        arg_schema = cls.get_argument_schema()
-        
-        xml_parts = [f"<command name=\"{cls.get_name()}\">"]
-        
-        if arg_schema and arg_schema.parameters:
-            for param in arg_schema.parameters: 
-                arg_tag = f"    <arg name=\"{param.name}\""
-                arg_tag += f" type=\"{param.param_type.value}\""
-                if param.description:
-                    import xml.sax.saxutils
-                    escaped_description = xml.sax.saxutils.escape(param.description)
-                    arg_tag += f" description=\"{escaped_description}\""
-                arg_tag += f" required=\"{'true' if param.required else 'false'}\""
-
-                if param.default_value is not None:
-                    arg_tag += f" default=\"{str(param.default_value)}\""
-                if param.enum_values:
-                    arg_tag += f" enum_values=\"{','.join(param.enum_values)}\""
-                
-                arg_tag += " />"
-                xml_parts.append(arg_tag)
-        else:
-            xml_parts.append("    <!-- This tool takes no arguments -->")
-            
-        xml_parts.append("</command>")
-        
-        return "\n".join(xml_parts)
-
-    @classmethod
-    def tool_usage_json(cls) -> Dict[str, Any]:
-        name = cls.get_name()
-        description = cls.get_description()
-        arg_schema = cls.get_argument_schema() 
-
-        input_schema_dict = {}
-        if arg_schema:
-            input_schema_dict = arg_schema.to_json_schema_dict()
-        else: 
-            input_schema_dict = {
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
-            
-        return {
-            "name": name,
-            "description": description,
-            "inputSchema": input_schema_dict,
-        }
-
     def set_agent_id(self, agent_id: str):
         if not isinstance(agent_id, str) or not agent_id:
-            logger.error(f"Attempted to set invalid agent_id: {agent_id} for tool {self.__class__.get_name()}")
+            logger.error(f"Attempted to set invalid agent_id: {agent_id} for tool {self.get_name()}")
             return
         self.agent_id = agent_id
         logger.debug(f"Agent ID '{agent_id}' set for tool instance '{self.__class__.get_name()}'")
 
     async def execute(self, context: 'AgentContext', **kwargs):
-        tool_name = self.__class__.get_name()
+        # In this context, self.get_name() will call the instance-specific method if it exists.
+        tool_name = self.get_name()
         if self.agent_id is None:
             self.set_agent_id(context.agent_id)
         elif self.agent_id != context.agent_id:
@@ -123,7 +74,7 @@ class BaseTool(ABC, EventEmitter, metaclass=ToolMeta):
             )
             self.set_agent_id(context.agent_id)
         
-        arg_schema = self.__class__.get_argument_schema() 
+        arg_schema = self.get_argument_schema() 
         if arg_schema:
             is_valid, errors = arg_schema.validate_config(kwargs)
             if not is_valid:
@@ -148,5 +99,8 @@ class BaseTool(ABC, EventEmitter, metaclass=ToolMeta):
 
     @classmethod
     def tool_usage(cls) -> str:
-        logger.warning("BaseTool.tool_usage() is deprecated. Use tool_usage_xml() or tool_usage_json().")
-        return cls.tool_usage_xml()
+        logger.warning("BaseTool.tool_usage() is deprecated. Tool usage is now generated by formatters.")
+        # To maintain some backward compatibility without errors, we can generate a basic XML representation.
+        # This should ideally not be called by new code.
+        from autobyteus.tools.usage.formatters.default_xml_schema_formatter import DefaultXmlSchemaFormatter
+        return DefaultXmlSchemaFormatter().provide(cls)

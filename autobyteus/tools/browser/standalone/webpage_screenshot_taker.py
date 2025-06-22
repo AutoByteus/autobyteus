@@ -14,10 +14,9 @@ logger = logging.getLogger(__name__)
 class WebPageScreenshotTaker(BaseTool, UIIntegrator):
     """
     A class that takes a screenshot of a given webpage using Playwright and saves it.
-    Inherits from UIIntegrator for Playwright page access.
     """
     def __init__(self, config: Optional[ToolConfig] = None):
-        BaseTool.__init__(self)
+        BaseTool.__init__(self, config=config)
         UIIntegrator.__init__(self) 
         
         self.full_page: bool = True  
@@ -46,7 +45,7 @@ class WebPageScreenshotTaker(BaseTool, UIIntegrator):
         ))
         schema.add_parameter(ParameterDefinition(
             name="file_path", 
-            param_type=ParameterType.STRING, # MODIFIED from FILE_PATH
+            param_type=ParameterType.STRING,
             description="The local file path (including filename and extension, e.g., 'screenshots/page.png') where the screenshot will be saved.",
             required=True
         ))
@@ -96,4 +95,4 @@ class WebPageScreenshotTaker(BaseTool, UIIntegrator):
             logger.error(f"Error taking screenshot of URL '{url}': {e}", exc_info=True)
             raise RuntimeError(f"WebPageScreenshotTaker failed for URL '{url}': {str(e)}")
         finally:
-            await self.close() 
+            await self.close()

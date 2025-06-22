@@ -51,6 +51,7 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
         context.state.add_message_to_history({"role": "user", "content": llm_user_message.content})
 
         complete_response_text = ""
+        complete_reasoning_text = ""
         token_usage: Optional[TokenUsage] = None
         
         notifier: Optional['AgentExternalEventNotifier'] = None
@@ -66,24 +67,31 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
                     logger.warning(f"Agent '{agent_id}' received unexpected chunk type: {type(chunk_response)} during LLM stream. Expected ChunkResponse.")
                     continue
 
-                complete_response_text += chunk_response.content
+                if chunk_response.content:
+                    complete_response_text += chunk_response.content
+                if chunk_response.reasoning:
+                    complete_reasoning_text += chunk_response.reasoning
+
                 if chunk_response.is_complete and chunk_response.usage:
                     token_usage = chunk_response.usage
                     logger.debug(f"Agent '{agent_id}' received final chunk with token usage: {token_usage}")
 
                 if notifier:
                     try:
-                        notifier.notify_agent_data_assistant_chunk(chunk_response) # USE RENAMED METHOD
+                        # The chunk object now contains both content and reasoning
+                        notifier.notify_agent_data_assistant_chunk(chunk_response) 
                     except Exception as e_notify: 
                          logger.error(f"Agent '{agent_id}': Error notifying assistant chunk generated: {e_notify}", exc_info=True)
             
             if notifier:
                 try:
-                    notifier.notify_agent_data_assistant_chunk_stream_end() # USE RENAMED METHOD
+                    notifier.notify_agent_data_assistant_chunk_stream_end() 
                 except Exception as e_notify_end: 
                     logger.error(f"Agent '{agent_id}': Error notifying assistant chunk stream end: {e_notify_end}", exc_info=True)
 
-            logger.debug(f"Agent '{agent_id}' LLM stream completed. Full response length: {len(complete_response_text)}. Chunk stream ended event emitted.")
+            logger.debug(f"Agent '{agent_id}' LLM stream completed. Full response length: {len(complete_response_text)}. Reasoning length: {len(complete_reasoning_text)}. Chunk stream ended event emitted.")
+            if complete_reasoning_text:
+                logger.debug(f"Agent '{agent_id}' aggregated full LLM reasoning:\n---\n{complete_reasoning_text}\n---")
             logger.debug(f"Agent '{agent_id}' aggregated full LLM response:\n---\n{complete_response_text}\n---")
 
         except Exception as e:
@@ -95,8 +103,8 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
             
             if notifier:
                 try:
-                    notifier.notify_agent_data_assistant_chunk_stream_end() # USE RENAMED METHOD (ensure end is signaled)
-                    notifier.notify_agent_error_output_generation( # USE RENAMED METHOD
+                    notifier.notify_agent_data_assistant_chunk_stream_end() 
+                    notifier.notify_agent_error_output_generation( 
                         error_source="LLMUserMessageReadyEventHandler.stream_user_message",
                         error_message=error_message_for_output,
                         error_details=traceback.format_exc()
@@ -113,9 +121,18 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
             logger.info(f"Agent '{agent_id}' enqueued LLMCompleteResponseReceivedEvent with error details from LLMUserMessageReadyEventHandler.")
             return 
 
-        context.state.add_message_to_history({"role": "assistant", "content": complete_response_text})
+        # Add message to history with reasoning
+        history_entry = {"role": "assistant", "content": complete_response_text}
+        if complete_reasoning_text:
+            history_entry["reasoning"] = complete_reasoning_text
+        context.state.add_message_to_history(history_entry)
         
-        complete_response_obj = CompleteResponse(content=complete_response_text, usage=token_usage)
+        # Create complete response with reasoning
+        complete_response_obj = CompleteResponse(
+            content=complete_response_text,
+            reasoning=complete_reasoning_text,
+            usage=token_usage
+        )
         llm_complete_event = LLMCompleteResponseReceivedEvent(
             complete_response=complete_response_obj
         )
