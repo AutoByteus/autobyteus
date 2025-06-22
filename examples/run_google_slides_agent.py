@@ -207,9 +207,22 @@ async def main(args: argparse.Namespace):
         
         # 5. Configure and create the agent.
         try:
+            # Validate model exists by attempting to access it.
+            # LLMModel[...] now supports lookup by both name and value.
             _ = LLMModel[args.llm_model]
-        except (ValueError, KeyError):
-            logger.error(f"LLM Model '{args.llm_model}' is not valid. Available models: {[m.value for m in LLMModel]}")
+        except KeyError:
+            # Using list(LLMModel) is safe because the metaclass handles iteration
+            all_models = sorted(list(LLMModel), key=lambda m: m.name)
+            
+            # Create formatted lists for the error message
+            available_models_list = [f"  - Name: {m.name:<35} Value: {m.value}" for m in all_models]
+            
+            logger.error(
+                f"LLM Model '{args.llm_model}' is not valid.\n"
+                f"You can use either the model name (e.g., 'GPT_4o_API') or its value (e.g., 'gpt-4o').\n\n"
+                f"Available models:\n" +
+                "\n".join(available_models_list)
+            )
             sys.exit(1)
 
         logger.info(f"Creating LLM instance for model: {args.llm_model}")
@@ -232,7 +245,7 @@ async def main(args: argparse.Namespace):
             llm_instance=llm_instance,
             system_prompt=system_prompt,
             tools=tools_for_agent,
-            auto_execute_tools=True,
+            auto_execute_tools=False,
             use_xml_tool_format=False
         )
 
@@ -253,7 +266,7 @@ async def main(args: argparse.Namespace):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the GoogleSlidesAgent interactively.")
-    parser.add_argument("--llm-model", type=str, default="GPT_4o_API", help=f"The LLM model to use. Call --help-models for list.")
+    parser.add_argument("--llm-model", type=str, default="gpt-4o", help=f"The LLM model to use. Call --help-models for list.")
     parser.add_argument("--help-models", action="store_true", help="Display available LLM models and exit.")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging.")
     parser.add_argument("--agent-log-file", type=str, default="./agent_logs_gslides.txt", 
@@ -264,10 +277,15 @@ if __name__ == "__main__":
     if "--help-models" in sys.argv:
         try:
             LLMFactory.ensure_initialized() 
-            print("Available LLM Models:")
-            model_names = [m.name for m in LLMModel] if LLMModel else []
-            for model_name in sorted(model_names): print(f"  - {model_name}")
-        except Exception as e: print(f"Error listing models: {e}")
+            print("Available LLM Models (you can use either name or value with --llm-model):")
+            # Using list(LLMModel) is safe because the metaclass handles iteration
+            all_models = sorted(list(LLMModel), key=lambda m: m.name)
+            if not all_models:
+                print("  No models found.")
+            for model in all_models:
+                print(f"  - Name: {model.name:<35} Value: {model.value}")
+        except Exception as e:
+            print(f"Error listing models: {e}")
         sys.exit(0)
 
     parsed_args = parser.parse_args()

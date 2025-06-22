@@ -30,24 +30,30 @@ class LLMModelMeta(type):
                 if isinstance(attr_value, cls):  # Check if it's an LLMModel instance
                     yield attr_value
 
-    def __getitem__(cls, name: str) -> 'LLMModel':
+    def __getitem__(cls, name_or_value: str) -> 'LLMModel':
         """
-        Allows dictionary-like access to LLMModel instances (e.g., `LLMModel['GPT_4o_API']`).
-        Ensures that the LLMFactory has initialized and registered all models.
+        Allows dictionary-like access to LLMModel instances by name (e.g., 'GPT_4o_API')
+        or by value (e.g., 'gpt-4o').
+        Search is performed by name first, then by value.
         """
         # Import LLMFactory locally to prevent circular import issues at module load time.
         from autobyteus.llm.llm_factory import LLMFactory
         LLMFactory.ensure_initialized()
 
-        if hasattr(cls, name):
-            attribute = getattr(cls, name)
-            if isinstance(attribute, cls):  # Check if it's an LLMModel instance
+        # 1. Try to find by name first (e.g., LLMModel['GPT_4o_API'])
+        if hasattr(cls, name_or_value):
+            attribute = getattr(cls, name_or_value)
+            if isinstance(attribute, cls):
                 return attribute
         
-        # If the name is not found or the attribute is not an LLMModel instance, raise KeyError.
-        # Use the new __iter__ to get names for the error message.
+        # 2. If not found by name, iterate and find by value (e.g., LLMModel['gpt-4o'])
+        for model in cls:
+            if model.value == name_or_value:
+                return model
+        
+        # 3. If not found by name or value, raise KeyError
         available_models = [m.name for m in cls] 
-        raise KeyError(f"Model '{name}' not found. Available models are: {available_models}")
+        raise KeyError(f"Model '{name_or_value}' not found. Available models are: {available_models}")
 
     def __len__(cls) -> int:
         """
