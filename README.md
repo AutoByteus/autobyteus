@@ -11,6 +11,7 @@ Autobyteus is built with a modular, event-driven architecture designed for exten
 -   **Event-Driven System**: Agents operate on an internal `asyncio` event loop. User messages, tool results, and internal signals are handled as events, which are processed by dedicated `EventHandlers`. This decouples logic and makes the system highly extensible.
 -   **Pluggable Processors & Hooks**: The framework provides extension points to inject custom logic. `InputProcessors` and `LLMResponseProcessors` modify data in the main processing pipeline, while `PhaseHooks` allow custom code to run on specific agent lifecycle transitions (e.g., from `BOOTSTRAPPING` to `IDLE`).
 -   **Context-Aware Tooling**: Tools are first-class citizens that receive the agent's full `AgentContext` during execution. This allows tools to be deeply integrated with the agent's state, configuration, and workspace, enabling more intelligent and powerful actions.
+-   **Tool Approval Flow**: The framework has native support for human-in-the-loop workflows. By setting `auto_execute_tools=False` in the agent's configuration, the agent will pause before executing a tool, emit an event requesting permission, and wait for external approval before proceeding.
 -   **MCP Integration**: The framework has native support for the Model Context Protocol (MCP). This allows agents to discover and use tools from external, language-agnostic tool servers, making the ecosystem extremely flexible and ready for enterprise integration.
 
 ## Features
