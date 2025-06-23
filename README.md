@@ -1,6 +1,6 @@
 # Autobyteus
 
-Autobyteus is an open-source coding assistance tool designed to enhance the software development workflow by making it context-aware. Each step in the workflow is interactive through a user-friendly interface, incorporating the entire software development lifecycle into each stage.
+Autobyteus is an open-source, application-first agentic framework for Python. It is designed to help developers build, test, and deploy complex, stateful, and extensible AI agents by providing a robust architecture and a powerful set of tools.
 
 ## Architecture
 
