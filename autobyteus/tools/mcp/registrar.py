@@ -7,7 +7,8 @@ from .call_handlers import (
     McpCallHandler,
     StdioMcpCallHandler,
     StreamableHttpMcpCallHandler,
-    SseMcpCallHandler
+    SseMcpCallHandler,
+    WebSocketMcpCallHandler
 )
 
 # Consolidated imports from the autobyteus.autobyteus.mcp package public API
@@ -49,6 +50,7 @@ class McpToolRegistrar:
             McpTransportType.STDIO: StdioMcpCallHandler(),
             McpTransportType.STREAMABLE_HTTP: StreamableHttpMcpCallHandler(),
             McpTransportType.SSE: SseMcpCallHandler(),
+            McpTransportType.WEBSOCKET: WebSocketMcpCallHandler(),
         }
         
         logger.info(f"McpToolRegistrar initialized with {len(self._handler_registry)} call handlers.")

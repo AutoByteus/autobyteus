@@ -2,11 +2,9 @@
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional, Any, TYPE_CHECKING, List as TypingList, Dict
-import xml.sax.saxutils
+from typing import Optional, Any, TYPE_CHECKING
 
 from autobyteus.events.event_emitter import EventEmitter
-from autobyteus.events.event_types import EventType
 
 from .tool_meta import ToolMeta
 if TYPE_CHECKING:

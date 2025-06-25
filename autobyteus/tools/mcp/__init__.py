@@ -29,6 +29,7 @@ from .schema_mapper import McpSchemaMapper
 from .tool import GenericMcpTool
 from .factory import McpToolFactory
 from .registrar import McpToolRegistrar
+from .connection_manager import McpConnectionManager
 
 __all__ = [
     # Types from types.py
@@ -39,6 +40,8 @@ __all__ = [
     "McpTransportType",
     # Service from config_service.py
     "McpConfigService",
+    # Connection management
+    "McpConnectionManager",
     # Other public components
     "McpSchemaMapper",
     "GenericMcpTool",

@@ -1,3 +1,4 @@
+#Generated python
 #!/usr/bin/env python3
 """
 Gemini-Enhanced PowerPoint Generator
@@ -125,14 +126,15 @@ async def generate_table_content(gemini, prompt="Create a table showing quarterl
             ["Product C", "$5,000", "$5,500", "$6,000", "$7,500"]
         ], prompt
 
-async def create_powerpoint_presentation(title, output_file, gemini):
+async def create_powerpoint_presentation(title, output_file, pro_gemini, flash_gemini):
     """
     Creates a PowerPoint presentation with Gemini-generated content
     
     Args:
         title (str): The title for the presentation
         output_file (str): Path where to save the PowerPoint file
-        gemini: The Gemini LLM instance
+        pro_gemini: The Gemini Pro LLM instance for text, diagrams, and charts.
+        flash_gemini: The Gemini Flash LLM instance for images.
     """
     from pptx import Presentation
     from pptx.util import Inches, Pt
@@ -152,7 +154,7 @@ async def create_powerpoint_presentation(title, output_file, gemini):
     subtitle_shape = slide.placeholders[1]
     
     title_shape.text = title
-    subtitle = await generate_title_slide_content(gemini, title)
+    subtitle = await generate_title_slide_content(pro_gemini, title)
     subtitle_shape.text = subtitle
     
     # 2. Create agenda slide
@@ -186,7 +188,7 @@ async def create_powerpoint_presentation(title, output_file, gemini):
     
     # 3. Create image slide
     logger.info("Creating AI-generated image slide...")
-    image_path, image_prompt = await generate_image_content(gemini)
+    image_path, image_prompt = await generate_image_content(flash_gemini)
     if image_path:
         blank_slide_layout = prs.slide_layouts[6]
         slide = prs.slides.add_slide(blank_slide_layout)
@@ -212,7 +214,7 @@ async def create_powerpoint_presentation(title, output_file, gemini):
     
     # 4. Create diagram slide
     logger.info("Creating architecture diagram slide...")
-    diagram_path, diagram_prompt = await generate_diagram_content(gemini)
+    diagram_path, diagram_prompt = await generate_diagram_content(pro_gemini)
     if diagram_path:
         blank_slide_layout = prs.slide_layouts[6]
         slide = prs.slides.add_slide(blank_slide_layout)
@@ -238,7 +240,7 @@ async def create_powerpoint_presentation(title, output_file, gemini):
     
     # 5. Create chart slide
     logger.info("Creating data visualization slide...")
-    chart_path, chart_prompt = await generate_chart_content(gemini)
+    chart_path, chart_prompt = await generate_chart_content(pro_gemini)
     if chart_path:
         blank_slide_layout = prs.slide_layouts[6]
         slide = prs.slides.add_slide(blank_slide_layout)
@@ -264,7 +266,7 @@ async def create_powerpoint_presentation(title, output_file, gemini):
     
     # 6. Create table slide
     logger.info("Creating data table slide...")
-    table_data, table_prompt = await generate_table_content(gemini)
+    table_data, table_prompt = await generate_table_content(pro_gemini)
     if table_data:
         title_only_slide_layout = prs.slide_layouts[5]
         slide = prs.slides.add_slide(title_only_slide_layout)
@@ -341,11 +343,23 @@ async def main():
     parser.add_argument("--save-content", action="store_true", help="Save all generated content (images, diagrams) to the output directory")
     args = parser.parse_args()
     
+    pro_gemini = None
+    flash_gemini = None
     try:
-        # Initialize the Gemini LLM
-        logger.info("Initializing Gemini LLM...")
-        gemini = LLMFactory.create_llm(
+        # This script acts as an automated agent, using specialized LLM models for different tasks.
+        logger.info("Initializing Gemini LLMs for the presentation agent...")
+        
+        # Use Gemini 2.5 Pro for complex tasks like text, diagram, and chart generation
+        logger.info("Initializing Gemini 2.5 Pro for text and reasoning...")
+        pro_gemini = LLMFactory.create_llm(
             model_identifier="gemini-2.5-pro",
+            llm_config=LLMConfig(temperature=0.7)
+        )
+        
+        # Use the faster Gemini 2.0 Flash for image generation
+        logger.info("Initializing Gemini 2.0 Flash for image generation...")
+        flash_gemini = LLMFactory.create_llm(
+            model_identifier="gemini-2.0-flash",
             llm_config=LLMConfig(temperature=0.7)
         )
         
@@ -358,7 +372,7 @@ async def main():
         output_file = os.path.join(output_dir, f"{safe_title}.pptx")
         
         # Create the PowerPoint presentation
-        success = await create_powerpoint_presentation(args.title, output_file, gemini)
+        success = await create_powerpoint_presentation(args.title, output_file, pro_gemini, flash_gemini)
         
         if success:
             print(f"\nPresentation saved as: {output_file}")
@@ -383,8 +397,10 @@ async def main():
         logger.error(f"Error creating presentation: {e}", exc_info=True)
     finally:
         # Clean up
-        if 'gemini' in locals():
-            await gemini.cleanup()
+        if pro_gemini:
+            await pro_gemini.cleanup()
+        if flash_gemini:
+            await flash_gemini.cleanup()
 
 if __name__ == "__main__":
     try:
@@ -393,4 +409,4 @@ if __name__ == "__main__":
         print("\nScript interrupted by user.")
     except Exception as e:
         logger.error(f"Unhandled error: {e}", exc_info=True)
-        sys.exit(1) 
+        sys.exit(1)

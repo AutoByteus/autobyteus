@@ -1,3 +1,4 @@
+#/Users/aswin/data/auto/autobyteus/examples/test_google_slides_mcp_script.py
 #!/usr/bin/env python3
 """
 Real Google Slides MCP (Machine Communication Protocol) Script
@@ -17,6 +18,7 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from googleapiclient.http import MediaFileUpload
 
 # Ensure the project root is in the Python path
 script_dir = Path(__file__).resolve().parent
@@ -37,7 +39,7 @@ logger = logging.getLogger(__name__)
 TOOL_DEFS = {
     "create_presentation": {
         "name": "create_presentation",
-        "description": "Creates a new Google Slides presentation.",
+        "description": "Creates a new, blank Google Slides presentation.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -72,6 +74,19 @@ TOOL_DEFS = {
             "required": ["presentation_id", "user_google_email", "requests"],
         },
     },
+    "upload_and_convert_pptx": {
+        "name": "upload_and_convert_pptx",
+        "description": "Uploads a local PowerPoint (.pptx) file to Google Drive and converts it into a Google Slides presentation.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "local_file_path": {"type": "string", "description": "The local path to the .pptx file to upload."},
+                "title": {"type": "string", "description": "The title for the new Google Slides presentation."},
+                "user_google_email": {"type": "string", "description": "The user's Google email address for logging and accountability."},
+            },
+            "required": ["local_file_path", "title", "user_google_email"],
+        },
+    },
 }
 
 
@@ -87,7 +102,7 @@ def get_credentials() -> Credentials:
         logger.critical(msg)
         raise ValueError(msg)
 
-    scopes = ['https://www.googleapis.com/auth/presentations']
+    scopes = ['https://www.googleapis.com/auth/presentations', 'https://www.googleapis.com/auth/drive.file']
 
     creds = Credentials(
         token=None,
@@ -197,6 +212,48 @@ async def get_presentation(presentation_id: str, user_google_email: str) -> Dict
         logger.error(f"Unexpected error getting presentation: {e}", exc_info=True)
         raise
 
+async def upload_and_convert_pptx(local_file_path: str, title: str, user_google_email: str) -> Dict[str, Any]:
+    """Uploads a .pptx file to Drive and converts it to Google Slides."""
+    logger.info(f"Executing upload_and_convert_pptx for user '{user_google_email}' from path '{local_file_path}'")
+    if not os.path.exists(local_file_path):
+        raise FileNotFoundError(f"The specified file does not exist: {local_file_path}")
+
+    try:
+        creds = await asyncio.to_thread(get_credentials)
+        drive_service = build('drive', 'v3', credentials=creds)
+        
+        file_metadata = {
+            'name': title,
+            'mimeType': 'application/vnd.google-apps.presentation'
+        }
+        media = MediaFileUpload(
+            local_file_path,
+            mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            resumable=True
+        )
+        
+        file = await asyncio.to_thread(
+            drive_service.files().create(body=file_metadata, media_body=media, fields='id, webViewLink').execute
+        )
+        
+        presentation_id = file.get('id')
+        presentation_url = file.get('webViewLink')
+        
+        result = {
+            "status": "success",
+            "message": f"File '{title}' uploaded and converted successfully for {user_google_email}.",
+            "presentationId": presentation_id,
+            "presentationUrl": presentation_url,
+        }
+        logger.info(f"Successfully uploaded and converted file. New presentation ID: {presentation_id}")
+        return result
+
+    except HttpError as error:
+        logger.error(f"API HttpError uploading file: {error}", exc_info=True)
+        raise Exception(f"API error: {error.reason}. Ensure credentials have Google Drive permissions.")
+    except Exception as e:
+        logger.error(f"Unexpected error uploading file: {e}", exc_info=True)
+        raise
 
 # --- MCP Server Logic ---
 async def send_ws_message(websocket, message: Dict[str, Any]):
@@ -240,6 +297,8 @@ async def process_rpc_message(websocket, message: Dict[str, Any]):
                 result_content = await get_presentation(**tool_params)
             elif tool_name == "batch_update_presentation":
                 result_content = await batch_update_presentation(**tool_params)
+            elif tool_name == "upload_and_convert_pptx":
+                result_content = await upload_and_convert_pptx(**tool_params)
             else:
                 raise ValueError(f"Unknown tool: {tool_name}")
         else:

@@ -11,10 +11,12 @@ from autobyteus.utils.singleton import SingletonMeta
 from .config_service import McpConfigService
 from .mcp_session import McpSession
 from .transport_strategies.base_client_strategy import BaseMcpClientStrategy
-from .transport_strategies.sse_client_strategy import SseClientStrategy
-from .transport_strategies.stdio_client_strategy import StdioClientStrategy
-from .transport_strategies.streamable_http_client_strategy import StreamableHttpClientStrategy
 from .transport_strategies.websocket_client_strategy import WebSocketClientStrategy
+
+# These strategies aren't currently available
+# from .transport_strategies.sse_client_strategy import SseClientStrategy
+# from .transport_strategies.stdio_client_strategy import StdioClientStrategy
+# from .transport_strategies.streamable_http_client_strategy import StreamableHttpClientStrategy
 from .types import McpTransportType
 
 logger = logging.getLogger(__name__)
@@ -28,9 +30,10 @@ class McpConnectionManager(metaclass=SingletonMeta):
         self._lock = asyncio.Lock()
         
         self._transport_strategies: Dict[McpTransportType, Type[BaseMcpClientStrategy]] = {
-            McpTransportType.STDIO: StdioClientStrategy,
-            McpTransportType.STREAMABLE_HTTP: StreamableHttpClientStrategy,
-            McpTransportType.SSE: SseClientStrategy,
+            # Commented out unavailable strategies
+            # McpTransportType.STDIO: StdioClientStrategy,
+            # McpTransportType.STREAMABLE_HTTP: StreamableHttpClientStrategy,
+            # McpTransportType.SSE: SseClientStrategy,
             McpTransportType.WEBSOCKET: WebSocketClientStrategy,
         }
         logger.info(f"McpConnectionManager initialized with {len(self._transport_strategies)} transport strategies.")
