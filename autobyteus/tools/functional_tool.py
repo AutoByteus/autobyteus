@@ -28,14 +28,19 @@ class FunctionalTool(BaseTool):
                  config_schema: Optional[ParameterSchema],
                  is_async: bool,
                  expects_context: bool,
+                 expects_tool_state: bool,
                  func_param_names: TypingList[str],
                  instantiation_config: Optional[Dict[str, Any]] = None):
         super().__init__(config=ToolConfig(params=instantiation_config) if instantiation_config else None)
         self._original_func = original_func
         self._is_async = is_async
         self._expects_context = expects_context
+        self._expects_tool_state = expects_tool_state
         self._func_param_names = func_param_names
         self._instantiation_config = instantiation_config or {}
+        
+        # This instance has its own state dictionary, inherited from BaseTool's __init__
+        # self.tool_state: Dict[str, Any] = {} # This is now handled by super().__init__()
         
         # Override instance methods to provide specific schema info
         self.get_name = lambda: name
@@ -65,6 +70,9 @@ class FunctionalTool(BaseTool):
         
         if self._expects_context:
             call_args['context'] = context
+        
+        if self._expects_tool_state:
+            call_args['tool_state'] = self.tool_state
             
         if self._is_async:
             return await self._original_func(**call_args)
@@ -143,15 +151,19 @@ def _get_parameter_type_from_hint(py_type: Any, param_name: str) -> Tuple[Parame
     logger.warning(f"Unmapped type hint {py_type} (actual_type: {actual_type}) for param '{param_name}'. Defaulting to ParameterType.STRING.")
     return ParameterType.STRING, None
 
-def _parse_signature(sig: inspect.Signature, tool_name: str) -> Tuple[TypingList[str], bool, ParameterSchema]:
+def _parse_signature(sig: inspect.Signature, tool_name: str) -> Tuple[TypingList[str], bool, bool, ParameterSchema]:
     func_param_names = []
     expects_context = False
+    expects_tool_state = False
     generated_arg_schema = ParameterSchema()
 
     for param_name, param_obj in sig.parameters.items():
         if param_name == "context":
             expects_context = True
-            continue 
+            continue
+        if param_name == "tool_state":
+            expects_tool_state = True
+            continue
         
         func_param_names.append(param_name)
         
@@ -177,7 +189,7 @@ def _parse_signature(sig: inspect.Signature, tool_name: str) -> Tuple[TypingList
         )
         generated_arg_schema.add_parameter(schema_param)
         
-    return func_param_names, expects_context, generated_arg_schema
+    return func_param_names, expects_context, expects_tool_state, generated_arg_schema
 
 # --- The refactored @tool decorator ---
 
@@ -196,7 +208,7 @@ def tool(
         
         sig = inspect.signature(func)
         is_async = inspect.iscoroutinefunction(func)
-        func_param_names, expects_context, gen_arg_schema = _parse_signature(sig, tool_name)
+        func_param_names, expects_context, expects_tool_state, gen_arg_schema = _parse_signature(sig, tool_name)
         
         final_arg_schema = argument_schema if argument_schema is not None else gen_arg_schema
 
@@ -209,6 +221,7 @@ def tool(
                 config_schema=config_schema,
                 is_async=is_async,
                 expects_context=expects_context,
+                expects_tool_state=expects_tool_state,
                 func_param_names=func_param_names,
                 instantiation_config=inst_config.params if inst_config else None
             )

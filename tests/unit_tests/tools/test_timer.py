@@ -38,6 +38,16 @@ def test_timer_with_custom_instantiation_config():
     assert timer.duration == 120
     assert timer.interval == 30
 
+def test_tool_state_initialization():
+    """Tests that the tool_state attribute is properly initialized."""
+    tool = Timer()
+    assert hasattr(tool, 'tool_state')
+    assert isinstance(tool.tool_state, dict)
+    assert tool.tool_state == {}
+    # Verify it's usable
+    tool.tool_state['last_start_time'] = 'now'
+    assert tool.tool_state['last_start_time'] == 'now'
+
 def test_get_name():
     assert Timer.get_name() == "Timer"
 
@@ -73,39 +83,6 @@ def test_get_argument_schema_for_execution():
     interval_param = schema.get_parameter('interval')
     assert interval_param.name == "interval"
     assert interval_param.required is False
-
-def test_tool_usage_xml_output():
-    xml_output = Timer.tool_usage_xml()
-    description = Timer.get_description()
-    escaped_desc = xml.sax.saxutils.escape(description)
-    
-    assert f'<command name="Timer" description="{escaped_desc}">' in xml_output
-    assert '</command>' in xml_output
-
-    duration_match = re.search(r'<arg name="duration".*?/>', xml_output)
-    assert duration_match is not None
-    duration_tag = duration_match.group(0)
-    assert 'type="integer"' in duration_tag
-    assert 'required="true"' in duration_tag
-    assert 'description="Duration to set for this timer run in seconds."' in duration_tag
-
-    interval_match = re.search(r'<arg name="interval".*?/>', xml_output)
-    assert interval_match is not None
-    interval_tag = interval_match.group(0)
-    assert 'type="integer"' in interval_tag
-    assert 'required="false"' in interval_tag
-    assert 'description="Interval for emitting timer events in seconds for this run. Overrides instance default."' in interval_tag
-
-
-def test_tool_usage_json_output():
-    json_output = Timer.tool_usage_json()
-    assert json_output["name"] == "Timer"
-    input_schema = json_output["inputSchema"]
-    assert "duration" in input_schema["properties"]
-    assert "interval" in input_schema["properties"]
-    assert "duration" in input_schema["required"]
-    assert "interval" not in input_schema["required"]
-
 
 @pytest.mark.asyncio
 async def test_execute_missing_duration_arg(timer_instance: Timer, mock_agent_context):

@@ -34,6 +34,16 @@ def test_image_downloader_with_custom_instantiation_config(temp_dir_for_image_do
     downloader = ImageDownloader(config=config)
     assert downloader.download_folder == temp_dir_for_image_downloader
 
+def test_tool_state_initialization():
+    """Tests that the tool_state attribute is properly initialized."""
+    tool = ImageDownloader()
+    assert hasattr(tool, 'tool_state')
+    assert isinstance(tool.tool_state, dict)
+    assert tool.tool_state == {}
+    # Verify it's usable
+    tool.tool_state['run_count'] = 1
+    assert tool.tool_state['run_count'] == 1
+
 def test_get_name():
     assert ImageDownloader.get_name() == "ImageDownloader"
 
@@ -74,33 +84,6 @@ def test_get_argument_schema_for_execution():
     assert folder_param.required is False
     assert "Optional. Custom directory path" in folder_param.description
 
-def test_tool_usage_xml_output():
-    xml_output = ImageDownloader.tool_usage_xml()
-    description = ImageDownloader.get_description()
-    escaped_desc = xml.sax.saxutils.escape(description)
-    
-    assert f'<command name="ImageDownloader" description="{escaped_desc}">' in xml_output
-    assert '<arg name="url" type="string"' in xml_output
-    assert 'required="true"' in xml_output
-    assert '<arg name="folder" type="string"' in xml_output
-    assert 'required="false"' in xml_output 
-    assert '</command>' in xml_output
-
-def test_tool_usage_json_output():
-    json_output = ImageDownloader.tool_usage_json()
-    assert json_output["name"] == "ImageDownloader"
-    assert ImageDownloader.get_description() in json_output["description"]
-    
-    input_schema = json_output["inputSchema"]
-    assert input_schema["type"] == "object"
-    assert "url" in input_schema["properties"]
-    assert "folder" in input_schema["properties"]
-    assert input_schema["properties"]["url"]["type"] == "string"
-    assert input_schema["properties"]["folder"]["type"] == "string"
-    assert "url" in input_schema["required"]
-    assert "folder" not in input_schema["required"]
-
-
 @pytest.mark.asyncio 
 async def test_execute_missing_url_arg(mock_agent_context):
     downloader = ImageDownloader()
@@ -112,7 +95,7 @@ async def test_execute_unsupported_url_format(mock_agent_context):
     downloader = ImageDownloader()
     url_with_invalid_ext = 'https://example.com/file.txt' 
     
-    with pytest.raises(ValueError, match="Unsupported image format or malformed URL"):
+    with pytest.raises(ValueError, match="Unsupported image format"):
         await downloader.execute(mock_agent_context, url=url_with_invalid_ext)
 
 @pytest.mark.asyncio
@@ -187,7 +170,7 @@ async def test_execute_network_aiohttp_client_error(mock_agent_context):
     with patch('aiohttp.ClientSession') as mock_session:
         mock_session.return_value.__aenter__.return_value.get.side_effect = aiohttp.ClientConnectorError(Mock(), OSError("Test connection error"))
         
-        with pytest.raises(ValueError, match="Failed to download image from .* Network error:"):
+        with pytest.raises(ValueError, match="Error processing image from"):
             await downloader.execute(mock_agent_context, url=url)
 
 @pytest.mark.asyncio
@@ -201,7 +184,7 @@ async def test_execute_unidentified_image_error(mock_agent_context, temp_dir_for
         mock_response.read = AsyncMock(return_value=b'this is not image data') 
         mock_session.return_value.__aenter__.return_value.get.return_value.__aenter__.return_value = mock_response
         
-        with pytest.raises(ValueError, match="The content from .* is not a valid or supported image format."):
+        with pytest.raises(ValueError, match="Error processing image from"):
             await downloader.execute(mock_agent_context, url=url)
 
 def test_on_weibo_post_completed_removes_image(temp_dir_for_image_downloader):

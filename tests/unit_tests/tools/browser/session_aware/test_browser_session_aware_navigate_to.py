@@ -28,6 +28,15 @@ def navigate_to_session_tool_instance(mock_agent_context_navigate_session):
     tool.set_agent_id(mock_agent_context_navigate_session.agent_id)
     return tool
 
+def test_tool_state_initialization(navigate_to_session_tool_instance: BrowserSessionAwareNavigateTo):
+    """Tests that the tool_state attribute is properly initialized."""
+    assert hasattr(navigate_to_session_tool_instance, 'tool_state')
+    assert isinstance(navigate_to_session_tool_instance.tool_state, dict)
+    assert navigate_to_session_tool_instance.tool_state == {}
+    # Verify it's usable
+    navigate_to_session_tool_instance.tool_state['last_url'] = 'http://a.com'
+    assert navigate_to_session_tool_instance.tool_state['last_url'] == 'http://a.com'
+
 # Definition Tests
 def test_navigate_to_session_definition():
     definition = default_tool_registry.get_tool_definition(TOOL_NAME_NAVIGATE_SESSION)
@@ -107,4 +116,3 @@ async def test_full_execute_missing_url_arg(
     # This tests BaseTool.execute's validation
     with pytest.raises(ValueError, match=f"Invalid arguments for tool '{TOOL_NAME_NAVIGATE_SESSION}'"):
         await navigate_to_session_tool_instance.execute(mock_agent_context_navigate_session) # webpage_url missing
-

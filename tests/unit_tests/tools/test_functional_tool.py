@@ -6,7 +6,7 @@ from autobyteus.tools.functional_tool import FunctionalTool, tool, _parse_signat
 from autobyteus.tools.registry import ToolRegistry, ToolDefinition
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.agent.context import AgentContext
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 import inspect
 
 # --- Fixtures ---
@@ -44,6 +44,7 @@ async def test_functional_tool_initialization_and_properties():
         config_schema=None,
         is_async=True,
         expects_context=False,
+        expects_tool_state=False,
         func_param_names=["p1"]
     )
 
@@ -53,10 +54,12 @@ async def test_functional_tool_initialization_and_properties():
     assert tool_instance.get_config_schema() is None
     assert tool_instance._is_async is True
     assert tool_instance._original_func == mock_func
+    assert hasattr(tool_instance, 'tool_state')
+    assert isinstance(tool_instance.tool_state, dict)
 
 @pytest.mark.asyncio
-async def test_functional_tool_execute_async_func(mock_agent_context):
-    """Tests executing an async function via the FunctionalTool wrapper."""
+async def test_functional_tool_execute_async_func_with_state(mock_agent_context):
+    """Tests executing an async function with context and tool_state."""
     mock_func = AsyncMock(return_value="async_result")
     mock_func.__name__ = 'mocked_async_func_for_exec' # Add __name__ to the mock
     tool_instance = FunctionalTool(
@@ -67,13 +70,20 @@ async def test_functional_tool_execute_async_func(mock_agent_context):
         config_schema=None,
         is_async=True,
         expects_context=True,
+        expects_tool_state=True,
         func_param_names=["arg1"]
     )
+    # Set some initial state
+    tool_instance.tool_state['counter'] = 5
 
     result = await tool_instance._execute(mock_agent_context, arg1="value1")
     
     assert result == "async_result"
-    mock_func.assert_awaited_once_with(context=mock_agent_context, arg1="value1")
+    mock_func.assert_awaited_once_with(
+        context=mock_agent_context, 
+        tool_state={'counter': 5},
+        arg1="value1"
+    )
 
 @pytest.mark.asyncio
 async def test_functional_tool_execute_sync_func(mock_agent_context):
@@ -88,6 +98,7 @@ async def test_functional_tool_execute_sync_func(mock_agent_context):
         config_schema=None,
         is_async=False,
         expects_context=False,
+        expects_tool_state=False,
         func_param_names=["arg1"]
     )
 
@@ -136,6 +147,29 @@ async def test_decorated_tool_is_executable(mock_agent_context):
     result = await executable_func.execute(mock_agent_context, text="hello")
     assert result == "executed: hello by functional_test_agent"
 
+@pytest.mark.asyncio
+async def test_decorated_tool_with_state_persists(mock_agent_context):
+    """Tests that state persists across calls to a stateful decorated tool."""
+    
+    @tool
+    def stateful_counter(tool_state: Dict[str, Any]) -> int:
+        """A simple counter tool that uses its state."""
+        count = tool_state.get('count', 0)
+        count += 1
+        tool_state['count'] = count
+        return count
+
+    # Call 1
+    result1 = await stateful_counter.execute(mock_agent_context)
+    assert result1 == 1
+    assert stateful_counter.tool_state['count'] == 1
+
+    # Call 2
+    result2 = await stateful_counter.execute(mock_agent_context)
+    assert result2 == 2
+    assert stateful_counter.tool_state['count'] == 2
+
+
 # --- Tests for Schema Inference by _parse_signature ---
 
 def test_parse_signature_simple_types():
@@ -143,8 +177,10 @@ def test_parse_signature_simple_types():
     def func_simple(p_str: str, p_int: int, p_bool: bool, p_float: float): pass
     sig = inspect.signature(func_simple)
     
-    _, _, schema = _parse_signature(sig, "func_simple")
+    _, expects_context, expects_tool_state, schema = _parse_signature(sig, "func_simple")
     
+    assert expects_context is False
+    assert expects_tool_state is False
     assert schema.get_parameter("p_str").param_type == ParameterType.STRING
     assert schema.get_parameter("p_int").param_type == ParameterType.INTEGER
     assert schema.get_parameter("p_bool").param_type == ParameterType.BOOLEAN
@@ -156,7 +192,7 @@ def test_parse_signature_with_optional_and_defaults():
     def func_optional(req_str: str, opt_int: Optional[int] = None, bool_default: bool = True): pass
     sig = inspect.signature(func_optional)
     
-    _, _, schema = _parse_signature(sig, "func_optional")
+    _, _, _, schema = _parse_signature(sig, "func_optional")
     
     assert schema.get_parameter("req_str").required is True
     
@@ -170,16 +206,18 @@ def test_parse_signature_with_optional_and_defaults():
     assert bool_default_param.default_value is True
     assert bool_default_param.param_type == ParameterType.BOOLEAN
 
-def test_parse_signature_with_context():
-    """Tests that the 'context' parameter is correctly identified and skipped."""
-    def func_with_context(context: AgentContext, p1: str): pass
+def test_parse_signature_with_context_and_state():
+    """Tests that 'context' and 'tool_state' are correctly identified and skipped."""
+    def func_with_context(context: AgentContext, tool_state: dict, p1: str): pass
     sig = inspect.signature(func_with_context)
     
-    param_names, expects_context, schema = _parse_signature(sig, "func_with_context")
+    param_names, expects_context, expects_tool_state, schema = _parse_signature(sig, "func_with_context")
 
     assert expects_context is True
+    assert expects_tool_state is True
     assert param_names == ["p1"]
     assert schema.get_parameter("context") is None
+    assert schema.get_parameter("tool_state") is None
     assert schema.get_parameter("p1") is not None
     assert len(schema.parameters) == 1
 
@@ -188,7 +226,7 @@ def test_parse_signature_with_collections():
     def func_collections(p_list: List[str], p_dict: dict, p_untyped_list: list): pass
     sig = inspect.signature(func_collections)
     
-    _, _, schema = _parse_signature(sig, "func_collections")
+    _, _, _, schema = _parse_signature(sig, "func_collections")
     
     list_param = schema.get_parameter("p_list")
     assert list_param.param_type == ParameterType.ARRAY

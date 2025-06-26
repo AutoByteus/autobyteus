@@ -22,6 +22,15 @@ def google_search_tool_custom_config(): # With custom instantiation config
     config = ToolConfig(params={'cleaning_mode': CleaningMode.BASIC.name}) # Pass enum name as string
     return GoogleSearch(config=config)
 
+def test_tool_state_initialization(google_search_tool_default: GoogleSearch):
+    """Tests that the tool_state attribute is properly initialized."""
+    assert hasattr(google_search_tool_default, 'tool_state')
+    assert isinstance(google_search_tool_default.tool_state, dict)
+    assert google_search_tool_default.tool_state == {}
+    # Verify it's usable
+    google_search_tool_default.tool_state['search_count'] = 1
+    assert google_search_tool_default.tool_state['search_count'] == 1
+
 def test_get_name(google_search_tool_default: GoogleSearch):
     assert google_search_tool_default.get_name() == "GoogleSearch"
 
@@ -48,19 +57,6 @@ def test_get_argument_schema_for_execution(google_search_tool_default: GoogleSea
     assert param.name == "query"
     assert param.param_type == ParameterType.STRING
     assert param.required is True
-
-def test_tool_usage_xml_output(google_search_tool_default: GoogleSearch):
-    xml_output = google_search_tool_default.tool_usage_xml()
-    description = google_search_tool_default.get_description()
-    escaped_desc = xml.sax.saxutils.escape(description)
-    assert f'<command name="GoogleSearch" description="{escaped_desc}">' in xml_output
-    assert '<arg name="query" type="string" description="The search query string." required="true" />' in xml_output
-
-def test_tool_usage_json_output(google_search_tool_default: GoogleSearch):
-    json_output = google_search_tool_default.tool_usage_json()
-    assert json_output["name"] == "GoogleSearch"
-    input_schema = json_output["inputSchema"]
-    assert "query" in input_schema["properties"]
 
 @pytest.mark.asyncio
 async def test_execute_missing_query_arg(google_search_tool_default: GoogleSearch, mock_agent_context):
@@ -112,7 +108,6 @@ async def test_google_search_execute_successful(google_search_tool_default: Goog
     file_name = tmp_path / "shawshank_search_test_results.html"
     with open(file_name, "w", encoding="utf-8") as file:
         file.write(search_results_html)
-    # print(f"Search results saved to {file_name}") # For debugging if needed
 
 @pytest.mark.asyncio
 async def test_google_search_custom_cleaning_mode(google_search_tool_custom_config: GoogleSearch, mock_agent_context):

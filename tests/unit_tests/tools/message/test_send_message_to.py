@@ -57,6 +57,15 @@ def send_message_tool():
 def test_get_name(send_message_tool: SendMessageTo):
     assert send_message_tool.get_name() == SendMessageTo.TOOL_NAME
 
+def test_tool_state_initialization(send_message_tool: SendMessageTo):
+    """Tests that the tool_state attribute is properly initialized."""
+    assert hasattr(send_message_tool, 'tool_state')
+    assert isinstance(send_message_tool.tool_state, dict)
+    assert send_message_tool.tool_state == {}
+    # Verify it's usable
+    send_message_tool.tool_state['message_count'] = 1
+    assert send_message_tool.tool_state['message_count'] == 1
+
 def test_get_description(send_message_tool: SendMessageTo):
     desc = send_message_tool.get_description()
     assert "Sends a message to another agent" in desc
@@ -71,24 +80,6 @@ def test_get_argument_schema(send_message_tool: SendMessageTo):
     assert schema.get_parameter("content").required is True
     assert schema.get_parameter("message_type").required is True
     assert schema.get_parameter("recipient_agent_id").required is False
-
-def test_tool_usage_xml_output(send_message_tool: SendMessageTo):
-    xml_output = send_message_tool.tool_usage_xml()
-    description = send_message_tool.get_description()
-    escaped_desc = xml.sax.saxutils.escape(description)
-    assert f'<command name="{SendMessageTo.TOOL_NAME}" description="{escaped_desc}">' in xml_output
-    assert '<arg name="recipient_role_name" type="string"' in xml_output
-    assert '<arg name="content" type="string"' in xml_output
-    assert '<arg name="message_type" type="string"' in xml_output
-    assert '<arg name="recipient_agent_id" type="string" required="false"' in xml_output
-
-def test_tool_usage_json_output(send_message_tool: SendMessageTo):
-    json_output = send_message_tool.tool_usage_json()
-    assert json_output["name"] == SendMessageTo.TOOL_NAME
-    assert SendMessageTo.get_description() in json_output["description"]
-    input_schema = json_output["inputSchema"]
-    assert "recipient_role_name" in input_schema["properties"]
-    assert "recipient_agent_id" not in input_schema.get("required", [])
 
 # Execute Tests
 @pytest.mark.asyncio

@@ -22,6 +22,15 @@ def screenshot_taker_tool_custom_config():
     config = ToolConfig(params={'full_page': False, 'image_format': 'jpeg'})
     return WebPageScreenshotTaker(config=config)
 
+def test_tool_state_initialization(screenshot_taker_tool_default: WebPageScreenshotTaker):
+    """Tests that the tool_state attribute is properly initialized."""
+    assert hasattr(screenshot_taker_tool_default, 'tool_state')
+    assert isinstance(screenshot_taker_tool_default.tool_state, dict)
+    assert screenshot_taker_tool_default.tool_state == {}
+    # Verify it's usable
+    screenshot_taker_tool_default.tool_state['paths'] = ['/a/b.png']
+    assert screenshot_taker_tool_default.tool_state['paths'] == ['/a/b.png']
+
 # Definition Tests
 def test_get_name(screenshot_taker_tool_default: WebPageScreenshotTaker):
     assert screenshot_taker_tool_default.get_name() == "WebPageScreenshotTaker"
@@ -53,7 +62,7 @@ def test_get_argument_schema_for_execution(screenshot_taker_tool_default: WebPag
     file_path_param = schema.get_parameter("file_path")
     assert file_path_param.name == "file_path"
     assert file_path_param.required is True
-    assert file_path_param.param_type == ParameterType.STRING # MODIFIED from FILE_PATH
+    assert file_path_param.param_type == ParameterType.STRING 
 
 # Execute Tests
 @pytest.mark.asyncio

@@ -31,6 +31,15 @@ def element_trigger_tool_instance(mock_agent_context_trigger):
     tool.set_agent_id(mock_agent_context_trigger.agent_id)
     return tool
 
+def test_tool_state_initialization(element_trigger_tool_instance: BrowserSessionAwareWebElementTrigger):
+    """Tests that the tool_state attribute is properly initialized."""
+    assert hasattr(element_trigger_tool_instance, 'tool_state')
+    assert isinstance(element_trigger_tool_instance.tool_state, dict)
+    assert element_trigger_tool_instance.tool_state == {}
+    # Verify it's usable
+    element_trigger_tool_instance.tool_state['last_action'] = 'click'
+    assert element_trigger_tool_instance.tool_state['last_action'] == 'click'
+
 # Definition Tests
 def test_element_trigger_definition():
     definition = default_tool_registry.get_tool_definition(TOOL_NAME_ELEMENT_TRIGGER)
@@ -160,4 +169,3 @@ async def test_full_execute_click_with_session_mocking(
     # Verify that perform_action (which is mocked indirectly via mock_shared_browser_session_trigger.page.locator().click) was effectively called
     mock_shared_browser_session_trigger.page.locator.assert_called_with("#myButton")
     mock_shared_browser_session_trigger.page.locator.return_value.click.assert_called_once()
-

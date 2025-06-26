@@ -25,7 +25,9 @@ class BaseTool(ABC, EventEmitter, metaclass=ToolMeta):
         self.agent_id: Optional[str] = None
         # The config is stored primarily for potential use by subclasses or future base features.
         self._config = config
-        logger.debug(f"BaseTool instance initializing for potential class {self.__class__.__name__}")
+        # Add a dedicated state dictionary for the tool instance
+        self.tool_state: Dict[str, Any] = {}
+        logger.debug(f"BaseTool instance initializing for potential class {self.__class__.__name__}. tool_state initialized.")
 
     @classmethod
     def get_name(cls) -> str:

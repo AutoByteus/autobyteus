@@ -36,6 +36,15 @@ def ss_taker_session_tool_custom(mock_agent_context_session_ss): # Custom config
     tool.set_agent_id(mock_agent_context_session_ss.agent_id)
     return tool
 
+def test_tool_state_initialization(ss_taker_session_tool_default: BrowserSessionAwareWebPageScreenshotTaker):
+    """Tests that the tool_state attribute is properly initialized."""
+    assert hasattr(ss_taker_session_tool_default, 'tool_state')
+    assert isinstance(ss_taker_session_tool_default.tool_state, dict)
+    assert ss_taker_session_tool_default.tool_state == {}
+    # Verify it's usable
+    ss_taker_session_tool_default.tool_state['screenshot_count'] = 1
+    assert ss_taker_session_tool_default.tool_state['screenshot_count'] == 1
+
 # Definition Tests
 def test_session_ss_taker_definition():
     definition = default_tool_registry.get_tool_definition(TOOL_NAME_SESSION_SS_TAKER)
@@ -49,7 +58,7 @@ def test_session_ss_taker_definition():
     assert arg_schema.get_parameter("webpage_url").required is True
     file_name_param = arg_schema.get_parameter("file_name")
     assert file_name_param.required is True
-    assert file_name_param.param_type == ParameterType.STRING # MODIFIED
+    assert file_name_param.param_type == ParameterType.STRING 
 
     config_schema = definition.config_schema # Instantiation config
     assert isinstance(config_schema, ParameterSchema)
