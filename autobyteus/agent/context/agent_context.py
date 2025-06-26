@@ -2,7 +2,7 @@
 import logging
 from typing import TYPE_CHECKING, List, Dict, Any, Optional
 
-from .phases import AgentOperationalPhase 
+from autobyteus.agent.phases import AgentOperationalPhase 
 
 if TYPE_CHECKING:
     from .agent_config import AgentConfig 
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from autobyteus.agent.tool_invocation import ToolInvocation
     # LLMConfig no longer needed here
     from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
-    from autobyteus.agent.context.agent_phase_manager import AgentPhaseManager 
+    from autobyteus.agent.phases import AgentPhaseManager 
 
 logger = logging.getLogger(__name__)
 

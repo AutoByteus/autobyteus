@@ -4,7 +4,7 @@ import logging
 import traceback
 from typing import TYPE_CHECKING, Optional
 
-from autobyteus.agent.context.phases import AgentOperationalPhase
+from autobyteus.agent.phases import AgentOperationalPhase
 from autobyteus.agent.events.agent_events import ( # Updated relative import path if needed, but BaseEvent is fine
     BaseEvent,
     AgentReadyEvent,

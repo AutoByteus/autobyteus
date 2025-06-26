@@ -1,12 +1,13 @@
-# file: autobyteus/autobyteus/agent/context/agent_phase_manager.py
+# file: autobyteus/autobyteus/agent/phases/manager.py
 import asyncio
 import logging
 from typing import TYPE_CHECKING, Optional, Dict, Any
 
-from autobyteus.agent.phases import AgentOperationalPhase, phase_transition
+from .phase_enum import AgentOperationalPhase
+from .transition_decorator import phase_transition
 
 if TYPE_CHECKING:
-    from autobyteus.agent.context.agent_context import AgentContext
+    from autobyteus.agent.context import AgentContext
     from autobyteus.agent.tool_invocation import ToolInvocation
     from autobyteus.agent.events.notifiers import AgentExternalEventNotifier
 

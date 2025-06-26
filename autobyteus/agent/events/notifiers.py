@@ -4,7 +4,7 @@ from typing import Optional, Dict, Any, TYPE_CHECKING
 
 from autobyteus.events.event_emitter import EventEmitter
 from autobyteus.events.event_types import EventType 
-from autobyteus.agent.context.phases import AgentOperationalPhase
+from autobyteus.agent.phases import AgentOperationalPhase
 
 if TYPE_CHECKING:
     from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse 

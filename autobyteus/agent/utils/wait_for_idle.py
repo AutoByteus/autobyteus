@@ -6,7 +6,7 @@ from typing import Optional
 from autobyteus.agent.agent import Agent
 from autobyteus.agent.streaming.agent_event_stream import AgentEventStream
 from autobyteus.agent.streaming.stream_events import StreamEventType
-from autobyteus.agent.context.phases import AgentOperationalPhase
+from autobyteus.agent.phases import AgentOperationalPhase
 
 logger = logging.getLogger(__name__)
 

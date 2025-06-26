@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 from autobyteus.agent.bootstrap_steps.workspace_context_initialization_step import WorkspaceContextInitializationStep
 from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
 from autobyteus.agent.context import AgentContext
+from autobyteus.agent.phases import AgentPhaseManager
 
 @pytest.fixture
 def workspace_init_step():

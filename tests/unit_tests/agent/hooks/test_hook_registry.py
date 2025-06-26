@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import MagicMock
 
 from autobyteus.agent.hooks import BasePhaseHook, default_phase_hook_registry
-from autobyteus.agent.context.phases import AgentOperationalPhase
+from autobyteus.agent.phases import AgentOperationalPhase
 from autobyteus.agent.context import AgentContext
 
 # These classes will be automatically registered by the PhaseHookMeta metaclass

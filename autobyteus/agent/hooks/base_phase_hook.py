@@ -3,7 +3,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from autobyteus.agent.context.phases import AgentOperationalPhase
+from autobyteus.agent.phases import AgentOperationalPhase
 from .hook_meta import PhaseHookMeta
 
 if TYPE_CHECKING:

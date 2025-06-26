@@ -1,3 +1,4 @@
+# file: autobyteus/tests/unit_tests/agent/events/test_worker_event_dispatcher.py
 import asyncio
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
@@ -10,9 +11,8 @@ from autobyteus.agent.events.agent_events import (
 )
 from autobyteus.agent.handlers.base_event_handler import AgentEventHandler
 from autobyteus.agent.handlers.event_handler_registry import EventHandlerRegistry
-from autobyteus.agent.context.agent_phase_manager import AgentPhaseManager
+from autobyteus.agent.phases import AgentPhaseManager, AgentOperationalPhase
 from autobyteus.agent.context.agent_context import AgentContext
-from autobyteus.agent.context.phases import AgentOperationalPhase
 from autobyteus.agent.tool_invocation import ToolInvocation
 from autobyteus.llm.utils.response_types import CompleteResponse
 
