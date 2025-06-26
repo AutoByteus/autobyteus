@@ -3,6 +3,8 @@ import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+from .processor_meta import LLMResponseProcessorMeta
+
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext # MODIFIED IMPORT
     from autobyteus.agent.events import LLMCompleteResponseReceivedEvent
@@ -10,7 +12,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-class BaseLLMResponseProcessor(ABC):
+class BaseLLMResponseProcessor(ABC, metaclass=LLMResponseProcessorMeta):
     """
     Abstract base class for LLM response processors.
     These processors analyze the LLM's textual response. If they identify a specific
@@ -19,13 +21,14 @@ class BaseLLMResponseProcessor(ABC):
     Subclasses should be instantiated and passed to the AgentSpecification.
     """
 
-    def get_name(self) -> str:
+    @classmethod
+    def get_name(cls) -> str:
         """
         Returns the unique registration name for this processor.
         Defaults to the class name. Should be overridden by subclasses
         to provide a stable, user-friendly name (e.g., "xml_tool_usage").
         """
-        return self.__class__.__name__
+        return cls.__name__
 
     @abstractmethod
     async def process_response(self, response: 'CompleteResponse', context: 'AgentContext', triggering_event: 'LLMCompleteResponseReceivedEvent') -> bool:

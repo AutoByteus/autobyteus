@@ -26,7 +26,8 @@ class ToolManifestInjectorProcessor(BaseSystemPromptProcessor):
         self._manifest_provider = ToolManifestProvider()
         logger.debug(f"{self.get_name()} initialized.")
 
-    def get_name(self) -> str:
+    @classmethod
+    def get_name(cls) -> str:
         return "ToolManifestInjector"
 
     def process(self, system_prompt: str, tool_instances: Dict[str, 'BaseTool'], agent_id: str, context: 'AgentContext') -> str:

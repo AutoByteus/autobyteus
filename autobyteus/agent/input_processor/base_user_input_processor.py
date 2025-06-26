@@ -18,12 +18,13 @@ class BaseAgentUserInputMessageProcessor(ABC):
     Subclasses should be instantiated and passed to the AgentSpecification.
     """
 
-    def get_name(self) -> str:
+    @classmethod
+    def get_name(cls) -> str:
         """
         Returns the unique registration name for this processor.
         Defaults to the class name. Can be overridden by subclasses.
         """
-        return self.__class__.__name__
+        return cls.__name__
 
     @abstractmethod
     async def process(self,

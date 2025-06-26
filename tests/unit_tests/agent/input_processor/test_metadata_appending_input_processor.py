@@ -1,3 +1,4 @@
+# file: autobyteus/tests/unit_tests/agent/input_processor/test_metadata_appending_input_processor.py
 import pytest
 from unittest.mock import MagicMock
 
@@ -5,6 +6,7 @@ from autobyteus.agent.input_processor.metadata_appending_input_processor import 
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.agent.context import AgentContext 
 from autobyteus.agent.context.agent_config import AgentConfig
+from autobyteus.agent.events import UserMessageReceivedEvent
 
 @pytest.fixture
 def mock_agent_config() -> MagicMock:
@@ -38,15 +40,16 @@ async def test_metadata_appended_to_empty_metadata(
     message = AgentInputUserMessage(content="Test content", metadata={})
     original_content = message.content
     original_image_urls = message.image_urls
+    triggering_event = UserMessageReceivedEvent(agent_input_user_message=message)
 
-    processed_message = await processor.process(message, mock_agent_context)
+    processed_message = await processor.process(message, mock_agent_context, triggering_event)
 
     assert processed_message.content == original_content, "Content should remain unchanged."
     assert processed_message.image_urls == original_image_urls, "Image URLs should remain unchanged."
     
     expected_metadata = {
         "processed_by_agent_id": mock_agent_context.agent_id,
-        "processed_with_specification": mock_agent_context.config.name
+        "processed_with_config_name": mock_agent_context.config.name
     }
     assert processed_message.metadata == expected_metadata, "Metadata should contain appended agent and config info."
 
@@ -61,8 +64,9 @@ async def test_metadata_appended_to_existing_metadata(
     """
     original_meta = {"user_id": "user123", "session_id": "session_abc"}
     message = AgentInputUserMessage(content="Test content", metadata=original_meta.copy())
+    triggering_event = UserMessageReceivedEvent(agent_input_user_message=message)
     
-    processed_message = await processor.process(message, mock_agent_context)
+    processed_message = await processor.process(message, mock_agent_context, triggering_event)
 
     assert "user_id" in processed_message.metadata
     assert processed_message.metadata["user_id"] == "user123"
@@ -72,8 +76,8 @@ async def test_metadata_appended_to_existing_metadata(
     assert "processed_by_agent_id" in processed_message.metadata
     assert processed_message.metadata["processed_by_agent_id"] == mock_agent_context.agent_id
     
-    assert "processed_with_specification" in processed_message.metadata
-    assert processed_message.metadata["processed_with_specification"] == mock_agent_context.config.name
+    assert "processed_with_config_name" in processed_message.metadata
+    assert processed_message.metadata["processed_with_config_name"] == mock_agent_context.config.name
     
     assert len(processed_message.metadata) == len(original_meta) + 2, "Metadata should have original keys plus two new ones."
 
@@ -86,13 +90,14 @@ async def test_metadata_appended_when_message_metadata_is_none(
     Tests that metadata is correctly initialized and appended if message.metadata is None.
     AgentInputUserMessage constructor initializes metadata to {} if None.
     """
-    message = AgentInputUserMessage(content="Test content", metadata=None) 
+    message = AgentInputUserMessage(content="Test content", metadata=None)
+    triggering_event = UserMessageReceivedEvent(agent_input_user_message=message)
     
-    processed_message = await processor.process(message, mock_agent_context)
+    processed_message = await processor.process(message, mock_agent_context, triggering_event)
     
     expected_metadata = {
         "processed_by_agent_id": mock_agent_context.agent_id,
-        "processed_with_specification": mock_agent_context.config.name
+        "processed_with_config_name": mock_agent_context.config.name
     }
     assert processed_message.metadata == expected_metadata, "Metadata should be initialized and contain new info."
 
@@ -111,8 +116,9 @@ async def test_content_and_image_urls_unchanged(
     )
     original_content = message.content
     original_image_urls = list(message.image_urls) if message.image_urls else None
+    triggering_event = UserMessageReceivedEvent(agent_input_user_message=message)
 
-    processed_message = await processor.process(message, mock_agent_context)
+    processed_message = await processor.process(message, mock_agent_context, triggering_event)
 
     assert processed_message.content == original_content
     assert processed_message.image_urls == original_image_urls

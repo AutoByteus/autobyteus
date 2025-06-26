@@ -1,3 +1,4 @@
+# file: autobyteus/tests/unit_tests/agent/input_processor/test_passthrough_input_processor.py
 import pytest
 from unittest.mock import MagicMock
 
@@ -5,6 +6,7 @@ from autobyteus.agent.input_processor.passthrough_input_processor import Passthr
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.agent.context import AgentContext 
 from autobyteus.agent.context.agent_config import AgentConfig
+from autobyteus.agent.events import UserMessageReceivedEvent
 
 @pytest.fixture
 def mock_agent_config() -> MagicMock:
@@ -48,8 +50,9 @@ async def test_passthrough_processor_returns_message_unchanged(
     original_content = sample_agent_input_user_message.content
     original_image_urls = list(sample_agent_input_user_message.image_urls) if sample_agent_input_user_message.image_urls else None
     original_metadata = dict(sample_agent_input_user_message.metadata)
+    triggering_event = UserMessageReceivedEvent(agent_input_user_message=sample_agent_input_user_message)
 
-    processed_message = await processor.process(sample_agent_input_user_message, mock_agent_context)
+    processed_message = await processor.process(sample_agent_input_user_message, mock_agent_context, triggering_event)
 
     assert processed_message is sample_agent_input_user_message, "Processor should return the same message instance."
     assert processed_message.content == original_content, "Content should be unchanged."
@@ -72,8 +75,9 @@ async def test_passthrough_processor_with_empty_message_fields(
     original_content = empty_message.content
     original_image_urls = empty_message.image_urls
     original_metadata = dict(empty_message.metadata)
+    triggering_event = UserMessageReceivedEvent(agent_input_user_message=empty_message)
 
-    processed_message = await processor.process(empty_message, mock_agent_context)
+    processed_message = await processor.process(empty_message, mock_agent_context, triggering_event)
 
     assert processed_message is empty_message
     assert processed_message.content == original_content

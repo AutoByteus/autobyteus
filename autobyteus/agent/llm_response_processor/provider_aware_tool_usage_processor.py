@@ -24,7 +24,8 @@ class ProviderAwareToolUsageProcessor(BaseLLMResponseProcessor):
         self._parser = ProviderAwareToolUsageParser()
         logger.debug("ProviderAwareToolUsageProcessor initialized.")
 
-    def get_name(self) -> str:
+    @classmethod
+    def get_name(cls) -> str:
         return "provider_aware_tool_usage"
 
     async def process_response(self, response: 'CompleteResponse', context: 'AgentContext', triggering_event: 'LLMCompleteResponseReceivedEvent') -> bool:
