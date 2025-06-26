@@ -122,7 +122,8 @@ class EventManager(metaclass=SingletonMeta):
             listener(**final_args_to_pass)
 
     def emit(self, event_type: EventType, origin_object_id: Optional[str] = None, **kwargs: Any):
-        available_kwargs_for_listeners = {"object_id": origin_object_id, **kwargs}
+        # FIX: Added 'event_type' to the dictionary passed to listeners.
+        available_kwargs_for_listeners = {"event_type": event_type, "object_id": origin_object_id, **kwargs}
         
         targeted_topic = Topic(event_type, origin_object_id)
         global_topic = Topic(event_type, None)

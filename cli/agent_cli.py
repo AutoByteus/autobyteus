@@ -6,7 +6,7 @@ from typing import Optional
 from autobyteus.agent.agent import Agent
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.agent.streaming.agent_event_stream import AgentEventStream
-from .cli_display import InteractiveCLIDisplay
+from autobyteus.cli.cli_display import InteractiveCLIDisplay
 
 logger = logging.getLogger(__name__) 
 

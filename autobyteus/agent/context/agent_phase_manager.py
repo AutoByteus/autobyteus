@@ -103,7 +103,7 @@ class AgentPhaseManager:
             logger.warning(f"Agent '{self.context.agent_id}' notify_initialization_complete called in unexpected phase: {self.context.current_phase.value}")
 
     async def notify_processing_input_started(self, trigger_info: Optional[str] = None) -> None:
-        if self.context.current_phase in [AgentOperationalPhase.IDLE, AgentOperationalPhase.ANALYZING_LLM_RESPONSE, AgentOperationalPhase.PROCESSING_TOOL_RESULT, AgentOperationalPhase.EXECUTING_TOOL]:
+        if self.context.current_phase in [AgentOperationalPhase.IDLE, AgentOperationalPhase.ANALYZING_LLM_RESPONSE, AgentOperationalPhase.PROCESSING_TOOL_RESULT, AgentOperationalPhase.EXECUTING_TOOL, AgentOperationalPhase.TOOL_DENIED]:
             data = {"trigger_info": trigger_info} if trigger_info else {}
             await self._transition_phase(AgentOperationalPhase.PROCESSING_USER_INPUT, "notify_phase_processing_user_input_started", additional_data=data)
         elif self.context.current_phase == AgentOperationalPhase.PROCESSING_USER_INPUT:
@@ -127,7 +127,15 @@ class AgentPhaseManager:
             await self._transition_phase(AgentOperationalPhase.EXECUTING_TOOL, "notify_phase_executing_tool_started", additional_data={"tool_name": tool_name})
         else:
             logger.info(f"Agent '{self.context.agent_id}' tool execution denied for '{tool_name}'. Transitioning to allow LLM to process denial.")
-            await self._transition_phase(AgentOperationalPhase.ANALYZING_LLM_RESPONSE, "notify_phase_analyzing_llm_response_started", additional_data={"denial_for_tool": tool_name})
+            await self.notify_tool_denied(tool_name)
+
+    async def notify_tool_denied(self, tool_name: Optional[str]) -> None:
+        """Notifies that a tool execution has been denied."""
+        await self._transition_phase(
+            AgentOperationalPhase.TOOL_DENIED,
+            "notify_phase_tool_denied_started",
+            additional_data={"tool_name": tool_name, "denial_for_tool": tool_name}
+        )
 
     async def notify_tool_execution_started(self, tool_name: str) -> None:
         await self._transition_phase(AgentOperationalPhase.EXECUTING_TOOL, "notify_phase_executing_tool_started", additional_data={"tool_name": tool_name})
