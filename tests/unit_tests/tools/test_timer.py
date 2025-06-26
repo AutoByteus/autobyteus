@@ -16,16 +16,10 @@ def mock_agent_context():
 
 @pytest.fixture
 def sync_timer_instance():
-    """A synchronous fixture for tests that don't start the timer task."""
+    """A synchronous fixture that provides a clean Timer instance for each test."""
     return Timer()
 
-@pytest.fixture
-async def timer_instance():
-    """An async fixture that provides a timer and ensures it's cleaned up."""
-    timer = Timer()
-    yield timer
-    if timer._task and not timer._task.done():
-        await timer.stop()
+# The async generator fixture 'timer_instance' is removed as it's causing issues.
 
 def test_timer_default_init_config(sync_timer_instance: Timer):
     assert sync_timer_instance.duration == 300
@@ -85,27 +79,34 @@ def test_get_argument_schema_for_execution():
     assert interval_param.required is False
 
 @pytest.mark.asyncio
-async def test_execute_missing_duration_arg(timer_instance: Timer, mock_agent_context):
+async def test_execute_missing_duration_arg(sync_timer_instance: Timer, mock_agent_context):
     with pytest.raises(ValueError, match="Invalid arguments for tool 'Timer'"):
-        await timer_instance.execute(mock_agent_context)
+        await sync_timer_instance.execute(mock_agent_context)
 
 @pytest.mark.asyncio
-async def test_execute_starts_timer_with_given_duration_and_interval(timer_instance: Timer, mock_agent_context):
-    result = await timer_instance.execute(mock_agent_context, duration=10, interval=5)
-    
-    assert "Timer started for 10 seconds, emitting events every 5 seconds." == result
-    assert timer_instance._is_running
-    assert timer_instance.duration == 300
-    assert timer_instance.interval == 60
+async def test_execute_starts_timer_with_given_duration_and_interval(sync_timer_instance: Timer, mock_agent_context):
+    try:
+        result = await sync_timer_instance.execute(mock_agent_context, duration=10, interval=5)
+        
+        assert "Timer started for 10 seconds, emitting events every 5 seconds." == result
+        assert sync_timer_instance._is_running
+        # The execute method does not change the instance's default duration/interval
+        assert sync_timer_instance.duration == 300
+        assert sync_timer_instance.interval == 60
+    finally:
+        await sync_timer_instance.stop()
 
 @pytest.mark.asyncio
-async def test_execute_uses_instance_interval_if_not_provided(timer_instance: Timer, mock_agent_context):
-    timer_instance.set_interval(15)
-    result = await timer_instance.execute(mock_agent_context, duration=5)
-    
-    assert f"Timer started for 5 seconds, emitting events every 15 seconds." == result
-    assert timer_instance._is_running
-    assert timer_instance.interval == 15
+async def test_execute_uses_instance_interval_if_not_provided(sync_timer_instance: Timer, mock_agent_context):
+    try:
+        sync_timer_instance.set_interval(15)
+        result = await sync_timer_instance.execute(mock_agent_context, duration=5)
+        
+        assert f"Timer started for 5 seconds, emitting events every 15 seconds." == result
+        assert sync_timer_instance._is_running
+        assert sync_timer_instance.interval == 15
+    finally:
+        await sync_timer_instance.stop()
 
 def test_set_duration_valid(sync_timer_instance: Timer):
     sync_timer_instance.set_duration(100)
@@ -128,60 +129,76 @@ def test_set_interval_invalid(sync_timer_instance: Timer):
         sync_timer_instance.set_interval(3601)
 
 @pytest.mark.asyncio
-async def test_start_timer_already_running(timer_instance: Timer):
-    timer_instance.set_duration(10)
-    timer_instance.start()
-    assert timer_instance._is_running
-    timer_instance.start()
+async def test_start_timer_already_running(sync_timer_instance: Timer):
+    try:
+        sync_timer_instance.set_duration(10)
+        sync_timer_instance.start()
+        assert sync_timer_instance._is_running
+        # This call should be ignored and not raise an error
+        sync_timer_instance.start()
+    finally:
+        await sync_timer_instance.stop()
 
 @pytest.mark.asyncio
-async def test_start_timer_no_duration_set(timer_instance: Timer):
-    timer_instance.duration = 0
+async def test_start_timer_no_duration_set(sync_timer_instance: Timer):
+    # This test does not start a task, so no cleanup needed.
+    sync_timer_instance.duration = 0
     with pytest.raises(RuntimeError, match="Timer duration must be positive and set before starting"):
-        timer_instance.start()
+        sync_timer_instance.start()
 
 @pytest.mark.asyncio
-async def test_timer_event_emission_flow(timer_instance: Timer):
-    events_emitted = []
-    def event_handler(event_type, **kwargs):
-        events_emitted.append((event_type, kwargs))
-    
-    timer_instance.subscribe(EventType.TIMER_UPDATE, event_handler)
-    
-    test_duration = 2
-    test_interval = 1
-    timer_instance.start(run_duration=test_duration, run_interval=test_interval)
-    
-    await asyncio.sleep(test_duration + 0.5)
-    
-    assert len(events_emitted) >= 2
-    
-    remaining_times_recorded = [e[1]['remaining_time'] for e in events_emitted if e[0] == EventType.TIMER_UPDATE]
-    assert test_duration in remaining_times_recorded
-    assert 0 in remaining_times_recorded 
-    if test_duration >= test_interval:
-         assert test_duration - test_interval in remaining_times_recorded
+async def test_timer_event_emission_flow(sync_timer_instance: Timer):
+    # This test waits for the task to complete, so the finally block is a safety net.
+    try:
+        events_emitted = []
+        def event_handler(event_type, **kwargs):
+            events_emitted.append((event_type, kwargs))
+        
+        sync_timer_instance.subscribe(EventType.TIMER_UPDATE, event_handler)
+        
+        test_duration = 2
+        test_interval = 1
+        sync_timer_instance.start(run_duration=test_duration, run_interval=test_interval)
+        
+        await asyncio.sleep(test_duration + 0.5)
+        
+        assert len(events_emitted) >= 2
+        
+        remaining_times_recorded = [e[1]['remaining_time'] for e in events_emitted if e[0] == EventType.TIMER_UPDATE]
+        assert test_duration in remaining_times_recorded
+        assert 0 in remaining_times_recorded 
+        if test_duration >= test_interval:
+             assert test_duration - test_interval in remaining_times_recorded
 
-    assert not timer_instance._is_running
-
-@pytest.mark.asyncio
-async def test_stop_timer(timer_instance: Timer, mock_agent_context):
-    await timer_instance.execute(mock_agent_context, duration=10, interval=1)
-    assert timer_instance._is_running
-    
-    await timer_instance.stop()
-    assert not timer_instance._is_running
-    assert timer_instance._task is None or timer_instance._task.done()
+        assert not sync_timer_instance._is_running
+    finally:
+        await sync_timer_instance.stop()
 
 @pytest.mark.asyncio
-async def test_execute_cancels_previous_timer(timer_instance: Timer, mock_agent_context):
-    await timer_instance.execute(mock_agent_context, duration=10, interval=1)
-    first_task = timer_instance._task
-    assert first_task is not None and not first_task.done()
+async def test_stop_timer(sync_timer_instance: Timer, mock_agent_context):
+    try:
+        await sync_timer_instance.execute(mock_agent_context, duration=10, interval=1)
+        assert sync_timer_instance._is_running
+        
+        await sync_timer_instance.stop()
+        assert not sync_timer_instance._is_running
+        assert sync_timer_instance._task is None or sync_timer_instance._task.done()
+    finally:
+        # Extra stop in finally is safe and ensures cleanup if asserts fail
+        await sync_timer_instance.stop()
 
-    await timer_instance.execute(mock_agent_context, duration=5, interval=1)
-    second_task = timer_instance._task
-    
-    assert first_task.cancelled() or first_task.done()
-    assert second_task is not None and not second_task.done()
-    assert second_task is not first_task
+@pytest.mark.asyncio
+async def test_execute_cancels_previous_timer(sync_timer_instance: Timer, mock_agent_context):
+    try:
+        await sync_timer_instance.execute(mock_agent_context, duration=10, interval=1)
+        first_task = sync_timer_instance._task
+        assert first_task is not None and not first_task.done()
+
+        await sync_timer_instance.execute(mock_agent_context, duration=5, interval=1)
+        second_task = sync_timer_instance._task
+        
+        assert first_task.cancelled() or first_task.done()
+        assert second_task is not None and not second_task.done()
+        assert second_task is not first_task
+    finally:
+        await sync_timer_instance.stop()
