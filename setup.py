@@ -13,7 +13,7 @@ common_dependencies = [
     "botocore",
     "anthropic==0.37.1",
     "Jinja2",
-    "ollama==0.4.5",
+    "ollama",
     "mistral_common",
     "certifi==2025.4.26",
     'numpy==2.2.5',

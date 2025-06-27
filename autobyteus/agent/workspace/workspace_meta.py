@@ -18,18 +18,18 @@ class WorkspaceMeta(ABCMeta):
             return
 
         try:
-            type_name = cls.get_type_name()
+            workspace_type_name = cls.get_workspace_type_name()
             description = cls.get_description()
             config_schema = cls.get_config_schema()
             
             definition = WorkspaceDefinition(
-                type_name=type_name,
+                workspace_type_name=workspace_type_name,
                 description=description,
                 workspace_class=cls,
                 config_schema=config_schema
             )
             default_workspace_registry.register(definition)
-            logger.info(f"Auto-registered workspace type: '{type_name}' from class {name}")
+            logger.info(f"Auto-registered workspace type: '{workspace_type_name}' from class {name}")
         except AttributeError as e:
             logger.error(f"Workspace class {name} is missing a required static/class method ({e}). Skipping registration.")
         except Exception as e:

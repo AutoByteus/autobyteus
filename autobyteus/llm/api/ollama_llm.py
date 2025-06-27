@@ -17,8 +17,8 @@ class OllamaLLM(BaseLLM):
     DEFAULT_OLLAMA_HOST = 'http://localhost:11434'
 
     def __init__(self, model: LLMModel = None, llm_config: LLMConfig = None):
-        self.ollama_host = os.getenv('OLLAMA_HOST', self.DEFAULT_OLLAMA_HOST)
-        logging.info(f"Initializing Ollama with host: {self.ollama_host}")
+        self.ollama_host = os.getenv('DEFAULT_OLLAMA_HOST', self.DEFAULT_OLLAMA_HOST)
+        logger.info(f"Initializing Ollama with host: {self.ollama_host}")
         
         self.client = AsyncClient(host=self.ollama_host)
         

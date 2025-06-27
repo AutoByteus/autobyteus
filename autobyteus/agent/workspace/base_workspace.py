@@ -14,9 +14,10 @@ logger = logging.getLogger(__name__)
 class BaseAgentWorkspace(ABC, metaclass=WorkspaceMeta):
     """
     Abstract base class for an agent's workspace or working environment.
-    
-    Subclasses are automatically registered and must implement the class methods
-    for self-description (`get_type_name`, `get_description`, `get_config_schema`).
+
+    A workspace is a passive data container that describes an agent's operating
+    environment (e.g., a local directory, SSH connection details). It does not
+    implement active operations itself; that is the responsibility of Tools.
     """
 
     def __init__(self, config: Optional[WorkspaceConfig] = None):
@@ -52,10 +53,12 @@ class BaseAgentWorkspace(ABC, metaclass=WorkspaceMeta):
         """Configuration for the workspace. Implementations can use this as needed."""
         return self._config
 
+    # --- Methods for self-description ---
+
     @classmethod
     @abstractmethod
-    def get_type_name(cls) -> str:
-        """Returns the unique, machine-readable type name for this workspace (e.g., 'local_file_system')."""
+    def get_workspace_type_name(cls) -> str:
+        """Returns the unique, machine-readable type name for this workspace (e.g., 'local_workspace')."""
         pass
     
     @classmethod

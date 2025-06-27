@@ -25,25 +25,25 @@ class WorkspaceRegistry(metaclass=SingletonMeta):
         """Registers a workspace definition."""
         if not isinstance(definition, WorkspaceDefinition):
             raise TypeError("Can only register WorkspaceDefinition objects.")
-        if definition.type_name in self._definitions:
-            logger.warning(f"Overwriting workspace definition for type '{definition.type_name}'.")
-        self._definitions[definition.type_name] = definition
+        if definition.workspace_type_name in self._definitions:
+            logger.warning(f"Overwriting workspace definition for type '{definition.workspace_type_name}'.")
+        self._definitions[definition.workspace_type_name] = definition
 
-    def get_definition(self, type_name: str) -> Optional[WorkspaceDefinition]:
+    def get_definition(self, workspace_type_name: str) -> Optional[WorkspaceDefinition]:
         """Retrieves a workspace definition by its unique type name."""
-        return self._definitions.get(type_name)
+        return self._definitions.get(workspace_type_name)
 
     def get_all_definitions(self) -> List[WorkspaceDefinition]:
         """Returns a list of all registered workspace definitions."""
         return list(self._definitions.values())
 
-    def create_workspace(self, type_name: str, params: Dict[str, Any]) -> 'BaseAgentWorkspace':
+    def create_workspace(self, workspace_type_name: str, config: WorkspaceConfig) -> 'BaseAgentWorkspace':
         """
         Creates an instance of a workspace.
 
         Args:
-            type_name (str): The unique type name of the workspace to create.
-            params (Dict[str, Any]): A dictionary of parameters for instantiation.
+            workspace_type_name (str): The unique type name of the workspace to create.
+            config (WorkspaceConfig): The configuration object for the workspace.
 
         Returns:
             An instance of a BaseAgentWorkspace subclass.
@@ -51,23 +51,22 @@ class WorkspaceRegistry(metaclass=SingletonMeta):
         Raises:
             ValueError: If the type is unknown or parameters are invalid.
         """
-        definition = self.get_definition(type_name)
+        definition = self.get_definition(workspace_type_name)
         if not definition:
-            raise ValueError(f"Unknown workspace type: '{type_name}'")
+            raise ValueError(f"Unknown workspace type: '{workspace_type_name}'")
 
-        is_valid, errors = definition.config_schema.validate_config(params)
+        is_valid, errors = definition.config_schema.validate_config(config.params)
         if not is_valid:
             error_str = ", ".join(errors)
-            raise ValueError(f"Invalid parameters for workspace type '{type_name}': {error_str}")
+            raise ValueError(f"Invalid parameters for workspace type '{workspace_type_name}': {error_str}")
 
         try:
             workspace_class = definition.workspace_class
-            workspace_config = WorkspaceConfig(params=params)
-            instance = workspace_class(config=workspace_config)
-            logger.info(f"Successfully created instance of workspace type '{type_name}'.")
+            instance = workspace_class(config=config)
+            logger.info(f"Successfully created instance of workspace type '{workspace_type_name}'.")
             return instance
         except Exception as e:
             logger.error(f"Failed to instantiate workspace class '{definition.workspace_class.__name__}': {e}", exc_info=True)
-            raise RuntimeError(f"Workspace instantiation failed for type '{type_name}': {e}") from e
+            raise RuntimeError(f"Workspace instantiation failed for type '{workspace_type_name}': {e}") from e
 
 default_workspace_registry = WorkspaceRegistry()
