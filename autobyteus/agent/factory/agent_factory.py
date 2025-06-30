@@ -75,8 +75,12 @@ class AgentFactory(metaclass=SingletonMeta):
                         ) -> 'AgentRuntime': 
         from autobyteus.agent.runtime.agent_runtime import AgentRuntime 
 
-        # The workspace is now passed directly from the config
-        runtime_state = AgentRuntimeState(agent_id=agent_id, workspace=config.workspace)
+        # The workspace and initial custom data are now passed directly from the config to the state.
+        runtime_state = AgentRuntimeState(
+            agent_id=agent_id,
+            workspace=config.workspace,
+            custom_data=config.initial_custom_data
+        )
         
         # --- Set pre-initialized instances on the state ---
         runtime_state.llm_instance = config.llm_instance

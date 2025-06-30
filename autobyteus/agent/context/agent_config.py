@@ -1,6 +1,6 @@
 # file: autobyteus/autobyteus/agent/context/agent_config.py
 import logging
-from typing import List, Optional, Union, Tuple, TYPE_CHECKING
+from typing import List, Optional, Union, Tuple, TYPE_CHECKING, Dict, Any
 
 # Correctly import the new master processor and the base class
 from autobyteus.agent.system_prompt_processor import ToolManifestInjectorProcessor, BaseSystemPromptProcessor
@@ -40,7 +40,8 @@ class AgentConfig:
                  llm_response_processors: Optional[List['BaseLLMResponseProcessor']] = None,
                  system_prompt_processors: Optional[List['BaseSystemPromptProcessor']] = None,
                  workspace: Optional['BaseAgentWorkspace'] = None,
-                 phase_hooks: Optional[List['BasePhaseHook']] = None):
+                 phase_hooks: Optional[List['BasePhaseHook']] = None,
+                 initial_custom_data: Optional[Dict[str, Any]] = None):
         """
         Initializes the AgentConfig.
 
@@ -59,6 +60,8 @@ class AgentConfig:
             system_prompt_processors: A list of system prompt processor instances.
             workspace: An optional pre-initialized workspace instance for the agent.
             phase_hooks: An optional list of phase transition hook instances.
+            initial_custom_data: An optional dictionary of data to pre-populate
+                                 the agent's runtime state `custom_data`.
         """
         self.name = name
         self.role = role
@@ -73,6 +76,7 @@ class AgentConfig:
         self.llm_response_processors = llm_response_processors if llm_response_processors is not None else list(self.DEFAULT_LLM_RESPONSE_PROCESSORS)
         self.system_prompt_processors = system_prompt_processors if system_prompt_processors is not None else list(self.DEFAULT_SYSTEM_PROMPT_PROCESSORS)
         self.phase_hooks = phase_hooks or []
+        self.initial_custom_data = initial_custom_data
 
         logger.debug(f"AgentConfig created for name '{self.name}', role '{self.role}'.")
 

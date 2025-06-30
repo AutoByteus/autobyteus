@@ -70,11 +70,6 @@ class ToolResultEventHandler(AgentEventHandler):
             except TypeError: # pragma: no cover
                 result_str_for_llm = str(event.result)
 
-            max_len = 2000  
-            if len(result_str_for_llm) > max_len: # pragma: no cover
-                original_len = len(str(event.result)) 
-                result_str_for_llm = result_str_for_llm[:max_len] + f"... (result truncated, original length {original_len})"
-            
             content_for_llm = (
                 f"The tool '{event.tool_name}' (invocation ID: {tool_invocation_id}) has executed.\n"
                 f"Result:\n{result_str_for_llm}\n" 
