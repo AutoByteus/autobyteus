@@ -41,7 +41,8 @@ class GeminiJsonToolUsageParser(BaseToolUsageParser):
                 arguments = tool_data.get("args")
 
                 if tool_name and isinstance(tool_name, str) and isinstance(arguments, dict):
-                    tool_invocation = ToolInvocation(name=tool_name, arguments=arguments, id=str(uuid.uuid4()))
+                    # Pass id=None to trigger deterministic ID generation in ToolInvocation
+                    tool_invocation = ToolInvocation(name=tool_name, arguments=arguments)
                     invocations.append(tool_invocation)
                 else:
                     logger.debug(f"Skipping malformed Gemini tool call data: {tool_data}")

@@ -55,7 +55,8 @@ class DefaultXmlToolUsageParser(BaseToolUsageParser):
 
             for tool_elem in tool_elements:
                 tool_name = tool_elem.attrib.get("name")
-                tool_id = tool_elem.attrib.get("id") or str(uuid.uuid4())
+                # If 'id' is not present in XML, it will be None, triggering deterministic generation.
+                tool_id = tool_elem.attrib.get("id")
                 arguments = self._parse_arguments_from_xml(tool_elem)
 
                 if tool_name:
