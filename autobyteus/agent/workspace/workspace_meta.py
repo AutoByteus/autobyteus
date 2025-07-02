@@ -29,7 +29,8 @@ class WorkspaceMeta(ABCMeta):
                 config_schema=config_schema
             )
             default_workspace_registry.register(definition)
-            logger.info(f"Auto-registered workspace type: '{workspace_type_name}' from class {name}")
+            config_params_info = f"config_params: {len(config_schema) if config_schema else 0}"
+            logger.info(f"Auto-registered workspace: '{workspace_type_name}' from class {name} ({config_params_info})")
         except AttributeError as e:
             logger.error(f"Workspace class {name} is missing a required static/class method ({e}). Skipping registration.")
         except Exception as e:

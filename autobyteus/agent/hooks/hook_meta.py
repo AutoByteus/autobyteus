@@ -29,7 +29,7 @@ class PhaseHookMeta(ABCMeta):
             
             definition = PhaseHookDefinition(name=hook_name, hook_class=cls)
             default_phase_hook_registry.register_hook(definition)
-            logger.info(f"Auto-registered phase hook: '{hook_name}' from class {name}")
+            logger.info(f"Auto-registered phase hook: '{hook_name}' from class {name} (no schema).")
 
         except AttributeError as e:
             logger.error(f"Phase hook class {name} is missing required static/class method 'get_name' ({e}). Skipping registration.")

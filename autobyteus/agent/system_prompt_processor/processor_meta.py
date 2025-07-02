@@ -38,7 +38,7 @@ class SystemPromptProcessorMeta(ABCMeta):
             # Ensure 'cls' is correctly typed for SystemPromptProcessorDefinition
             definition = SystemPromptProcessorDefinition(name=processor_name, processor_class=cls) # type: ignore
             default_system_prompt_processor_registry.register_processor(definition)
-            logger.info(f"Auto-registered system prompt processor: '{processor_name}' from class {name}")
+            logger.info(f"Auto-registered system prompt processor: '{processor_name}' from class {name} (no schema).")
 
         except AttributeError as e:
             # Catch if get_name is missing

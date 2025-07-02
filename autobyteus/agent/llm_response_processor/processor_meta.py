@@ -29,7 +29,7 @@ class LLMResponseProcessorMeta(ABCMeta):
             
             definition = LLMResponseProcessorDefinition(name=processor_name, processor_class=cls)
             default_llm_response_processor_registry.register_processor(definition)
-            logger.info(f"Auto-registered LLM response processor: '{processor_name}' from class {name}")
+            logger.info(f"Auto-registered LLM response processor: '{processor_name}' from class {name} (no schema).")
 
         except AttributeError as e:
             logger.error(f"LLM response processor class {name} is missing required static/class method 'get_name' ({e}). Skipping registration.")
