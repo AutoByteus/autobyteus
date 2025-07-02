@@ -3,13 +3,15 @@ import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Dict
 
+from .processor_meta import SystemPromptProcessorMeta
+
 if TYPE_CHECKING:
     from autobyteus.tools.base_tool import BaseTool
     from autobyteus.agent.context import AgentContext
 
 logger = logging.getLogger(__name__)
 
-class BaseSystemPromptProcessor(ABC):
+class BaseSystemPromptProcessor(ABC, metaclass=SystemPromptProcessorMeta):
     """
     Abstract base class for system prompt processors.
     Subclasses should be instantiated and passed to the AgentSpecification.
