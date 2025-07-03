@@ -1,27 +1,14 @@
 # file: autobyteus/tests/unit_tests/agent/system_prompt_processor/test_tool_manifest_injector_processor.py
 import pytest
 import logging
-import json
-from typing import Dict
 from unittest.mock import MagicMock, patch
 
 from autobyteus.agent.system_prompt_processor.tool_manifest_injector_processor import ToolManifestInjectorProcessor
 from autobyteus.tools.base_tool import BaseTool
-from autobyteus.tools.registry import ToolDefinition
 from autobyteus.agent.context import AgentContext, AgentConfig
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.providers import LLMProvider
-
-# Helper to create mock definitions for testing
-def create_mock_tool_definition(name, xml_schema, xml_example, json_schema, json_example):
-    mock_def = MagicMock(spec=ToolDefinition)
-    mock_def.name = name
-    mock_def.get_usage_xml.return_value = xml_schema
-    mock_def.get_usage_xml_example.return_value = xml_example
-    mock_def.get_usage_json.return_value = json_schema
-    mock_def.get_usage_json_example.return_value = json_example
-    return mock_def
 
 @pytest.fixture
 def mock_context_factory():
@@ -52,7 +39,7 @@ def test_get_name(processor: ToolManifestInjectorProcessor):
 def test_process_prompt_without_placeholder(processor: ToolManifestInjectorProcessor, mock_context_factory):
     """Tests that the prompt is unchanged if the placeholder is missing."""
     mock_context = mock_context_factory(use_xml=True, provider=LLMProvider.OPENAI)
-    original_prompt = "This is a simple prompt."
+    original_prompt = "This is a simple prompt without variables."
     processed_prompt = processor.process(original_prompt, {"SomeTool": MagicMock(spec=BaseTool)}, mock_context.agent_id, mock_context)
     assert processed_prompt == original_prompt
 
@@ -65,89 +52,63 @@ def test_process_with_no_tools(processor: ToolManifestInjectorProcessor, mock_co
     
     assert "no tools are instantiated" in caplog.text
     assert "No tools available for this agent." in processed_prompt
+    assert "{{tools}}" not in processed_prompt
 
 def test_process_only_placeholder_prepends_default_prefix(processor: ToolManifestInjectorProcessor, mock_context_factory):
     """Tests that the default prefix is added when the prompt only contains the placeholder."""
     mock_context = mock_context_factory(use_xml=True, provider=LLMProvider.OPENAI)
-    prompt_only_placeholder = "  {{tools}}  "
-    processed_prompt = processor.process(prompt_only_placeholder, {}, mock_context.agent_id, mock_context)
-    
-    assert processed_prompt.startswith(ToolManifestInjectorProcessor.DEFAULT_PREFIX_FOR_TOOLS_ONLY_PROMPT)
+    # Test with different amounts of whitespace to confirm robustness
+    for prompt_only_placeholder in ["{{tools}}", "  {{ tools }}  ", "\n{{tools}}\n"]:
+        processed_prompt = processor.process(prompt_only_placeholder, {}, mock_context.agent_id, mock_context)
+        
+        assert processed_prompt.startswith(ToolManifestInjectorProcessor.DEFAULT_PREFIX_FOR_TOOLS_ONLY_PROMPT)
+        assert "No tools available for this agent." in processed_prompt
 
-@patch('autobyteus.agent.system_prompt_processor.tool_manifest_injector_processor.default_tool_registry')
-def test_process_with_one_tool_xml_format(mock_registry, processor: ToolManifestInjectorProcessor, mock_context_factory):
-    """Tests successful injection of one tool's manifest in XML format."""
+@patch('autobyteus.agent.system_prompt_processor.tool_manifest_injector_processor.ToolManifestProvider')
+def test_process_with_mocked_manifest(MockToolManifestProvider, processor: ToolManifestInjectorProcessor, mock_context_factory):
+    """Tests successful injection of a tool manifest from the provider."""
     mock_context = mock_context_factory(use_xml=True, provider=LLMProvider.ANTHROPIC)
-    
-    schema_xml = "<tool name='AlphaTool'><arguments/></tool>"
-    example_xml = "<tool name='AlphaTool'><arguments><arg name='p'>v</arg></arguments></tool>"
-    mock_def = create_mock_tool_definition("AlphaTool", schema_xml, example_xml, {}, {})
-    mock_registry.get_tool_definition.return_value = mock_def
+    mock_provider_instance = MockToolManifestProvider.return_value
+    mock_provider_instance.provide.return_value = "---MOCK TOOL MANIFEST---"
 
     tools = {"AlphaTool": MagicMock(spec=BaseTool)}
-    prompt = "Use these tools: {{tools}}"
+    prompt = "Use these tools: {{ tools }}" # Note the spaces
     processed_prompt = processor.process(prompt, tools, mock_context.agent_id, mock_context)
 
-    expected_block = f"{processor.SCHEMA_HEADER}\n{schema_xml}\n\n{processor.EXAMPLE_HEADER}\n{example_xml}"
-    assert expected_block in processed_prompt
+    # Assert that the provide method was called correctly
+    mock_provider_instance.provide.assert_called_once()
+    # Assert that the prompt was rendered correctly
+    assert processed_prompt == "Use these tools: \n---MOCK TOOL MANIFEST---"
     assert "{{tools}}" not in processed_prompt
 
-@patch('autobyteus.agent.system_prompt_processor.tool_manifest_injector_processor.default_tool_registry')
-def test_process_with_multiple_tools_json_format(mock_registry, processor: ToolManifestInjectorProcessor, mock_context_factory):
-    """Tests successful injection of multiple tools' manifests in JSON format."""
-    mock_context = mock_context_factory(use_xml=False, provider=LLMProvider.OPENAI)
-
-    schema_json_alpha = {"name": "AlphaTool", "description": "A"}
-    example_json_alpha = {"name": "AlphaTool", "arguments": {}}
-    mock_def_alpha = create_mock_tool_definition("AlphaTool", "", "", schema_json_alpha, example_json_alpha)
-
-    schema_json_beta = {"name": "BetaTool", "description": "B"}
-    example_json_beta = {"name": "BetaTool", "arguments": {"p": "v"}}
-    mock_def_beta = create_mock_tool_definition("BetaTool", "", "", schema_json_beta, example_json_beta)
-    
-    mock_registry.get_tool_definition.side_effect = lambda name: mock_def_alpha if name == "AlphaTool" else mock_def_beta
-    
-    tools = {"AlphaTool": MagicMock(spec=BaseTool), "BetaTool": MagicMock(spec=BaseTool)}
-    prompt = "Use these tools: {{tools}}"
-    processed_prompt = processor.process(prompt, tools, mock_context.agent_id, mock_context)
-
-    # Check that both manifests are present as JSON objects within a list
-    assert '"tool_definition": {"name": "AlphaTool", "description": "A"}' in processed_prompt
-    assert '"example_call": {"name": "AlphaTool", "arguments": {}}' in processed_prompt
-    assert '"tool_definition": {"name": "BetaTool", "description": "B"}' in processed_prompt
-    assert '"example_call": {"name": "BetaTool", "arguments": {"p": "v"}}' in processed_prompt
-    
-    # Verify it's a valid JSON array
-    json_part = processed_prompt.split("\n", 1)[1]
-    parsed_json = json.loads(json_part)
-    assert isinstance(parsed_json, list)
-    assert len(parsed_json) == 2
-
-@patch('autobyteus.agent.system_prompt_processor.tool_manifest_injector_processor.default_tool_registry')
-def test_process_with_tool_generation_error(mock_registry, processor: ToolManifestInjectorProcessor, mock_context_factory, caplog):
-    """Tests that processing continues if one tool fails to generate its manifest."""
+@patch('autobyteus.agent.system_prompt_processor.tool_manifest_injector_processor.ToolManifestProvider')
+def test_process_when_manifest_provider_fails(MockToolManifestProvider, processor: ToolManifestInjectorProcessor, mock_context_factory, caplog):
+    """Tests that the processor injects an error message if the manifest provider fails."""
     caplog.set_level(logging.ERROR)
     mock_context = mock_context_factory(use_xml=True, provider=LLMProvider.ANTHROPIC)
+    mock_provider_instance = MockToolManifestProvider.return_value
+    mock_provider_instance.provide.side_effect = RuntimeError("Manifest Generation Failed")
 
-    # Tool that will fail
-    mock_def_alpha = create_mock_tool_definition("AlphaTool", "", "", {}, {})
-    mock_def_alpha.get_usage_xml.side_effect = RuntimeError("Generation Failed")
-    
-    # Tool that will succeed
-    schema_xml_beta = "<tool name='BetaTool' />"
-    example_xml_beta = "<tool name='BetaTool'><arguments/></tool>"
-    mock_def_beta = create_mock_tool_definition("BetaTool", schema_xml_beta, example_xml_beta, {}, {})
-    
-    mock_registry.get_tool_definition.side_effect = lambda name: mock_def_alpha if name == "AlphaTool" else mock_def_beta
-    
-    tools = {"AlphaTool": MagicMock(spec=BaseTool), "BetaTool": MagicMock(spec=BaseTool)}
-    prompt = "Use these tools: {{tools}}"
+    tools = {"AlphaTool": MagicMock(spec=BaseTool)}
+    prompt = "Tools list: {{tools}}"
     processed_prompt = processor.process(prompt, tools, mock_context.agent_id, mock_context)
 
     # Assert that the error was logged
-    assert "Failed to process tool 'AlphaTool' for prompt injection" in caplog.text
-    # Assert that the successful tool's manifest is still present
-    assert schema_xml_beta in processed_prompt
-    assert example_xml_beta in processed_prompt
-    # Assert that the failed tool's manifest is not present
-    assert "AlphaTool" not in processed_prompt
+    assert "An unexpected error occurred during tool manifest generation" in caplog.text
+    # Assert that the fallback error message was injected
+    assert "Error: Could not generate tool descriptions." in processed_prompt
+    assert "{{tools}}" not in processed_prompt
+
+def test_process_with_invalid_jinja_template(processor: ToolManifestInjectorProcessor, mock_context_factory, caplog):
+    """Tests that an invalid Jinja2 template is returned as-is."""
+    caplog.set_level(logging.ERROR)
+    mock_context = mock_context_factory(use_xml=True, provider=LLMProvider.OPENAI)
+    # This prompt has an unclosed Jinja2 expression
+    invalid_prompt = "This is an invalid template {{ tools "
+    
+    processed_prompt = processor.process(invalid_prompt, {"SomeTool": MagicMock(spec=BaseTool)}, mock_context.agent_id, mock_context)
+
+    # Assert error was logged
+    assert "Failed to create PromptTemplate from system prompt" in caplog.text
+    # Assert the original, unmodified prompt is returned
+    assert processed_prompt == invalid_prompt

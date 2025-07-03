@@ -20,6 +20,15 @@ def pdf_generator_tool_instance(mock_agent_context_pdf_gen):
     tool.set_agent_id(mock_agent_context_pdf_gen.agent_id)
     return tool
 
+def test_tool_state_initialization(pdf_generator_tool_instance: WebPagePDFGenerator):
+    """Tests that the tool_state attribute is properly initialized."""
+    assert hasattr(pdf_generator_tool_instance, 'tool_state')
+    assert isinstance(pdf_generator_tool_instance.tool_state, dict)
+    assert pdf_generator_tool_instance.tool_state == {}
+    # Verify it's usable
+    pdf_generator_tool_instance.tool_state['pdf_count'] = 1
+    assert pdf_generator_tool_instance.tool_state['pdf_count'] == 1
+
 # Definition Tests
 def test_pdf_generator_definition():
     definition = default_tool_registry.get_tool_definition(TOOL_NAME_PDF_GENERATOR)
@@ -35,7 +44,7 @@ def test_pdf_generator_definition():
     assert param_url.required is True
     param_save_dir = schema.get_parameter("save_dir")
     assert param_save_dir is not None
-    assert param_save_dir.param_type == ParameterType.STRING # MODIFIED from DIRECTORY_PATH
+    assert param_save_dir.param_type == ParameterType.STRING 
     assert param_save_dir.required is True
 
 # Execute Tests

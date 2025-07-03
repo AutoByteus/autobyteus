@@ -39,7 +39,7 @@ class OllamaModelProvider:
         try:
             from autobyteus.llm.llm_factory import LLMFactory  # Local import to avoid circular dependency
             
-            ollama_host = os.getenv('OLLAMA_HOST', OllamaLLM.DEFAULT_OLLAMA_HOST)
+            ollama_host = os.getenv('DEFAULT_OLLAMA_HOST', OllamaLLM.DEFAULT_OLLAMA_HOST)
             
             if not OllamaModelProvider.is_valid_url(ollama_host):
                 logger.error(f"Invalid Ollama host URL: {ollama_host}")

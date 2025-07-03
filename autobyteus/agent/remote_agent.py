@@ -5,7 +5,7 @@ import uuid # For generating default request IDs if ProtocolMessage doesn't
 from typing import Optional, Dict, Any, AsyncIterator
 
 from autobyteus.agent.agent import Agent 
-from autobyteus.agent.context.phases import AgentOperationalPhase
+from autobyteus.agent.phases import AgentOperationalPhase
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.agent.message.inter_agent_message import InterAgentMessage
 from autobyteus.rpc.client import default_client_connection_manager, AbstractClientConnection

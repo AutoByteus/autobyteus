@@ -5,6 +5,7 @@ from autobyteus.tools.browser.standalone.webpage_reader import WebPageReader
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType # Updated
 from autobyteus.tools.tool_config import ToolConfig
 from autobyteus.utils.html_cleaner import CleaningMode
+from autobyteus.tools.registry import default_tool_registry
 
 @pytest.fixture
 def mock_agent_context():
@@ -21,6 +22,14 @@ def webpage_reader_tool_basic_config(): # Basic cleaning via instantiation confi
     config = ToolConfig(params={'cleaning_mode': CleaningMode.BASIC.name})
     return WebPageReader(config=config)
 
+def test_tool_state_initialization(webpage_reader_tool_default: WebPageReader):
+    """Tests that the tool_state attribute is properly initialized."""
+    assert hasattr(webpage_reader_tool_default, 'tool_state')
+    assert isinstance(webpage_reader_tool_default.tool_state, dict)
+    assert webpage_reader_tool_default.tool_state == {}
+    # Verify it's usable
+    webpage_reader_tool_default.tool_state['last_url_read'] = 'http://b.com'
+    assert webpage_reader_tool_default.tool_state['last_url_read'] == 'http://b.com'
 
 def test_get_name(webpage_reader_tool_default: WebPageReader):
     assert webpage_reader_tool_default.get_name() == "WebPageReader"
@@ -44,19 +53,6 @@ def test_get_argument_schema_for_execution(webpage_reader_tool_default: WebPageR
     assert isinstance(param, ParameterDefinition)
     assert param.name == "url"
     assert param.required is True
-
-def test_tool_usage_xml_output(webpage_reader_tool_default: WebPageReader):
-    xml_output = webpage_reader_tool_default.tool_usage_xml()
-    description = webpage_reader_tool_default.get_description()
-    escaped_desc = xml.sax.saxutils.escape(description)
-    assert f'<command name="WebPageReader" description="{escaped_desc}">' in xml_output
-    assert '<arg name="url" type="string"' in xml_output
-
-def test_tool_usage_json_output(webpage_reader_tool_default: WebPageReader):
-    json_output = webpage_reader_tool_default.tool_usage_json()
-    assert json_output["name"] == "WebPageReader"
-    input_schema = json_output["inputSchema"]
-    assert "url" in input_schema["properties"]
 
 @pytest.mark.asyncio
 async def test_execute_missing_url_arg(webpage_reader_tool_default: WebPageReader, mock_agent_context):

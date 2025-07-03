@@ -37,7 +37,7 @@ class AgentUserInputMessageProcessorMeta(ABCMeta):
             # Create definition using name and the class itself
             definition = AgentUserInputMessageProcessorDefinition(name=processor_name, processor_class=cls)
             default_input_processor_registry.register_processor(definition)
-            logger.info(f"Auto-registered input processor: '{processor_name}' from class {name}")
+            logger.info(f"Auto-registered input processor: '{processor_name}' from class {name} (no schema).")
 
         except AttributeError as e:
             # Catch if get_name is missing

@@ -7,6 +7,7 @@ from autobyteus.agent.context import AgentContext
 from autobyteus.agent.events import LLMCompleteResponseReceivedEvent, PendingToolInvocationEvent
 from autobyteus.agent.tool_invocation import ToolInvocation
 from autobyteus.llm.utils.response_types import CompleteResponse
+from autobyteus.tools.usage.parsers.exceptions import ToolUsageParseException
 
 @pytest.fixture
 def mock_context() -> MagicMock:
@@ -88,4 +89,26 @@ async def test_processor_does_nothing_when_parser_returns_empty(mock_parser_clas
     mock_parser_instance.parse.assert_called_once_with(response, mock_context)
     
     # Verify no events were enqueued
+    mock_context.input_event_queues.enqueue_tool_invocation_request.assert_not_awaited()
+
+@pytest.mark.asyncio
+@patch('autobyteus.agent.llm_response_processor.provider_aware_tool_usage_processor.ProviderAwareToolUsageParser')
+async def test_processor_propagates_parsing_exception(mock_parser_class, mock_context):
+    """
+    Tests that if the parser raises a ToolUsageParseException, the processor re-raises it.
+    """
+    # Arrange
+    mock_parser_instance = mock_parser_class.return_value
+    parse_exception = ToolUsageParseException("Failed to parse for testing.")
+    mock_parser_instance.parse.side_effect = parse_exception
+
+    processor = ProviderAwareToolUsageProcessor()
+    response = CompleteResponse(content="<tool_code>invalid</tool_code>")
+    trigger_event = LLMCompleteResponseReceivedEvent(complete_response=response)
+
+    # Act & Assert
+    with pytest.raises(ToolUsageParseException) as exc_info:
+        await processor.process_response(response, mock_context, trigger_event)
+
+    assert exc_info.value is parse_exception
     mock_context.input_event_queues.enqueue_tool_invocation_request.assert_not_awaited()

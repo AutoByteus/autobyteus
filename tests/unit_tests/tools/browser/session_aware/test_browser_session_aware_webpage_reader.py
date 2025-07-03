@@ -36,6 +36,15 @@ def webpage_reader_session_tool_basic(mock_agent_context_session_reader): # BASI
     tool.set_agent_id(mock_agent_context_session_reader.agent_id)
     return tool
 
+def test_tool_state_initialization(webpage_reader_session_tool_default: BrowserSessionAwareWebPageReader):
+    """Tests that the tool_state attribute is properly initialized."""
+    assert hasattr(webpage_reader_session_tool_default, 'tool_state')
+    assert isinstance(webpage_reader_session_tool_default.tool_state, dict)
+    assert webpage_reader_session_tool_default.tool_state == {}
+    # Verify it's usable
+    webpage_reader_session_tool_default.tool_state['read_count'] = 1
+    assert webpage_reader_session_tool_default.tool_state['read_count'] == 1
+
 # Definition Tests
 def test_session_reader_definition():
     definition = default_tool_registry.get_tool_definition(TOOL_NAME_SESSION_READER)
@@ -117,4 +126,3 @@ async def test_full_execute_with_session_mocking(
 
     assert "Session Page Content" in result # After THOROUGH cleaning by default
     mock_shared_browser_session_reader.page.content.assert_called_once()
-

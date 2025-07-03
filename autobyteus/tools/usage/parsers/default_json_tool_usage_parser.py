@@ -66,10 +66,10 @@ class DefaultJsonToolUsageParser(BaseToolUsageParser):
                 logger.debug(f"Skipping tool block with invalid 'parameters' type ({type(arguments)}): {tool_block}")
                 continue
             
-            # The custom format does not have a tool ID, so we generate one.
-            tool_id = str(uuid.uuid4())
+            # The custom format does not have a tool ID, so a deterministic one will be generated.
             try:
-                tool_invocation = ToolInvocation(name=tool_name, arguments=arguments, id=tool_id)
+                # Pass id=None to trigger deterministic ID generation.
+                tool_invocation = ToolInvocation(name=tool_name, arguments=arguments, id=None)
                 invocations.append(tool_invocation)
             except Exception as e:
                 logger.error(f"Unexpected error creating ToolInvocation for tool '{tool_name}': {e}", exc_info=True)

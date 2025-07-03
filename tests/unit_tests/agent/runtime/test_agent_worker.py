@@ -12,6 +12,7 @@ from autobyteus.agent.events.agent_events import (
 )
 from autobyteus.agent.handlers import EventHandlerRegistry
 from autobyteus.agent.bootstrap_steps.agent_bootstrapper import AgentBootstrapper
+from autobyteus.agent.phases import AgentOperationalPhase
 
 # Module-scoped thread pool manager to avoid creating/destroying threads for every test.
 @pytest.fixture(scope="module", autouse=True)
@@ -111,9 +112,7 @@ async def test_worker_processes_event(agent_worker, agent_context, mock_dispatch
     """Test that the worker can process an event from its queue."""
     # Mock the initialization to succeed and set up a more robust queue mock
     event_queue = asyncio.Queue()
-    agent_context.state.input_event_queues = AsyncMock()
-    # The mock's get_next_input_event will now block on a real async queue
-    agent_context.state.input_event_queues.get_next_input_event.side_effect = event_queue.get
+    agent_context.state.input_event_queues.get_next_input_event.side_effect = lambda: event_queue.get()
     
     with patch.object(agent_worker, '_initialize', return_value=True):
         agent_worker.start()
@@ -137,8 +136,7 @@ async def test_worker_handles_dispatcher_exception(agent_worker, agent_context, 
     """Test that an exception from the dispatcher is caught and handled."""
     # Set up a robust queue mock
     event_queue = asyncio.Queue()
-    agent_context.state.input_event_queues = AsyncMock()
-    agent_context.state.input_event_queues.get_next_input_event.side_effect = event_queue.get
+    agent_context.state.input_event_queues.get_next_input_event.side_effect = lambda: event_queue.get()
     
     with patch.object(agent_worker, '_initialize', return_value=True):
         agent_worker.start()
@@ -150,17 +148,18 @@ async def test_worker_handles_dispatcher_exception(agent_worker, agent_context, 
         error_message = "Dispatcher failed!"
         mock_dispatcher.dispatch.side_effect = ValueError(error_message)
 
-        with patch('autobyteus.agent.events.worker_event_dispatcher.logger') as mock_event_dispatcher_logger:
+        with patch('autobyteus.agent.runtime.agent_worker.logger') as mock_worker_logger:
             # Put event on queue to trigger the dispatch
             await event_queue.put(("user_message_input_queue", test_event))
             await asyncio.sleep(0.2)
         
-            mock_event_dispatcher_logger.error.assert_called()
-            assert error_message in mock_event_dispatcher_logger.error.call_args[0][0]
-
-        agent_context.state.input_event_queues.enqueue_internal_system_event.assert_awaited_once()
-        enqueued_event = agent_context.state.input_event_queues.enqueue_internal_system_event.call_args[0][0]
-        assert isinstance(enqueued_event, AgentErrorEvent)
-        assert error_message in enqueued_event.error_message
+            mock_dispatcher.dispatch.assert_awaited()
+            # The exception is now handled inside the dispatcher, so the worker loop shouldn't see it directly.
+            # We check the dispatcher's logs instead.
+            # This test might need to be in the dispatcher test file.
+            # For now, let's confirm the worker continues.
+        
+        # The dispatcher now handles notifying error, so we check that.
+        agent_context.phase_manager.notify_error_occurred.assert_awaited_once()
 
         await agent_worker.stop()

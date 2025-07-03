@@ -3,6 +3,7 @@ from unittest.mock import Mock, AsyncMock, patch
 from autobyteus.tools.browser.standalone.navigate_to import NavigateTo
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.agent.context import AgentContext
+from autobyteus.tools.registry import default_tool_registry
 
 TOOL_NAME_NAVIGATE_TO = "NavigateTo" # Based on class name default
 
@@ -17,6 +18,15 @@ def navigate_to_tool_instance(mock_agent_context_navigate_to):
     tool = NavigateTo()
     tool.set_agent_id(mock_agent_context_navigate_to.agent_id) # Set agent_id for tests
     return tool
+
+def test_tool_state_initialization(navigate_to_tool_instance: NavigateTo):
+    """Tests that the tool_state attribute is properly initialized."""
+    assert hasattr(navigate_to_tool_instance, 'tool_state')
+    assert isinstance(navigate_to_tool_instance.tool_state, dict)
+    assert navigate_to_tool_instance.tool_state == {}
+    # Verify it's usable
+    navigate_to_tool_instance.tool_state['navigation_history'] = ['a.com']
+    assert navigate_to_tool_instance.tool_state['navigation_history'] == ['a.com']
 
 # Definition Tests
 def test_navigate_to_definition():

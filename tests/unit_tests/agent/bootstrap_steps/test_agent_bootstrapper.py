@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, AsyncMock, patch
 from autobyteus.agent.bootstrap_steps.agent_bootstrapper import AgentBootstrapper
 from autobyteus.agent.bootstrap_steps.base_bootstrap_step import BaseBootstrapStep
 from autobyteus.agent.context import AgentContext
-from autobyteus.agent.context.agent_phase_manager import AgentPhaseManager
+from autobyteus.agent.phases import AgentPhaseManager
 from autobyteus.agent.events import AgentReadyEvent
 
 # Define dummy classes for spec'ing mocks. This is more robust than

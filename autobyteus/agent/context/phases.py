@@ -15,6 +15,7 @@ class AgentOperationalPhase(str, Enum):
     ANALYZING_LLM_RESPONSE = "analyzing_llm_response"   # Received LLM response, analyzing it for next actions (e.g., tool use, direct reply).
     
     AWAITING_TOOL_APPROVAL = "awaiting_tool_approval"   # Paused, needs external (user) approval for a tool invocation.
+    TOOL_DENIED = "tool_denied"                         # A proposed tool execution was denied by the user. Agent is processing the denial.
     EXECUTING_TOOL = "executing_tool"                   # Tool has been approved (or auto-approved) and is currently running.
     PROCESSING_TOOL_RESULT = "processing_tool_result"   # Received a tool's result, actively processing it (often leading to another LLM call).
     
@@ -38,6 +39,7 @@ class AgentOperationalPhase(str, Enum):
             AgentOperationalPhase.AWAITING_LLM_RESPONSE,
             AgentOperationalPhase.ANALYZING_LLM_RESPONSE,
             AgentOperationalPhase.AWAITING_TOOL_APPROVAL,
+            AgentOperationalPhase.TOOL_DENIED,
             AgentOperationalPhase.EXECUTING_TOOL,
             AgentOperationalPhase.PROCESSING_TOOL_RESULT,
         ]

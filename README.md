@@ -1,18 +1,18 @@
 # Autobyteus
 
-Autobyteus is an open-source coding assistance tool designed to enhance the software development workflow by making it context-aware. Each step in the workflow is interactive through a user-friendly interface, incorporating the entire software development lifecycle into each stage.
+Autobyteus is an open-source, application-first agentic framework for Python. It is designed to help developers build, test, and deploy complex, stateful, and extensible AI agents by providing a robust architecture and a powerful set of tools.
 
 ## Architecture
 
 Autobyteus is built with a modular, event-driven architecture designed for extensibility and clear separation of concerns. The key components are:
 
--   **Agent Core**: The heart of the system, comprising an `Agent` facade that provides the primary user-facing API. This facade communicates with an `AgentRuntime`, which manages an `AgentWorker` running in a dedicated thread. This design ensures non-blocking agent operations.
--   **Context & Configuration**: Agent behavior is defined through a clear configuration (`AgentConfig`) and its dynamic state is managed in `AgentRuntimeState`. These are bundled into a comprehensive `AgentContext` that is available to all components during runtime, providing a single source of truth for an agent's status and capabilities.
--   **Event-Driven System**: Agents operate on an internal event loop. Actions (like receiving user messages or tool results) are translated into events and placed on internal queues. `EventHandlers` process these events, containing the core logic for how an agent thinks and acts. This decouples logic and makes the system easy to extend.
--   **Pluggable Processors**: The framework uses a pipeline of processors to modify data at key stages. `SystemPromptProcessors` dynamically build the final system prompt (e.g., by injecting tool definitions), `InputProcessors` preprocess user messages, and `LLMResponseProcessors` parse outputs from the language model (e.g., to detect tool usage).
--   **Tooling**: Agents can be extended with `Tools`, which are self-contained capabilities that can be called by the LLM. The system includes built-in tools (like `SendMessageTo` for inter-agent communication) and supports custom tools.
--   **Multi-Agent Systems**: The `AgentGroup` and `AgenticWorkflow` abstractions provide powerful, high-level APIs for orchestrating multiple agents to collaborate on complex tasks.
--   **Remote Agents**: Built-in RPC capabilities allow for communication with agents running in separate processes or on different machines, enabling distributed agent systems.
+-   **Agent Core**: The heart of the system. Each agent is a stateful, autonomous entity that runs as a background process in its own thread, managed by a dedicated `AgentWorker`. This design makes every agent a truly independent entity capable of handling long-running tasks.
+-   **Context & Configuration**: Agent behavior is defined through a static configuration (`AgentConfig`) and its dynamic state is managed in `AgentRuntimeState`. These are bundled into a comprehensive `AgentContext` that is passed to all components, providing a single source of truth.
+-   **Event-Driven System**: Agents operate on an internal `asyncio` event loop. User messages, tool results, and internal signals are handled as events, which are processed by dedicated `EventHandlers`. This decouples logic and makes the system highly extensible.
+-   **Pluggable Processors & Hooks**: The framework provides extension points to inject custom logic. `InputProcessors` and `LLMResponseProcessors` modify data in the main processing pipeline, while `PhaseHooks` allow custom code to run on specific agent lifecycle transitions (e.g., from `BOOTSTRAPPING` to `IDLE`).
+-   **Context-Aware Tooling**: Tools are first-class citizens that receive the agent's full `AgentContext` during execution. This allows tools to be deeply integrated with the agent's state, configuration, and workspace, enabling more intelligent and powerful actions.
+-   **Tool Approval Flow**: The framework has native support for human-in-the-loop workflows. By setting `auto_execute_tools=False` in the agent's configuration, the agent will pause before executing a tool, emit an event requesting permission, and wait for external approval before proceeding.
+-   **MCP Integration**: The framework has native support for the Model Context Protocol (MCP). This allows agents to discover and use tools from external, language-agnostic tool servers, making the ecosystem extremely flexible and ready for enterprise integration.
 
 ## Features
 

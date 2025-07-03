@@ -58,10 +58,13 @@ class AgentGroup:
             if not is_send_message_present:
                 modified_tools.append(SendMessageTo())
 
-            # This logic correctly re-uses the user-provided LLM instance when creating the effective config.
+            # This logic correctly re-uses the user-provided LLM instance and other properties
+            # when creating the effective config for the agent factory.
             effective_config = AgentConfig(
-                name=original_config.name, role=original_config.role, description=original_config.description,
-                llm_instance=original_config.llm_instance, # Pass the instance through
+                name=original_config.name,
+                role=original_config.role,
+                description=original_config.description,
+                llm_instance=original_config.llm_instance,
                 system_prompt=original_config.system_prompt,
                 tools=modified_tools, 
                 auto_execute_tools=original_config.auto_execute_tools,
@@ -69,7 +72,9 @@ class AgentGroup:
                 input_processors=original_config.input_processors,
                 llm_response_processors=original_config.llm_response_processors,
                 system_prompt_processors=original_config.system_prompt_processors,
-                workspace=original_config.workspace # Pass the workspace through
+                workspace=original_config.workspace,
+                phase_hooks=original_config.phase_hooks,
+                initial_custom_data=original_config.initial_custom_data
             )
 
             try:
@@ -130,14 +135,18 @@ class AgentGroup:
             async def listen_for_final_output():
                 nonlocal final_response_aggregator
                 try:
-                    async for complete_response in streamer.stream_assistant_final_messages():
-                        final_response_aggregator += complete_response.content
+                    async for complete_response_data in streamer.stream_assistant_final_response():
+                        final_response_aggregator += complete_response_data.content
                 except Exception as e_stream:
                     logger.error(f"Error streaming final output from coordinator: {e_stream}", exc_info=True)
             output_stream_listener_task = asyncio.create_task(listen_for_final_output())
             input_message = AgentInputUserMessage(content=initial_input_content, metadata={"user_id": user_id} if user_id else {})
             await self.coordinator_agent.post_user_message(input_message)
-            if output_stream_listener_task: await output_stream_listener_task
+            
+            # Wait for the listener to finish, which happens after the agent is done and the stream closes.
+            if output_stream_listener_task: 
+                await output_stream_listener_task
+            
             return final_response_aggregator
         finally:
             if output_stream_listener_task and not output_stream_listener_task.done():

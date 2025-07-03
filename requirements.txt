@@ -10,7 +10,7 @@ botocore
 anthropic==0.37.1
 certifi==2025.4.26
 Jinja2
-ollama==0.4.5
+ollama
 mistral_common
 aiohttp
 autobyteus-llm-client==1.1.0

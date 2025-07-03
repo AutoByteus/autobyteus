@@ -6,7 +6,7 @@ import threading
 import concurrent.futures
 from typing import TYPE_CHECKING, Optional, Any, Callable, Awaitable, List
 
-from autobyteus.agent.context.phases import AgentOperationalPhase
+from autobyteus.agent.phases import AgentOperationalPhase
 from autobyteus.agent.events import ( 
     BaseEvent,
     AgentErrorEvent, 

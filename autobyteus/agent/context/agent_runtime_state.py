@@ -7,14 +7,14 @@ from autobyteus.agent.events.agent_input_event_queue_manager import AgentInputEv
 # from autobyteus.agent.events.agent_output_data_manager import AgentOutputDataManager       
 
 from autobyteus.llm.base_llm import BaseLLM
-from .phases import AgentOperationalPhase 
+from autobyteus.agent.phases import AgentOperationalPhase 
 from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
 from autobyteus.agent.tool_invocation import ToolInvocation
 # LLMConfig is no longer needed here
 # from autobyteus.llm.utils.llm_config import LLMConfig 
 
 if TYPE_CHECKING:
-    from autobyteus.agent.context.agent_phase_manager import AgentPhaseManager 
+    from autobyteus.agent.phases import AgentPhaseManager 
     from autobyteus.tools.base_tool import BaseTool 
 
 logger = logging.getLogger(__name__)

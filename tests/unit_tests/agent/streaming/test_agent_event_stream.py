@@ -12,7 +12,7 @@ from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 from autobyteus.agent.agent import Agent
 from autobyteus.agent.context import AgentContext, AgentPhaseManager
 from autobyteus.agent.events.notifiers import AgentExternalEventNotifier
-from autobyteus.agent.context.phases import AgentOperationalPhase
+from autobyteus.agent.phases import AgentOperationalPhase
 
 # Mark all tests in this module as asyncio
 pytestmark = pytest.mark.asyncio
@@ -129,7 +129,7 @@ async def test_stream_assistant_chunks(streamer: AgentEventStream, real_notifier
     results = await consumer_task
     producer_thread.join(timeout=1.0)
     
-    assert results == [chunk1, chunk2]
+    assert [r.content for r in results] == ["Hello ", "World"]
 
 async def test_stream_assistant_final_messages(streamer: AgentEventStream, real_notifier: AgentExternalEventNotifier):
     """Tests that the final complete response is streamed correctly across threads."""
@@ -140,7 +140,7 @@ async def test_stream_assistant_final_messages(streamer: AgentEventStream, real_
         real_notifier.notify_agent_data_assistant_complete_response(final_msg)
 
     consumer_task = asyncio.create_task(
-        _collect_stream_results(streamer.stream_assistant_final_messages())
+        _collect_stream_results(streamer.stream_assistant_final_response())
     )
     
     producer_thread = run_producer_in_thread(produce_events())
@@ -148,7 +148,7 @@ async def test_stream_assistant_final_messages(streamer: AgentEventStream, real_
     producer_thread.join(timeout=1.0)
 
     assert len(results) == 1
-    assert results[0] == final_msg
+    assert results[0].content == final_msg.content
 
 async def test_all_events_receives_phase_change(streamer: AgentEventStream, real_notifier: AgentExternalEventNotifier, agent_id_fixture: str):
     """Tests that phase change events are received by the unified stream."""

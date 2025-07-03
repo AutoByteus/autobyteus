@@ -4,7 +4,7 @@ from typing import Optional, Dict, Any, TYPE_CHECKING
 
 from autobyteus.events.event_emitter import EventEmitter
 from autobyteus.events.event_types import EventType 
-from autobyteus.agent.context.phases import AgentOperationalPhase
+from autobyteus.agent.phases import AgentOperationalPhase
 
 if TYPE_CHECKING:
     from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse 
@@ -57,10 +57,18 @@ class AgentExternalEventNotifier(EventEmitter):
         self._emit_phase_change(EventType.AGENT_PHASE_PROCESSING_USER_INPUT_STARTED, AgentOperationalPhase.PROCESSING_USER_INPUT, old_phase, additional_data=data)
     def notify_phase_awaiting_llm_response_started(self, old_phase: Optional[AgentOperationalPhase]):
         self._emit_phase_change(EventType.AGENT_PHASE_AWAITING_LLM_RESPONSE_STARTED, AgentOperationalPhase.AWAITING_LLM_RESPONSE, old_phase)
+
     def notify_phase_analyzing_llm_response_started(self, old_phase: Optional[AgentOperationalPhase]):
         self._emit_phase_change(EventType.AGENT_PHASE_ANALYZING_LLM_RESPONSE_STARTED, AgentOperationalPhase.ANALYZING_LLM_RESPONSE, old_phase)
+
     def notify_phase_awaiting_tool_approval_started(self, old_phase: Optional[AgentOperationalPhase]):
         self._emit_phase_change(EventType.AGENT_PHASE_AWAITING_TOOL_APPROVAL_STARTED, AgentOperationalPhase.AWAITING_TOOL_APPROVAL, old_phase)
+
+    def notify_phase_tool_denied_started(self, old_phase: Optional[AgentOperationalPhase], tool_name: Optional[str], denial_for_tool: Optional[str]):
+        data = {"tool_name": tool_name, "denial_for_tool": denial_for_tool}
+        # Assuming EventType.AGENT_PHASE_TOOL_DENIED_STARTED exists in the main EventType enum
+        self._emit_phase_change(EventType.AGENT_PHASE_TOOL_DENIED_STARTED, AgentOperationalPhase.TOOL_DENIED, old_phase, additional_data=data)
+
     def notify_phase_executing_tool_started(self, old_phase: Optional[AgentOperationalPhase], tool_name: str):
         data = {"tool_name": tool_name}
         self._emit_phase_change(EventType.AGENT_PHASE_EXECUTING_TOOL_STARTED, AgentOperationalPhase.EXECUTING_TOOL, old_phase, additional_data=data)

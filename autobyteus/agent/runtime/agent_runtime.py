@@ -5,11 +5,10 @@ import traceback
 import concurrent.futures 
 from typing import Optional, Any, Callable, Awaitable, TYPE_CHECKING 
 
-from autobyteus.agent.context.agent_context import AgentContext 
-from autobyteus.agent.context.phases import AgentOperationalPhase 
+from autobyteus.agent.context import AgentContext 
+from autobyteus.agent.phases import AgentOperationalPhase, AgentPhaseManager 
 from autobyteus.agent.events.notifiers import AgentExternalEventNotifier 
 from autobyteus.agent.events import BaseEvent
-from autobyteus.agent.context.agent_phase_manager import AgentPhaseManager 
 from autobyteus.agent.handlers import EventHandlerRegistry
 from autobyteus.agent.runtime.agent_worker import AgentWorker
 
@@ -85,9 +84,8 @@ class AgentRuntime:
             return
         
         logger.info(f"AgentRuntime for '{agent_id}': Starting worker.")
-        # Removed redundant phase notification. The first meaningful phase change to BOOTSTRAPPING
-        # is triggered by the AgentBootstrapper within the worker's async context.
-        # self.phase_manager.notify_runtime_starting_and_uninitialized()
+        # The first meaningful phase change to BOOTSTRAPPING is triggered by the AgentBootstrapper
+        # within the worker's async context.
         self._worker.start() 
         logger.info(f"AgentRuntime for '{agent_id}': Worker start command issued. Worker will initialize itself.")
 

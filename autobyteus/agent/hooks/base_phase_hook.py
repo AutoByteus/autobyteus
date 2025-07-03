@@ -3,14 +3,15 @@ import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from autobyteus.agent.context.phases import AgentOperationalPhase
+from autobyteus.agent.phases import AgentOperationalPhase
+from .hook_meta import PhaseHookMeta
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
 
 logger = logging.getLogger(__name__)
 
-class BasePhaseHook(ABC):
+class BasePhaseHook(ABC, metaclass=PhaseHookMeta):
     """
     Abstract base class for creating hooks that execute on specific agent
     phase transitions.
@@ -19,6 +20,14 @@ class BasePhaseHook(ABC):
     the exact transition they are interested in, and implement the `execute`
     method for their custom logic.
     """
+
+    @classmethod
+    def get_name(cls) -> str:
+        """
+        Returns the unique registration name for this hook.
+        Defaults to the class name. Can be overridden by subclasses.
+        """
+        return cls.__name__
 
     @property
     @abstractmethod

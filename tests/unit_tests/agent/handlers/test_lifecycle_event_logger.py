@@ -1,3 +1,4 @@
+# file: autobyteus/tests/unit_tests/agent/handlers/test_lifecycle_event_logger.py
 import pytest
 import logging
 from unittest.mock import MagicMock, patch
@@ -11,7 +12,7 @@ from autobyteus.agent.events.agent_events import (
     UserMessageReceivedEvent,
     LifecycleEvent
 )
-from autobyteus.agent.context.phases import AgentOperationalPhase
+from autobyteus.agent.phases import AgentOperationalPhase
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage 
 
 

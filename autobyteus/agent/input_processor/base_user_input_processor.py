@@ -3,6 +3,8 @@ import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Optional
 
+from .processor_meta import AgentUserInputMessageProcessorMeta
+
 if TYPE_CHECKING:
     from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage 
     from autobyteus.agent.context import AgentContext # Composite AgentContext
@@ -10,7 +12,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-class BaseAgentUserInputMessageProcessor(ABC):
+class BaseAgentUserInputMessageProcessor(ABC, metaclass=AgentUserInputMessageProcessorMeta):
     """
     Abstract base class for agent user input message processors.
     These processors can modify an AgentInputUserMessage, specifically from a user,
@@ -18,12 +20,13 @@ class BaseAgentUserInputMessageProcessor(ABC):
     Subclasses should be instantiated and passed to the AgentSpecification.
     """
 
-    def get_name(self) -> str:
+    @classmethod
+    def get_name(cls) -> str:
         """
         Returns the unique registration name for this processor.
         Defaults to the class name. Can be overridden by subclasses.
         """
-        return self.__class__.__name__
+        return cls.__name__
 
     @abstractmethod
     async def process(self,

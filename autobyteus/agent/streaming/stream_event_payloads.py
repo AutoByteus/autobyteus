@@ -4,7 +4,7 @@ from typing import Dict, Any, Optional, List, Union
 from pydantic import BaseModel, Field
 
 from autobyteus.llm.utils.token_usage import TokenUsage 
-from autobyteus.agent.context.phases import AgentOperationalPhase
+from autobyteus.agent.phases import AgentOperationalPhase
 
 
 logger = logging.getLogger(__name__)

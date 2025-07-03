@@ -20,6 +20,15 @@ def img_downloader_tool_instance(mock_agent_context_img_dl):
     tool.set_agent_id(mock_agent_context_img_dl.agent_id)
     return tool
 
+def test_tool_state_initialization(img_downloader_tool_instance: WebPageImageDownloader):
+    """Tests that the tool_state attribute is properly initialized."""
+    assert hasattr(img_downloader_tool_instance, 'tool_state')
+    assert isinstance(img_downloader_tool_instance.tool_state, dict)
+    assert img_downloader_tool_instance.tool_state == {}
+    # Verify it's usable
+    img_downloader_tool_instance.tool_state['download_log'] = []
+    assert img_downloader_tool_instance.tool_state['download_log'] == []
+
 # Definition Tests
 def test_img_downloader_definition():
     definition = default_tool_registry.get_tool_definition(TOOL_NAME_IMG_DOWNLOADER) # Using default_tool_registry
@@ -35,7 +44,7 @@ def test_img_downloader_definition():
     assert param_url.required is True
     param_save_dir = schema.get_parameter("save_dir")
     assert param_save_dir is not None
-    assert param_save_dir.param_type == ParameterType.STRING # MODIFIED from DIRECTORY_PATH
+    assert param_save_dir.param_type == ParameterType.STRING 
     assert param_save_dir.required is True
 
 # Execute Tests

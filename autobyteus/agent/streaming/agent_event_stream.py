@@ -14,9 +14,14 @@ from autobyteus.agent.streaming.stream_event_payloads import (
     create_agent_operational_phase_transition_data, 
     create_error_event_data,
     create_tool_invocation_approval_requested_data,
+    AssistantChunkData,
+    AssistantCompleteResponseData,
+    ToolInteractionLogEntryData,
+    AgentOperationalPhaseTransitionData,
+    ToolInvocationApprovalRequestedData,
+    ErrorEventData,
     EmptyData,
     StreamDataPayload,
-    ErrorEventData, 
 )
 from .queue_streamer import stream_queue_items 
 from autobyteus.events.event_types import EventType 
@@ -60,8 +65,7 @@ class AgentEventStream(EventEmitter):
         all_agent_event_types = [et for et in EventType if et.name.startswith("AGENT_")]
         
         for event_type in all_agent_event_types:
-            handler = functools.partial(self._handle_notifier_event_sync, event_type=event_type)
-            self.subscribe_from(self._notifier, event_type, handler)
+            self.subscribe_from(self._notifier, event_type, self._handle_notifier_event_sync)
 
     def _handle_notifier_event_sync(self, event_type: EventType, payload: Optional[Any] = None, object_id: Optional[str] = None, **kwargs):
         event_agent_id = kwargs.get("agent_id", self.agent_id) 
@@ -92,9 +96,8 @@ class AgentEventStream(EventEmitter):
                 typed_payload_for_stream_event = create_error_event_data(payload)
                 stream_event_type_for_generic_stream = StreamEventType.ERROR_EVENT
             
-            # The other queues are no longer needed, as `all_events` is the single source of truth.
             elif event_type in [EventType.AGENT_DATA_ASSISTANT_CHUNK_STREAM_END, EventType.AGENT_DATA_TOOL_LOG_STREAM_END]:
-                 pass # These events are signals, not data for the unified stream.
+                 pass 
             else:
                  logger.debug(f"AgentEventStream received internal event '{event_type.name}' with no direct stream mapping.")
         
@@ -118,3 +121,41 @@ class AgentEventStream(EventEmitter):
         """The primary method to consume all structured events from the agent."""
         async for event in stream_queue_items(self._generic_stream_event_internal_q, _AES_INTERNAL_SENTINEL, f"agent_{self.agent_id}_all_events"):
             yield event
+
+    # --- Convenience Stream Methods ---
+
+    async def stream_assistant_chunks(self) -> AsyncIterator[AssistantChunkData]:
+        """A convenience async generator that yields only assistant content/reasoning chunks."""
+        async for event in self.all_events():
+            if event.event_type == StreamEventType.ASSISTANT_CHUNK and isinstance(event.data, AssistantChunkData):
+                yield event.data
+
+    async def stream_assistant_final_response(self) -> AsyncIterator[AssistantCompleteResponseData]:
+        """A convenience async generator that yields only the final, complete assistant responses."""
+        async for event in self.all_events():
+            if event.event_type == StreamEventType.ASSISTANT_COMPLETE_RESPONSE and isinstance(event.data, AssistantCompleteResponseData):
+                yield event.data
+
+    async def stream_tool_logs(self) -> AsyncIterator[ToolInteractionLogEntryData]:
+        """A convenience async generator that yields only tool interaction log entries."""
+        async for event in self.all_events():
+            if event.event_type == StreamEventType.TOOL_INTERACTION_LOG_ENTRY and isinstance(event.data, ToolInteractionLogEntryData):
+                yield event.data
+    
+    async def stream_phase_transitions(self) -> AsyncIterator[AgentOperationalPhaseTransitionData]:
+        """A convenience async generator that yields only agent phase transition data."""
+        async for event in self.all_events():
+            if event.event_type == StreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION and isinstance(event.data, AgentOperationalPhaseTransitionData):
+                yield event.data
+
+    async def stream_tool_approval_requests(self) -> AsyncIterator[ToolInvocationApprovalRequestedData]:
+        """A convenience async generator that yields only requests for tool invocation approval."""
+        async for event in self.all_events():
+            if event.event_type == StreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED and isinstance(event.data, ToolInvocationApprovalRequestedData):
+                yield event.data
+
+    async def stream_errors(self) -> AsyncIterator[ErrorEventData]:
+        """A convenience async generator that yields only error events."""
+        async for event in self.all_events():
+            if event.event_type == StreamEventType.ERROR_EVENT and isinstance(event.data, ErrorEventData):
+                yield event.data

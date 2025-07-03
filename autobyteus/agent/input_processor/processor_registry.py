@@ -60,6 +60,25 @@ class AgentUserInputMessageProcessorRegistry(metaclass=SingletonMeta):
             logger.debug(f"Input processor definition with name '{name}' not found in registry.")
         return definition
 
+    def get_processor(self, name: str) -> Optional['BaseAgentUserInputMessageProcessor']:
+        """
+        Retrieves an instance of an input processor by its name.
+
+        Args:
+            name: The name of the input processor to retrieve.
+
+        Returns:
+            An instance of the BaseAgentUserInputMessageProcessor if found and instantiable, otherwise None.
+        """
+        definition = self.get_processor_definition(name)
+        if definition:
+            try:
+                return definition.processor_class()
+            except Exception as e:
+                logger.error(f"Failed to instantiate input processor '{name}' from class '{definition.processor_class.__name__}': {e}", exc_info=True)
+                return None
+        return None
+
     def list_processor_names(self) -> List[str]:
         """
         Returns a list of names of all registered input processor definitions.

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, call, AsyncMock
 from autobyteus.agent.bootstrap_steps.system_prompt_processing_step import SystemPromptProcessingStep
 from autobyteus.agent.events import AgentErrorEvent
 from autobyteus.agent.context import AgentContext
-from autobyteus.agent.context.agent_phase_manager import AgentPhaseManager
+from autobyteus.agent.phases import AgentPhaseManager
 from autobyteus.agent.system_prompt_processor import BaseSystemPromptProcessor
 
 @pytest.fixture

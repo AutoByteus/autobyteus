@@ -10,7 +10,7 @@ from autobyteus.llm.user_message import LLMUserMessage
 def ollama_llm():
     # Attempt to create a specific Ollama model, skipping if not available
     try:
-        return LLMFactory.create_llm(model_identifier="qwen3:4b") # This model was used in original context
+        return LLMFactory.create_llm(model_identifier="gemma3n:e2b") # This model was used in original context
     except Exception as e:
         if "connection" in str(e).lower() or "ollama" in str(e).lower() or "unsupported model" in str(e).lower():
             pytest.skip(f"Ollama server or model 'qwen3:4b' not available. Skipping OllamaLLM tests. Error: {e}")

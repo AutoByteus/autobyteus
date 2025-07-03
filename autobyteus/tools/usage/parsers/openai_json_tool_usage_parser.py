@@ -102,9 +102,9 @@ class OpenAiJsonToolUsageParser(BaseToolUsageParser):
             if "tool" in call_data and isinstance(call_data.get("tool"), dict):
                 call_data = call_data["tool"]
 
-            # A tool call ID is required for tracking, but the model may not provide one.
-            # If it's missing, we generate one.
-            tool_id = call_data.get("id") or f"call_{uuid.uuid4().hex}"
+            # An invocation ID is not expected from the model, so we don't look for it.
+            # The ToolInvocation constructor will generate a deterministic one.
+            tool_id = None
             
             # The tool call can be in the full format `{"function": ...}` or a simplified `{"name": ...}`.
             function_data: Optional[Dict] = call_data.get("function")

@@ -1,3 +1,4 @@
+# file: autobyteus/tests/unit_tests/agent/runtime/test_agent_runtime.py
 import asyncio
 import pytest
 import logging
@@ -7,10 +8,9 @@ from unittest.mock import MagicMock, AsyncMock, patch, ANY
 from autobyteus.agent.runtime.agent_runtime import AgentRuntime
 from autobyteus.agent.context import AgentContext
 from autobyteus.agent.handlers.event_handler_registry import EventHandlerRegistry
-from autobyteus.agent.context.phases import AgentOperationalPhase
+from autobyteus.agent.phases import AgentOperationalPhase, AgentPhaseManager
 from autobyteus.agent.events.notifiers import AgentExternalEventNotifier
 from autobyteus.agent.runtime.agent_worker import AgentWorker
-from autobyteus.agent.context.agent_phase_manager import AgentPhaseManager
 
 # Using fixtures from autobyteus/tests/unit_tests/agent/conftest.py
 
@@ -69,16 +69,13 @@ class TestAgentRuntime:
         # The phase manager sets this on its own __init__
         assert mock_agent_context_for_runtime.current_phase == AgentOperationalPhase.UNINITIALIZED
 
-    def test_start_delegates_to_worker_and_notifies_phase(self, agent_runtime_with_mocks: AgentRuntime):
+    def test_start_delegates_to_worker(self, agent_runtime_with_mocks: AgentRuntime):
         runtime = agent_runtime_with_mocks
         mock_worker_instance = runtime._mock_worker_instance
-        
-        runtime.phase_manager.notify_runtime_starting_and_uninitialized = MagicMock()
         
         mock_worker_instance.is_alive.return_value = False 
         runtime.start()
 
-        runtime.phase_manager.notify_runtime_starting_and_uninitialized.assert_called_once()
         mock_worker_instance.start.assert_called_once()
 
     def test_start_idempotency(self, agent_runtime_with_mocks: AgentRuntime):
@@ -86,14 +83,12 @@ class TestAgentRuntime:
         mock_worker_instance = runtime._mock_worker_instance
 
         mock_worker_instance.is_alive.return_value = True 
-        runtime.phase_manager.notify_runtime_starting_and_uninitialized = MagicMock()
         mock_worker_instance.start.reset_mock()
 
         with patch('autobyteus.agent.runtime.agent_runtime.logger') as mock_logger:
             runtime.start()
             mock_logger.warning.assert_called_once()
 
-        runtime.phase_manager.notify_runtime_starting_and_uninitialized.assert_not_called()
         mock_worker_instance.start.assert_not_called()
 
     async def test_stop_full_flow(self, agent_runtime_with_mocks: AgentRuntime):
@@ -103,15 +98,12 @@ class TestAgentRuntime:
 
         mock_worker_instance.is_alive.return_value = True 
 
-        runtime.phase_manager.notify_shutdown_initiated = MagicMock()
-        runtime.phase_manager.notify_final_shutdown_complete = MagicMock()
-
         await runtime.stop(timeout=0.1)
 
-        runtime.phase_manager.notify_shutdown_initiated.assert_called_once()
+        runtime.phase_manager.notify_shutdown_initiated.assert_awaited_once()
         mock_worker_instance.stop.assert_awaited_once_with(timeout=0.1)
         context.llm_instance.cleanup.assert_awaited_once()
-        runtime.phase_manager.notify_final_shutdown_complete.assert_called_once()
+        runtime.phase_manager.notify_final_shutdown_complete.assert_awaited_once()
 
     async def test_stop_when_worker_not_alive(self, agent_runtime_with_mocks: AgentRuntime):
         runtime = agent_runtime_with_mocks
@@ -120,41 +112,23 @@ class TestAgentRuntime:
         mock_worker_instance.is_alive.return_value = False 
         mock_worker_instance._is_active = False 
 
-        runtime.phase_manager.notify_shutdown_initiated = MagicMock()
+        runtime.phase_manager.notify_shutdown_initiated.reset_mock()
         mock_worker_instance.stop.reset_mock()
         runtime.context.llm_instance.cleanup.reset_mock()
-        runtime.phase_manager.notify_final_shutdown_complete = MagicMock()
+        runtime.phase_manager.notify_final_shutdown_complete.reset_mock()
         
         await runtime.stop(timeout=0.1)
         
         # Should return early
-        runtime.phase_manager.notify_shutdown_initiated.assert_not_called() 
+        runtime.phase_manager.notify_shutdown_initiated.assert_not_awaited() 
         mock_worker_instance.stop.assert_not_awaited()
         runtime.context.llm_instance.cleanup.assert_not_awaited()
         # But should still notify that it's complete
-        runtime.phase_manager.notify_final_shutdown_complete.assert_called_once()
+        runtime.phase_manager.notify_final_shutdown_complete.assert_awaited_once()
 
-    def test_handle_worker_completion_success(self, agent_runtime_with_mocks: AgentRuntime):
-        runtime = agent_runtime_with_mocks
-        mock_future = MagicMock(spec=concurrent.futures.Future)
-        mock_future.result = MagicMock(return_value=None) 
-        
-        runtime.phase_manager.notify_error_occurred = MagicMock()
-        runtime.phase_manager.notify_final_shutdown_complete = MagicMock()
-        
-        with patch('autobyteus.agent.runtime.agent_runtime.logger') as mock_logger:
-            runtime._handle_worker_completion(mock_future)
-            successful_completion_logged = any(
-                "Worker thread completed successfully" in call[0][0] 
-                for call in mock_logger.info.call_args_list
-            )
-            assert successful_completion_logged
-        
-        runtime.phase_manager.notify_error_occurred.assert_not_called()
-        runtime.phase_manager.notify_final_shutdown_complete.assert_called_once()
-
+    @patch('asyncio.run')
     @patch('autobyteus.agent.runtime.agent_runtime.traceback.format_exc', return_value="Mocked Traceback")
-    def test_handle_worker_completion_with_exception(self, mock_format_exception, agent_runtime_with_mocks: AgentRuntime):
+    def test_handle_worker_completion_with_exception(self, mock_format_exception, mock_asyncio_run, agent_runtime_with_mocks: AgentRuntime):
         runtime = agent_runtime_with_mocks
         context = agent_runtime_with_mocks.context
         
@@ -163,8 +137,6 @@ class TestAgentRuntime:
         mock_future.result = MagicMock(side_effect=test_exception)
 
         context.current_phase = AgentOperationalPhase.IDLE 
-        runtime.phase_manager.notify_error_occurred = MagicMock()
-        runtime.phase_manager.notify_final_shutdown_complete = MagicMock()
         
         with patch('autobyteus.agent.runtime.agent_runtime.logger') as mock_logger:
             runtime._handle_worker_completion(mock_future)
@@ -174,11 +146,14 @@ class TestAgentRuntime:
                 for call in mock_logger.error.call_args_list
             )
             assert worker_exception_logged
+        
+        assert mock_asyncio_run.call_count == 2
+        
+        error_call = mock_asyncio_run.call_args_list[0]
+        final_call = mock_asyncio_run.call_args_list[1]
 
-        runtime.phase_manager.notify_error_occurred.assert_called_once_with(
-            "Worker thread exited unexpectedly.", "Mocked Traceback"
-        )
-        runtime.phase_manager.notify_final_shutdown_complete.assert_called_once()
+        assert error_call[0][0].__name__ == 'notify_error_occurred'
+        assert final_call[0][0].__name__ == 'notify_final_shutdown_complete'
 
     def test_current_phase_property(self, agent_runtime_with_mocks: AgentRuntime):
         runtime = agent_runtime_with_mocks

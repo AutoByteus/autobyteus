@@ -172,7 +172,7 @@ async def main(args: argparse.Namespace):
 
     # 2. Define the configuration for the MCP server.
     server_id = "google-slides-mcp"
-    tool_prefix = "gslides"
+    tool_prefix = "gslide"
     google_slides_mcp_config = {
         server_id: {
             "transport_type": "stdio",

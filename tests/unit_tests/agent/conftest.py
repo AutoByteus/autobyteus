@@ -15,7 +15,7 @@ from autobyteus.agent.events.notifiers import AgentExternalEventNotifier
 
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.tools.base_tool import BaseTool
-from autobyteus.agent.context.phases import AgentOperationalPhase 
+from autobyteus.agent.phases import AgentOperationalPhase 
 from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
 from autobyteus.agent.tool_invocation import ToolInvocation
 from autobyteus.llm.utils.llm_config import LLMConfig

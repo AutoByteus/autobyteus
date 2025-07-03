@@ -8,7 +8,7 @@ from autobyteus.agent.system_prompt_processor.base_processor import BaseSystemPr
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
-    from autobyteus.agent.context.agent_phase_manager import AgentPhaseManager
+    from autobyteus.agent.phases import AgentPhaseManager
 
 logger = logging.getLogger(__name__)
 

@@ -2,7 +2,7 @@
 import logging
 from enum import Enum
 from typing import Dict, Any, Optional, Union, Type 
-from pydantic import BaseModel, Field, AwareDatetime, validator, RootModel 
+from pydantic import BaseModel, Field, AwareDatetime, field_validator, ValidationInfo 
 import datetime
 import uuid 
 
@@ -72,9 +72,9 @@ class StreamEvent(BaseModel):
         description="Optional ID of the agent that originated this event."
     )
 
-    @validator('data', pre=True, always=True)
-    def validate_data_based_on_event_type(cls, v, values, **kwargs):
-        event_type_value = values.get('event_type')
+    @field_validator('data', mode='before')
+    def validate_data_based_on_event_type(cls, v, info: ValidationInfo):
+        event_type_value = info.data.get('event_type')
         if not event_type_value: 
             return v 
 

@@ -21,6 +21,7 @@ class EventType(Enum):
     AGENT_PHASE_AWAITING_LLM_RESPONSE_STARTED = "agent_phase_awaiting_llm_response_started"
     AGENT_PHASE_ANALYZING_LLM_RESPONSE_STARTED = "agent_phase_analyzing_llm_response_started"
     AGENT_PHASE_AWAITING_TOOL_APPROVAL_STARTED = "agent_phase_awaiting_tool_approval_started" 
+    AGENT_PHASE_TOOL_DENIED_STARTED = "agent_phase_tool_denied_started"
     AGENT_PHASE_EXECUTING_TOOL_STARTED = "agent_phase_executing_tool_started"
     AGENT_PHASE_PROCESSING_TOOL_RESULT_STARTED = "agent_phase_processing_tool_result_started"
     AGENT_PHASE_SHUTTING_DOWN_STARTED = "agent_phase_shutting_down_started"

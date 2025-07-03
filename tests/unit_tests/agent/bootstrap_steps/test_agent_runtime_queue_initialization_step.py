@@ -8,7 +8,7 @@ from autobyteus.agent.bootstrap_steps.agent_runtime_queue_initialization_step im
 # Import dependent classes for type checking and mocking
 from autobyteus.agent.events import AgentInputEventQueueManager
 from autobyteus.agent.context import AgentContext
-from autobyteus.agent.context.agent_phase_manager import AgentPhaseManager
+from autobyteus.agent.phases import AgentPhaseManager
 
 @pytest.fixture
 def queue_init_step():

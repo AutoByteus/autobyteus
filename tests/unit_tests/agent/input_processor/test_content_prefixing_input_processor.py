@@ -1,3 +1,4 @@
+# file: autobyteus/tests/unit_tests/agent/input_processor/test_content_prefixing_input_processor.py
 import pytest
 from unittest.mock import MagicMock, patch
 
@@ -5,6 +6,7 @@ from autobyteus.agent.input_processor.content_prefixing_input_processor import C
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.agent.context import AgentContext 
 from autobyteus.agent.context.agent_config import AgentConfig
+from autobyteus.agent.events import UserMessageReceivedEvent
 
 @pytest.fixture
 def mock_agent_config() -> MagicMock:
@@ -49,8 +51,9 @@ async def test_default_prefix_used_when_no_custom_data(
     """
     mock_context = mock_agent_context_factory() 
     original_content = sample_agent_input_user_message.content
+    triggering_event = UserMessageReceivedEvent(agent_input_user_message=sample_agent_input_user_message)
     
-    processed_message = await processor.process(sample_agent_input_user_message, mock_context)
+    processed_message = await processor.process(sample_agent_input_user_message, mock_context, triggering_event)
     
     expected_content = ContentPrefixingInputProcessor.DEFAULT_PREFIX + original_content
     assert processed_message.content == expected_content
@@ -69,8 +72,9 @@ async def test_custom_prefix_used_from_custom_data(
     custom_prefix = "TEST_PREFIX: "
     mock_context = mock_agent_context_factory(custom_data={"content_prefix": custom_prefix})
     original_content = sample_agent_input_user_message.content
+    triggering_event = UserMessageReceivedEvent(agent_input_user_message=sample_agent_input_user_message)
     
-    processed_message = await processor.process(sample_agent_input_user_message, mock_context)
+    processed_message = await processor.process(sample_agent_input_user_message, mock_context, triggering_event)
     
     expected_content = custom_prefix + original_content
     assert processed_message.content == expected_content
@@ -87,9 +91,10 @@ async def test_default_prefix_used_if_custom_prefix_not_string(
     """
     mock_context = mock_agent_context_factory(custom_data={"content_prefix": 12345}) 
     original_content = sample_agent_input_user_message.content
+    triggering_event = UserMessageReceivedEvent(agent_input_user_message=sample_agent_input_user_message)
     
     with patch('autobyteus.agent.input_processor.content_prefixing_input_processor.logger') as mock_logger:
-        processed_message = await processor.process(sample_agent_input_user_message, mock_context)
+        processed_message = await processor.process(sample_agent_input_user_message, mock_context, triggering_event)
     
     expected_content = ContentPrefixingInputProcessor.DEFAULT_PREFIX + original_content
     assert processed_message.content == expected_content
@@ -108,8 +113,9 @@ async def test_empty_content_is_prefixed(
     """
     message_with_empty_content = AgentInputUserMessage(content="")
     mock_context = mock_agent_context_factory() 
+    triggering_event = UserMessageReceivedEvent(agent_input_user_message=message_with_empty_content)
     
-    processed_message = await processor.process(message_with_empty_content, mock_context)
+    processed_message = await processor.process(message_with_empty_content, mock_context, triggering_event)
     
     assert processed_message.content == ContentPrefixingInputProcessor.DEFAULT_PREFIX
 
@@ -125,8 +131,9 @@ async def test_image_urls_and_metadata_unchanged(
     mock_context = mock_agent_context_factory(custom_data={"content_prefix": "ANY_PREFIX: "})
     original_image_urls = list(sample_agent_input_user_message.image_urls) if sample_agent_input_user_message.image_urls else None
     original_metadata = dict(sample_agent_input_user_message.metadata)
+    triggering_event = UserMessageReceivedEvent(agent_input_user_message=sample_agent_input_user_message)
     
-    processed_message = await processor.process(sample_agent_input_user_message, mock_context)
+    processed_message = await processor.process(sample_agent_input_user_message, mock_context, triggering_event)
     
     assert processed_message.image_urls == original_image_urls
     assert processed_message.metadata == original_metadata

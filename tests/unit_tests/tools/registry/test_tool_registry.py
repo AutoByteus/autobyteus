@@ -1,6 +1,6 @@
 # file: autobyteus/tests/unit_tests/tools/registry/test_tool_registry.py
 import pytest
-from typing import Optional, Any
+from typing import Optional, Any, Dict
 from unittest.mock import MagicMock
 
 from autobyteus.tools.base_tool import BaseTool
@@ -242,6 +242,33 @@ async def test_create_functional_tool_from_registry(clean_registry: ToolRegistry
     result = await instance_from_registry.execute(context=mock_context, text="hello")
     assert result == "processed: hello"
 
+@pytest.mark.asyncio
+async def test_create_stateful_functional_tool_from_registry(clean_registry: ToolRegistry):
+    """Tests creating and using a stateful functional tool via the registry."""
+    @tool(name="StatefulCounter")
+    def stateful_func(tool_state: Dict[str, Any]) -> int:
+        """My stateful counter."""
+        count = tool_state.get('count', 10)
+        count += 1
+        tool_state['count'] = count
+        return count
+
+    # Create the tool instance from the registry
+    counter_tool_instance = clean_registry.create_tool("StatefulCounter")
+    assert isinstance(counter_tool_instance, FunctionalTool)
+    assert counter_tool_instance.tool_state == {}
+
+    mock_context = MagicMock()
+    mock_context.agent_id = "stateful-agent"
+
+    # Execute multiple times and check if state persists
+    result1 = await counter_tool_instance.execute(context=mock_context)
+    assert result1 == 11
+    assert counter_tool_instance.tool_state['count'] == 11
+
+    result2 = await counter_tool_instance.execute(context=mock_context)
+    assert result2 == 12
+    assert counter_tool_instance.tool_state['count'] == 12
 
 def test_create_tool_not_found_raises_error(clean_registry: ToolRegistry):
     """Tests that creating an unregistered tool raises ValueError."""
