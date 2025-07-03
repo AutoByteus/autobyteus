@@ -32,15 +32,10 @@ except ImportError:
 
 try:
     # High-level components for the full workflow
-    from autobyteus.tools.mcp import (
-        McpConfigService,
-        McpSchemaMapper,
-        McpToolRegistrar,
-    )
-    from autobyteus.tools.registry import ToolRegistry, default_tool_registry
+    from autobyteus.tools.mcp import McpToolRegistrar
+    from autobyteus.tools.registry import ToolRegistry, default_tool_registry, ToolDefinition
     from autobyteus.agent.context import AgentContext, AgentConfig, AgentRuntimeState
     from autobyteus.llm.base_llm import BaseLLM
-    from autobyteus.llm.user_message import LLMUserMessage
     from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 except ImportError as e:
     print(f"Error importing autobyteus components: {e}", file=sys.stderr)
@@ -134,14 +129,12 @@ def check_required_env_vars():
         sys.exit(1)
     return env_values
 
-def print_all_tool_schemas(registry: ToolRegistry):
-    """Iterates through the tool registry and prints the JSON schema for each tool from its definition."""
-    print("\n--- All Registered Tool Schemas (from ToolDefinition) ---")
-    all_definitions = registry.list_tools()
-    for tool_definition in sorted(all_definitions, key=lambda d: d.name):
+def print_tool_definitions(tool_definitions: List[ToolDefinition]):
+    """Iterates through a list of tool definitions and prints their JSON schema."""
+    print("\n--- Registered Tool Schemas (from ToolDefinition) ---")
+    for tool_definition in sorted(tool_definitions, key=lambda d: d.name):
         try:
-            # Get the schema directly from the definition object
-            tool_json_schema = tool_definition.usage_json_dict
+            tool_json_schema = tool_definition.get_usage_json()
             print(f"\n# Tool: {tool_definition.name}")
             print(json.dumps(tool_json_schema, indent=2))
         except Exception as e:
@@ -158,47 +151,39 @@ async def main():
     
     env_vars = check_required_env_vars()
     
-    # 1. Instantiate all the core MCP and registry components.
-    config_service = McpConfigService()
-    schema_mapper = McpSchemaMapper()
-    tool_registry = default_tool_registry # Use the default singleton registry
-    
-    # The registrar now internally manages the call handlers.
-    registrar = McpToolRegistrar(
-        config_service=config_service,
-        schema_mapper=schema_mapper,
-        tool_registry=tool_registry
-    )
+    # 1. Instantiate the core MCP and registry components.
+    tool_registry = default_tool_registry
+    registrar = McpToolRegistrar()
 
-    # 2. Define the configuration for the MCP server.
+    # 2. Define the configuration for the MCP server as a dictionary.
     server_id = "google-slides-mcp"
-    tool_prefix = "gslides" # We will use this prefix to look up the tool
-    google_slides_mcp_config = {
+    google_slides_mcp_config_dict = {
         server_id: {
             "transport_type": "stdio",
-            "command": "node",
-            "args": [env_vars["script_path"]],
+            "stdio_params": {
+                "command": "node",
+                "args": [env_vars["script_path"]],
+                "env": {
+                    "GOOGLE_CLIENT_ID": env_vars["google_client_id"],
+                    "GOOGLE_CLIENT_SECRET": env_vars["google_client_secret"],
+                    "GOOGLE_REFRESH_TOKEN": env_vars["google_refresh_token"],
+                }
+            },
             "enabled": True,
-            "tool_name_prefix": tool_prefix,
-            "env": {
-                "GOOGLE_CLIENT_ID": env_vars["google_client_id"],
-                "GOOGLE_CLIENT_SECRET": env_vars["google_client_secret"],
-                "GOOGLE_REFRESH_TOKEN": env_vars["google_refresh_token"],
-            }
+            "tool_name_prefix": "gslides",
         }
     }
-    config_service.load_configs(google_slides_mcp_config)
-    logger.info(f"Loaded MCP server configuration for '{server_id}'.")
 
     try:
-        # 3. Discover and register tools from the configured server.
-        logger.info("Discovering and registering remote tools...")
-        await registrar.discover_and_register_tools()
-        logger.info(f"Tool registration complete. Available tools in registry: {tool_registry.list_tool_names()}")
+        # 3. Discover and register tools by passing the config dictionary directly.
+        logger.info(f"Performing targeted discovery for remote tools from server '{server_id}'...")
+        await registrar.discover_and_register_tools(mcp_config=google_slides_mcp_config_dict)
+        registered_tool_defs = registrar.get_registered_tools_for_server(server_id)
+        logger.info(f"Tool registration complete. Discovered tools: {[t.name for t in registered_tool_defs]}")
 
         # 4. Create an instance of a specific tool using the ToolRegistry.
-        create_tool_name = f"{tool_prefix}_create_presentation"
-        summarize_tool_name = f"{tool_prefix}_summarize_presentation"
+        create_tool_name = "gslides_create_presentation"
+        summarize_tool_name = "gslides_summarize_presentation"
         
         if create_tool_name not in tool_registry.list_tool_names():
             logger.error(f"Tool '{create_tool_name}' was not found in the registry. Aborting.")
@@ -231,17 +216,14 @@ async def main():
             title=presentation_title
         )
         
-        # The result from a tool call is a ToolResult object. Its content needs to be accessed.
-        # We also need to handle cases where content might be empty or not text.
-        if not create_result.content or not hasattr(create_result.content[0], 'text'):
-            raise ValueError(f"Unexpected result format from tool '{create_tool_name}'. Full result: {create_result}")
+        if not isinstance(create_result, str):
+            raise ValueError(f"Unexpected result type from tool '{create_tool_name}'. Expected a JSON string. Got: {type(create_result)}")
 
-        presentation_response_text = create_result.content[0].text
-        presentation_object = json.loads(presentation_response_text)
+        presentation_object = json.loads(create_result)
         actual_presentation_id = presentation_object.get("presentationId")
 
         if not actual_presentation_id:
-            raise ValueError(f"Could not find 'presentationId' in the response. Response: {presentation_response_text[:200]}...")
+            raise ValueError(f"Could not find 'presentationId' in the response. Response: {create_result[:200]}...")
 
         logger.info(f"Tool '{create_tool_name}' executed. Extracted Presentation ID: {actual_presentation_id}")
 
@@ -252,17 +234,16 @@ async def main():
             presentationId=actual_presentation_id
         )
         
-        if not summary_result.content or not hasattr(summary_result.content[0], 'text'):
-            raise ValueError(f"Unexpected result format from tool '{summarize_tool_name}'. Full result: {summary_result}")
+        if not isinstance(summary_result, str):
+            raise ValueError(f"Unexpected result type from tool '{summarize_tool_name}'. Got: {type(summary_result)}")
 
-        presentation_summary = summary_result.content[0].text
         logger.info(f"Tool '{summarize_tool_name}' executed successfully.")
         print("\n--- Presentation Summary ---")
-        print(presentation_summary)
+        print(summary_result)
         print("--------------------------\n")
         
         # 7. Print all tool schemas for verification
-        print_all_tool_schemas(tool_registry)
+        print_tool_definitions(registered_tool_defs)
 
     except Exception as e:
         logger.error(f"An error occurred during the workflow: {e}", exc_info=True)
