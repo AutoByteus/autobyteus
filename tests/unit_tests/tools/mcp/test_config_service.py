@@ -81,6 +81,8 @@ VALID_HTTP_CONFIG_LIST_ITEM = {
 @pytest.fixture
 def mcp_config_service() -> McpConfigService:
     # Use a new instance for each test to ensure isolation
+    if McpConfigService in McpConfigService._instances:
+        del McpConfigService._instances[McpConfigService]
     service = McpConfigService()
     # Clear any potential state from other tests if singleton is not fully isolated by pytest runs
     service.clear_configs()
@@ -174,6 +176,23 @@ def test_add_config_overwrites(mcp_config_service: McpConfigService, caplog):
     assert "Overwriting existing MCP config with server_id 'common_server'" in caplog.text 
     stored_config = mcp_config_service.get_config("common_server")
     assert stored_config.command == "cmd_v2"
+
+def test_remove_config(mcp_config_service: McpConfigService):
+    """Tests the new remove_config method."""
+    config_dict = {"server_to_remove": {"transport_type": "stdio", "command": "mycmd"}}
+    mcp_config_service.load_config(config_dict)
+    
+    # Verify it's there
+    assert mcp_config_service.get_config("server_to_remove") is not None
+    
+    # Remove and verify it's gone
+    result = mcp_config_service.remove_config("server_to_remove")
+    assert result is True
+    assert mcp_config_service.get_config("server_to_remove") is None
+    
+    # Test removing a non-existent config
+    result_nonexistent = mcp_config_service.remove_config("nonexistent_server")
+    assert result_nonexistent is False
 
 def test_clear_configs(mcp_config_service: McpConfigService):
     mcp_config_service.load_config({"server1": {"transport_type": "stdio", "command": "c"}})

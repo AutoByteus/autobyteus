@@ -86,6 +86,7 @@ async def test_mcp_registrar_discovers_and_registers_google_slides_tools(mcp_tes
     assert config_service.get_config("google-slides-mcp") is not None
 
     # Test the registrar's internal cache
+    assert registrar.is_server_registered("google-slides-mcp") is True
     tools_from_server = registrar.get_registered_tools_for_server("google-slides-mcp")
     assert len(tools_from_server) == len(expected_tools_details)
     
@@ -111,6 +112,39 @@ async def test_mcp_registrar_discovers_and_registers_google_slides_tools(mcp_tes
             # Add a more specific check for array item schemas
             if "array_item_schema" in expected_param_info:
                 assert param_def.array_item_schema == expected_param_info["array_item_schema"]
+
+@pytest.mark.asyncio
+async def test_mcp_registrar_unregisters_tools_correctly(mcp_test_environment, google_slides_mcp_script_path):
+    """Tests the full register-unregister-verify cycle."""
+    registrar, _ = mcp_test_environment
+    server_id = "gslides-test-unregister"
+
+    gslides_config_dict = {
+        server_id: {
+            "transport_type": "stdio",
+            "stdio_params": {"command": "node", "args": [google_slides_mcp_script_path]},
+            "enabled": True,
+            "tool_name_prefix": "temp_gslides",
+        }
+    }
+    
+    # 1. Register tools
+    await registrar.discover_and_register_tools(mcp_config=gslides_config_dict)
+    
+    # 2. Verify registration
+    assert registrar.is_server_registered(server_id)
+    assert len(default_tool_registry.list_tools()) == len(expected_tools_details)
+    assert default_tool_registry.get_tool_definition("temp_gslides_create_presentation") is not None
+    
+    # 3. Unregister tools
+    unregistered = registrar.unregister_tools_from_server(server_id)
+    assert unregistered is True
+    
+    # 4. Verify unregistration
+    assert not registrar.is_server_registered(server_id)
+    assert len(registrar.get_all_registered_mcp_tools()) == 0
+    assert len(default_tool_registry.list_tools()) == 0
+    assert default_tool_registry.get_tool_definition("temp_gslides_create_presentation") is None
 
 @pytest.mark.asyncio
 async def test_mcp_tool_execution_after_registration(mcp_test_environment, google_slides_mcp_script_path):
@@ -151,3 +185,54 @@ async def test_mcp_tool_execution_after_registration(mcp_test_environment, googl
     response_data = json.loads(result)
     assert response_data.get("title") == test_title
     assert "presentationId" in response_data
+
+@pytest.mark.asyncio
+async def test_mcp_registrar_list_remote_tools_previews_without_side_effects(mcp_test_environment, google_slides_mcp_script_path):
+    """
+    Tests that `list_remote_tools` previews correctly without altering global state.
+    """
+    registrar, config_service = mcp_test_environment
+
+    gslides_config_dict = {
+        "google-slides-mcp-preview": { # Use a different server_id for clarity
+            "transport_type": "stdio",
+            "stdio_params": {
+                "command": "node",
+                "args": [google_slides_mcp_script_path],
+                "env": {
+                    "GOOGLE_CLIENT_ID": os.environ.get("GOOGLE_CLIENT_ID", ""),
+                    "GOOGLE_CLIENT_SECRET": os.environ.get("GOOGLE_CLIENT_SECRET", ""),
+                    "GOOGLE_REFRESH_TOKEN": os.environ.get("GOOGLE_REFRESH_TOKEN", "")
+                }
+            },
+            "tool_name_prefix": "gslides_preview", # Use a different prefix
+        }
+    }
+
+    # Call the preview method
+    tool_definitions = await registrar.list_remote_tools(mcp_config=gslides_config_dict)
+    
+    # 1. Assert that the returned definitions are correct
+    assert len(tool_definitions) == len(expected_tools_details)
+    for expected_tool in expected_tools_details:
+        previewed_name = f"gslides_preview_{expected_tool['name']}"
+        # Find the corresponding definition in the returned list
+        tool_def = next((td for td in tool_definitions if td.name == previewed_name), None)
+        
+        assert tool_def is not None, f"Tool '{previewed_name}' not found in preview list."
+        assert tool_def.description == expected_tool["description"]
+        assert callable(tool_def.custom_factory) # Check that it's a usable definition
+        
+        assert tool_def.argument_schema is not None
+        for expected_param_info in expected_tool["params"]:
+            param_def = tool_def.argument_schema.get_parameter(expected_param_info["name"])
+            assert param_def is not None
+            assert param_def.param_type == expected_param_info["type"]
+            assert param_def.required == expected_param_info["required"]
+    
+    # 2. Assert that there are no side effects
+    assert config_service.get_config("google-slides-mcp-preview") is None
+    assert len(config_service.get_all_configs()) == 0
+    
+    assert default_tool_registry.get_tool_definition("gslides_preview_create_presentation") is None
+    assert len(default_tool_registry.list_tools()) == 0

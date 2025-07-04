@@ -27,7 +27,15 @@ class AgentExternalEventNotifier(EventEmitter):
             emit_kwargs["payload"] = payload_content 
         
         self.emit(event_type, **emit_kwargs) 
-        logger.info(f"AgentExternalEventNotifier (NotifierID: {self.object_id}, AgentID: {self.agent_id}) emitted {event_type.name}. Kwarg keys for emit: {list(emit_kwargs.keys())}")
+        log_message = (
+            f"AgentExternalEventNotifier (NotifierID: {self.object_id}, AgentID: {self.agent_id}) "
+            f"emitted {event_type.name}. Kwarg keys for emit: {list(emit_kwargs.keys())}"
+        )
+        # Reduce log level for high-frequency events like streaming chunks
+        if event_type == EventType.AGENT_DATA_ASSISTANT_CHUNK:
+            logger.debug(log_message)
+        else:
+            logger.info(log_message)
 
 
     def _emit_phase_change(self, 

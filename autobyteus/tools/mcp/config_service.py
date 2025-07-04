@@ -215,6 +215,23 @@ class McpConfigService(metaclass=SingletonMeta):
     def get_all_configs(self) -> List[BaseMcpConfig]:
         return list(self._configs.values())
 
+    def remove_config(self, server_id: str) -> bool:
+        """
+        Removes an MCP server configuration by its unique server ID.
+
+        Args:
+            server_id: The unique ID of the MCP server configuration to remove.
+
+        Returns:
+            True if a configuration was found and removed, False otherwise.
+        """
+        if server_id in self._configs:
+            del self._configs[server_id]
+            logger.info(f"Successfully removed MCP config for server_id '{server_id}'.")
+            return True
+        logger.warning(f"Attempted to remove MCP config for server_id '{server_id}', but it was not found.")
+        return False
+
     def clear_configs(self) -> None:
         self._configs.clear()
         logger.info("All MCP server configurations cleared from McpConfigService.")

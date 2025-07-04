@@ -8,6 +8,7 @@ from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.tool_config import ToolConfig
 from autobyteus.tools.registry import default_tool_registry, ToolDefinition
+from autobyteus.tools.tool_category import ToolCategory
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext 
@@ -234,7 +235,8 @@ def tool(
             argument_schema=final_arg_schema,
             config_schema=config_schema,
             custom_factory=factory,
-            tool_class=None
+            tool_class=None,
+            category=ToolCategory.LOCAL
         )
         default_tool_registry.register_tool(tool_def)
         
