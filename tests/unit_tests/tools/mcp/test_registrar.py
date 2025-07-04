@@ -1,6 +1,6 @@
 # file: autobyteus/tests/unit_tests/tools/mcp/test_registrar.py
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock, patch, ANY
 
 from autobyteus.tools.mcp.registrar import McpToolRegistrar
 from autobyteus.tools.mcp.config_service import McpConfigService
@@ -12,192 +12,245 @@ from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefiniti
 MockMcpToolType = MagicMock()
 MockMcpListToolsResult = MagicMock()
 
+@pytest.fixture
+def mock_dependencies():
+    """A fixture to provide mocked dependencies for the registrar."""
+    with patch('autobyteus.tools.mcp.registrar.McpConfigService') as MockConfigService, \
+         patch('autobyteus.tools.mcp.registrar.ToolRegistry') as MockToolRegistry, \
+         patch('autobyteus.tools.mcp.registrar.StdioMcpCallHandler') as MockStdioHandler:
+        
+        # Instantiate the registrar within the context of the patches
+        # to ensure its internal dependencies are the mocks
+        registrar = McpToolRegistrar()
+        
+        yield {
+            "registrar": registrar,
+            "config_service": MockConfigService.return_value,
+            "tool_registry": MockToolRegistry.return_value,
+            "stdio_handler": MockStdioHandler.return_value
+        }
+
 @pytest.fixture(autouse=True)
 def clear_singleton_cache():
     """Fixture to automatically clear singleton caches before each test."""
     # This ensures that each test gets a fresh instance of the singleton
     if McpToolRegistrar in McpToolRegistrar._instances:
         del McpToolRegistrar._instances[McpToolRegistrar]
+    if McpConfigService in McpConfigService._instances:
+        del McpConfigService._instances[McpConfigService]
+    if ToolRegistry in ToolRegistry._instances:
+        del ToolRegistry._instances[ToolRegistry]
     yield
-    if McpToolRegistrar in McpToolRegistrar._instances:
-        del McpToolRegistrar._instances[McpToolRegistrar]
+    # Clean up after test
+    if McpToolRegistrar in McpToolRegistrar._instances: del McpToolRegistrar._instances[McpToolRegistrar]
+    if McpConfigService in McpConfigService._instances: del McpConfigService._instances[McpConfigService]
+    if ToolRegistry in ToolRegistry._instances: del ToolRegistry._instances[ToolRegistry]
 
 
 @pytest.mark.asyncio
-async def test_discover_and_register_tools_full_scan():
+async def test_discover_and_register_tools_full_scan(mock_dependencies):
     """Tests the default behavior of scanning all configured servers."""
-    with patch('autobyteus.tools.mcp.registrar.McpConfigService') as MockConfigService, \
-         patch('autobyteus.tools.mcp.registrar.ToolRegistry') as MockToolRegistry, \
-         patch('autobyteus.tools.mcp.registrar.StdioMcpCallHandler') as MockStdioHandler:
+    registrar = mock_dependencies["registrar"]
+    mock_config_instance = mock_dependencies["config_service"]
+    mock_tool_registry_instance = mock_dependencies["tool_registry"]
+    mock_handler_instance = mock_dependencies["stdio_handler"]
 
-        # Get the mock instances that will be returned when the singletons are instantiated
-        mock_config_instance = MockConfigService.return_value
-        mock_tool_registry_instance = MockToolRegistry.return_value
-        mock_handler_instance = MockStdioHandler.return_value
+    # --- Setup ---
+    # Define the server configuration for the test
+    server_config1 = StdioMcpServerConfig(server_id="server1", command="cmd1", enabled=True, tool_name_prefix="s1_")
+    mock_config_instance.get_all_configs.return_value = [server_config1]
 
-        # Now, instantiate the registrar. Its __init__ will call the patched classes,
-        # receiving our mock instances.
-        registrar = McpToolRegistrar()
+    # Define the mock response from the remote tool server
+    remote_tool1_meta = MockMcpToolType()
+    remote_tool1_meta.name = "toolA"
+    remote_tool1_meta.description = "Tool A description"
+    remote_tool1_meta.inputSchema = {"type": "object", "properties": {"paramA": {"type": "string"}}}
+    
+    list_tools_result = MockMcpListToolsResult()
+    list_tools_result.tools = [remote_tool1_meta]
 
-        # Define the server configuration for the test
-        server_config1 = StdioMcpServerConfig(server_id="server1", command="cmd1", enabled=True, tool_name_prefix="s1_")
-        mock_config_instance.get_all_configs.return_value = [server_config1]
+    # Set the return value on the handler's mock method
+    mock_handler_instance.handle_call.return_value = list_tools_result
 
-        # Define the mock response from the remote tool server
-        remote_tool1_meta = MockMcpToolType()
-        remote_tool1_meta.name = "toolA"
-        remote_tool1_meta.description = "Tool A description"
-        remote_tool1_meta.inputSchema = {"type": "object", "properties": {"paramA": {"type": "string"}}}
-        
-        list_tools_result = MockMcpListToolsResult()
-        list_tools_result.tools = [remote_tool1_meta]
+    # Prime the registrar with a fake pre-existing tool to test cleanup
+    preexisting_tool_def = MagicMock(spec=ToolDefinition)
+    preexisting_tool_def.name = "stale_tool"
+    registrar._registered_tools_by_server["stale_server"] = [preexisting_tool_def]
 
-        # Set the return value on the handler's mock method
-        mock_handler_instance.handle_call.return_value = list_tools_result
+    # --- Act ---
+    await registrar.discover_and_register_tools()
 
-        # We are using the real McpToolFactory and McpSchemaMapper, as they are stateless helpers.
-        await registrar.discover_and_register_tools()
+    # --- Assertions ---
+    # Assert that unregister was called for the stale tool
+    mock_tool_registry_instance.unregister_tool.assert_called_once_with("stale_tool")
 
-        # --- Assertions ---
-        mock_config_instance.get_all_configs.assert_called_once()
-        
-        mock_handler_instance.handle_call.assert_awaited_once_with(
-            config=server_config1,
-            remote_tool_name="list_tools",
-            arguments={}
-        )
-
-        mock_tool_registry_instance.register_tool.assert_called_once()
-        
-        registered_def_arg = mock_tool_registry_instance.register_tool.call_args[0][0]
-        assert isinstance(registered_def_arg, ToolDefinition)
-        assert registered_def_arg.name == "s1_toolA"
-        
-        # Test the registrar's internal cache
-        registered_tools = registrar.get_registered_tools_for_server("server1")
-        assert len(registered_tools) == 1
-        assert isinstance(registered_tools[0], ToolDefinition)
-        assert registered_tools[0].name == "s1_toolA"
-        assert registrar.get_registered_tools_for_server("non_existent_server") == []
-
-@pytest.mark.asyncio
-async def test_discover_and_register_tools_targeted():
-    """Tests passing a specific config object to discover only one server."""
-    with patch('autobyteus.tools.mcp.registrar.McpConfigService') as MockConfigService, \
-         patch('autobyteus.tools.mcp.registrar.ToolRegistry') as MockToolRegistry, \
-         patch('autobyteus.tools.mcp.registrar.StdioMcpCallHandler') as MockStdioHandler:
-        
-        mock_config_instance = MockConfigService.return_value
-        mock_tool_registry_instance = MockToolRegistry.return_value
-        mock_handler_instance = MockStdioHandler.return_value
-        
-        registrar = McpToolRegistrar()
-        
-        target_config = StdioMcpServerConfig(server_id="target_server", command="cmd_target", enabled=True, tool_name_prefix="tgt_")
-
-        remote_tool_meta = MockMcpToolType()
-        remote_tool_meta.name = "targetTool"
-        remote_tool_meta.description = "Target tool description"
-        remote_tool_meta.inputSchema = {}
-        list_tools_result = MockMcpListToolsResult()
-        list_tools_result.tools = [remote_tool_meta]
-        mock_handler_instance.handle_call.return_value = list_tools_result
-        
-        await registrar.discover_and_register_tools(mcp_config=target_config)
-
-        # Assert that the registrar adds the config to the service
-        mock_config_instance.add_config.assert_called_once_with(target_config)
-        mock_config_instance.get_all_configs.assert_not_called()
-        
-        mock_handler_instance.handle_call.assert_awaited_once_with(
-            config=target_config,
-            remote_tool_name="list_tools",
-            arguments={}
-        )
-        mock_tool_registry_instance.register_tool.assert_called_once()
-        
-        assert "target_server" in registrar._registered_tools_by_server
-        assert len(registrar.get_registered_tools_for_server("target_server")) == 1
-        assert registrar.get_registered_tools_for_server("target_server")[0].name == "tgt_targetTool"
+    # Assert discovery and registration happened for the new tool
+    mock_config_instance.get_all_configs.assert_called_once()
+    mock_handler_instance.handle_call.assert_awaited_with(
+        config=server_config1,
+        remote_tool_name="list_tools",
+        arguments={}
+    )
+    mock_tool_registry_instance.register_tool.assert_called_once_with(ANY)
+    
+    registered_def_arg = mock_tool_registry_instance.register_tool.call_args[0][0]
+    assert isinstance(registered_def_arg, ToolDefinition)
+    assert registered_def_arg.name == "s1_toolA"
+    
+    # Assert internal state is correct
+    assert "stale_server" not in registrar._registered_tools_by_server
+    registered_tools = registrar.get_registered_tools_for_server("server1")
+    assert len(registered_tools) == 1
+    assert registered_tools[0].name == "s1_toolA"
 
 @pytest.mark.asyncio
-async def test_discover_and_register_tools_targeted_with_dict():
-    """Tests passing a specific raw config dictionary."""
-    with patch('autobyteus.tools.mcp.registrar.McpConfigService') as MockConfigService, \
-         patch('autobyteus.tools.mcp.registrar.ToolRegistry') as MockToolRegistry, \
-         patch('autobyteus.tools.mcp.registrar.StdioMcpCallHandler') as MockStdioHandler:
-        
-        mock_config_instance = MockConfigService.return_value
-        mock_tool_registry_instance = MockToolRegistry.return_value
-        mock_handler_instance = MockStdioHandler.return_value
-        
-        registrar = McpToolRegistrar()
-        
-        target_config_dict = {
-            "target_server_dict": {
-                "transport_type": "stdio",
-                "enabled": True,
-                "command": "cmd_target_dict"
-            }
-        }
-        
-        # The mock config service should return a validated config object when load_config is called
-        validated_config = StdioMcpServerConfig(server_id="target_server_dict", command="cmd_target_dict")
-        mock_config_instance.load_config.return_value = validated_config
+async def test_discover_and_register_tools_targeted(mock_dependencies):
+    """Tests passing a specific config, ensuring old tools for that server are unregistered."""
+    registrar = mock_dependencies["registrar"]
+    mock_config_instance = mock_dependencies["config_service"]
+    mock_tool_registry_instance = mock_dependencies["tool_registry"]
+    mock_handler_instance = mock_dependencies["stdio_handler"]
+    
+    target_config = StdioMcpServerConfig(server_id="target_server", command="cmd_target", enabled=True, tool_name_prefix="tgt_")
 
-        # Mock the remote tool response
-        remote_tool_meta = MockMcpToolType()
-        remote_tool_meta.name = "targetToolFromDict"
-        remote_tool_meta.description = "Target tool from dict"
-        remote_tool_meta.inputSchema = {}
-        list_tools_result = MockMcpListToolsResult()
-        list_tools_result.tools = [remote_tool_meta]
-        mock_handler_instance.handle_call.return_value = list_tools_result
-        
-        # Call the method with the dictionary
-        await registrar.discover_and_register_tools(mcp_config=target_config_dict)
+    # Prime the registrar to simulate that this server had old tools registered
+    old_tool_def = MagicMock(spec=ToolDefinition)
+    old_tool_def.name = "tgt_old_tool"
+    registrar._registered_tools_by_server["target_server"] = [old_tool_def]
 
-        # Assert that the registrar uses load_config, not add_config or get_all_configs
-        mock_config_instance.load_config.assert_called_once_with(target_config_dict)
-        mock_config_instance.add_config.assert_not_called()
-        mock_config_instance.get_all_configs.assert_not_called()
-        
-        # Assert the rest of the flow
-        mock_handler_instance.handle_call.assert_awaited_once_with(
-            config=validated_config,
-            remote_tool_name="list_tools",
-            arguments={}
-        )
-        mock_tool_registry_instance.register_tool.assert_called_once()
-        
-        registered_def_arg = mock_tool_registry_instance.register_tool.call_args[0][0]
-        assert registered_def_arg.name == "targetToolFromDict"
-        
-        # Check internal state
-        assert "target_server_dict" in registrar._registered_tools_by_server
-        assert len(registrar.get_registered_tools_for_server("target_server_dict")) == 1
-        assert registrar.get_all_registered_mcp_tools()[0].name == "targetToolFromDict"
+    # Mock the new tools to be discovered
+    remote_tool_meta = MockMcpToolType()
+    remote_tool_meta.name = "targetTool"
+    remote_tool_meta.description = "Target tool description"
+    remote_tool_meta.inputSchema = {}
+    list_tools_result = MockMcpListToolsResult()
+    list_tools_result.tools = [remote_tool_meta]
+    mock_handler_instance.handle_call.return_value = list_tools_result
+    
+    # Act
+    await registrar.discover_and_register_tools(mcp_config=target_config)
 
+    # --- Assertions ---
+    # Assert that the old tool was unregistered
+    mock_tool_registry_instance.unregister_tool.assert_called_once_with("tgt_old_tool")
+    
+    # Assert the rest of the flow
+    mock_config_instance.add_config.assert_called_once_with(target_config)
+    mock_handler_instance.handle_call.assert_awaited_with(config=target_config, remote_tool_name="list_tools", arguments={})
+    mock_tool_registry_instance.register_tool.assert_called_once()
+    
+    # Assert internal state is correct
+    assert "target_server" in registrar._registered_tools_by_server
+    assert len(registrar.get_all_registered_mcp_tools()) == 1
+    assert registrar.get_all_registered_mcp_tools()[0].name == "tgt_targetTool"
 
 @pytest.mark.asyncio
-async def test_discover_and_register_handler_fails():
+async def test_discover_and_register_handler_fails(mock_dependencies):
     """Tests that a failure in the handler is caught gracefully."""
-    with patch('autobyteus.tools.mcp.registrar.McpConfigService') as MockConfigService, \
-         patch('autobyteus.tools.mcp.registrar.ToolRegistry') as MockToolRegistry, \
-         patch('autobyteus.tools.mcp.registrar.StdioMcpCallHandler') as MockStdioHandler:
+    registrar = mock_dependencies["registrar"]
+    mock_config_instance = mock_dependencies["config_service"]
+    mock_tool_registry_instance = mock_dependencies["tool_registry"]
+    mock_handler_instance = mock_dependencies["stdio_handler"]
+    
+    server_config1 = StdioMcpServerConfig(server_id="server_err", command="cmd", enabled=True)
+    mock_config_instance.get_all_configs.return_value = [server_config1]
+    
+    mock_handler_instance.handle_call.side_effect = RuntimeError("Handler discovery failed")
 
-        mock_config_instance = MockConfigService.return_value
-        mock_tool_registry_instance = MockToolRegistry.return_value
-        mock_handler_instance = MockStdioHandler.return_value
-        
-        registrar = McpToolRegistrar()
-        
-        server_config1 = StdioMcpServerConfig(server_id="server_err", command="cmd", enabled=True)
-        mock_config_instance.get_all_configs.return_value = [server_config1]
-        
-        mock_handler_instance.handle_call.side_effect = RuntimeError("Handler discovery failed")
+    await registrar.discover_and_register_tools()
+    
+    mock_tool_registry_instance.register_tool.assert_not_called()
+    assert registrar.get_registered_tools_for_server("server_err") == []
 
-        await registrar.discover_and_register_tools()
-        
-        mock_tool_registry_instance.register_tool.assert_not_called()
-        assert registrar.get_registered_tools_for_server("server_err") == []
+# --- Tests for the new methods ---
+
+def test_is_server_registered(mock_dependencies):
+    """Tests the is_server_registered method."""
+    registrar = mock_dependencies["registrar"]
+    assert registrar.is_server_registered("server1") is False
+    registrar._registered_tools_by_server["server1"] = [MagicMock()]
+    assert registrar.is_server_registered("server1") is True
+
+def test_unregister_tools_from_server(mock_dependencies):
+    """Tests the unregister_tools_from_server method."""
+    registrar = mock_dependencies["registrar"]
+    mock_tool_registry = mock_dependencies["tool_registry"]
+
+    # Setup: mock a registered server with two tools
+    tool_def1 = MagicMock(spec=ToolDefinition); tool_def1.name = "toolA"
+    tool_def2 = MagicMock(spec=ToolDefinition); tool_def2.name = "toolB"
+    registrar._registered_tools_by_server["server_to_remove"] = [tool_def1, tool_def2]
+
+    # Act
+    result = registrar.unregister_tools_from_server("server_to_remove")
+
+    # Assert
+    assert result is True
+    assert mock_tool_registry.unregister_tool.call_count == 2
+    mock_tool_registry.unregister_tool.assert_any_call("toolA")
+    mock_tool_registry.unregister_tool.assert_any_call("toolB")
+    
+    # Assert internal state is cleaned up
+    assert not registrar.is_server_registered("server_to_remove")
+    
+    # Test unregistering a non-existent server
+    result_nonexistent = registrar.unregister_tools_from_server("non_existent_server")
+    assert result_nonexistent is False
+
+# --- Tests for the list_remote_tools method ---
+@pytest.mark.asyncio
+async def test_list_remote_tools_previews_without_registration(mock_dependencies):
+    """
+    Tests that `list_remote_tools` discovers tools but does not register them
+    or save the configuration.
+    """
+    registrar = mock_dependencies["registrar"]
+    mock_config_instance = mock_dependencies["config_service"]
+    mock_tool_registry_instance = mock_dependencies["tool_registry"]
+    mock_handler_instance = mock_dependencies["stdio_handler"]
+
+    preview_config = StdioMcpServerConfig(server_id="preview_server", command="preview_cmd")
+
+    # Mock the remote tool response
+    remote_tool_meta = MockMcpToolType()
+    remote_tool_meta.name = "previewTool"
+    remote_tool_meta.description = "A tool for preview"
+    remote_tool_meta.inputSchema = {"type": "object", "properties": {"p1": {"type": "integer"}}}
+    list_tools_result = MockMcpListToolsResult()
+    list_tools_result.tools = [remote_tool_meta]
+    mock_handler_instance.handle_call.return_value = list_tools_result
+
+    # Call the preview method
+    tool_defs = await registrar.list_remote_tools(mcp_config=preview_config)
+
+    # --- Assertions for No Side Effects ---
+    mock_config_instance.add_config.assert_not_called()
+    mock_config_instance.load_config.assert_not_called()
+    mock_tool_registry_instance.register_tool.assert_not_called()
+    assert not registrar._registered_tools_by_server # Internal cache should be empty
+
+    # --- Assertions for Correct Discovery ---
+    mock_handler_instance.handle_call.assert_awaited_with(
+        config=preview_config,
+        remote_tool_name="list_tools",
+        arguments={}
+    )
+    assert len(tool_defs) == 1
+    assert isinstance(tool_defs[0], ToolDefinition)
+    assert tool_defs[0].name == "previewTool"
+    assert tool_defs[0].description == "A tool for preview"
+    assert tool_defs[0].argument_schema.get_parameter("p1").param_type == ParameterType.INTEGER
+
+@pytest.mark.asyncio
+async def test_list_remote_tools_raises_on_handler_failure(mock_dependencies):
+    """
+    Tests that `list_remote_tools` propagates exceptions from the handler.
+    """
+    registrar = mock_dependencies["registrar"]
+    mock_handler_instance = mock_dependencies["stdio_handler"]
+    
+    preview_config = StdioMcpServerConfig(server_id="preview_server_fail", command="fail_cmd")
+    mock_handler_instance.handle_call.side_effect = RuntimeError("Preview connection failed")
+    
+    with pytest.raises(RuntimeError, match="Preview connection failed"):
+        await registrar.list_remote_tools(mcp_config=preview_config)
