@@ -25,43 +25,6 @@ class AgentProcessingEvent(BaseEvent):
     """Base class for events related to the agent's internal data processing and task execution logic."""
 
 
-# --- Agent Initialization Sequence Events ---
-@dataclass
-class AgentPreparationEvent(AgentProcessingEvent):
-    """Base class for events that are part of the agent's preparation/initialization sequence."""
-    pass
-
-# BootstrapAgentEvent REMOVED
-
-@dataclass
-class CreateToolInstancesEvent(AgentPreparationEvent): 
-    """
-    DEPRECATED. Initialization is now handled directly by the agent worker.
-    """
-    pass
-
-@dataclass
-class ProcessSystemPromptEvent(AgentPreparationEvent):
-    """
-    DEPRECATED. Initialization is now handled directly by the agent worker.
-    """
-    pass
-
-@dataclass
-class FinalizeLLMConfigEvent(AgentPreparationEvent):
-    """
-    DEPRECATED. Initialization is now handled directly by the agent worker.
-    """
-    pass
-
-@dataclass
-class CreateLLMInstanceEvent(AgentPreparationEvent):
-    """
-    DEPRECATED. Initialization is now handled directly by the agent worker.
-    """
-    pass
-
-
 # --- Agent Operational Phase Events ---
 @dataclass
 class AgentOperationalEvent(AgentProcessingEvent): 
