@@ -138,21 +138,41 @@ class LLMFactory(metaclass=SingletonMeta):
             ),
             # ANTHROPIC Provider Models
             LLMModel(
-                name="CLAUDE_3_7_SONNET_API",
-                value="claude-3-7-sonnet-20250219",
+                name="CLAUDE_4_OPUS_API",
+                value="claude-opus-4-20250514",
                 provider=LLMProvider.ANTHROPIC,
                 llm_class=ClaudeLLM,
-                canonical_name="claude-3.7",
+                canonical_name="claude-4-opus",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(15.00, 75.00)
+                )
+            ),
+            LLMModel(
+                name="BEDROCK_CLAUDE_4_OPUS_API",
+                value="anthropic.claude-opus-4-20250514-v1:0",
+                provider=LLMProvider.ANTHROPIC,
+                llm_class=ClaudeLLM,
+                canonical_name="claude-4-opus",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(15.00, 75.00)
+                )
+            ),
+            LLMModel(
+                name="CLAUDE_4_SONNET_API",
+                value="claude-sonnet-4-20250514",
+                provider=LLMProvider.ANTHROPIC,
+                llm_class=ClaudeLLM,
+                canonical_name="claude-4-sonnet",
                 default_config=LLMConfig(
                     pricing_config=TokenPricingConfig(3.00, 15.00)
                 )
             ),
             LLMModel(
-                name="BEDROCK_CLAUDE_3_7_SONNET_API",
-                value="anthropic.claude-3-7-sonnet-20250219-v1:0",
+                name="BEDROCK_CLAUDE_4_SONNET_API",
+                value="anthropic.claude-sonnet-4-20250514-v1:0",
                 provider=LLMProvider.ANTHROPIC,
                 llm_class=ClaudeLLM,
-                canonical_name="claude-3.7",
+                canonical_name="claude-4-sonnet",
                 default_config=LLMConfig(
                     pricing_config=TokenPricingConfig(3.00, 15.00)
                 )
@@ -185,21 +205,41 @@ class LLMFactory(metaclass=SingletonMeta):
             ),
             # GEMINI Provider Models
             LLMModel(
-                name="GEMINI_1_5_PRO_API",
-                value="gemini-1-5-pro",
+                name="GEMINI_2_5_PRO_API",
+                value="gemini-2.5-pro",
                 provider=LLMProvider.GEMINI,
                 llm_class=OpenAILLM,
-                canonical_name="gemini-1.5-pro",
+                canonical_name="gemini-2.5-pro",
                 default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(1.25, 5.00)
+                    pricing_config=TokenPricingConfig(2.50, 10.00)
                 )
             ),
             LLMModel(
-                name="GEMINI_1_5_FLASH_API",
-                value="gemini-1-5-flash",
+                name="GEMINI_2_5_FLASH_API",
+                value="gemini-2.5-flash",
                 provider=LLMProvider.GEMINI,
                 llm_class=OpenAILLM,
-                canonical_name="gemini-1.5-flash",
+                canonical_name="gemini-2.5-flash",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(0.15, 0.60)
+                )
+            ),
+            LLMModel(
+                name="GEMINI_2_0_FLASH_API",
+                value="gemini-2.0-flash",
+                provider=LLMProvider.GEMINI,
+                llm_class=OpenAILLM,
+                canonical_name="gemini-2.0-flash",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(0.1, 0.40)
+                )
+            ),
+            LLMModel(
+                name="GEMINI_2_0_FLASH_LITE_API",
+                value="gemini-2.0-flash-lite",
+                provider=LLMProvider.GEMINI,
+                llm_class=OpenAILLM,
+                canonical_name="gemini-2.0-flash-lite",
                 default_config=LLMConfig(
                     pricing_config=TokenPricingConfig(0.075, 0.30)
                 )

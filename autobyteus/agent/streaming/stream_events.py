@@ -10,11 +10,12 @@ import uuid
 from .stream_event_payloads import (
     StreamDataPayload, 
     AssistantChunkData,
-    AssistantCompleteResponseData, # UPDATED import
+    AssistantCompleteResponseData,
     ToolInteractionLogEntryData,
     AgentOperationalPhaseTransitionData, 
     ErrorEventData,
     ToolInvocationApprovalRequestedData,
+    ToolInvocationAutoExecutingData,
     EmptyData
 )
 
@@ -26,22 +27,24 @@ class StreamEventType(str, Enum):
     provided by AgentEventStream.
     """
     ASSISTANT_CHUNK = "assistant_chunk"
-    ASSISTANT_COMPLETE_RESPONSE = "assistant_complete_response" # RENAMED from ASSISTANT_FINAL_MESSAGE
+    ASSISTANT_COMPLETE_RESPONSE = "assistant_complete_response"
     TOOL_INTERACTION_LOG_ENTRY = "tool_interaction_log_entry"
-    AGENT_OPERATIONAL_PHASE_TRANSITION = "agent_operational_phase_transition" # RENAMED from AGENT_PHASE_UPDATE
+    AGENT_OPERATIONAL_PHASE_TRANSITION = "agent_operational_phase_transition"
     ERROR_EVENT = "error_event" 
     TOOL_INVOCATION_APPROVAL_REQUESTED = "tool_invocation_approval_requested" 
-    AGENT_IDLE = "agent_idle" # ADDED: New event type for when agent becomes idle.
+    TOOL_INVOCATION_AUTO_EXECUTING = "tool_invocation_auto_executing"
+    AGENT_IDLE = "agent_idle"
 
 
 _STREAM_EVENT_TYPE_TO_PAYLOAD_CLASS: Dict[StreamEventType, Type[BaseModel]] = {
     StreamEventType.ASSISTANT_CHUNK: AssistantChunkData,
-    StreamEventType.ASSISTANT_COMPLETE_RESPONSE: AssistantCompleteResponseData, # UPDATED mapping
+    StreamEventType.ASSISTANT_COMPLETE_RESPONSE: AssistantCompleteResponseData,
     StreamEventType.TOOL_INTERACTION_LOG_ENTRY: ToolInteractionLogEntryData,
-    StreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION: AgentOperationalPhaseTransitionData, # RENAMED mapping
+    StreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION: AgentOperationalPhaseTransitionData,
     StreamEventType.ERROR_EVENT: ErrorEventData,
     StreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED: ToolInvocationApprovalRequestedData,
-    StreamEventType.AGENT_IDLE: AgentOperationalPhaseTransitionData, # ADDED: Mapped to the same payload as phase update
+    StreamEventType.TOOL_INVOCATION_AUTO_EXECUTING: ToolInvocationAutoExecutingData,
+    StreamEventType.AGENT_IDLE: AgentOperationalPhaseTransitionData,
 }
 
 

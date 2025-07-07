@@ -13,6 +13,7 @@ from autobyteus.agent.streaming.stream_event_payloads import (
     ToolInteractionLogEntryData,
     AgentOperationalPhaseTransitionData,
     ErrorEventData,
+    ToolInvocationAutoExecutingData,
 )
 
 logger = logging.getLogger(__name__) 
@@ -160,9 +161,19 @@ class InteractiveCLIDisplay:
             self.pending_approval_data = event.data
             self._display_tool_approval_prompt()
 
+        elif event.event_type == StreamEventType.TOOL_INVOCATION_AUTO_EXECUTING and isinstance(event.data, ToolInvocationAutoExecutingData):
+            tool_name = event.data.tool_name
+            self._ensure_new_line()
+            sys.stdout.write(f"Agent: Automatically executing tool '{tool_name}'...\n")
+            sys.stdout.flush()
+            self.current_line_empty = True
+            self.agent_has_spoken_this_turn = True
+
         elif event.event_type == StreamEventType.TOOL_INTERACTION_LOG_ENTRY and isinstance(event.data, ToolInteractionLogEntryData):
             if self.show_tool_logs:
-                logger.info(f"[Tool Log: {event.data.log_entry}]")
+                logger.info(
+                    f"[Tool Log ({event.data.tool_name} | {event.data.tool_invocation_id})]: {event.data.log_entry}"
+                )
 
         elif event.event_type == StreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION and isinstance(event.data, AgentOperationalPhaseTransitionData):
             if event.data.new_phase == AgentOperationalPhase.EXECUTING_TOOL:

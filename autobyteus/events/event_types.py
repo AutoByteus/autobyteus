@@ -31,12 +31,13 @@ class EventType(Enum):
     # --- Agent Data Outputs ---
     AGENT_DATA_ASSISTANT_CHUNK = "agent_data_assistant_chunk" 
     AGENT_DATA_ASSISTANT_CHUNK_STREAM_END = "agent_data_assistant_chunk_stream_end" 
-    AGENT_DATA_ASSISTANT_COMPLETE_RESPONSE = "agent_data_assistant_complete_response" # RENAMED from AGENT_DATA_ASSISTANT_FINAL_MESSAGE
+    AGENT_DATA_ASSISTANT_COMPLETE_RESPONSE = "agent_data_assistant_complete_response"
     AGENT_DATA_TOOL_LOG = "agent_data_tool_log" 
     AGENT_DATA_TOOL_LOG_STREAM_END = "agent_data_tool_log_stream_end" 
     
     # --- Agent Requests for External Interaction ---
     AGENT_REQUEST_TOOL_INVOCATION_APPROVAL = "agent_request_tool_invocation_approval" 
+    AGENT_TOOL_INVOCATION_AUTO_EXECUTING = "agent_tool_invocation_auto_executing"
     
     # --- Agent Errors (not necessarily phase changes, e.g., error during output generation) ---
     AGENT_ERROR_OUTPUT_GENERATION = "agent_error_output_generation"

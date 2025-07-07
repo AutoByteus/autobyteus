@@ -54,7 +54,12 @@ class ApprovedToolInvocationEventHandler(AgentEventHandler):
         
         if notifier:
             try:
-                notifier.notify_agent_data_tool_log(log_msg_call) # USE RENAMED METHOD
+                log_data = {
+                    "log_entry": log_msg_call,
+                    "tool_invocation_id": invocation_id,
+                    "tool_name": tool_name,
+                }
+                notifier.notify_agent_data_tool_log(log_data)
             except Exception as e_notify: 
                  logger.error(f"Agent '{agent_id}': Error notifying approved tool call log: {e_notify}", exc_info=True)
 
@@ -74,8 +79,13 @@ class ApprovedToolInvocationEventHandler(AgentEventHandler):
             log_msg_error = f"[APPROVED_TOOL_ERROR] Agent_ID: {agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Error: {error_message}"
             if notifier:
                 try:
-                    notifier.notify_agent_data_tool_log(log_msg_error) # USE RENAMED METHOD
-                    notifier.notify_agent_error_output_generation( # USE RENAMED METHOD
+                    log_data = {
+                        "log_entry": log_msg_error,
+                        "tool_invocation_id": invocation_id,
+                        "tool_name": tool_name,
+                    }
+                    notifier.notify_agent_data_tool_log(log_data)
+                    notifier.notify_agent_error_output_generation(
                         error_source=f"ApprovedToolExecution.ToolNotFound.{tool_name}",
                         error_message=error_message
                     )
@@ -104,7 +114,12 @@ class ApprovedToolInvocationEventHandler(AgentEventHandler):
                 log_msg_result = f"[APPROVED_TOOL_RESULT] Agent_ID: {agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Outcome (first 200 chars): {result_str_for_log[:200]}"
                 if notifier:
                     try:
-                        notifier.notify_agent_data_tool_log(log_msg_result) # USE RENAMED METHOD
+                        log_data = {
+                            "log_entry": log_msg_result,
+                            "tool_invocation_id": invocation_id,
+                            "tool_name": tool_name,
+                        }
+                        notifier.notify_agent_data_tool_log(log_data)
                     except Exception as e_notify: 
                         logger.error(f"Agent '{agent_id}': Error notifying approved tool result log: {e_notify}", exc_info=True)
 
@@ -121,8 +136,13 @@ class ApprovedToolInvocationEventHandler(AgentEventHandler):
                 log_msg_exception = f"[APPROVED_TOOL_EXCEPTION] Agent_ID: {agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Exception: {error_message}"
                 if notifier:
                     try:
-                        notifier.notify_agent_data_tool_log(log_msg_exception) # USE RENAMED METHOD
-                        notifier.notify_agent_error_output_generation( # USE RENAMED METHOD
+                        log_data = {
+                            "log_entry": log_msg_exception,
+                            "tool_invocation_id": invocation_id,
+                            "tool_name": tool_name,
+                        }
+                        notifier.notify_agent_data_tool_log(log_data)
+                        notifier.notify_agent_error_output_generation(
                             error_source=f"ApprovedToolExecution.Exception.{tool_name}",
                             error_message=error_message,
                             error_details=traceback.format_exc()

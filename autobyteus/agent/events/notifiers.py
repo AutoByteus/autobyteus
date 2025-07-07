@@ -97,19 +97,21 @@ class AgentExternalEventNotifier(EventEmitter):
     def notify_agent_data_assistant_chunk_stream_end(self): 
         self._emit_event(EventType.AGENT_DATA_ASSISTANT_CHUNK_STREAM_END) 
 
-    # RENAMED METHOD
-    def notify_agent_data_assistant_complete_response(self, complete_response: 'CompleteResponse'): # RENAMED from notify_agent_data_assistant_final_message
-        # Use RENAMED EventType
+    def notify_agent_data_assistant_complete_response(self, complete_response: 'CompleteResponse'):
         self._emit_event(EventType.AGENT_DATA_ASSISTANT_COMPLETE_RESPONSE, payload_content=complete_response) 
 
-    def notify_agent_data_tool_log(self, log_entry: str): 
-        self._emit_event(EventType.AGENT_DATA_TOOL_LOG, payload_content=log_entry) 
+    def notify_agent_data_tool_log(self, log_data: Dict[str, Any]): 
+        self._emit_event(EventType.AGENT_DATA_TOOL_LOG, payload_content=log_data) 
     
     def notify_agent_data_tool_log_stream_end(self): 
         self._emit_event(EventType.AGENT_DATA_TOOL_LOG_STREAM_END) 
     
     def notify_agent_request_tool_invocation_approval(self, approval_data: Dict[str, Any]): 
         self._emit_event(EventType.AGENT_REQUEST_TOOL_INVOCATION_APPROVAL, payload_content=approval_data) 
+
+    def notify_agent_tool_invocation_auto_executing(self, auto_exec_data: Dict[str, Any]):
+        """Notifies that a tool is being automatically executed."""
+        self._emit_event(EventType.AGENT_TOOL_INVOCATION_AUTO_EXECUTING, payload_content=auto_exec_data)
 
     def notify_agent_error_output_generation(self, error_source: str, error_message: str, error_details: Optional[str] = None): 
         payload_dict = { 

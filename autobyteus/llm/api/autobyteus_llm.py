@@ -30,18 +30,13 @@ class AutobyteusLLM(BaseLLM):
         image_urls: Optional[List[str]] = None,
         **kwargs
     ) -> CompleteResponse:
-        user_message_index = kwargs.get("user_message_index")
-        if user_message_index is None:
-            raise ValueError("user_message_index is required in kwargs")
-
         self.add_user_message(user_message)
         try:
             response = await self.client.send_message(
                 conversation_id=self.conversation_id,
                 model_name=self.model.name,
                 user_message=user_message,
-                file_paths=image_urls,
-                user_message_index=user_message_index
+                image_urls=image_urls
             )
             
             assistant_message = response['response']
@@ -69,10 +64,6 @@ class AutobyteusLLM(BaseLLM):
         image_urls: Optional[List[str]] = None,
         **kwargs
     ) -> AsyncGenerator[ChunkResponse, None]:
-        user_message_index = kwargs.get("user_message_index")
-        if user_message_index is None:
-            raise ValueError("user_message_index is required in kwargs")
-
         self.add_user_message(user_message)
         complete_response = ""
         
@@ -81,8 +72,7 @@ class AutobyteusLLM(BaseLLM):
                 conversation_id=self.conversation_id,
                 model_name=self.model.name,
                 user_message=user_message,
-                file_paths=image_urls,
-                user_message_index=user_message_index
+                image_urls=image_urls
             ):
                 if 'error' in chunk:
                     raise RuntimeError(chunk['error'])
