@@ -27,11 +27,7 @@ except ImportError:
 # --- Imports for the Google Slides Agent Example ---
 try:
     # For MCP Tool Integration
-    from autobyteus.tools.mcp import (
-        McpConfigService,
-        McpSchemaMapper,
-        McpToolRegistrar,
-    )
+    from autobyteus.tools.mcp import McpToolRegistrar
     from autobyteus.tools.registry import default_tool_registry
 
     # For Agent creation
@@ -158,48 +154,42 @@ async def main(args: argparse.Namespace):
     logger.info("--- Starting Google Slides Agent Example ---")
     env_vars = check_required_env_vars()
 
-    # 1. Instantiate all the core MCP and registry components.
-    config_service = McpConfigService()
-    schema_mapper = McpSchemaMapper()
+    # 1. Instantiate the core MCP and registry components.
     tool_registry = default_tool_registry
-    
-    # The registrar now uses the handler architecture and no longer needs a connection manager.
-    registrar = McpToolRegistrar(
-        config_service=config_service,
-        schema_mapper=schema_mapper,
-        tool_registry=tool_registry
-    )
+    registrar = McpToolRegistrar()
 
-    # 2. Define the configuration for the MCP server.
+    # 2. Define the configuration for the MCP server using a clear dictionary format.
     server_id = "google-slides-mcp"
-    tool_prefix = "gslide"
-    google_slides_mcp_config = {
+    google_slides_mcp_config_dict = {
         server_id: {
             "transport_type": "stdio",
-            "command": "node",
-            "args": [env_vars["script_path"]],
+            "stdio_params": {
+                "command": "node",
+                "args": [env_vars["script_path"]],
+                "env": {
+                    "GOOGLE_CLIENT_ID": env_vars["google_client_id"],
+                    "GOOGLE_CLIENT_SECRET": env_vars["google_client_secret"],
+                    "GOOGLE_REFRESH_TOKEN": env_vars["google_refresh_token"],
+                }
+            },
             "enabled": True,
-            "tool_name_prefix": tool_prefix,
-            "env": {
-                "GOOGLE_CLIENT_ID": env_vars["google_client_id"],
-                "GOOGLE_CLIENT_SECRET": env_vars["google_client_secret"],
-                "GOOGLE_REFRESH_TOKEN": env_vars["google_refresh_token"],
-            }
+            "tool_name_prefix": "gslide",
         }
     }
-    config_service.load_configs(google_slides_mcp_config)
 
     try:
-        # 3. Discover and register tools from the configured server.
-        logger.info("Discovering and registering remote Google Slides tools...")
-        await registrar.discover_and_register_tools()
+        # 3. Discover and register tools by passing the config dictionary directly.
+        # The registrar will handle parsing, validation, and storage.
+        logger.info(f"Performing targeted discovery for remote Google Slides tools from server: '{server_id}'...")
+        await registrar.discover_and_register_tools(mcp_config=google_slides_mcp_config_dict)
         logger.info("Remote tool registration complete.")
 
         # 4. Create tool instances from the registry for our agent.
-        all_tool_names = tool_registry.list_tool_names()
-        gslides_tool_names = [name for name in all_tool_names if name.startswith(tool_prefix)]
+        gslides_tool_defs = registrar.get_registered_tools_for_server(server_id)
+        gslides_tool_names = [tool_def.name for tool_def in gslides_tool_defs]
+
         if not gslides_tool_names:
-            logger.error("No Google Slides tools were found in the registry after discovery. Cannot create agent.")
+            logger.error(f"No Google Slides tools were found in the registry for server '{server_id}' after discovery. Cannot create agent.")
             return
 
         logger.info(f"Creating instances for registered Google Slides tools: {gslides_tool_names}")
@@ -207,14 +197,9 @@ async def main(args: argparse.Namespace):
         
         # 5. Configure and create the agent.
         try:
-            # Validate model exists by attempting to access it.
-            # LLMModel[...] now supports lookup by both name and value.
             _ = LLMModel[args.llm_model]
         except KeyError:
-            # Using list(LLMModel) is safe because the metaclass handles iteration
             all_models = sorted(list(LLMModel), key=lambda m: m.name)
-            
-            # Create formatted lists for the error message
             available_models_list = [f"  - Name: {m.name:<35} Value: {m.value}" for m in all_models]
             
             logger.error(
@@ -260,8 +245,6 @@ async def main(args: argparse.Namespace):
     except Exception as e:
         logger.error(f"An error occurred during the agent workflow: {e}", exc_info=True)
     
-    # The 'finally' block for cleanup is no longer needed because the new handler
-    # architecture is stateless and does not hold persistent connections.
     logger.info("--- Google Slides Agent Example Finished ---")
 
 if __name__ == "__main__":
@@ -278,7 +261,6 @@ if __name__ == "__main__":
         try:
             LLMFactory.ensure_initialized() 
             print("Available LLM Models (you can use either name or value with --llm-model):")
-            # Using list(LLMModel) is safe because the metaclass handles iteration
             all_models = sorted(list(LLMModel), key=lambda m: m.name)
             if not all_models:
                 print("  No models found.")

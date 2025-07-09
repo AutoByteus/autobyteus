@@ -10,6 +10,7 @@ from .base_tool import BaseTool
 from .functional_tool import tool # The @tool decorator
 from .parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from .tool_config import ToolConfig # Configuration data object, primarily for class-based tools
+from .tool_category import ToolCategory
 
 # --- Re-export specific tools for easier access ---
 
@@ -47,6 +48,7 @@ __all__ = [
     "ParameterDefinition",
     "ParameterType",
     "ToolConfig",
+    "ToolCategory",
 
     # Re-exported functional tool instances
     "ask_user_input",

@@ -43,6 +43,24 @@ class ToolRegistry(metaclass=SingletonMeta):
         ToolRegistry._definitions[tool_name] = definition
         logger.info(f"Successfully registered tool definition: '{tool_name}'")
 
+    def unregister_tool(self, name: str) -> bool:
+        """
+        Unregisters a tool definition by its name.
+
+        Args:
+            name: The unique name of the tool definition to unregister.
+
+        Returns:
+            True if the tool was found and unregistered, False otherwise.
+        """
+        if name in self._definitions:
+            del self._definitions[name]
+            logger.info(f"Successfully unregistered tool definition: '{name}'")
+            return True
+        else:
+            logger.warning(f"Attempted to unregister tool '{name}', but it was not found in the registry.")
+            return False
+
     def get_tool_definition(self, name: str) -> Optional[ToolDefinition]:
         """
         Retrieves the definition for a specific tool name.

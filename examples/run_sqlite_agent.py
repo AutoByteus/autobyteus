@@ -27,11 +27,7 @@ except ImportError:
 # --- Imports for the SQLite Agent Example ---
 try:
     # For MCP Tool Integration
-    from autobyteus.tools.mcp import (
-        McpConfigService,
-        McpSchemaMapper,
-        McpToolRegistrar,
-    )
+    from autobyteus.tools.mcp import McpToolRegistrar
     from autobyteus.tools.registry import default_tool_registry
 
     # For Agent creation
@@ -168,46 +164,40 @@ async def main(args: argparse.Namespace):
     logger.info("--- Starting SQLite Agent Example ---")
     env_vars = check_required_env_vars()
 
-    # 1. Instantiate all the core MCP and registry components.
-    config_service = McpConfigService()
-    schema_mapper = McpSchemaMapper()
+    # 1. Instantiate the core MCP and registry components.
     tool_registry = default_tool_registry
-    
-    registrar = McpToolRegistrar(
-        config_service=config_service,
-        schema_mapper=schema_mapper,
-        tool_registry=tool_registry
-    )
+    registrar = McpToolRegistrar()
 
-    # 2. Define the configuration for the MCP server.
+    # 2. Define the configuration for the MCP server as a dictionary.
     server_id = "sqlite-mcp"
-    tool_prefix = "sqlite"
-    sqlite_mcp_config = {
+    sqlite_mcp_config_dict = {
         server_id: {
             "transport_type": "stdio",
-            "command": "node",
-            "args": [
-                env_vars["script_path"],
-                env_vars["db_path"],
-            ],
+            "stdio_params": {
+                "command": "node",
+                "args": [
+                    env_vars["script_path"],
+                    env_vars["db_path"],
+                ],
+                "env": {},
+            },
             "enabled": True,
-            "tool_name_prefix": tool_prefix,
-            "env": {}, # FIX: Changed from None to an empty dictionary to match type constraints.
+            "tool_name_prefix": "sqlite",
         }
     }
-    config_service.load_configs(sqlite_mcp_config)
 
     try:
-        # 3. Discover and register tools from the configured server.
-        logger.info("Discovering and registering remote SQLite tools...")
-        await registrar.discover_and_register_tools()
+        # 3. Discover and register tools by passing the config dictionary directly.
+        logger.info(f"Performing targeted discovery for remote SQLite tools from server: '{server_id}'...")
+        await registrar.discover_and_register_tools(mcp_config=sqlite_mcp_config_dict)
         logger.info("Remote tool registration complete.")
 
         # 4. Create tool instances from the registry for our agent.
-        all_tool_names = tool_registry.list_tool_names()
-        sqlite_tool_names = [name for name in all_tool_names if name.startswith(tool_prefix)]
+        sqlite_tool_defs = registrar.get_registered_tools_for_server(server_id)
+        sqlite_tool_names = [tool_def.name for tool_def in sqlite_tool_defs]
+
         if not sqlite_tool_names:
-            logger.error("No SQLite tools were found in the registry after discovery. Cannot create agent.")
+            logger.error(f"No SQLite tools were found in the registry for server '{server_id}' after discovery. Cannot create agent.")
             return
 
         logger.info(f"Creating instances for registered SQLite tools: {sqlite_tool_names}")

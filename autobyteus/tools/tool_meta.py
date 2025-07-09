@@ -5,6 +5,7 @@ from typing import Dict, Any
 
 from autobyteus.tools.registry import default_tool_registry, ToolDefinition
 from autobyteus.tools.parameter_schema import ParameterSchema
+from autobyteus.tools.tool_category import ToolCategory
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +61,8 @@ class ToolMeta(ABCMeta):
                 tool_class=cls,
                 custom_factory=None,
                 argument_schema=argument_schema,
-                config_schema=instantiation_config_schema 
+                config_schema=instantiation_config_schema,
+                category=ToolCategory.LOCAL
             )
             default_tool_registry.register_tool(definition)
             

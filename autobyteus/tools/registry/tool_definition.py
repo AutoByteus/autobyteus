@@ -6,6 +6,7 @@ from typing import Dict, Any, List as TypingList, Type, TYPE_CHECKING, Optional,
 from autobyteus.llm.providers import LLMProvider
 from autobyteus.tools.tool_config import ToolConfig
 from autobyteus.tools.parameter_schema import ParameterSchema
+from autobyteus.tools.tool_category import ToolCategory
 from autobyteus.tools.usage.providers import (
     XmlSchemaProvider, 
     JsonSchemaProvider, 
@@ -27,6 +28,7 @@ class ToolDefinition:
                  name: str,
                  description: str,
                  argument_schema: Optional['ParameterSchema'],
+                 category: ToolCategory,
                  config_schema: Optional['ParameterSchema'] = None,
                  tool_class: Optional[Type['BaseTool']] = None,
                  custom_factory: Optional[Callable[['ToolConfig'], 'BaseTool']] = None):
@@ -52,6 +54,8 @@ class ToolDefinition:
              raise TypeError(f"ToolDefinition '{name}' received an invalid 'argument_schema'. Expected ParameterSchema or None.")
         if config_schema is not None and not isinstance(config_schema, ParameterSchema):
              raise TypeError(f"ToolDefinition '{name}' received an invalid 'config_schema'. Expected ParameterSchema or None.")
+        if not isinstance(category, ToolCategory):
+            raise TypeError(f"ToolDefinition '{name}' requires a ToolCategory for 'category'. Got {type(category)}")
 
         self._name = name
         self._description = description
@@ -59,6 +63,7 @@ class ToolDefinition:
         self._config_schema: Optional['ParameterSchema'] = config_schema
         self._tool_class = tool_class
         self._custom_factory = custom_factory
+        self._category = category
         
         logger.debug(f"ToolDefinition created for tool '{self.name}'.")
 
@@ -75,6 +80,8 @@ class ToolDefinition:
     def argument_schema(self) -> Optional['ParameterSchema']: return self._argument_schema
     @property
     def config_schema(self) -> Optional['ParameterSchema']: return self._config_schema
+    @property
+    def category(self) -> ToolCategory: return self._category
     
     # --- Schema Generation API ---
     def get_usage_xml(self, provider: Optional[LLMProvider] = None) -> str:
@@ -129,4 +136,4 @@ class ToolDefinition:
 
     def __repr__(self) -> str:
         creator_repr = f"class='{self._tool_class.__name__}'" if self._tool_class else "factory=True"
-        return (f"ToolDefinition(name='{self.name}', {creator_repr})")
+        return (f"ToolDefinition(name='{self.name}', category='{self.category.value}', {creator_repr})")

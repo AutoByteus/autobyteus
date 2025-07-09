@@ -8,6 +8,7 @@ from autobyteus.tools.functional_tool import tool, FunctionalTool
 from autobyteus.tools.parameter_schema import ParameterSchema
 from autobyteus.tools.registry import ToolRegistry, ToolDefinition
 from autobyteus.tools.tool_config import ToolConfig
+from autobyteus.tools.tool_category import ToolCategory
 
 # --- Dummy Tools for Testing ---
 
@@ -96,7 +97,8 @@ def no_config_def() -> ToolDefinition:
         name="DummyToolNoConfig",
         description="A dummy tool without config.",
         argument_schema=None,
-        tool_class=DummyToolNoConfig
+        tool_class=DummyToolNoConfig,
+        category=ToolCategory.LOCAL
     )
 
 @pytest.fixture
@@ -106,7 +108,8 @@ def with_config_def() -> ToolDefinition:
         name="DummyToolWithConfig",
         description="A dummy tool with config.",
         argument_schema=None,
-        tool_class=DummyToolWithConfig
+        tool_class=DummyToolWithConfig,
+        category=ToolCategory.LOCAL
     )
 
 @pytest.fixture
@@ -116,7 +119,8 @@ def factory_def() -> ToolDefinition:
         name="DummyFactoryTool",
         description="A dummy tool created by a factory.",
         argument_schema=None,
-        custom_factory=dummy_factory
+        custom_factory=dummy_factory,
+        category=ToolCategory.LOCAL
     )
 
 # --- Test Cases ---
@@ -143,13 +147,31 @@ def test_register_overwrites_existing(clean_registry: ToolRegistry, no_config_de
         name="DummyToolNoConfig", # Same name
         description="An updated description.",
         argument_schema=None,
-        tool_class=DummyToolNoConfig
+        tool_class=DummyToolNoConfig,
+        category=ToolCategory.LOCAL
     )
     clean_registry.register_tool(new_def)
     
     retrieved_def = clean_registry.get_tool_definition("DummyToolNoConfig")
     assert retrieved_def is not no_config_def
     assert retrieved_def.description == "An updated description."
+
+def test_unregister_tool(clean_registry: ToolRegistry, no_config_def: ToolDefinition):
+    """Tests the new unregister_tool method."""
+    tool_name = no_config_def.name
+    clean_registry.register_tool(no_config_def)
+    
+    # Verify it's there
+    assert clean_registry.get_tool_definition(tool_name) is not None
+    
+    # Unregister and verify it's gone
+    result = clean_registry.unregister_tool(tool_name)
+    assert result is True
+    assert clean_registry.get_tool_definition(tool_name) is None
+    
+    # Test unregistering a non-existent tool
+    result_nonexistent = clean_registry.unregister_tool("nonexistent_tool")
+    assert result_nonexistent is False
 
 def test_list_tools(clean_registry: ToolRegistry, no_config_def: ToolDefinition, factory_def: ToolDefinition):
     """Tests listing registered tools."""
@@ -281,7 +303,8 @@ def test_create_tool_instantiation_fails_raises_error(clean_registry: ToolRegist
         name="DummyToolFailsInit",
         description="...",
         argument_schema=None,
-        tool_class=DummyToolFailsInit
+        tool_class=DummyToolFailsInit,
+        category=ToolCategory.LOCAL
     )
     clean_registry.register_tool(fail_def)
     

@@ -47,7 +47,11 @@ class StdioMcpServerConfig(BaseMcpConfig):
         super().__post_init__() 
         self.transport_type = McpTransportType.STDIO
 
-        # Added: Validation for command
+        # BUG FIX: Normalize cwd. An empty string is invalid for subprocess creation
+        # and should be treated as None (use parent CWD).
+        if self.cwd == '':
+            self.cwd = None
+
         if self.command is None or not isinstance(self.command, str) or not self.command.strip():
             raise ValueError(f"StdioMcpServerConfig '{self.server_id}' 'command' must be a non-empty string.")
         
@@ -69,7 +73,6 @@ class SseMcpServerConfig(BaseMcpConfig):
         super().__post_init__()
         self.transport_type = McpTransportType.SSE
 
-        # Added: Validation for url
         if self.url is None or not isinstance(self.url, str) or not self.url.strip():
             raise ValueError(f"SseMcpServerConfig '{self.server_id}' 'url' must be a non-empty string.")
         
@@ -89,7 +92,6 @@ class StreamableHttpMcpServerConfig(BaseMcpConfig):
         super().__post_init__()
         self.transport_type = McpTransportType.STREAMABLE_HTTP
 
-        # Added: Validation for url
         if self.url is None or not isinstance(self.url, str) or not self.url.strip():
             raise ValueError(f"StreamableHttpMcpServerConfig '{self.server_id}' 'url' must be a non-empty string.")
         
