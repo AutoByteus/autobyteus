@@ -27,6 +27,8 @@ Run the script with:
 
 ```bash
 python gemini_pptx_generator.py "Your Presentation Title"
+python gemini_pptx_slides.py "AI in healthcare" apyakurel@gmail.com
+python powerpoint_generation_agent.py "AI in Healthcare" --output ./presentations/healthcare_ai.pptx --slides 2
 ```
 
 ### Command-line options:

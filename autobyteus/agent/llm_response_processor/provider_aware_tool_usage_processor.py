@@ -3,14 +3,14 @@ import logging
 from typing import TYPE_CHECKING
 
 from .base_processor import BaseLLMResponseProcessor
-from autobyteus.tools.usage.parsers import ProviderAwareToolUsageParser
-from autobyteus.tools.usage.parsers.exceptions import ToolUsageParseException
-from autobyteus.agent.events import PendingToolInvocationEvent
+from tools.usage.parsers import ProviderAwareToolUsageParser
+from tools.usage.parsers.exceptions import ToolUsageParseException
+from agent.events import PendingToolInvocationEvent
 
 if TYPE_CHECKING:
-    from autobyteus.agent.context import AgentContext
-    from autobyteus.agent.events import LLMCompleteResponseReceivedEvent
-    from autobyteus.llm.utils.response_types import CompleteResponse
+    from agent.context import AgentContext
+    from agent.events import LLMCompleteResponseReceivedEvent
+    from llm.utils.response_types import CompleteResponse
 
 logger = logging.getLogger(__name__)
 
@@ -37,11 +37,18 @@ class ProviderAwareToolUsageProcessor(BaseLLMResponseProcessor):
         try:
             # Delegate parsing to the high-level parser
             tool_invocations = self._parser.parse(response, context)
-        except ToolUsageParseException:
+            if not tool_invocations:
+                # Add a retry mechanism
+                logger.warning(f"Agent '{context.agent_id}': Tool usage parser found no invocations. Retrying once.")
+                tool_invocations = self._parser.parse(response, context)
+
+        except ToolUsageParseException as e:
+            logger.error(f"Agent '{context.agent_id}': Failed to parse tool usage from LLM response. Error: {e}", exc_info=True)
             # Re-raise the exception to be caught by the event handler
             raise
 
         if not tool_invocations:
+            logger.warning(f"Agent '{context.agent_id}': No tool invocations found after retry. Treating as a regular message.")
             return False
 
         logger.info(f"Agent '{context.agent_id}': Parsed {len(tool_invocations)} tool invocations. Enqueuing events.")

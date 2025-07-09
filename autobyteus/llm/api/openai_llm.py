@@ -151,4 +151,4 @@ class OpenAILLM(BaseLLM):
             raise ValueError(f"Error in OpenAI API streaming: {str(e)}")
     
     async def cleanup(self):
-        super().cleanup()
+        await super().cleanup()

@@ -9,10 +9,7 @@ import sys
 import os
 from pathlib import Path
 import logging
-import base64
 import uuid
-import mimetypes
-from io import BytesIO
 import tempfile
 import shutil
 import datetime

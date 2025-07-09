@@ -131,6 +131,6 @@ class DefaultXmlToolUsageParser(BaseToolUsageParser):
             arg_name = arg_element.attrib.get('name')
             if arg_name:
                 raw_text = "".join(arg_element.itertext())
-                unescaped_value = unescape(raw_text)
+                unescaped_value = unescape(raw_text).strip()
                 arguments[arg_name] = unescaped_value
         return arguments
