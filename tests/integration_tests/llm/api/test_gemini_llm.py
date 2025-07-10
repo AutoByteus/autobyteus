@@ -19,7 +19,7 @@ def gemini_llm(set_gemini_env):
         pytest.skip("Gemini API key not set. Skipping GeminiLLM tests.")
     
     # Use actual model and llm_config instantiation as per BaseLLM constructor
-    return GeminiLLM(model=LLMModel.GEMINI_1_5_FLASH_API, llm_config=LLMConfig())
+    return GeminiLLM(model=LLMModel.GEMINI_2_0_FLASH_API, llm_config=LLMConfig())
 
 @pytest.mark.asyncio
 async def test_gemini_llm_response(gemini_llm):

@@ -2,6 +2,7 @@ from autobyteus.llm.models import LLMModel
 from autobyteus.llm.api.ollama_llm import OllamaLLM
 from autobyteus.llm.providers import LLMProvider
 from autobyteus.llm.utils.llm_config import LLMConfig, TokenPricingConfig
+from autobyteus.llm.ollama_provider_resolver import OllamaProviderResolver
 from typing import TYPE_CHECKING
 import os
 import logging
@@ -73,11 +74,14 @@ class OllamaModelProvider:
                     model_name = model_info.get('model')
                     if not model_name:
                         continue
+
+                    # Determine the provider based on the model name
+                    provider = OllamaProviderResolver.resolve(model_name)
                         
                     llm_model = LLMModel(
                         name=model_name,
                         value=model_name,
-                        provider=LLMProvider.OLLAMA,
+                        provider=provider,
                         llm_class=OllamaLLM,
                         canonical_name=model_name,  # Use model_name as the canonical_name
                         default_config=LLMConfig(

@@ -78,15 +78,13 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
                 "name": tool_name,
                 "content": f"Error: Tool '{tool_name}' execution failed. Reason: {error_message}",
             })
-            log_msg_error = f"[TOOL_ERROR_DIRECT] Agent_ID: {agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Error: {error_message}"
+            log_msg_error = f"[TOOL_ERROR_DIRECT] {error_message}"
             if notifier:
                 try:
-                    log_data = {
-                        "log_entry": log_msg_error,
-                        "tool_invocation_id": invocation_id,
-                        "tool_name": tool_name,
-                    }
+                    # Log entry
+                    log_data = { "log_entry": log_msg_error, "tool_invocation_id": invocation_id, "tool_name": tool_name, }
                     notifier.notify_agent_data_tool_log(log_data)
+                    # Generic output error
                     notifier.notify_agent_error_output_generation(
                         error_source=f"ToolExecutionDirect.ToolNotFound.{tool_name}",
                         error_message=error_message
@@ -99,11 +97,11 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
                 execution_result = await tool_instance.execute(context=context, **arguments) 
                 
                 try:
-                    result_str_for_log = json.dumps(execution_result)
-                except TypeError: 
-                    result_str_for_log = str(execution_result)
+                    result_json_for_log = json.dumps(execution_result)
+                except (TypeError, ValueError): 
+                    result_json_for_log = json.dumps(str(execution_result))
 
-                logger.info(f"Tool '{tool_name}' (ID: {invocation_id}) executed by agent '{agent_id}'. Result: {result_str_for_log[:200]}...")
+                logger.info(f"Tool '{tool_name}' (ID: {invocation_id}) executed by agent '{agent_id}'.")
                 result_event = ToolResultEvent(tool_name=tool_name, result=execution_result, error=None, tool_invocation_id=invocation_id)
                 
                 history_content = str(execution_result) 
@@ -113,20 +111,18 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
                     "name": tool_name,
                     "content": history_content,
                 })
-                log_msg_result = f"[TOOL_RESULT_DIRECT] Agent_ID: {agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Outcome (first 200 chars): {result_str_for_log[:200]}"
+                log_msg_result = f"[TOOL_RESULT_DIRECT] {result_json_for_log}"
                 if notifier:
                     try:
-                        log_data = {
-                            "log_entry": log_msg_result,
-                            "tool_invocation_id": invocation_id,
-                            "tool_name": tool_name,
-                        }
+                        # Log entry with embedded JSON result
+                        log_data = { "log_entry": log_msg_result, "tool_invocation_id": invocation_id, "tool_name": tool_name }
                         notifier.notify_agent_data_tool_log(log_data)
                     except Exception as e_notify: 
                         logger.error(f"Agent '{agent_id}': Error notifying tool result log: {e_notify}", exc_info=True)
 
             except Exception as e: 
                 error_message = f"Error executing tool '{tool_name}' (ID: {invocation_id}): {str(e)}"
+                error_details = traceback.format_exc()
                 logger.error(f"Agent '{agent_id}' {error_message}", exc_info=True)
                 result_event = ToolResultEvent(tool_name=tool_name, result=None, error=error_message, tool_invocation_id=invocation_id)
                 context.add_message_to_history({ 
@@ -135,19 +131,17 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
                     "name": tool_name,
                     "content": f"Error: Tool '{tool_name}' execution failed. Reason: {error_message}",
                 })
-                log_msg_exception = f"[TOOL_EXCEPTION_DIRECT] Agent_ID: {agent_id}, Tool: {tool_name}, Invocation_ID: {invocation_id}, Exception: {error_message}"
+                log_msg_exception = f"[TOOL_EXCEPTION_DIRECT] {error_message}\nDetails:\n{error_details}"
                 if notifier:
                     try:
-                        log_data = {
-                            "log_entry": log_msg_exception,
-                            "tool_invocation_id": invocation_id,
-                            "tool_name": tool_name,
-                        }
+                        # Log entry
+                        log_data = { "log_entry": log_msg_exception, "tool_invocation_id": invocation_id, "tool_name": tool_name }
                         notifier.notify_agent_data_tool_log(log_data)
+                        # Generic output error
                         notifier.notify_agent_error_output_generation(
                             error_source=f"ToolExecutionDirect.Exception.{tool_name}",
                             error_message=error_message,
-                            error_details=traceback.format_exc()
+                            error_details=error_details
                         )
                     except Exception as e_notify: 
                         logger.error(f"Agent '{agent_id}': Error notifying tool exception log/output error: {e_notify}", exc_info=True)

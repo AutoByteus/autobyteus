@@ -348,4 +348,25 @@ class LLMFactory(metaclass=SingletonMeta):
                     return model_instance.canonical_name
         return None
 
+    @staticmethod
+    def get_models_grouped_by_provider() -> List[Dict[str, any]]:
+        """
+        Returns a list of providers, each with a list of its available models,
+        sorted by provider name and model name.
+        """
+        LLMFactory.ensure_initialized()
+        result = []
+        # Sort providers by name for consistent order
+        sorted_providers = sorted(LLMFactory._models_by_provider.items(), key=lambda item: item[0].name)
+        
+        for provider, models in sorted_providers:
+            if models:  # Only include providers that have registered models
+                # Sort models by name for consistent order
+                sorted_models = sorted(models, key=lambda model: model.name)
+                result.append({
+                    "provider": provider.name,
+                    "models": [model.name for model in sorted_models]
+                })
+        return result
+
 default_llm_factory = LLMFactory()

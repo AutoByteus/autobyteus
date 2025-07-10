@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 
 class GeminiJsonToolUsageParser(BaseToolUsageParser):
     """
-    Parses LLM responses for tool usage commands formatted in the Google Gemini style.
-    It expects a JSON object with "name" and "args" keys.
+    Parses LLM responses for a single tool usage command formatted in the Google Gemini style.
+    It expects a single JSON object with "name" and "args" keys.
     """
     def get_name(self) -> str:
         return "gemini_json_tool_usage_parser"
@@ -28,24 +28,22 @@ class GeminiJsonToolUsageParser(BaseToolUsageParser):
 
         try:
             parsed_json = json.loads(response_text)
-            
-            if isinstance(parsed_json, list):
-                tool_calls = parsed_json
-            elif isinstance(parsed_json, dict) and 'tool_calls' in parsed_json:
-                 tool_calls = parsed_json['tool_calls']
+
+            if not isinstance(parsed_json, dict):
+                logger.debug(f"Expected a JSON object for Gemini tool call, but got {type(parsed_json)}")
+                return []
+
+            # Gemini format is a single tool call object.
+            tool_data = parsed_json
+            tool_name = tool_data.get("name")
+            arguments = tool_data.get("args")
+
+            if tool_name and isinstance(tool_name, str) and isinstance(arguments, dict):
+                # Pass id=None to trigger deterministic ID generation in ToolInvocation
+                tool_invocation = ToolInvocation(name=tool_name, arguments=arguments)
+                invocations.append(tool_invocation)
             else:
-                tool_calls = [parsed_json]
-
-            for tool_data in tool_calls:
-                tool_name = tool_data.get("name")
-                arguments = tool_data.get("args")
-
-                if tool_name and isinstance(tool_name, str) and isinstance(arguments, dict):
-                    # Pass id=None to trigger deterministic ID generation in ToolInvocation
-                    tool_invocation = ToolInvocation(name=tool_name, arguments=arguments)
-                    invocations.append(tool_invocation)
-                else:
-                    logger.debug(f"Skipping malformed Gemini tool call data: {tool_data}")
+                logger.debug(f"Skipping malformed Gemini tool call data: {tool_data}")
 
             return invocations
         except json.JSONDecodeError:
@@ -62,8 +60,7 @@ class GeminiJsonToolUsageParser(BaseToolUsageParser):
             return match.group(1).strip()
         
         stripped_text = text.strip()
-        if (stripped_text.startswith('{') and stripped_text.endswith('}')) or \
-           (stripped_text.startswith('[') and stripped_text.endswith(']')):
+        if stripped_text.startswith('{') and stripped_text.endswith('}'):
             return stripped_text
             
         return None
