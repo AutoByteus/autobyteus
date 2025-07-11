@@ -48,9 +48,6 @@ class AgentContext:
     @property
     def auto_execute_tools(self) -> bool:
         return self.config.auto_execute_tools
-    
-    # llm_model_name property removed
-    # custom_llm_config property removed
 
     @property
     def llm_instance(self) -> Optional['BaseLLM']:

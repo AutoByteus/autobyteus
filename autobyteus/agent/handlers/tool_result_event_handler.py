@@ -61,7 +61,12 @@ class ToolResultEventHandler(AgentEventHandler):
             log_msg_error_processed = f"[TOOL_RESULT_ERROR_PROCESSED] Agent_ID: {agent_id}, Tool: {event.tool_name}, Invocation_ID: {tool_invocation_id}, Error: {event.error}"
             if notifier:
                 try:
-                    notifier.notify_agent_data_tool_log(log_msg_error_processed) # USE RENAMED METHOD
+                    log_data = {
+                        "log_entry": log_msg_error_processed,
+                        "tool_invocation_id": tool_invocation_id,
+                        "tool_name": event.tool_name,
+                    }
+                    notifier.notify_agent_data_tool_log(log_data)
                 except Exception as e_notify: 
                     logger.error(f"Agent '{agent_id}': Error notifying tool result error log: {e_notify}", exc_info=True)
         else:
@@ -78,7 +83,12 @@ class ToolResultEventHandler(AgentEventHandler):
             log_msg_success_processed = f"[TOOL_RESULT_SUCCESS_PROCESSED] Agent_ID: {agent_id}, Tool: {event.tool_name}, Invocation_ID: {tool_invocation_id}, Result (first 200 chars of stringified): {str(event.result)[:200]}"
             if notifier:
                 try:
-                    notifier.notify_agent_data_tool_log(log_msg_success_processed) # USE RENAMED METHOD
+                    log_data = {
+                        "log_entry": log_msg_success_processed,
+                        "tool_invocation_id": tool_invocation_id,
+                        "tool_name": event.tool_name,
+                    }
+                    notifier.notify_agent_data_tool_log(log_data)
                 except Exception as e_notify: 
                     logger.error(f"Agent '{agent_id}': Error notifying tool result success log: {e_notify}", exc_info=True)
         

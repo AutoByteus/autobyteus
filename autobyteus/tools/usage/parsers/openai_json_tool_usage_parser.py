@@ -1,4 +1,3 @@
-# file: autobyteus/autobyteus/tools/usage/parsers/openai_json_tool_usage_parser.py
 import json
 import logging
 import re
@@ -15,13 +14,43 @@ logger = logging.getLogger(__name__)
 
 class OpenAiJsonToolUsageParser(BaseToolUsageParser):
     """
-    Parses LLM responses for tool usage commands formatted in the OpenAI style.
-    This parser is flexible and can handle multiple formats:
-    1. The official OpenAI API format with a 'tool_calls' list.
-    2. A raw list of tool call objects.
-    3. Simplified tool calls from fine-tuned models (e.g., {"name": "...", "arguments": {...}}).
-    4. A single tool call object not wrapped in a list.
-    5. Tool calls wrapped in a `{"tool": ...}` structure for prompt consistency.
+    Parses LLM responses for tool usage commands formatted in a strict, dual-standard
+    JSON format specific to OpenAI models.
+
+    This parser adheres to two distinct formats:
+    1.  **Single Tool Call**: A JSON object with a top-level "tool" key.
+        ```json
+        {
+          "tool": {
+            "function": {
+              "name": "tool_name",
+              "arguments": "{\\"arg1\\":\\"value1\\"}"
+            }
+          }
+        }
+        ```
+    2.  **Multiple Tool Calls**: A JSON object with a top-level "tools" key
+        containing a list of tool call objects.
+        ```json
+        {
+          "tools": [
+            {
+              "function": {
+                "name": "tool_one",
+                "arguments": "{\\"argA\\":\\"valueA\\"}"
+              }
+            },
+            {
+              "function": {
+                "name": "tool_two",
+                "arguments": "{\\"argB\\":\\"valueB\\"}"
+              }
+            }
+          ]
+        }
+        ```
+    The 'arguments' field must be a stringified JSON. The parser will not
+    process other formats.
     """
     def get_name(self) -> str:
         return "openai_json_tool_usage_parser"
@@ -55,6 +84,62 @@ class OpenAiJsonToolUsageParser(BaseToolUsageParser):
             logger.debug(f"Found potential start of JSON, but substring was not valid: {json_substring[:100]}")
             return None
 
+    def _parse_tool_call_object(self, call_data: Dict[str, Any]) -> Optional[ToolInvocation]:
+        """
+        Parses a single tool call object.
+
+        The object is expected to be in the format:
+        `{"function": {"name": str, "arguments": str_json}}`
+
+        Args:
+            call_data: A dictionary representing a single tool call.
+
+        Returns:
+            A ToolInvocation object if parsing is successful, otherwise None.
+        """
+        function_data: Optional[Dict] = call_data.get("function")
+        if not isinstance(function_data, dict):
+            logger.debug(f"Skipping malformed tool call (missing or invalid 'function' object): {call_data}")
+            return None
+        
+        tool_name = function_data.get("name")
+        if not tool_name or not isinstance(tool_name, str):
+            logger.debug(f"Skipping malformed function data (missing or invalid 'name'): {function_data}")
+            return None
+
+        arguments_raw = function_data.get("arguments")
+
+        # Per spec, arguments MUST be a stringified JSON.
+        if not isinstance(arguments_raw, str):
+            logger.debug(f"Skipping function data with invalid 'arguments' type. Expected string, got {type(arguments_raw)}: {function_data}")
+            return None
+
+        # Now we know arguments_raw is a string.
+        arguments: Dict[str, Any]
+        arg_string = arguments_raw.strip()
+
+        if not arg_string:
+            # An empty string for arguments is valid and means no arguments.
+            arguments = {}
+        else:
+            try:
+                parsed_args = json.loads(arg_string)
+                if not isinstance(parsed_args, dict):
+                    logger.error(f"Parsed 'arguments' for tool '{tool_name}' must be a dictionary, but got {type(parsed_args)}.")
+                    return None
+                arguments = parsed_args
+            except json.JSONDecodeError:
+                logger.error(f"Failed to parse 'arguments' string for tool '{tool_name}': {arguments_raw}")
+                return None
+                
+        try:
+            # The ToolInvocation constructor will generate a deterministic ID if 'id' is None.
+            tool_invocation = ToolInvocation(name=tool_name, arguments=arguments, id=None)
+            return tool_invocation
+        except Exception as e:
+            logger.error(f"Unexpected error creating ToolInvocation for tool '{tool_name}': {e}", exc_info=True)
+            return None
+
     def parse(self, response: 'CompleteResponse') -> List[ToolInvocation]:
         invocations: List[ToolInvocation] = []
         response_text = self._extract_json_from_response(response.content)
@@ -68,80 +153,44 @@ class OpenAiJsonToolUsageParser(BaseToolUsageParser):
             logger.debug(f"Could not parse extracted text as JSON. Text: {response_text[:200]}")
             return invocations
 
-        tool_calls: Optional[List[Any]] = None
-        if isinstance(data, dict):
-            # Standard OpenAI format: check for 'tool_calls', fallback to 'tools'
-            tool_calls = data.get("tool_calls")
-            if not isinstance(tool_calls, list):
-                tool_calls = data.get("tools")
-        elif isinstance(data, list):
-            # The entire response is a list of tool calls
-            tool_calls = data
-            
-        if not isinstance(tool_calls, list):
-            # Handle the case where a single tool call is returned as a dictionary, not in a list.
-            if isinstance(data, dict):
-                 # Check for a 'tool' wrapper. If present, the content is the call.
-                if "tool" in data and isinstance(data.get("tool"), dict):
-                    tool_calls = [data] # The list contains the wrapped object
-                # Otherwise, check for standard function/simplified formats.
-                elif ('name' in data and 'arguments' in data) or 'function' in data:
-                    tool_calls = [data]
-        
-        if not isinstance(tool_calls, list):
-            logger.warning(f"Expected a list of tool calls, but couldn't find one in the response. Data type: {type(data)}. Skipping.")
+        if not isinstance(data, dict):
+            logger.debug(f"Expected a JSON object at the root, but got {type(data)}. Content: {response_text[:200]}")
             return invocations
 
-        for call_data in tool_calls:
-            if not isinstance(call_data, dict):
-                logger.debug(f"Skipping non-dict item in tool_calls: {call_data}")
-                continue
+        has_tool_key = "tool" in data
+        has_tools_key = "tools" in data
 
-            # Handle if the call is wrapped in a 'tool' key.
-            # This makes the parser compatible with the new example format.
-            if "tool" in call_data and isinstance(call_data.get("tool"), dict):
-                call_data = call_data["tool"]
+        if has_tool_key and has_tools_key:
+            logger.warning(f"Ambiguous tool call format. Both 'tool' and 'tools' keys are present. Skipping. Content: {response_text[:200]}")
+            return invocations
 
-            # An invocation ID is not expected from the model, so we don't look for it.
-            # The ToolInvocation constructor will generate a deterministic one.
-            tool_id = None
+        if has_tool_key:
+            # SINGLE tool call format: {"tool": {...}}
+            tool_call_data = data.get("tool")
+            if not isinstance(tool_call_data, dict):
+                logger.warning(f"Invalid single tool call format. 'tool' key must map to an object. Got: {type(tool_call_data)}. Content: {response_text[:200]}")
+                return invocations
             
-            # The tool call can be in the full format `{"function": ...}` or a simplified `{"name": ...}`.
-            function_data: Optional[Dict] = call_data.get("function")
-            if not isinstance(function_data, dict):
-                # If 'function' key is missing, assume simplified format where call_data is the function data.
-                function_data = call_data
-            
-            tool_name = function_data.get("name")
-            arguments_raw = function_data.get("arguments")
+            invocation = self._parse_tool_call_object(tool_call_data)
+            if invocation:
+                invocations.append(invocation)
 
-            if not tool_name:
-                logger.debug(f"Skipping malformed function data (missing 'name'): {function_data}")
-                continue
+        elif has_tools_key:
+            # MULTIPLE tool call format: {"tools": [{...}, {...}]}
+            tool_calls_list = data.get("tools")
+            if not isinstance(tool_calls_list, list):
+                logger.warning(f"Invalid multiple tool call format. 'tools' key must map to a list. Got: {type(tool_calls_list)}. Content: {response_text[:200]}")
+                return invocations
 
-            arguments: Optional[Dict] = None
-            if isinstance(arguments_raw, str):
-                try:
-                    arguments = json.loads(arguments_raw)
-                except json.JSONDecodeError:
-                    logger.error(f"Failed to parse 'arguments' string for tool '{tool_name}': {arguments_raw}")
+            for call_data in tool_calls_list:
+                if not isinstance(call_data, dict):
+                    logger.debug(f"Skipping non-dict item in 'tools' list: {call_data}")
                     continue
-            elif isinstance(arguments_raw, dict):
-                arguments = arguments_raw
-            elif arguments_raw is None:
-                arguments = {} # Treat missing arguments as an empty dictionary
-            else:
-                logger.debug(f"Skipping function data with invalid 'arguments' type ({type(arguments_raw)}): {function_data}")
-                continue
-
-            if not isinstance(arguments, dict):
-                logger.error(f"Parsed arguments for tool '{tool_name}' is not a dictionary. Got: {type(arguments)}")
-                continue
-                    
-            try:
-                tool_invocation = ToolInvocation(name=tool_name, arguments=arguments, id=tool_id)
-                invocations.append(tool_invocation)
-            except Exception as e:
-                logger.error(f"Unexpected error creating ToolInvocation for tool '{tool_name}' (ID: {tool_id}): {e}", exc_info=True)
+                invocation = self._parse_tool_call_object(call_data)
+                if invocation:
+                    invocations.append(invocation)
         
+        else:
+            logger.debug(f"JSON response does not match expected format. Missing 'tool' or 'tools' key. Content: {response_text[:200]}")
+
         return invocations

@@ -1,3 +1,4 @@
+# file: autobyteus/autobyteus/agent/streaming/agent_event_stream.py
 import asyncio
 import logging
 import traceback
@@ -14,11 +15,13 @@ from autobyteus.agent.streaming.stream_event_payloads import (
     create_agent_operational_phase_transition_data, 
     create_error_event_data,
     create_tool_invocation_approval_requested_data,
+    create_tool_invocation_auto_executing_data,
     AssistantChunkData,
     AssistantCompleteResponseData,
     ToolInteractionLogEntryData,
     AgentOperationalPhaseTransitionData,
     ToolInvocationApprovalRequestedData,
+    ToolInvocationAutoExecutingData,
     ErrorEventData,
     EmptyData,
     StreamDataPayload,
@@ -92,6 +95,9 @@ class AgentEventStream(EventEmitter):
             elif event_type == EventType.AGENT_REQUEST_TOOL_INVOCATION_APPROVAL:
                 typed_payload_for_stream_event = create_tool_invocation_approval_requested_data(payload)
                 stream_event_type_for_generic_stream = StreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED
+            elif event_type == EventType.AGENT_TOOL_INVOCATION_AUTO_EXECUTING:
+                typed_payload_for_stream_event = create_tool_invocation_auto_executing_data(payload)
+                stream_event_type_for_generic_stream = StreamEventType.TOOL_INVOCATION_AUTO_EXECUTING
             elif event_type == EventType.AGENT_ERROR_OUTPUT_GENERATION:
                 typed_payload_for_stream_event = create_error_event_data(payload)
                 stream_event_type_for_generic_stream = StreamEventType.ERROR_EVENT
@@ -152,6 +158,12 @@ class AgentEventStream(EventEmitter):
         """A convenience async generator that yields only requests for tool invocation approval."""
         async for event in self.all_events():
             if event.event_type == StreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED and isinstance(event.data, ToolInvocationApprovalRequestedData):
+                yield event.data
+
+    async def stream_tool_auto_executing(self) -> AsyncIterator[ToolInvocationAutoExecutingData]:
+        """A convenience async generator that yields only events for tools being auto-executed."""
+        async for event in self.all_events():
+            if event.event_type == StreamEventType.TOOL_INVOCATION_AUTO_EXECUTING and isinstance(event.data, ToolInvocationAutoExecutingData):
                 yield event.data
 
     async def stream_errors(self) -> AsyncIterator[ErrorEventData]:

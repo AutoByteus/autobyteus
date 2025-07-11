@@ -1,5 +1,6 @@
 # file: autobyteus/autobyteus/tools/mcp/call_handlers/stdio_handler.py
 import logging
+import asyncio
 from typing import Dict, Any, cast, TYPE_CHECKING
 
 from .base_handler import McpCallHandler
@@ -10,6 +11,9 @@ if TYPE_CHECKING:
     from ..types import BaseMcpConfig, StdioMcpServerConfig
 
 logger = logging.getLogger(__name__)
+
+# A default timeout for STDIO subprocesses to prevent indefinite hangs.
+DEFAULT_STDIO_TIMEOUT = 30  # seconds
 
 class StdioMcpCallHandler(McpCallHandler):
     """Handles MCP tool calls over a stateless STDIO transport."""
@@ -23,6 +27,7 @@ class StdioMcpCallHandler(McpCallHandler):
         """
         Creates a new subprocess, establishes a session, and executes the
         requested tool call. It handles 'list_tools' as a special case.
+        Includes a timeout to prevent hanging on unresponsive subprocesses.
         """
         logger.debug(f"Handling STDIO call to tool '{remote_tool_name}' on server '{config.server_id}'.")
         
@@ -39,7 +44,8 @@ class StdioMcpCallHandler(McpCallHandler):
             cwd=stdio_config.cwd
         )
 
-        try:
+        async def _perform_call():
+            """Inner function to be wrapped by the timeout."""
             # The stdio_client context manager provides the read/write streams.
             async with stdio_client(mcp_lib_stdio_params) as (read_stream, write_stream):
                 # The ClientSession is its own context manager that handles initialization.
@@ -54,6 +60,14 @@ class StdioMcpCallHandler(McpCallHandler):
                     
                     logger.debug(f"STDIO call to tool '{remote_tool_name}' on server '{config.server_id}' completed.")
                     return result
+
+        try:
+            return await asyncio.wait_for(_perform_call(), timeout=DEFAULT_STDIO_TIMEOUT)
+        except asyncio.TimeoutError:
+            error_message = (f"MCP call to '{remote_tool_name}' on server '{config.server_id}' timed out "
+                             f"after {DEFAULT_STDIO_TIMEOUT} seconds. The subprocess may have hung.")
+            logger.error(error_message)
+            raise RuntimeError(error_message) from None
         except Exception as e:
             logger.error(
                 f"An error occurred during STDIO tool call to '{remote_tool_name}' on server '{config.server_id}': {e}",

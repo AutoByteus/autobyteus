@@ -29,6 +29,8 @@ class AssistantCompleteResponseData(BaseStreamPayload):
 
 class ToolInteractionLogEntryData(BaseStreamPayload):
     log_entry: str
+    tool_invocation_id: str
+    tool_name: str
 
 class AgentOperationalPhaseTransitionData(BaseStreamPayload): 
     new_phase: AgentOperationalPhase 
@@ -48,17 +50,23 @@ class ToolInvocationApprovalRequestedData(BaseStreamPayload):
     tool_name: str
     arguments: Dict[str, Any]
 
+class ToolInvocationAutoExecutingData(BaseStreamPayload):
+    invocation_id: str
+    tool_name: str
+    arguments: Dict[str, Any]
+
 class EmptyData(BaseStreamPayload):
     pass
 
 # Union of all possible data payload types
 StreamDataPayload = Union[
     AssistantChunkData,
-    AssistantCompleteResponseData, # UPDATED in Union
+    AssistantCompleteResponseData, 
     ToolInteractionLogEntryData,
     AgentOperationalPhaseTransitionData, 
     ErrorEventData,
     ToolInvocationApprovalRequestedData,
+    ToolInvocationAutoExecutingData,
     EmptyData
 ]
 
@@ -99,8 +107,7 @@ def create_assistant_chunk_data(chunk_obj: Any) -> AssistantChunkData:
         )
     raise ValueError(f"Cannot create AssistantChunkData from {type(chunk_obj)}")
 
-# RENAMED FACTORY FUNCTION
-def create_assistant_complete_response_data(complete_resp_obj: Any) -> AssistantCompleteResponseData: # RENAMED
+def create_assistant_complete_response_data(complete_resp_obj: Any) -> AssistantCompleteResponseData:
     usage_data = None
     if hasattr(complete_resp_obj, 'usage'):
         usage_data = getattr(complete_resp_obj, 'usage')
@@ -120,25 +127,24 @@ def create_assistant_complete_response_data(complete_resp_obj: Any) -> Assistant
             logger.warning(f"Unsupported usage type {type(usage_data)} for AssistantCompleteResponseData.")
 
     if hasattr(complete_resp_obj, 'content'):
-        return AssistantCompleteResponseData( # Use new class name
+        return AssistantCompleteResponseData(
             content=str(getattr(complete_resp_obj, 'content', '')),
             reasoning=getattr(complete_resp_obj, 'reasoning', None),
             usage=parsed_usage
         )
     elif isinstance(complete_resp_obj, dict): 
-        return AssistantCompleteResponseData( # Use new class name
+        return AssistantCompleteResponseData(
             content=str(complete_resp_obj.get('content', '')),
             reasoning=complete_resp_obj.get('reasoning', None),
             usage=parsed_usage
         )
     raise ValueError(f"Cannot create AssistantCompleteResponseData from {type(complete_resp_obj)}")
 
-def create_tool_interaction_log_entry_data(log_entry: Any) -> ToolInteractionLogEntryData:
-    if isinstance(log_entry, str):
-        return ToolInteractionLogEntryData(log_entry=log_entry)
-    elif isinstance(log_entry, dict) and 'log_entry' in log_entry:
-        return ToolInteractionLogEntryData(log_entry=str(log_entry['log_entry']))
-    raise ValueError(f"Cannot create ToolInteractionLogEntryData from {type(log_entry)}")
+def create_tool_interaction_log_entry_data(log_data: Any) -> ToolInteractionLogEntryData:
+    if isinstance(log_data, dict):
+        if all(k in log_data for k in ['log_entry', 'tool_invocation_id', 'tool_name']):
+            return ToolInteractionLogEntryData(**log_data)
+    raise ValueError(f"Cannot create ToolInteractionLogEntryData from {type(log_data)}. Expected dict with 'log_entry', 'tool_invocation_id', and 'tool_name' keys.")
 
 def create_agent_operational_phase_transition_data(phase_data_dict: Any) -> AgentOperationalPhaseTransitionData: 
     if isinstance(phase_data_dict, dict):
@@ -154,3 +160,8 @@ def create_tool_invocation_approval_requested_data(approval_data_dict: Any) -> T
     if isinstance(approval_data_dict, dict):
         return ToolInvocationApprovalRequestedData(**approval_data_dict)
     raise ValueError(f"Cannot create ToolInvocationApprovalRequestedData from {type(approval_data_dict)}")
+
+def create_tool_invocation_auto_executing_data(auto_exec_data_dict: Any) -> ToolInvocationAutoExecutingData:
+    if isinstance(auto_exec_data_dict, dict):
+        return ToolInvocationAutoExecutingData(**auto_exec_data_dict)
+    raise ValueError(f"Cannot create ToolInvocationAutoExecutingData from {type(auto_exec_data_dict)}")

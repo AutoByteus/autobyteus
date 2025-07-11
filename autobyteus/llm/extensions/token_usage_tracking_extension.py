@@ -1,4 +1,5 @@
 from typing import Optional, List, TYPE_CHECKING
+import logging
 from autobyteus.llm.extensions.base_extension import LLMExtension
 from autobyteus.llm.token_counter.token_counter_factory import get_token_counter
 from autobyteus.llm.utils.token_usage import TokenUsage
@@ -8,6 +9,8 @@ from autobyteus.llm.utils.response_types import CompleteResponse
 
 if TYPE_CHECKING:
     from autobyteus.llm.base_llm import BaseLLM
+
+logger = logging.getLogger(__name__)
 
 class TokenUsageTrackingExtension(LLMExtension):
     """
@@ -37,7 +40,14 @@ class TokenUsageTrackingExtension(LLMExtension):
         Get the latest usage from tracker and optionally override token counts with provider's usage if available
         """
         latest_usage = self.usage_tracker.get_latest_usage()
-        
+    
+        if latest_usage is None:
+            logger.warning(
+                "No token usage record found in after_invoke. This may indicate the LLM implementation "
+                "did not call add_user_message. Skipping token usage update for this call."
+            )
+            return
+
         if isinstance(response, CompleteResponse) and response.usage:
             # Override token counts with provider's data if available
             latest_usage.prompt_tokens = response.usage.prompt_tokens
