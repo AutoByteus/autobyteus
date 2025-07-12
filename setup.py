@@ -18,7 +18,7 @@ common_dependencies = [
     "certifi==2025.4.26",
     'numpy==2.2.5',
     "aiohttp",
-    "autobyteus-llm-client==1.1.0",
+    "autobyteus-llm-client==1.1.1",
     "brui-core==1.0.8",
 ]
 
