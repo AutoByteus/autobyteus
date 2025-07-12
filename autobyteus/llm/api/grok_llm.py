@@ -26,7 +26,7 @@ class GrokLLM(BaseLLM):
         
         # Provide defaults if not specified
         if model is None:
-            model = LLMModel.GROK_2_1212_API
+            model = LLMModel.grok_2_1212
         if llm_config is None:
             llm_config = LLMConfig()
             
@@ -75,7 +75,7 @@ class GrokLLM(BaseLLM):
                 messages=[msg.to_dict() for msg in self.messages],
                 max_tokens=self.max_tokens,
             )
-            full_message = response.choices[0].message
+            full_message = response.choices.message
 
             # Extract reasoning_content if present
             reasoning = None
@@ -148,7 +148,7 @@ class GrokLLM(BaseLLM):
                 chunk: ChatCompletionChunk
 
                 # Process reasoning tokens
-                reasoning_chunk = getattr(chunk.choices[0].delta, "reasoning_content", None)
+                reasoning_chunk = getattr(chunk.choices.delta, "reasoning_content", None)
                 if reasoning_chunk:
                     accumulated_reasoning += reasoning_chunk
                     yield ChunkResponse(
@@ -157,7 +157,7 @@ class GrokLLM(BaseLLM):
                     )
 
                 # Process main content tokens
-                main_token = chunk.choices[0].delta.content
+                main_token = chunk.choices.delta.content
                 if main_token:
                     accumulated_content += main_token
                     yield ChunkResponse(

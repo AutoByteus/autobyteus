@@ -42,7 +42,9 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
         )
         if complete_response_reasoning:
             logger.debug(f"Agent '{agent_id}' received LLM reasoning for processing:\n---\n{complete_response_reasoning}\n---")
-        logger.debug(f"Agent '{agent_id}' received full LLM content for processing:\n---\n{complete_response_text}\n---")
+        
+        # Changed from .debug to .info as per user request
+        logger.info(f"Agent '{agent_id}' received full LLM content for processing:\n---\n{complete_response_text}\n---")
 
         any_processor_took_action = False
         

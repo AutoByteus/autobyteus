@@ -16,7 +16,7 @@ class MistralLLM(BaseLLM):
     def __init__(self, model: LLMModel = None, llm_config: LLMConfig = None):
         # Provide defaults if not specified
         if model is None:
-            model = LLMModel.MISTRAL_LARGE_API
+            model = LLMModel.mistral_large
         if llm_config is None:
             llm_config = LLMConfig()
             
@@ -60,7 +60,7 @@ class MistralLLM(BaseLLM):
                 messages=mistral_messages,
             )
 
-            assistant_message = chat_response.choices[0].message.content
+            assistant_message = chat_response.choices.message.content
             self.add_assistant_message(assistant_message)
 
             # Create token usage if available
@@ -93,8 +93,8 @@ class MistralLLM(BaseLLM):
             accumulated_message = ""
             
             async for chunk in stream:
-                if chunk.data.choices[0].delta.content is not None:
-                    token = chunk.data.choices[0].delta.content
+                if chunk.data.choices.delta.content is not None:
+                    token = chunk.data.choices.delta.content
                     accumulated_message += token
                     
                     # For intermediate chunks, yield without usage
