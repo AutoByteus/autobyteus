@@ -5,6 +5,7 @@ from autobyteus.tools.browser.standalone.google_search_ui import GoogleSearch
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType # Updated
 from autobyteus.tools.tool_config import ToolConfig # For testing instantiation
 from autobyteus.utils.html_cleaner import CleaningMode
+from autobyteus.tools.tool_state import ToolState
 
 
 @pytest.fixture
@@ -25,7 +26,7 @@ def google_search_tool_custom_config(): # With custom instantiation config
 def test_tool_state_initialization(google_search_tool_default: GoogleSearch):
     """Tests that the tool_state attribute is properly initialized."""
     assert hasattr(google_search_tool_default, 'tool_state')
-    assert isinstance(google_search_tool_default.tool_state, dict)
+    assert isinstance(google_search_tool_default.tool_state, ToolState)
     assert google_search_tool_default.tool_state == {}
     # Verify it's usable
     google_search_tool_default.tool_state['search_count'] = 1

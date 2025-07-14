@@ -6,6 +6,7 @@ from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefiniti
 from autobyteus.tools.tool_config import ToolConfig 
 from autobyteus.agent.context import AgentContext 
 from autobyteus.tools.registry import default_tool_registry # Added
+from autobyteus.tools.tool_state import ToolState
 
 @pytest.fixture
 def mock_agent_context_ss(): 
@@ -25,7 +26,7 @@ def screenshot_taker_tool_custom_config():
 def test_tool_state_initialization(screenshot_taker_tool_default: WebPageScreenshotTaker):
     """Tests that the tool_state attribute is properly initialized."""
     assert hasattr(screenshot_taker_tool_default, 'tool_state')
-    assert isinstance(screenshot_taker_tool_default.tool_state, dict)
+    assert isinstance(screenshot_taker_tool_default.tool_state, ToolState)
     assert screenshot_taker_tool_default.tool_state == {}
     # Verify it's usable
     screenshot_taker_tool_default.tool_state['paths'] = ['/a/b.png']

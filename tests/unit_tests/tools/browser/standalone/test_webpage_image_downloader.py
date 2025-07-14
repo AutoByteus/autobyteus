@@ -5,6 +5,7 @@ from autobyteus.tools.browser.standalone.webpage_image_downloader import WebPage
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.agent.context import AgentContext
 from autobyteus.tools.registry import default_tool_registry # Added
+from autobyteus.tools.tool_state import ToolState
 
 TOOL_NAME_IMG_DOWNLOADER = "WebPageImageDownloader"
 
@@ -23,7 +24,7 @@ def img_downloader_tool_instance(mock_agent_context_img_dl):
 def test_tool_state_initialization(img_downloader_tool_instance: WebPageImageDownloader):
     """Tests that the tool_state attribute is properly initialized."""
     assert hasattr(img_downloader_tool_instance, 'tool_state')
-    assert isinstance(img_downloader_tool_instance.tool_state, dict)
+    assert isinstance(img_downloader_tool_instance.tool_state, ToolState)
     assert img_downloader_tool_instance.tool_state == {}
     # Verify it's usable
     img_downloader_tool_instance.tool_state['download_log'] = []

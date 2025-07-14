@@ -6,6 +6,7 @@ from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefiniti
 from autobyteus.tools.tool_config import ToolConfig
 from autobyteus.utils.html_cleaner import CleaningMode
 from autobyteus.tools.registry import default_tool_registry
+from autobyteus.tools.tool_state import ToolState
 
 @pytest.fixture
 def mock_agent_context():
@@ -25,7 +26,7 @@ def webpage_reader_tool_basic_config(): # Basic cleaning via instantiation confi
 def test_tool_state_initialization(webpage_reader_tool_default: WebPageReader):
     """Tests that the tool_state attribute is properly initialized."""
     assert hasattr(webpage_reader_tool_default, 'tool_state')
-    assert isinstance(webpage_reader_tool_default.tool_state, dict)
+    assert isinstance(webpage_reader_tool_default.tool_state, ToolState)
     assert webpage_reader_tool_default.tool_state == {}
     # Verify it's usable
     webpage_reader_tool_default.tool_state['last_url_read'] = 'http://b.com'

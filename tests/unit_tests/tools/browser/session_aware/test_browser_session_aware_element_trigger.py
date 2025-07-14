@@ -6,6 +6,7 @@ from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefiniti
 from autobyteus.agent.context import AgentContext
 from autobyteus.tools.registry import default_tool_registry
 from autobyteus.tools.browser.session_aware.shared_browser_session import SharedBrowserSession
+from autobyteus.tools.tool_state import ToolState
 
 
 TOOL_NAME_ELEMENT_TRIGGER = "WebElementTrigger"
@@ -34,7 +35,7 @@ def element_trigger_tool_instance(mock_agent_context_trigger):
 def test_tool_state_initialization(element_trigger_tool_instance: BrowserSessionAwareWebElementTrigger):
     """Tests that the tool_state attribute is properly initialized."""
     assert hasattr(element_trigger_tool_instance, 'tool_state')
-    assert isinstance(element_trigger_tool_instance.tool_state, dict)
+    assert isinstance(element_trigger_tool_instance.tool_state, ToolState)
     assert element_trigger_tool_instance.tool_state == {}
     # Verify it's usable
     element_trigger_tool_instance.tool_state['last_action'] = 'click'

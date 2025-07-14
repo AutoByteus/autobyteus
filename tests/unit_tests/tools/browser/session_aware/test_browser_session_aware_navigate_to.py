@@ -5,6 +5,7 @@ from autobyteus.tools.browser.session_aware.shared_browser_session import Shared
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.agent.context import AgentContext # For mock_agent_context
 from autobyteus.tools.registry import default_tool_registry
+from autobyteus.tools.tool_state import ToolState
 
 TOOL_NAME_NAVIGATE_SESSION = "NavigateTo" # Based on overridden get_name()
 
@@ -31,7 +32,7 @@ def navigate_to_session_tool_instance(mock_agent_context_navigate_session):
 def test_tool_state_initialization(navigate_to_session_tool_instance: BrowserSessionAwareNavigateTo):
     """Tests that the tool_state attribute is properly initialized."""
     assert hasattr(navigate_to_session_tool_instance, 'tool_state')
-    assert isinstance(navigate_to_session_tool_instance.tool_state, dict)
+    assert isinstance(navigate_to_session_tool_instance.tool_state, ToolState)
     assert navigate_to_session_tool_instance.tool_state == {}
     # Verify it's usable
     navigate_to_session_tool_instance.tool_state['last_url'] = 'http://a.com'
