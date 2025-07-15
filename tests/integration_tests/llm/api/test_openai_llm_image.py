@@ -1,10 +1,11 @@
 import pytest
+import os
 from pathlib import Path
 from autobyteus.llm.api.openai_llm import OpenAILLM
 from autobyteus.llm.models import LLMModel
-from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse # Added imports
-from autobyteus.llm.utils.llm_config import LLMConfig # Added import
-from autobyteus.llm.user_message import LLMUserMessage # Added import for LLMUserMessage
+from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
+from autobyteus.llm.utils.llm_config import LLMConfig
+from autobyteus.llm.user_message import LLMUserMessage
 
 
 @pytest.fixture
@@ -27,7 +28,10 @@ def test_image_path(tmp_path): # Use tmp_path fixture for temporary file creatio
 
 @pytest.fixture
 def openai_llm(set_openai_env):
-    return OpenAILLM(model=LLMModel.CHATGPT_4O_LATEST_API, llm_config=LLMConfig())
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    if not openai_api_key:
+        pytest.skip("OpenAI API key not set. Skipping OpenAILLM tests.")
+    return OpenAILLM(model=LLMModel['gpt-4o'], llm_config=LLMConfig())
 
 @pytest.fixture
 def multiple_test_images(tmp_path): # Use tmp_path fixture for temporary file creation

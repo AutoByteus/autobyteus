@@ -6,7 +6,7 @@ from autobyteus.llm.models import LLMModel
 from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.user_message import LLMUserMessage
-from autobyteus.llm.utils.llm_config import LLMConfig # Added import
+from autobyteus.llm.utils.llm_config import LLMConfig
 
 @pytest.fixture
 def set_openai_env(monkeypatch):
@@ -17,7 +17,7 @@ def openai_llm(set_openai_env):
     openai_api_key = os.getenv("OPENAI_API_KEY")
     if not openai_api_key:
         pytest.skip("OpenAI API key not set. Skipping OpenAILLM tests.")
-    return OpenAILLM(model=LLMModel.GPT_4o_API, llm_config=LLMConfig())
+    return OpenAILLM(model=LLMModel['gpt-4o'], llm_config=LLMConfig())
 
 @pytest.mark.asyncio
 async def test_openai_llm_response(openai_llm):
@@ -71,16 +71,6 @@ async def test_send_user_message(openai_llm):
 
     # Verify message history was updated correctly
     assert len(openai_llm.messages) == 3  # System message + User message + Assistant message
-    # Content is now structured for multimodal support, so it's a list of dicts
-    # Access the text content from the first element in the list.
-    # Note: `llm.messages[1].content` is the `Union[str, List[Dict]]` passed to `add_user_message`.
-    # For multimodal inputs, it will be a list of dicts.
-    # For simple text inputs, it can be a string. For OpenAI, it's always a list of dicts for `_send_user_message_to_llm`
-    # if `image_urls` are considered or if `content` is implicitly converted.
-    # The `LLMUserMessage` itself has `content: str`. This needs careful handling.
-    # I will verify the expected structure of `llm.messages[1].content` for OpenAI.
-    # Based on `openai_llm.py`'s `_send_user_message_to_llm` and `add_user_message`, `content` is always a list of dicts
-    # when processing image_urls or even plain text with content.
     assert isinstance(openai_llm.messages[1].content, list)
     assert openai_llm.messages[1].content[0]["text"] == user_message_text
     assert openai_llm.messages[2].content == response_obj.content # Access content attribute

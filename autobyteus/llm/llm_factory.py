@@ -14,6 +14,7 @@ from autobyteus.llm.api.openai_llm import OpenAILLM
 from autobyteus.llm.api.ollama_llm import OllamaLLM
 from autobyteus.llm.api.deepseek_llm import DeepSeekLLM
 from autobyteus.llm.api.grok_llm import GrokLLM
+from autobyteus.llm.api.kimi_llm import KimiLLM
 from autobyteus.llm.ollama_provider import OllamaModelProvider
 from autobyteus.utils.singleton import SingletonMeta
 
@@ -237,6 +238,67 @@ class LLMFactory(metaclass=SingletonMeta):
                     rate_limit=60,
                     token_limit=8000,
                     pricing_config=TokenPricingConfig(2.0, 6.0)
+                )
+            ),
+            # KIMI Provider Models
+            LLMModel(
+                name="kimi-latest",
+                value="kimi-latest",
+                provider=LLMProvider.KIMI,
+                llm_class=KimiLLM,
+                canonical_name="kimi-latest",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(1.38, 4.14)
+                )
+            ),
+            LLMModel(
+                name="moonshot-v1-8k",
+                value="moonshot-v1-8k",
+                provider=LLMProvider.KIMI,
+                llm_class=KimiLLM,
+                canonical_name="moonshot-v1-8k",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(0.28, 1.38)
+                )
+            ),
+            LLMModel(
+                name="moonshot-v1-32k",
+                value="moonshot-v1-32k",
+                provider=LLMProvider.KIMI,
+                llm_class=KimiLLM,
+                canonical_name="moonshot-v1-32k",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(0.69, 2.76)
+                )
+            ),
+            LLMModel(
+                name="moonshot-v1-128k",
+                value="moonshot-v1-128k",
+                provider=LLMProvider.KIMI,
+                llm_class=KimiLLM,
+                canonical_name="moonshot-v1-128k",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(1.38, 4.14)
+                )
+            ),
+            LLMModel(
+                name="kimi-k2-0711-preview",
+                value="kimi-k2-0711-preview",
+                provider=LLMProvider.KIMI,
+                llm_class=KimiLLM,
+                canonical_name="kimi-k2-0711-preview",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(0.55, 2.21)
+                )
+            ),
+            LLMModel(
+                name="kimi-thinking-preview",
+                value="kimi-thinking-preview",
+                provider=LLMProvider.KIMI,
+                llm_class=KimiLLM,
+                canonical_name="kimi-thinking-preview",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(27.59, 27.59)
                 )
             ),
         ]
