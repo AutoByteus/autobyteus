@@ -1,4 +1,3 @@
-# file: autobyteus/autobyteus/agent/message/context_file_type.py
 from enum import Enum
 import os
 
@@ -18,7 +17,7 @@ class ContextFileType(str, Enum):
     HTML = "html"          # .html, .htm
     PYTHON = "python"      # .py
     JAVASCRIPT = "javascript" # .js
-    IMAGE_CONTEXT = "image_context" # .png, .jpg, .jpeg, .gif, .webp (when image is for contextual analysis, not direct LLM vision input)
+    IMAGE = "image"        # .png, .jpg, .jpeg, .gif, .webp (when image is for contextual analysis, not direct LLM vision input)
     UNKNOWN = "unknown"    # Fallback for unrecognized types
 
     @classmethod
@@ -56,7 +55,7 @@ class ContextFileType(str, Enum):
         elif extension == ".js":
             return cls.JAVASCRIPT
         elif extension in [".png", ".jpg", ".jpeg", ".gif", ".webp"]:
-            return cls.IMAGE_CONTEXT 
+            return cls.IMAGE 
         else:
             return cls.UNKNOWN
 

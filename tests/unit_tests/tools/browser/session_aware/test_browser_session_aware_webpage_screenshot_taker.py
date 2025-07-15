@@ -7,6 +7,7 @@ from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefiniti
 from autobyteus.tools.tool_config import ToolConfig
 from autobyteus.agent.context import AgentContext
 from autobyteus.tools.registry import default_tool_registry
+from autobyteus.tools.tool_state import ToolState
 
 TOOL_NAME_SESSION_SS_TAKER = "WebPageScreenshotTaker" # From tool's get_name()
 
@@ -39,7 +40,7 @@ def ss_taker_session_tool_custom(mock_agent_context_session_ss): # Custom config
 def test_tool_state_initialization(ss_taker_session_tool_default: BrowserSessionAwareWebPageScreenshotTaker):
     """Tests that the tool_state attribute is properly initialized."""
     assert hasattr(ss_taker_session_tool_default, 'tool_state')
-    assert isinstance(ss_taker_session_tool_default.tool_state, dict)
+    assert isinstance(ss_taker_session_tool_default.tool_state, ToolState)
     assert ss_taker_session_tool_default.tool_state == {}
     # Verify it's usable
     ss_taker_session_tool_default.tool_state['screenshot_count'] = 1

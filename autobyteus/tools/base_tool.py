@@ -7,10 +7,13 @@ from typing import Optional, Any, TYPE_CHECKING
 from autobyteus.events.event_emitter import EventEmitter
 
 from .tool_meta import ToolMeta
+from .tool_state import ToolState
+
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
     from autobyteus.tools.parameter_schema import ParameterSchema
     from autobyteus.tools.tool_config import ToolConfig
+    from .tool_state import ToolState
 
 logger = logging.getLogger('autobyteus')
 
@@ -24,7 +27,8 @@ class BaseTool(ABC, EventEmitter, metaclass=ToolMeta):
         # The config is stored primarily for potential use by subclasses or future base features.
         self._config = config
         # Add a dedicated state dictionary for the tool instance
-        self.tool_state: Dict[str, Any] = {}
+        # CHANGED: Use ToolState class for explicit state management.
+        self.tool_state: 'ToolState' = ToolState()
         logger.debug(f"BaseTool instance initializing for potential class {self.__class__.__name__}. tool_state initialized.")
 
     @classmethod

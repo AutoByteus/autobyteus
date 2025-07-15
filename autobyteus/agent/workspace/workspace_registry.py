@@ -55,7 +55,7 @@ class WorkspaceRegistry(metaclass=SingletonMeta):
         if not definition:
             raise ValueError(f"Unknown workspace type: '{workspace_type_name}'")
 
-        is_valid, errors = definition.config_schema.validate_config(config.params)
+        is_valid, errors = definition.config_schema.validate_config(config.to_dict())
         if not is_valid:
             error_str = ", ".join(errors)
             raise ValueError(f"Invalid parameters for workspace type '{workspace_type_name}': {error_str}")

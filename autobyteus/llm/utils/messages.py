@@ -20,9 +20,9 @@ class Message:
         self.content = content
         self.reasoning_content = reasoning_content  # Optional field for reasoning content
 
-    def to_dict(self) -> Dict[str, Union[str, None]]:
-        result = {"role": self.role.value, "content": self.content}
-        if self.reasoning_content is not None:
+    def to_dict(self) -> Dict[str, Union[str, List[Dict]]]:
+        result: Dict[str, Union[str, List[Dict]]] = {"role": self.role.value, "content": self.content}
+        if self.reasoning_content:
             result["reasoning_content"] = self.reasoning_content
         return result
 

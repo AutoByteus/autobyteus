@@ -14,17 +14,18 @@ common_dependencies = [
     "anthropic==0.37.1",
     "Jinja2",
     "ollama",
-    "mistral_common",
+    "mistral_common==1.6.3",
+    "mistralai==1.5.2",
     "certifi==2025.4.26",
     'numpy==2.2.5',
     "aiohttp",
-    "autobyteus-llm-client==1.1.0",
+    "autobyteus-llm-client==1.1.1",
     "brui-core==1.0.8",
 ]
 
 setup(
     name="autobyteus",
-    version="1.1.0",
+    version="1.1.2",
     packages=find_packages(exclude=["tests", "tests.*"]),
     include_package_data=True,
     install_requires=[

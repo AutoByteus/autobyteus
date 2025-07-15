@@ -12,3 +12,4 @@ class LLMProvider(Enum):
     DEEPSEEK = "deepseek"
     GROK = "grok"
     AUTOBYTEUS = "autobyteus"
+    KIMI = "kimi"

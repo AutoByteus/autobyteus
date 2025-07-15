@@ -6,7 +6,7 @@ from autobyteus.llm.models import LLMModel
 from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.user_message import LLMUserMessage
-from autobyteus.llm.utils.llm_config import LLMConfig # Added import
+from autobyteus.llm.utils.llm_config import LLMConfig
 
 @pytest.fixture
 def set_grok_env(monkeypatch):
@@ -17,7 +17,7 @@ def grok_llm(set_grok_env):
     grok_api_key = os.getenv("GROK_API_KEY")
     if not grok_api_key:
         pytest.skip("Grok API key not set. Skipping GrokLLM tests.")
-    return GrokLLM(model=LLMModel.GROK_2_1212_API, llm_config=LLMConfig())
+    return GrokLLM(model=LLMModel['grok-2-1212'], llm_config=LLMConfig())
 
 @pytest.mark.asyncio
 async def test_grok_llm_response(grok_llm):

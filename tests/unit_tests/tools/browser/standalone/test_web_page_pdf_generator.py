@@ -5,6 +5,7 @@ from autobyteus.tools.browser.standalone.web_page_pdf_generator import WebPagePD
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.agent.context import AgentContext
 from autobyteus.tools.registry import default_tool_registry
+from autobyteus.tools.tool_state import ToolState
 
 TOOL_NAME_PDF_GENERATOR = "WebPagePDFGenerator"
 
@@ -23,7 +24,7 @@ def pdf_generator_tool_instance(mock_agent_context_pdf_gen):
 def test_tool_state_initialization(pdf_generator_tool_instance: WebPagePDFGenerator):
     """Tests that the tool_state attribute is properly initialized."""
     assert hasattr(pdf_generator_tool_instance, 'tool_state')
-    assert isinstance(pdf_generator_tool_instance.tool_state, dict)
+    assert isinstance(pdf_generator_tool_instance.tool_state, ToolState)
     assert pdf_generator_tool_instance.tool_state == {}
     # Verify it's usable
     pdf_generator_tool_instance.tool_state['pdf_count'] = 1

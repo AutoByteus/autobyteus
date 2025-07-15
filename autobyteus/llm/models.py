@@ -1,5 +1,6 @@
 import logging
 from typing import TYPE_CHECKING, Type, Optional, List, Iterator
+from dataclasses import dataclass
 
 from autobyteus.llm.providers import LLMProvider
 from autobyteus.llm.utils.llm_config import LLMConfig
@@ -8,6 +9,18 @@ if TYPE_CHECKING:
     from autobyteus.llm.base_llm import BaseLLM
 
 logger = logging.getLogger(__name__)
+
+@dataclass
+class ModelInfo:
+    """A simple data structure for essential model information."""
+    name: str
+    canonical_name: str
+
+@dataclass
+class ProviderModelGroup:
+    """A data structure to group models by their provider."""
+    provider: str
+    models: List[ModelInfo]
 
 class LLMModelMeta(type):
     """
@@ -23,15 +36,12 @@ class LLMModelMeta(type):
         from autobyteus.llm.llm_factory import LLMFactory
         LLMFactory.ensure_initialized()
 
-        for attr_name in dir(cls):
-            if not attr_name.startswith('_'):  # Skip private/dunder attributes
-                attr_value = getattr(cls, attr_name)
-                if isinstance(attr_value, cls):  # Check if it's an LLMModel instance
-                    yield attr_value
+        for models in LLMFactory._models_by_provider.values():
+            yield from models
 
     def __getitem__(cls, name_or_value: str) -> 'LLMModel':
         """
-        Allows dictionary-like access to LLMModel instances by name (e.g., 'GPT_4o_API')
+        Allows dictionary-like access to LLMModel instances by name (e.g., 'gpt-4o')
         or by value (e.g., 'gpt-4o').
         Search is performed by name first, then by value.
         """
@@ -39,13 +49,12 @@ class LLMModelMeta(type):
         from autobyteus.llm.llm_factory import LLMFactory
         LLMFactory.ensure_initialized()
 
-        # 1. Try to find by name first (e.g., LLMModel['GPT_4o_API'])
-        if hasattr(cls, name_or_value):
-            attribute = getattr(cls, name_or_value)
-            if isinstance(attribute, cls):
-                return attribute
+        # 1. Try to find by name first
+        for model in cls:
+            if model.name == name_or_value:
+                return model
         
-        # 2. If not found by name, iterate and find by value (e.g., LLMModel['gpt-4o'])
+        # 2. If not found by name, iterate and find by value
         for model in cls:
             if model.value == name_or_value:
                 return model
@@ -63,17 +72,14 @@ class LLMModelMeta(type):
         LLMFactory.ensure_initialized()
         
         count = 0
-        for attr_name in dir(cls):
-            if not attr_name.startswith('_'):
-                attr_value = getattr(cls, attr_name)
-                if isinstance(attr_value, cls):
-                    count += 1
+        for models in LLMFactory._models_by_provider.values():
+            count += len(models)
         return count
 
 class LLMModel(metaclass=LLMModelMeta):
     """
     Represents a single model's metadata:
-      - name (str): A human-readable label, e.g. "GPT-4 Official" 
+      - name (str): A human-readable label, e.g. "gpt-4o"
       - value (str): A unique identifier used in code or APIs, e.g. "gpt-4o"
       - canonical_name (str): A shorter, standardized reference name for prompts, e.g. "gpt-4o" or "claude-3.7"
       - provider (LLMProvider): The provider enum 
@@ -93,12 +99,6 @@ class LLMModel(metaclass=LLMModelMeta):
         canonical_name: str,
         default_config: Optional[LLMConfig] = None
     ):
-        # Validate name doesn't already exist as a class attribute
-        if hasattr(LLMModel, name):
-            existing_model = getattr(LLMModel, name)
-            if isinstance(existing_model, LLMModel):
-                logger.warning(f"Model with name '{name}' is being redefined. This is expected during reinitialization.")
-            
         self._name = name
         self._value = value
         self._canonical_name = canonical_name
@@ -106,16 +106,12 @@ class LLMModel(metaclass=LLMModelMeta):
         self.llm_class = llm_class
         self.default_config = default_config if default_config else LLMConfig()
 
-        # Set this instance as a class attribute, making LLMModel.MODEL_NAME available.
-        logger.debug(f"Setting LLMModel class attribute: {name}")
-        setattr(LLMModel, name, self)
-
     @property
     def name(self) -> str:
         """
         A friendly or descriptive name for this model (could appear in UI).
         This is the key used for `LLMModel['MODEL_NAME']` access.
-        Example: "GPT_4o_API"
+        Example: "gpt-4o"
         """
         return self._name
 

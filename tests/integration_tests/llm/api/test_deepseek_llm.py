@@ -6,7 +6,7 @@ from autobyteus.llm.models import LLMModel
 from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.user_message import LLMUserMessage
-from autobyteus.llm.utils.llm_config import LLMConfig # Added import
+from autobyteus.llm.utils.llm_config import LLMConfig
 
 @pytest.fixture
 def set_deepseek_env(monkeypatch):
@@ -17,7 +17,7 @@ def deepseek_llm(set_deepseek_env):
     deepseek_api_key = os.getenv("DEEPSEEK_API_KEY")
     if not deepseek_api_key:
         pytest.skip("DeepSeek API key not set. Skipping DeepSeekLLM tests.")
-    return DeepSeekLLM(model=LLMModel.DEEPSEEK_CHAT_API, llm_config=LLMConfig())
+    return DeepSeekLLM(model=LLMModel['deepseek-chat'], llm_config=LLMConfig())
 
 @pytest.mark.asyncio
 async def test_deepseek_llm_response(deepseek_llm):
@@ -66,9 +66,6 @@ async def test_send_user_message(deepseek_llm):
     # Verify message history was updated correctly
     assert len(deepseek_llm.messages) == 3  # System message + User message + Assistant message
     # DeepSeek uses structured content format for multimodal support. The message content could be a list of dicts.
-    # We should assert against the 'text' key within the first dictionary in the list if it's structured.
-    # Or, if the LLM adds it as just string, check for that.
-    # The current context `deepseek_llm.messages[1].content[0]["text"] == user_message_text` is correct for multimodal.
     assert deepseek_llm.messages[1].content[0]["text"] == user_message_text
     assert deepseek_llm.messages[2].content == response_obj.content # Access content attribute
 

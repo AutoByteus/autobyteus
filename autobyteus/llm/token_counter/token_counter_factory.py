@@ -3,6 +3,7 @@ from autobyteus.llm.token_counter.openai_token_counter import OpenAITokenCounter
 from autobyteus.llm.token_counter.claude_token_counter import ClaudeTokenCounter
 from autobyteus.llm.token_counter.mistral_token_counter import MistralTokenCounter
 from autobyteus.llm.token_counter.deepseek_token_counter import DeepSeekTokenCounter
+from autobyteus.llm.token_counter.kimi_token_counter import KimiTokenCounter
 from autobyteus.llm.token_counter.base_token_counter import BaseTokenCounter
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.providers import LLMProvider
@@ -31,6 +32,8 @@ def get_token_counter(model: LLMModel, llm: 'BaseLLM') -> BaseTokenCounter:
         return DeepSeekTokenCounter(model, llm)
     elif model.provider == LLMProvider.GROK:
         return DeepSeekTokenCounter(model, llm)
+    elif model.provider == LLMProvider.KIMI:
+        return KimiTokenCounter(model, llm)
     elif model.provider == LLMProvider.OLLAMA:
         return OpenAITokenCounter(model, llm)
     elif model.provider == LLMProvider.GEMINI:

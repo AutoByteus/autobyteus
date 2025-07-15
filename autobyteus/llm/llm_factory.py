@@ -2,7 +2,7 @@ from typing import List, Set, Optional, Dict
 import logging
 
 from autobyteus.llm.autobyteus_provider import AutobyteusModelProvider
-from autobyteus.llm.models import LLMModel
+from autobyteus.llm.models import LLMModel, ModelInfo, ProviderModelGroup
 from autobyteus.llm.providers import LLMProvider
 from autobyteus.llm.utils.llm_config import LLMConfig, TokenPricingConfig
 from autobyteus.llm.base_llm import BaseLLM
@@ -13,6 +13,7 @@ from autobyteus.llm.api.openai_llm import OpenAILLM
 from autobyteus.llm.api.deepseek_llm import DeepSeekLLM
 from autobyteus.llm.api.grok_llm import GrokLLM
 from autobyteus.llm.api.gemini_llm import GeminiLLM
+from autobyteus.llm.api.kimi_llm import KimiLLM
 from autobyteus.llm.ollama_provider import OllamaModelProvider
 from autobyteus.utils.singleton import SingletonMeta
 
@@ -36,21 +37,6 @@ class LLMFactory(metaclass=SingletonMeta):
             LLMFactory._initialized = True
 
     @staticmethod
-    def _clear_model_class_attributes():
-        """
-        Clear all LLMModel instances that were set as class attributes on the LLMModel class.
-        This is necessary for reinitialization to avoid 'model already exists' errors.
-        """
-        # Get all attributes of the LLMModel class
-        for attr_name in list(vars(LLMModel).keys()):
-            attr_value = getattr(LLMModel, attr_name)
-            # Check if the attribute is an instance of LLMModel
-            if isinstance(attr_value, LLMModel):
-                logger.debug(f"Removing LLMModel class attribute: {attr_name}")
-                # Delete the attribute to avoid 'model already exists' errors during reinitialization
-                delattr(LLMModel, attr_name)
-
-    @staticmethod
     def reinitialize():
         """
         Reinitializes the model registry by resetting the initialization state
@@ -64,9 +50,6 @@ class LLMFactory(metaclass=SingletonMeta):
         """
         try:
             logger.info("Reinitializing LLM model registry...")
-            
-            # Clear all LLMModel instances set as class attributes
-            LLMFactory._clear_model_class_attributes()
             
             # Reset the initialized flag
             LLMFactory._initialized = False
@@ -93,7 +76,7 @@ class LLMFactory(metaclass=SingletonMeta):
         supported_models = [
             # OPENAI Provider Models
             LLMModel(
-                name="GPT_4o_API",
+                name="gpt-4o",
                 value="gpt-4o",
                 provider=LLMProvider.OPENAI,
                 llm_class=OpenAILLM,
@@ -105,7 +88,7 @@ class LLMFactory(metaclass=SingletonMeta):
                 )
             ),
             LLMModel(
-                name="o3_API",
+                name="o3",
                 value="o3",
                 provider=LLMProvider.OPENAI,
                 llm_class=OpenAILLM,
@@ -115,7 +98,7 @@ class LLMFactory(metaclass=SingletonMeta):
                 )
             ),
             LLMModel(
-                name="o4_MINI_API",
+                name="o4-mini",
                 value="o4-mini",
                 provider=LLMProvider.OPENAI,
                 llm_class=OpenAILLM,
@@ -126,7 +109,7 @@ class LLMFactory(metaclass=SingletonMeta):
             ),
             # MISTRAL Provider Models
             LLMModel(
-                name="MISTRAL_LARGE_API",
+                name="mistral-large",
                 value="mistral-large-latest",
                 provider=LLMProvider.MISTRAL,
                 llm_class=MistralLLM,
@@ -137,7 +120,7 @@ class LLMFactory(metaclass=SingletonMeta):
             ),
             # ANTHROPIC Provider Models
             LLMModel(
-                name="CLAUDE_4_OPUS_API",
+                name="claude-4-opus",
                 value="claude-opus-4-20250514",
                 provider=LLMProvider.ANTHROPIC,
                 llm_class=ClaudeLLM,
@@ -147,7 +130,7 @@ class LLMFactory(metaclass=SingletonMeta):
                 )
             ),
             LLMModel(
-                name="BEDROCK_CLAUDE_4_OPUS_API",
+                name="bedrock-claude-4-opus",
                 value="anthropic.claude-opus-4-20250514-v1:0",
                 provider=LLMProvider.ANTHROPIC,
                 llm_class=ClaudeLLM,
@@ -157,7 +140,7 @@ class LLMFactory(metaclass=SingletonMeta):
                 )
             ),
             LLMModel(
-                name="CLAUDE_4_SONNET_API",
+                name="claude-4-sonnet",
                 value="claude-sonnet-4-20250514",
                 provider=LLMProvider.ANTHROPIC,
                 llm_class=ClaudeLLM,
@@ -167,7 +150,7 @@ class LLMFactory(metaclass=SingletonMeta):
                 )
             ),
             LLMModel(
-                name="BEDROCK_CLAUDE_4_SONNET_API",
+                name="bedrock-claude-4-sonnet",
                 value="anthropic.claude-sonnet-4-20250514-v1:0",
                 provider=LLMProvider.ANTHROPIC,
                 llm_class=ClaudeLLM,
@@ -178,7 +161,7 @@ class LLMFactory(metaclass=SingletonMeta):
             ),
             # DEEPSEEK Provider Models
             LLMModel(
-                name="DEEPSEEK_CHAT_API",
+                name="deepseek-chat",
                 value="deepseek-chat",
                 provider=LLMProvider.DEEPSEEK,
                 llm_class=DeepSeekLLM,
@@ -191,7 +174,7 @@ class LLMFactory(metaclass=SingletonMeta):
             ),
             # Adding deepseek-reasoner support
             LLMModel(
-                name="DEEPSEEK_REASONER_API",
+                name="deepseek-reasoner",
                 value="deepseek-reasoner",
                 provider=LLMProvider.DEEPSEEK,
                 llm_class=DeepSeekLLM,
@@ -204,7 +187,7 @@ class LLMFactory(metaclass=SingletonMeta):
             ),
             # GEMINI Provider Models
             LLMModel(
-                name="GEMINI_2_5_PRO_API",
+                name="gemini-2.5-pro",
                 value="gemini-2.5-pro",
                 provider=LLMProvider.GEMINI,
                 llm_class=GeminiLLM,
@@ -234,7 +217,7 @@ class LLMFactory(metaclass=SingletonMeta):
                 )
             ),
             LLMModel(
-                name="GEMINI_2_5_FLASH_API",
+                name="gemini-2.5-flash",
                 value="gemini-2.5-flash",
                 provider=LLMProvider.GEMINI,
                 llm_class=GeminiLLM,
@@ -244,7 +227,7 @@ class LLMFactory(metaclass=SingletonMeta):
                 )
             ),
             LLMModel(
-                name="GEMINI_2_0_FLASH_API",
+                name="gemini-2.0-flash",
                 value="gemini-2.0-flash",
                 provider=LLMProvider.GEMINI,
                 llm_class=GeminiLLM,
@@ -254,7 +237,7 @@ class LLMFactory(metaclass=SingletonMeta):
                 )
             ),
             LLMModel(
-                name="GEMINI_2_0_FLASH_LITE_API",
+                name="gemini-2.0-flash-lite",
                 value="gemini-2.0-flash-lite",
                 provider=LLMProvider.GEMINI,
                 llm_class=GeminiLLM,
@@ -265,7 +248,7 @@ class LLMFactory(metaclass=SingletonMeta):
             ),
             # GROK Provider Models
             LLMModel(
-                name="GROK_2_1212_API",
+                name="grok-2-1212",
                 value="grok-2-1212",
                 provider=LLMProvider.GROK,
                 llm_class=GrokLLM,
@@ -274,6 +257,67 @@ class LLMFactory(metaclass=SingletonMeta):
                     rate_limit=60,
                     token_limit=8000,
                     pricing_config=TokenPricingConfig(2.0, 6.0)
+                )
+            ),
+            # KIMI Provider Models
+            LLMModel(
+                name="kimi-latest",
+                value="kimi-latest",
+                provider=LLMProvider.KIMI,
+                llm_class=KimiLLM,
+                canonical_name="kimi-latest",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(1.38, 4.14)
+                )
+            ),
+            LLMModel(
+                name="moonshot-v1-8k",
+                value="moonshot-v1-8k",
+                provider=LLMProvider.KIMI,
+                llm_class=KimiLLM,
+                canonical_name="moonshot-v1-8k",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(0.28, 1.38)
+                )
+            ),
+            LLMModel(
+                name="moonshot-v1-32k",
+                value="moonshot-v1-32k",
+                provider=LLMProvider.KIMI,
+                llm_class=KimiLLM,
+                canonical_name="moonshot-v1-32k",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(0.69, 2.76)
+                )
+            ),
+            LLMModel(
+                name="moonshot-v1-128k",
+                value="moonshot-v1-128k",
+                provider=LLMProvider.KIMI,
+                llm_class=KimiLLM,
+                canonical_name="moonshot-v1-128k",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(1.38, 4.14)
+                )
+            ),
+            LLMModel(
+                name="kimi-k2-0711-preview",
+                value="kimi-k2-0711-preview",
+                provider=LLMProvider.KIMI,
+                llm_class=KimiLLM,
+                canonical_name="kimi-k2-0711-preview",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(0.55, 2.21)
+                )
+            ),
+            LLMModel(
+                name="kimi-thinking-preview",
+                value="kimi-thinking-preview",
+                provider=LLMProvider.KIMI,
+                llm_class=KimiLLM,
+                canonical_name="kimi-thinking-preview",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(27.59, 27.59)
                 )
             ),
         ]
@@ -287,7 +331,18 @@ class LLMFactory(metaclass=SingletonMeta):
     def register_model(model: LLMModel):
         """
         Register a new LLM model, storing it under its provider category.
+        If a model with the same name already exists, it will be replaced.
         """
+        # Using a flat list of all models to check for existing model by name
+        all_models = [m for models in LLMFactory._models_by_provider.values() for m in models]
+        
+        for existing_model in all_models:
+            if existing_model.name == model.name:
+                logger.warning(f"Model with name '{model.name}' is being redefined.")
+                # Remove the old model from its provider list
+                LLMFactory._models_by_provider[existing_model.provider].remove(existing_model)
+                break
+
         models = LLMFactory._models_by_provider.setdefault(model.provider, [])
         models.append(model)
 
@@ -297,7 +352,7 @@ class LLMFactory(metaclass=SingletonMeta):
         Create an LLM instance for the specified model identifier.
         
         Args:
-            model_identifier (str): The model name or value to create an instance for.
+            model_identifier (str): The model name to create an instance for.
             llm_config (Optional[LLMConfig]): Configuration for the LLM. If None,
                                              the model's default configuration is used.
         
@@ -310,7 +365,7 @@ class LLMFactory(metaclass=SingletonMeta):
         LLMFactory.ensure_initialized()
         for models in LLMFactory._models_by_provider.values():
             for model_instance in models:
-                if model_instance.value == model_identifier or model_instance.name == model_identifier:
+                if model_instance.name == model_identifier:
                     return model_instance.create_llm(llm_config)
         raise ValueError(f"Unsupported model: {model_identifier}")
 
@@ -355,7 +410,7 @@ class LLMFactory(metaclass=SingletonMeta):
         Get the canonical name for a model by its name.
         
         Args:
-            model_name (str): The model name (e.g., "GPT_4o_API")
+            model_name (str): The model name (e.g., "gpt_4o")
             
         Returns:
             Optional[str]: The canonical name if found, None otherwise
@@ -368,24 +423,34 @@ class LLMFactory(metaclass=SingletonMeta):
         return None
 
     @staticmethod
-    def get_models_grouped_by_provider() -> List[Dict[str, any]]:
+    def get_models_grouped_by_provider() -> List[ProviderModelGroup]:
         """
-        Returns a list of providers, each with a list of its available models,
-        sorted by provider name and model name.
+        Returns a list of all providers, each with a list of its available models,
+        sorted by provider name and model name. Providers with no models are included
+        with an empty model list.
         """
         LLMFactory.ensure_initialized()
-        result = []
-        # Sort providers by name for consistent order
-        sorted_providers = sorted(LLMFactory._models_by_provider.items(), key=lambda item: item[0].name)
+        result: List[ProviderModelGroup] = []
+        # Sort all providers from the enum by name for consistent order
+        all_providers_sorted = sorted(list(LLMProvider), key=lambda p: p.name)
         
-        for provider, models in sorted_providers:
-            if models:  # Only include providers that have registered models
-                # Sort models by name for consistent order
-                sorted_models = sorted(models, key=lambda model: model.name)
-                result.append({
-                    "provider": provider.name,
-                    "models": [model.name for model in sorted_models]
-                })
+        for provider in all_providers_sorted:
+            # Get models for the current provider, defaults to [] if none are registered
+            models = LLMFactory._models_by_provider.get(provider, [])
+            
+            # Sort the models for this provider by name
+            sorted_models = sorted(models, key=lambda model: model.name)
+            
+            model_infos = [
+                ModelInfo(name=model.name, canonical_name=model.canonical_name)
+                for model in sorted_models
+            ]
+            
+            result.append(ProviderModelGroup(
+                provider=provider.name,
+                models=model_infos
+            ))
+            
         return result
 
 default_llm_factory = LLMFactory()
