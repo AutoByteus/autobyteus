@@ -140,19 +140,19 @@ class AgentWorker:
 
     async def async_run(self) -> None:
         agent_id = self.context.agent_id
-        logger.info(f"AgentWorker '{agent_id}' async_run(): Starting.")
-        
-        # --- Direct Initialization ---
-        initialization_successful = await self._initialize()
-        if not initialization_successful:
-            logger.critical(f"AgentWorker '{agent_id}' failed to initialize. Worker is shutting down.")
-            if self._async_stop_event and not self._async_stop_event.is_set():
-                self._async_stop_event.set()
-            return
-        
-        # --- Main Event Loop ---
-        logger.info(f"AgentWorker '{agent_id}' initialized successfully. Entering main event loop.")
         try:
+            logger.info(f"AgentWorker '{agent_id}' async_run(): Starting.")
+            
+            # --- Direct Initialization ---
+            initialization_successful = await self._initialize()
+            if not initialization_successful:
+                logger.critical(f"AgentWorker '{agent_id}' failed to initialize. Worker is shutting down.")
+                if self._async_stop_event and not self._async_stop_event.is_set():
+                    self._async_stop_event.set()
+                return
+
+            # --- Main Event Loop ---
+            logger.info(f"AgentWorker '{agent_id}' initialized successfully. Entering main event loop.")
             while not self._async_stop_event.is_set(): 
                 try:
                     queue_event_tuple = await asyncio.wait_for(
@@ -183,18 +183,61 @@ class AgentWorker:
             if self.context.state.input_event_queues:
                 await self.context.state.input_event_queues.enqueue_internal_system_event(AgentStoppedEvent())
 
+    async def _shutdown_sequence(self):
+        """
+        The explicit, ordered shutdown sequence for the worker, executed on its own event loop.
+        """
+        agent_id = self.context.agent_id
+        logger.info(f"AgentWorker '{agent_id}': Running shutdown sequence on worker loop.")
+
+        # 1. Clean up resources like the LLM instance.
+        if self.context.llm_instance and hasattr(self.context.llm_instance, 'cleanup'):
+            logger.info(f"AgentWorker '{agent_id}': Running LLM instance cleanup.")
+            try:
+                cleanup_func = self.context.llm_instance.cleanup
+                if asyncio.iscoroutinefunction(cleanup_func):
+                    await cleanup_func()
+                else:
+                    cleanup_func()
+                logger.info(f"AgentWorker '{agent_id}': LLM instance cleanup completed.")
+            except Exception as e:
+                logger.error(f"AgentWorker '{agent_id}': Error during LLM instance cleanup: {e}", exc_info=True)
+
+        # 2. Signal the main event loop to stop.
+        await self._signal_internal_stop()
+        logger.info(f"AgentWorker '{agent_id}': Shutdown sequence completed.")
+
     async def stop(self, timeout: float = 10.0) -> None:
+        """
+        Gracefully stops the worker by scheduling a final shutdown sequence on its
+        event loop, then waiting for the thread to terminate.
+        """
         if not self._is_active or self._stop_initiated:
             return
+        
+        agent_id = self.context.agent_id
+        logger.info(f"AgentWorker '{agent_id}': Stop requested.")
         self._stop_initiated = True
-        if self.get_worker_loop() and self._async_stop_event:
-            future = asyncio.run_coroutine_threadsafe(self._signal_internal_stop(), self.get_worker_loop())
-            try: future.result(timeout=1.0)
-            except Exception: pass
+
+        # Schedule the explicit shutdown sequence on the worker's loop.
+        if self.get_worker_loop():
+            future = self.schedule_coroutine_on_worker_loop(self._shutdown_sequence)
+            try:
+                # Wait for the cleanup and stop signal to be processed.
+                future.result(timeout=max(1.0, timeout-1))
+            except Exception as e:
+                logger.error(f"AgentWorker '{agent_id}': Error during scheduled shutdown sequence: {e}", exc_info=True)
+
+        # Wait for the main thread future to complete.
         if self._thread_future:
-            try: await asyncio.wait_for(asyncio.wrap_future(self._thread_future), timeout=timeout)
-            except asyncio.TimeoutError: logger.warning(f"Timeout waiting for worker thread of '{self.context.agent_id}'.")
+            try:
+                await asyncio.wait_for(asyncio.wrap_future(self._thread_future), timeout=timeout)
+                logger.info(f"AgentWorker '{agent_id}': Worker thread has terminated.")
+            except asyncio.TimeoutError:
+                logger.warning(f"AgentWorker '{agent_id}': Timeout waiting for worker thread to terminate.")
+        
         self._is_active = False
+
 
     def is_alive(self) -> bool:
         return self._thread_future is not None and not self._thread_future.done()
