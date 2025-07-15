@@ -14,7 +14,7 @@ common_dependencies = [
     "anthropic==0.37.1",
     "Jinja2",
     "ollama",
-    "mistral_common",
+    "mistral_common==1.6.3",
     "certifi==2025.4.26",
     'numpy==2.2.5',
     "aiohttp",
@@ -24,7 +24,7 @@ common_dependencies = [
 
 setup(
     name="autobyteus",
-    version="1.1.1",
+    version="1.1.2",
     packages=find_packages(exclude=["tests", "tests.*"]),
     include_package_data=True,
     install_requires=[
