@@ -3,14 +3,14 @@ import logging
 from typing import TYPE_CHECKING
 
 from .base_processor import BaseLLMResponseProcessor
-from tools.usage.parsers import ProviderAwareToolUsageParser
-from tools.usage.parsers.exceptions import ToolUsageParseException
-from agent.events import PendingToolInvocationEvent
+from autobyteus.tools.usage.parsers import ProviderAwareToolUsageParser
+from autobyteus.tools.usage.parsers.exceptions import ToolUsageParseException
+from autobyteus.agent.events import PendingToolInvocationEvent
 
 if TYPE_CHECKING:
-    from agent.context import AgentContext
-    from agent.events import LLMCompleteResponseReceivedEvent
-    from llm.utils.response_types import CompleteResponse
+    from autobyteus.agent.context import AgentContext
+    from autobyteus.agent.events import LLMCompleteResponseReceivedEvent
+    from autobyteus.llm.utils.response_types import CompleteResponse
 
 logger = logging.getLogger(__name__)
 

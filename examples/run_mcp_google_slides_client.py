@@ -6,6 +6,7 @@ import argparse
 from pathlib import Path
 from datetime import datetime
 from typing import AsyncIterator, Optional, List
+import json
 
 # --- Boilerplate to make the script runnable from the project root ---
 SCRIPT_DIR = Path(__file__).resolve().parent
