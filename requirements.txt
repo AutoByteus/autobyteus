@@ -12,6 +12,7 @@ certifi==2025.4.26
 Jinja2
 ollama
 mistral_common==1.6.3
+mistralai==1.5.2
 aiohttp
 autobyteus-llm-client==1.1.1
 brui-core==1.0.8

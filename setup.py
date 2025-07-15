@@ -15,6 +15,7 @@ common_dependencies = [
     "Jinja2",
     "ollama",
     "mistral_common==1.6.3",
+    "mistralai==1.5.2",
     "certifi==2025.4.26",
     'numpy==2.2.5',
     "aiohttp",
