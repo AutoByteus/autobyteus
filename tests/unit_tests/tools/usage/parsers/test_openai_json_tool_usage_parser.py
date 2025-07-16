@@ -1,182 +1,146 @@
+# file: autobyteus/tests/unit_tests/tools/usage/parsers/test_openai_json_tool_usage_parser.py
 import pytest
 import json
 from autobyteus.tools.usage.parsers import OpenAiJsonToolUsageParser
 from autobyteus.llm.utils.response_types import CompleteResponse
 from autobyteus.agent.tool_invocation import ToolInvocation
+from autobyteus.tools.usage.parsers.exceptions import ToolUsageParseException
 
 @pytest.fixture
 def parser() -> OpenAiJsonToolUsageParser:
     return OpenAiJsonToolUsageParser()
 
-# --- Tests for the new "Dual Standard" ---
+# --- Positive tests for various valid formats ---
 
-class TestSingleToolStandard:
-    def test_parse_valid_single_tool_call(self, parser: OpenAiJsonToolUsageParser):
-        # Arrange
-        payload = {
-            "tool": {
-                "function": {
-                    "name": "get_weather",
-                    "arguments": '{"location": "Boston, MA", "unit": "celsius"}'
-                }
-            }
-        }
-        response = CompleteResponse(content=json.dumps(payload))
-
-        # Act
-        invocations = parser.parse(response)
-
-        # Assert
-        assert len(invocations) == 1
-        invocation = invocations[0]
-        assert isinstance(invocation, ToolInvocation)
-        assert invocation.name == "get_weather"
-        assert invocation.arguments == {"location": "Boston, MA", "unit": "celsius"}
-        assert invocation.id is not None
-        assert invocation.id.startswith("call_")
-
-    @pytest.mark.parametrize("arguments_str", ['{}', ''])
-    def test_parse_single_tool_call_with_no_arguments(self, parser: OpenAiJsonToolUsageParser, arguments_str: str):
-        # Arrange
-        payload = {
-            "tool": {
-                "function": {
-                    "name": "list_files",
-                    "arguments": arguments_str
-                }
-            }
-        }
-        response = CompleteResponse(content=json.dumps(payload))
-
-        # Act
-        invocations = parser.parse(response)
-
-        # Assert
-        assert len(invocations) == 1
-        invocation = invocations[0]
-        assert invocation.name == "list_files"
-        assert invocation.arguments == {}
-
-class TestMultipleToolsStandard:
-    def test_parse_valid_multiple_tool_calls(self, parser: OpenAiJsonToolUsageParser):
-        # Arrange
-        payload = {
-            "tools": [
-                {
-                    "function": {
-                        "name": "get_weather",
-                        "arguments": '{"location": "Boston, MA"}'
-                    }
-                },
-                {
-                    "function": {
-                        "name": "send_email",
-                        "arguments": '{"to": "test@example.com", "subject": "Hello"}'
-                    }
-                }
-            ]
-        }
-        response = CompleteResponse(content=json.dumps(payload))
-
-        # Act
-        invocations = parser.parse(response)
-
-        # Assert
-        assert len(invocations) == 2
-        assert invocations[0].name == "get_weather"
-        assert invocations[0].arguments == {"location": "Boston, MA"}
-        assert invocations[1].name == "send_email"
-        assert invocations[1].arguments == {"to": "test@example.com", "subject": "Hello"}
-    
-    def test_parse_empty_tools_list(self, parser: OpenAiJsonToolUsageParser):
-        # Arrange
-        payload = {"tools": []}
-        response = CompleteResponse(content=json.dumps(payload))
-
-        # Act
-        invocations = parser.parse(response)
-
-        # Assert
-        assert len(invocations) == 0
-
-# --- Negative Tests for Invalid Formats and Malformed Content ---
-
-@pytest.mark.parametrize("invalid_content", [
-    # Plain text
-    "This is just some text.",
-    # Invalid JSON
-    "{'tool': 'is not valid json'}",
-    # Old format
-    json.dumps({"tool_calls": [{"function": {"name": "test"}}]}),
+@pytest.mark.parametrize("payload", [
+    # Official format
+    {"tool_calls": [{"function": {"name": "get_weather", "arguments": '{"location": "Boston, MA"}'}}]},
+    # "tools" key format
+    {"tools": [{"function": {"name": "get_weather", "arguments": '{"location": "Boston, MA"}'}}]},
+    # "tool" key format
+    {"tool": {"function": {"name": "get_weather", "arguments": '{"location": "Boston, MA"}'}}},
     # Raw list format
-    json.dumps([{"function": {"name": "test"}}]),
-    # Raw object format
-    json.dumps({"function": {"name": "test"}}),
-    # Ambiguous format with both keys
-    json.dumps({"tool": {}, "tools": []}),
-    # Format with neither key
-    json.dumps({"other_key": "value"}),
+    [{"function": {"name": "get_weather", "arguments": '{"location": "Boston, MA"}'}}],
+    # Raw single object format
+    {"function": {"name": "get_weather", "arguments": '{"location": "Boston, MA"}'}},
+    # Flattened format (no "function" wrapper)
+    {"name": "get_weather", "arguments": {"location": "Boston, MA"}},
 ])
-def test_parse_invalid_or_unsupported_formats(parser: OpenAiJsonToolUsageParser, invalid_content: str):
-    # Arrange
-    response = CompleteResponse(content=invalid_content)
-
-    # Act
+def test_parse_various_valid_formats(parser: OpenAiJsonToolUsageParser, payload: any):
+    response = CompleteResponse(content=json.dumps(payload))
     invocations = parser.parse(response)
+    assert len(invocations) == 1
+    assert invocations[0].name == "get_weather"
+    assert invocations[0].arguments == {"location": "Boston, MA"}
 
-    # Assert
-    assert len(invocations) == 0
-
-@pytest.mark.parametrize("malformed_payload", [
-    # 'tool' value is not a dictionary
-    {"tool": "a string"},
-    # 'tools' value is not a list
-    {"tools": "a string"},
-    # Item in 'tools' list is not a dictionary
-    {"tools": ["a string"]},
-    # Missing 'function' key
-    {"tool": {"name": "test", "arguments": "{}"}},
-    # Missing 'name' key in function
-    {"tool": {"function": {"arguments": "{}"}}},
-    # 'arguments' is not a string
-    {"tool": {"function": {"name": "test", "arguments": {"a": "dict"}}}},
-    # 'arguments' is an invalid JSON string
-    {"tool": {"function": {"name": "test", "arguments": '{"key": "no_closing_brace'}}},
+@pytest.mark.parametrize("arguments", [
+    '{"location": "Boston, MA"}',  # Stringified JSON
+    {"location": "Boston, MA"},    # Native dict
 ])
-def test_parse_malformed_payloads(parser: OpenAiJsonToolUsageParser, malformed_payload: dict):
-    # Arrange
-    response = CompleteResponse(content=json.dumps(malformed_payload))
-
-    # Act
+def test_parse_different_argument_types(parser: OpenAiJsonToolUsageParser, arguments: any):
+    payload = {"tool_calls": [{"function": {"name": "get_weather", "arguments": arguments}}]}
+    response = CompleteResponse(content=json.dumps(payload))
     invocations = parser.parse(response)
+    assert len(invocations) == 1
+    assert invocations[0].arguments == {"location": "Boston, MA"}
 
-    # Assert
-    assert len(invocations) == 0
+@pytest.mark.parametrize("arguments", [
+    '{}',      # Empty stringified JSON
+    '',        # Empty string
+    {},        # Empty dict
+    None,      # Null value
+])
+def test_parse_empty_or_null_arguments(parser: OpenAiJsonToolUsageParser, arguments: any):
+    payload = {"tool_calls": [{"function": {"name": "list_files", "arguments": arguments}}]}
+    if arguments is None:
+        # Also test with the key being completely absent
+        del payload["tool_calls"][0]["function"]["arguments"]
 
-# --- Test for Helper Functionality ---
+    response = CompleteResponse(content=json.dumps(payload))
+    invocations = parser.parse(response)
+    assert len(invocations) == 1
+    assert invocations[0].name == "list_files"
+    assert invocations[0].arguments == {}
 
-def test_parse_json_from_markdown_block(parser: OpenAiJsonToolUsageParser):
-    # Arrange
+def test_parse_multiple_tool_calls(parser: OpenAiJsonToolUsageParser):
+    payload = {
+        "tool_calls": [
+            {"function": {"name": "get_weather", "arguments": '{"location": "Boston, MA"}'}},
+            {"function": {"name": "send_email", "arguments": {"to": "test@example.com", "subject": "Hello"}}}
+        ]
+    }
+    response = CompleteResponse(content=json.dumps(payload))
+    invocations = parser.parse(response)
+    assert len(invocations) == 2
+    assert invocations[0].name == "get_weather"
+    assert invocations[1].name == "send_email"
+    assert invocations[1].arguments == {"to": "test@example.com", "subject": "Hello"}
+
+def test_realistic_scenario_with_mixed_content(parser: OpenAiJsonToolUsageParser):
     content = """
-Some preceding text.
+I need to run two tools. First, I'll execute some code.
 ```json
 {
-    "tool": {
+    "tool_calls": [{
         "function": {
             "name": "execute_code",
             "arguments": "{\\"code\\": \\"print('hello from markdown')\\"}"
         }
-    }
+    }]
 }
 ```
-Some trailing text.
+Okay, that's done. Now for the second tool, which is a different format.
+I'll also add some other JSON that should be ignored.
+{"status": "thinking"}
+Here is the actual second tool call:
+{"name": "another_tool", "arguments": {}}
+That's all.
 """
     response = CompleteResponse(content=content)
-    
-    # Act
     invocations = parser.parse(response)
-
-    # Assert
-    assert len(invocations) == 1
+    assert len(invocations) == 2
     assert invocations[0].name == "execute_code"
     assert invocations[0].arguments == {"code": "print('hello from markdown')"}
+    assert invocations[1].name == "another_tool"
+    assert invocations[1].arguments == {}
+
+# --- Negative Tests for Invalid Formats and Malformed Content ---
+
+@pytest.mark.parametrize("invalid_content", [
+    "This is just some text.",
+    "{'tool': 'is not valid json'}",
+    # Ambiguous format with multiple tool keys is not supported
+    json.dumps({"tool": {}, "tools": []}),
+    json.dumps({"tool": {}, "tool_calls": []}),
+    # Empty lists or objects that are not tool calls
+    json.dumps({"tools": []}),
+    json.dumps({"other_key": "value"}),
+    # Incomplete JSON
+    '{"tool_calls": [{"function":',
+    '{"name": "unclosed_tool"',
+])
+def test_parse_invalid_or_non_tool_formats(parser: OpenAiJsonToolUsageParser, invalid_content: str):
+    response = CompleteResponse(content=invalid_content)
+    invocations = parser.parse(response)
+    assert len(invocations) == 0
+
+@pytest.mark.parametrize("malformed_payload", [
+    # Item in 'tool_calls' list is not a dictionary
+    {"tool_calls": ["a string"]},
+    # Missing 'name' key in function
+    {"tool_calls": [{"function": {"arguments": "{}"}}]},
+    # `arguments` is an invalid type
+    {"tool_calls": [{"function": {"name": "test", "arguments": 123}}]},
+])
+def test_parse_malformed_payloads_are_skipped(parser: OpenAiJsonToolUsageParser, malformed_payload: dict):
+    # These are malformed but shouldn't crash the parser, just result in no invocations.
+    response = CompleteResponse(content=json.dumps(malformed_payload))
+    invocations = parser.parse(response)
+    assert len(invocations) == 0
+
+def test_invalid_json_string_for_args_raises_exception(parser: OpenAiJsonToolUsageParser):
+    # If `arguments` is a string but not valid JSON, it's a hard error.
+    payload = {"tool_calls": [{"function": {"name": "test", "arguments": '{"key": "no_closing_brace'}}]}
+    response = CompleteResponse(content=json.dumps(payload))
+    with pytest.raises(ToolUsageParseException):
+        parser.parse(response)
