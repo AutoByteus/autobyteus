@@ -120,10 +120,7 @@ class AgentRuntime:
         await self.phase_manager.notify_shutdown_initiated() 
         await self._worker.stop(timeout=timeout) 
         
-        if self.context.llm_instance and hasattr(self.context.llm_instance, 'cleanup'):
-            cleanup_func = self.context.llm_instance.cleanup
-            if asyncio.iscoroutinefunction(cleanup_func): await cleanup_func()
-            else: cleanup_func()
+        # LLM instance cleanup is now handled by the AgentWorker before its loop closes.
         
         await self.phase_manager.notify_final_shutdown_complete() 
         logger.info(f"AgentRuntime for '{agent_id}' stop() method completed.")
