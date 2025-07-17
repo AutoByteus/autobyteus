@@ -21,6 +21,7 @@ common_dependencies = [
     "aiohttp",
     "autobyteus-llm-client==1.1.1",
     "brui-core==1.0.8",
+    "mcp[cli]==1.9.1",
 ]
 
 setup(
