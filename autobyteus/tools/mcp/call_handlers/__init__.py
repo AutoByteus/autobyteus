@@ -8,11 +8,9 @@ for a specific transport protocol (e.g., STDIO, Streamable HTTP).
 from .base_handler import McpCallHandler
 from .stdio_handler import StdioMcpCallHandler
 from .streamable_http_handler import StreamableHttpMcpCallHandler
-from .sse_handler import SseMcpCallHandler
 
 __all__ = [
     "McpCallHandler",
     "StdioMcpCallHandler",
     "StreamableHttpMcpCallHandler",
-    "SseMcpCallHandler",
 ]
