@@ -7,7 +7,6 @@ from .call_handlers import (
     McpCallHandler,
     StdioMcpCallHandler,
     StreamableHttpMcpCallHandler,
-    SseMcpCallHandler
 )
 
 # Consolidated imports from the autobyteus.autobyteus.mcp package public API
@@ -46,7 +45,6 @@ class McpToolRegistrar(metaclass=SingletonMeta):
         self._handler_registry: Dict[McpTransportType, McpCallHandler] = {
             McpTransportType.STDIO: StdioMcpCallHandler(),
             McpTransportType.STREAMABLE_HTTP: StreamableHttpMcpCallHandler(),
-            McpTransportType.SSE: SseMcpCallHandler(),
         }
 
         # Internal state to track which ToolDefinitions were registered from which server.

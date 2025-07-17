@@ -8,7 +8,6 @@ from typing import List, Dict, Any, Optional, Union, Type
 from .types import (
     BaseMcpConfig,
     StdioMcpServerConfig,
-    SseMcpServerConfig,
     StreamableHttpMcpServerConfig,
     McpTransportType
 )
@@ -38,7 +37,7 @@ class McpConfigService(metaclass=SingletonMeta):
     @staticmethod
     def _create_specific_config(server_id: str, transport_type: McpTransportType, config_data: Dict[str, Any]) -> BaseMcpConfig:
         """
-        Creates a specific McpServerConfig (Stdio, Sse, StreamableHttp) based on transport_type.
+        Creates a specific McpServerConfig (Stdio, StreamableHttp) based on transport_type.
         The 'server_id' is injected.
         Parameters from nested structures like 'stdio_params' are un-nested.
         """
@@ -50,7 +49,6 @@ class McpConfigService(metaclass=SingletonMeta):
 
         transport_specific_params_key_map = {
             McpTransportType.STDIO: "stdio_params",
-            McpTransportType.SSE: "sse_params",
             McpTransportType.STREAMABLE_HTTP: "streamable_http_params"
         }
 
@@ -62,7 +60,6 @@ class McpConfigService(metaclass=SingletonMeta):
             constructor_params.update(specific_params_dict)
         
         constructor_params.pop(transport_specific_params_key_map.get(McpTransportType.STDIO), None)
-        constructor_params.pop(transport_specific_params_key_map.get(McpTransportType.SSE), None)
         constructor_params.pop(transport_specific_params_key_map.get(McpTransportType.STREAMABLE_HTTP), None)
         constructor_params.pop('transport_type', None)
         
@@ -75,8 +72,6 @@ class McpConfigService(metaclass=SingletonMeta):
         try:
             if transport_type == McpTransportType.STDIO:
                 return StdioMcpServerConfig(**constructor_params)
-            elif transport_type == McpTransportType.SSE:
-                return SseMcpServerConfig(**constructor_params)
             elif transport_type == McpTransportType.STREAMABLE_HTTP:
                 return StreamableHttpMcpServerConfig(**constructor_params)
             else:

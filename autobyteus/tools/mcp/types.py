@@ -9,7 +9,6 @@ logger = logging.getLogger(__name__)
 class McpTransportType(str, Enum):
     """Enumeration of supported MCP transport types."""
     STDIO = "stdio"
-    SSE = "sse" 
     STREAMABLE_HTTP = "streamable_http"
 
 @dataclass
@@ -58,25 +57,6 @@ class StdioMcpServerConfig(BaseMcpConfig):
             raise ValueError(f"StdioMcpServerConfig '{self.server_id}' 'env' must be a Dict[str, str].") 
         if self.cwd is not None and not isinstance(self.cwd, str):
             raise ValueError(f"StdioMcpServerConfig '{self.server_id}' 'cwd' must be a string if provided.") 
-
-@dataclass
-class SseMcpServerConfig(BaseMcpConfig):
-    """Configuration parameters for an MCP server using SSE transport."""
-    url: Optional[str] = None # Changed: Added default None
-    token: Optional[str] = None
-    headers: Dict[str, str] = field(default_factory=dict)
-
-    def __post_init__(self):
-        super().__post_init__()
-        self.transport_type = McpTransportType.SSE
-
-        if self.url is None or not isinstance(self.url, str) or not self.url.strip():
-            raise ValueError(f"SseMcpServerConfig '{self.server_id}' 'url' must be a non-empty string.")
-        
-        if self.token is not None and not isinstance(self.token, str):
-            raise ValueError(f"SseMcpServerConfig '{self.server_id}' 'token' must be a string if provided.") 
-        if not isinstance(self.headers, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in self.headers.items()):
-            raise ValueError(f"SseMcpServerConfig '{self.server_id}' 'headers' must be a Dict[str, str].") 
 
 @dataclass
 class StreamableHttpMcpServerConfig(BaseMcpConfig):

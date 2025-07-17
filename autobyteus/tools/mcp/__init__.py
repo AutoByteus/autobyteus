@@ -17,7 +17,6 @@ logger.info("AutoByteUs MCP integration package initialized. Expects 'mcp' libra
 from .types import (
     BaseMcpConfig,
     StdioMcpServerConfig,
-    SseMcpServerConfig,
     StreamableHttpMcpServerConfig,
     McpTransportType
 )
@@ -34,7 +33,6 @@ __all__ = [
     # Types from types.py
     "BaseMcpConfig",
     "StdioMcpServerConfig",
-    "SseMcpServerConfig",
     "StreamableHttpMcpServerConfig",
     "McpTransportType",
     # Service from config_service.py
