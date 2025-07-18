@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from autobyteus.tools.parameter_schema import ParameterSchema
     from autobyteus.tools.tool_config import ToolConfig
     from .tool_state import ToolState
+    from autobyteus.tools.registry import ToolDefinition
 
 logger = logging.getLogger('autobyteus')
 
@@ -26,6 +27,7 @@ class BaseTool(ABC, EventEmitter, metaclass=ToolMeta):
     def __init__(self, config: Optional['ToolConfig'] = None):
         super().__init__()
         self.agent_id: Optional[str] = None
+        self.definition: Optional['ToolDefinition'] = None # Link back to its definition
         # The config is stored primarily for potential use by subclasses or future base features.
         self._config = config
         # Add a dedicated state dictionary for the tool instance

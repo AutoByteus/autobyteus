@@ -1,4 +1,4 @@
-# file: autobyteus/autobyteus/tools/mcp/registrar.py
+# file: autobyteus/autobyteus/tools/mcp/tool_registrar.py
 import logging
 from typing import Any, Dict, List, Optional, Union
 
@@ -6,8 +6,9 @@ from typing import Any, Dict, List, Optional, Union
 from .config_service import McpConfigService
 from .factory import McpToolFactory
 from .schema_mapper import McpSchemaMapper
-from .types import BaseMcpConfig, McpTransportType
-from .server import StdioManagedMcpServer, HttpManagedMcpServer, BaseManagedMcpServer
+from .server_instance_manager import McpServerInstanceManager
+from .types import BaseMcpConfig
+from .server import BaseManagedMcpServer
 
 from autobyteus.tools.registry import ToolRegistry, ToolDefinition
 from autobyteus.tools.tool_category import ToolCategory
@@ -20,39 +21,26 @@ logger = logging.getLogger(__name__)
 class McpToolRegistrar(metaclass=SingletonMeta):
     """
     Orchestrates the discovery of remote MCP tools and their registration
-    with the AutoByteUs ToolRegistry using a stateful, server-centric architecture.
+    with the AutoByteUs ToolRegistry.
     """
     def __init__(self):
         """
         Initializes the McpToolRegistrar singleton.
         """
-        self._config_service: McpConfigService = McpConfigService.get_instance()
-        self._tool_registry: ToolRegistry = ToolRegistry.get_instance()
+        self._config_service: McpConfigService = McpConfigService()
+        self._tool_registry: ToolRegistry = ToolRegistry()
+        self._instance_manager: McpServerInstanceManager = McpServerInstanceManager()
         self._registered_tools_by_server: Dict[str, List[ToolDefinition]] = {}
         logger.info("McpToolRegistrar initialized.")
 
-    def _create_server_instance_for_discovery(self, server_config: BaseMcpConfig) -> BaseManagedMcpServer:
-        """Creates a server instance based on transport type."""
-        if server_config.transport_type == McpTransportType.STDIO:
-            return StdioManagedMcpServer(server_config)
-        elif server_config.transport_type == McpTransportType.STREAMABLE_HTTP:
-            return HttpManagedMcpServer(server_config)
-        else:
-            raise NotImplementedError(f"Discovery not implemented for transport type: {server_config.transport_type}")
-
     async def _fetch_tools_from_server(self, server_config: BaseMcpConfig) -> List[mcp_types.Tool]:
         """
-        Creates a temporary server instance to perform a single, one-shot
-        tool discovery, ensuring resources are properly closed.
+        Uses the instance manager to get a temporary, managed session for discovery.
         """
-        discovery_server = self._create_server_instance_for_discovery(server_config)
-        try:
-            # The list_remote_tools method implicitly handles the connection.
+        async with self._instance_manager.managed_discovery_session(server_config.server_id) as discovery_server:
+            # The context manager guarantees the server is connected and will be closed.
             remote_tools = await discovery_server.list_remote_tools()
             return remote_tools
-        finally:
-            # The finally block guarantees the temporary server connection is closed.
-            await discovery_server.close()
 
     def _create_tool_definition_from_remote(
         self,
@@ -63,9 +51,6 @@ class McpToolRegistrar(metaclass=SingletonMeta):
         """
         Maps a single remote tool from an MCP server to an AutoByteUs ToolDefinition.
         """
-        if hasattr(remote_tool, 'model_dump_json'):
-            logger.debug(f"Processing remote tool from server '{server_config.server_id}':\n{remote_tool.model_dump_json(indent=2)}")
-
         actual_arg_schema = schema_mapper.map_to_autobyteus_schema(remote_tool.inputSchema)
         actual_desc = remote_tool.description
         
@@ -73,7 +58,6 @@ class McpToolRegistrar(metaclass=SingletonMeta):
         if server_config.tool_name_prefix:
             registered_name = f"{server_config.tool_name_prefix.rstrip('_')}_{remote_tool.name}"
 
-        # The factory now only needs key identifiers, not live objects.
         tool_factory = McpToolFactory(
             server_id=server_config.server_id,
             remote_tool_name=remote_tool.name,
@@ -87,6 +71,7 @@ class McpToolRegistrar(metaclass=SingletonMeta):
             description=actual_desc,
             argument_schema=actual_arg_schema,
             category=ToolCategory.MCP,
+            metadata={"mcp_server_id": server_config.server_id}, # Store origin in generic metadata
             custom_factory=tool_factory.create_tool,
             config_schema=None,
             tool_class=None
@@ -95,19 +80,25 @@ class McpToolRegistrar(metaclass=SingletonMeta):
     async def discover_and_register_tools(self, mcp_config: Optional[Union[BaseMcpConfig, Dict[str, Any]]] = None) -> List[ToolDefinition]:
         """
         Discovers tools from MCP servers and registers them.
-        This process uses a helper to manage short-lived server instances for discovery.
         """
         configs_to_process: List[BaseMcpConfig]
         
         if mcp_config:
+            validated_config: BaseMcpConfig
             if isinstance(mcp_config, dict):
-                configs_to_process = [self._config_service.load_config(mcp_config)]
+                try:
+                    validated_config = self._config_service.load_config(mcp_config)
+                except ValueError as e:
+                    logger.error(f"Failed to parse provided MCP config dictionary: {e}")
+                    raise
             elif isinstance(mcp_config, BaseMcpConfig):
-                configs_to_process = [self._config_service.add_config(mcp_config)]
+                validated_config = self._config_service.add_config(mcp_config)
             else:
                 raise TypeError(f"mcp_config must be a BaseMcpConfig object or a dictionary, not {type(mcp_config)}.")
-            logger.info(f"Starting targeted MCP tool discovery for server: {configs_to_process[0].server_id}")
-            self.unregister_tools_from_server(configs_to_process[0].server_id)
+            
+            logger.info(f"Starting targeted MCP tool discovery for server: {validated_config.server_id}")
+            self.unregister_tools_from_server(validated_config.server_id)
+            configs_to_process = [validated_config]
         else:
             logger.info("Starting full MCP tool discovery. Unregistering all existing MCP tools first.")
             all_server_ids = list(self._registered_tools_by_server.keys())
@@ -127,10 +118,9 @@ class McpToolRegistrar(metaclass=SingletonMeta):
                 logger.info(f"MCP server '{server_config.server_id}' is disabled. Skipping.")
                 continue
 
-            logger.info(f"Discovering tools from MCP server: '{server_config.server_id}' ({server_config.transport_type.value})")
+            logger.info(f"Discovering tools from MCP server: '{server_config.server_id}'")
             
             try:
-                # The helper abstracts away the connect/close lifecycle for discovery.
                 remote_tools = await self._fetch_tools_from_server(server_config)
                 logger.info(f"Discovered {len(remote_tools)} tools from server '{server_config.server_id}'.")
 
@@ -140,7 +130,6 @@ class McpToolRegistrar(metaclass=SingletonMeta):
                         self._tool_registry.register_tool(tool_def)
                         self._registered_tools_by_server.setdefault(server_config.server_id, []).append(tool_def)
                         registered_tool_definitions.append(tool_def)
-                        logger.info(f"Successfully registered MCP tool '{remote_tool.name}' from server '{server_config.server_id}' as '{tool_def.name}'.")
                     except Exception as e_tool:
                         logger.error(f"Failed to process or register remote tool '{remote_tool.name}': {e_tool}", exc_info=True)
             
@@ -151,10 +140,6 @@ class McpToolRegistrar(metaclass=SingletonMeta):
         return registered_tool_definitions
 
     async def list_remote_tools(self, mcp_config: Union[BaseMcpConfig, Dict[str, Any]]) -> List[ToolDefinition]:
-        """
-        Previews tools from a remote MCP server without registering them.
-        This is a stateless "dry-run" or "preview" operation.
-        """
         validated_config: BaseMcpConfig
         if isinstance(mcp_config, dict):
             validated_config = McpConfigService.parse_mcp_config_dict(mcp_config)
@@ -163,39 +148,29 @@ class McpToolRegistrar(metaclass=SingletonMeta):
         else:
             raise TypeError(f"mcp_config must be a BaseMcpConfig object or a dictionary, not {type(mcp_config)}.")
         
-        logger.info(f"Previewing tools from MCP server: '{validated_config.server_id}' ({validated_config.transport_type.value})")
-        
+        logger.info(f"Previewing tools from MCP server: '{validated_config.server_id}'")
         schema_mapper = McpSchemaMapper()
         tool_definitions: List[ToolDefinition] = []
 
         try:
-            # Use the same helper to fetch tools, abstracting away the connection lifecycle.
             remote_tools = await self._fetch_tools_from_server(validated_config)
             logger.info(f"Discovered {len(remote_tools)} tools from server '{validated_config.server_id}' for preview.")
-
             for remote_tool in remote_tools:
-                try:
-                    tool_def = self._create_tool_definition_from_remote(remote_tool, validated_config, schema_mapper)
-                    tool_definitions.append(tool_def)
-                except Exception as e_tool:
-                    logger.error(f"Failed to map remote tool '{remote_tool.name}' from server '{validated_config.server_id}' during preview: {e_tool}", exc_info=True)
-            
+                tool_def = self._create_tool_definition_from_remote(remote_tool, validated_config, schema_mapper)
+                tool_definitions.append(tool_def)
         except Exception as e_server:
             logger.error(f"Failed to discover tools for preview from MCP server '{validated_config.server_id}': {e_server}", exc_info=True)
             raise
             
         logger.info(f"MCP tool preview completed. Found {len(tool_definitions)} tools.")
         return tool_definitions
-
+    
     def unregister_tools_from_server(self, server_id: str) -> bool:
         if not self.is_server_registered(server_id):
-            logger.info(f"No tools found for server ID '{server_id}'. Nothing to unregister.")
             return False
         tools_to_unregister = self._registered_tools_by_server.pop(server_id, [])
-        logger.info(f"Unregistering {len(tools_to_unregister)} tools from server ID: '{server_id}'...")
         for tool_def in tools_to_unregister:
             self._tool_registry.unregister_tool(tool_def.name)
-        logger.info(f"Successfully unregistered all tools and removed server '{server_id}' from registrar tracking.")
         return True
         
     def is_server_registered(self, server_id: str) -> bool:

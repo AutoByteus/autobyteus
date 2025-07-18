@@ -1,4 +1,4 @@
-# file: autobyteus/autobyteus/mcp/types.py
+# file: autobyteus/autobyteus/tools/mcp/types.py
 import logging
 from typing import List, Dict, Any, Optional, Type
 from dataclasses import dataclass, field, InitVar
@@ -10,6 +10,15 @@ class McpTransportType(str, Enum):
     """Enumeration of supported MCP transport types."""
     STDIO = "stdio"
     STREAMABLE_HTTP = "streamable_http"
+
+@dataclass(frozen=True)
+class McpServerInstanceKey:
+    """
+    A dedicated, hashable key for identifying a unique server instance.
+    An instance is unique for a given agent and a specific server configuration.
+    """
+    agent_id: str
+    server_id: str
 
 @dataclass
 class BaseMcpConfig:
