@@ -193,7 +193,8 @@ async def main(args: argparse.Namespace):
         logger.info("Remote tool registration complete.")
 
         # 4. Create tool instances from the registry for our agent.
-        sqlite_tool_defs = registrar.get_registered_tools_for_server(server_id)
+        # Use the ToolRegistry to get tools by their source server ID.
+        sqlite_tool_defs = tool_registry.get_tools_by_mcp_server(server_id)
         sqlite_tool_names = [tool_def.name for tool_def in sqlite_tool_defs]
 
         if not sqlite_tool_names:
@@ -256,7 +257,7 @@ async def main(args: argparse.Namespace):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the SQLiteAgent interactively.")
-    parser.add_argument("--llm-model", type=str, default="gpt-4o", help=f"The LLM model to use. Call --help-models for list.")
+    parser.add_argument("--llm-model", type=str, default="kimi-latest", help=f"The LLM model to use. Call --help-models for list.")
     parser.add_argument("--help-models", action="store_true", help="Display available LLM models and exit.")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging.")
     parser.add_argument("--agent-log-file", type=str, default="./agent_logs_sqlite.txt", 

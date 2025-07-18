@@ -26,8 +26,8 @@ class McpToolRegistrar(metaclass=SingletonMeta):
         """
         Initializes the McpToolRegistrar singleton.
         """
-        self._config_service: McpConfigService = McpConfigService.get_instance()
-        self._tool_registry: ToolRegistry = ToolRegistry.get_instance()
+        self._config_service: McpConfigService = McpConfigService()
+        self._tool_registry: ToolRegistry = ToolRegistry()
         self._registered_tools_by_server: Dict[str, List[ToolDefinition]] = {}
         logger.info("McpToolRegistrar initialized.")
 

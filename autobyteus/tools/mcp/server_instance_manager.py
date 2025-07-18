@@ -49,21 +49,22 @@ class McpServerInstanceManager(metaclass=SingletonMeta):
         return server_instance
 
     @asynccontextmanager
-    async def managed_discovery_session(self, server_id: str) -> AsyncIterator[BaseManagedMcpServer]:
+    async def managed_discovery_session(self, server_config: BaseMcpConfig) -> AsyncIterator[BaseManagedMcpServer]:
         """
         Provides a temporary server instance for a one-shot operation like discovery.
         Guarantees the instance is closed upon exiting the context.
+        This method uses the provided config object directly and does not look it up
+        in the config service, making it suitable for stateless previews.
         """
-        config = self._config_service.get_config(server_id)
-        if not config:
-            raise ValueError(f"No configuration found for server_id '{server_id}'.")
+        if not server_config:
+            raise ValueError("A valid BaseMcpConfig object must be provided to managed_discovery_session.")
         
-        logger.debug(f"Creating temporary discovery instance for server '{server_id}'.")
-        temp_server_instance = self._create_server_instance(config)
+        logger.debug(f"Creating temporary discovery instance for server '{server_config.server_id}'.")
+        temp_server_instance = self._create_server_instance(server_config)
         try:
             yield temp_server_instance
         finally:
-            logger.debug(f"Closing temporary discovery instance for server '{server_id}'.")
+            logger.debug(f"Closing temporary discovery instance for server '{server_config.server_id}'.")
             await temp_server_instance.close()
 
     async def cleanup_mcp_server_instances_for_agent(self, agent_id: str):

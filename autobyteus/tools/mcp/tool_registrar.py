@@ -37,7 +37,7 @@ class McpToolRegistrar(metaclass=SingletonMeta):
         """
         Uses the instance manager to get a temporary, managed session for discovery.
         """
-        async with self._instance_manager.managed_discovery_session(server_config.server_id) as discovery_server:
+        async with self._instance_manager.managed_discovery_session(server_config) as discovery_server:
             # The context manager guarantees the server is connected and will be closed.
             remote_tools = await discovery_server.list_remote_tools()
             return remote_tools

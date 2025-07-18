@@ -185,7 +185,8 @@ async def main(args: argparse.Namespace):
         logger.info("Remote tool registration complete.")
 
         # 4. Create tool instances from the registry for our agent.
-        gslides_tool_defs = registrar.get_registered_tools_for_server(server_id)
+        # Use the ToolRegistry to get tools by their source server ID.
+        gslides_tool_defs = tool_registry.get_tools_by_mcp_server(server_id)
         gslides_tool_names = [tool_def.name for tool_def in gslides_tool_defs]
 
         if not gslides_tool_names:
