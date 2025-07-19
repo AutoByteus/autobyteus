@@ -15,6 +15,7 @@ from autobyteus.agent.events import (
 from autobyteus.agent.events import WorkerEventDispatcher
 from autobyteus.agent.runtime.agent_thread_pool_manager import AgentThreadPoolManager 
 from autobyteus.agent.bootstrap_steps.agent_bootstrapper import AgentBootstrapper
+from autobyteus.agent.shutdown_steps import AgentShutdownOrchestrator
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
@@ -176,41 +177,22 @@ class AgentWorker:
             logger.error(f"Fatal error in AgentWorker '{agent_id}' async_run() loop: {e}", exc_info=True)
         finally:
             logger.info(f"AgentWorker '{agent_id}' async_run() loop has finished.")
+            # --- Shutdown sequence moved here, inside the original task's finally block ---
+            logger.info(f"AgentWorker '{agent_id}': Running shutdown sequence on worker loop.")
+            orchestrator = AgentShutdownOrchestrator()
+            cleanup_successful = await orchestrator.run(self.context)
 
-    async def _signal_internal_stop(self):
-        if self._async_stop_event and not self._async_stop_event.is_set():
-            self._async_stop_event.set()
-            if self.context.state.input_event_queues:
-                await self.context.state.input_event_queues.enqueue_internal_system_event(AgentStoppedEvent())
+            if not cleanup_successful:
+                logger.critical(f"AgentWorker '{agent_id}': Shutdown resource cleanup failed. The agent may not have shut down cleanly.")
+            else:
+                logger.info(f"AgentWorker '{agent_id}': Shutdown resource cleanup completed successfully.")
+            logger.info(f"AgentWorker '{agent_id}': Shutdown sequence completed.")
 
-    async def _shutdown_sequence(self):
-        """
-        The explicit, ordered shutdown sequence for the worker, executed on its own event loop.
-        """
-        agent_id = self.context.agent_id
-        logger.info(f"AgentWorker '{agent_id}': Running shutdown sequence on worker loop.")
-
-        # 1. Clean up resources like the LLM instance.
-        if self.context.llm_instance and hasattr(self.context.llm_instance, 'cleanup'):
-            logger.info(f"AgentWorker '{agent_id}': Running LLM instance cleanup.")
-            try:
-                cleanup_func = self.context.llm_instance.cleanup
-                if asyncio.iscoroutinefunction(cleanup_func):
-                    await cleanup_func()
-                else:
-                    cleanup_func()
-                logger.info(f"AgentWorker '{agent_id}': LLM instance cleanup completed.")
-            except Exception as e:
-                logger.error(f"AgentWorker '{agent_id}': Error during LLM instance cleanup: {e}", exc_info=True)
-
-        # 2. Signal the main event loop to stop.
-        await self._signal_internal_stop()
-        logger.info(f"AgentWorker '{agent_id}': Shutdown sequence completed.")
 
     async def stop(self, timeout: float = 10.0) -> None:
         """
-        Gracefully stops the worker by scheduling a final shutdown sequence on its
-        event loop, then waiting for the thread to terminate.
+        Gracefully stops the worker by signaling its event loop to terminate,
+        then waiting for the thread to complete its cleanup and exit.
         """
         if not self._is_active or self._stop_initiated:
             return
@@ -219,14 +201,22 @@ class AgentWorker:
         logger.info(f"AgentWorker '{agent_id}': Stop requested.")
         self._stop_initiated = True
 
-        # Schedule the explicit shutdown sequence on the worker's loop.
+        # Schedule a coroutine on the worker's loop to set the stop event.
         if self.get_worker_loop():
-            future = self.schedule_coroutine_on_worker_loop(self._shutdown_sequence)
+            def _coro_factory():
+                async def _signal_coro():
+                    if self._async_stop_event and not self._async_stop_event.is_set():
+                        self._async_stop_event.set()
+                        if self.context.state.input_event_queues:
+                            await self.context.state.input_event_queues.enqueue_internal_system_event(AgentStoppedEvent())
+                return _signal_coro()
+            
+            future = self.schedule_coroutine_on_worker_loop(_coro_factory)
             try:
-                # Wait for the cleanup and stop signal to be processed.
+                # Wait for the signal to be processed.
                 future.result(timeout=max(1.0, timeout-1))
             except Exception as e:
-                logger.error(f"AgentWorker '{agent_id}': Error during scheduled shutdown sequence: {e}", exc_info=True)
+                logger.error(f"AgentWorker '{agent_id}': Error signaling stop event: {e}", exc_info=True)
 
         # Wait for the main thread future to complete.
         if self._thread_future:
