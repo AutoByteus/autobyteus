@@ -2,14 +2,15 @@
 """
 This package implements the Model Context Protocol (MCP) integration for AutoByteUs.
 It allows AutoByteUs to connect to external MCP servers, discover tools,
-and register them as standard AutoByteUs tools using a handler-based architecture.
+and register them as standard AutoByteUs tools using a stateful, server-centric
+architecture with per-agent isolation.
 """
 import logging
 
 logger = logging.getLogger(__name__)
 
 # The actual 'mcp' library and its components are expected to be installed 
-# in the environment and are used by the internal handlers.
+# in the environment and are used by the internal components.
 
 logger.info("AutoByteUs MCP integration package initialized. Expects 'mcp' library to be available.")
 
@@ -17,9 +18,9 @@ logger.info("AutoByteUs MCP integration package initialized. Expects 'mcp' libra
 from .types import (
     BaseMcpConfig,
     StdioMcpServerConfig,
-    SseMcpServerConfig,
     StreamableHttpMcpServerConfig,
-    McpTransportType
+    McpTransportType,
+    McpServerInstanceKey,
 )
 # Import McpConfigService from config_service.py
 from .config_service import McpConfigService
@@ -28,20 +29,19 @@ from .config_service import McpConfigService
 from .schema_mapper import McpSchemaMapper 
 from .tool import GenericMcpTool
 from .factory import McpToolFactory
-from .registrar import McpToolRegistrar
-from .connection_manager import McpConnectionManager
+from .tool_registrar import McpToolRegistrar
+from .server_instance_manager import McpServerInstanceManager
 
 __all__ = [
     # Types from types.py
     "BaseMcpConfig",
     "StdioMcpServerConfig",
-    "SseMcpServerConfig",
     "StreamableHttpMcpServerConfig",
     "McpTransportType",
-    # Service from config_service.py
+    "McpServerInstanceKey",
+    # Services and Managers
     "McpConfigService",
-    # Connection management
-    "McpConnectionManager",
+    "McpServerInstanceManager",
     # Other public components
     "McpSchemaMapper",
     "GenericMcpTool",

@@ -1,4 +1,4 @@
-# file: autobyteus/examples/run_sqlite_agent.py
+# file: autobyteus/examples/run_browser_agent.py
 import asyncio
 import logging
 import argparse
@@ -24,7 +24,7 @@ try:
 except ImportError:
     print("Warning: python-dotenv not installed. Cannot load .env file.")
 
-# --- Imports for the SQLite Agent Example ---
+# --- Imports for the Browser Agent Example ---
 try:
     # For MCP Tool Integration
     from autobyteus.tools.mcp import McpToolRegistrar
@@ -42,7 +42,7 @@ except ImportError as e:
     sys.exit(1)
 
 # --- Logging Setup ---
-logger = logging.getLogger("sqlite_agent_example")
+logger = logging.getLogger("browser_agent_example")
 interactive_logger = logging.getLogger("autobyteus.cli.interactive")
 
 def setup_logging(args: argparse.Namespace):
@@ -74,7 +74,7 @@ def setup_logging(args: argparse.Namespace):
     
     class FormattedConsoleFilter(logging.Filter):
         def filter(self, record):
-            if record.name.startswith("sqlite_agent_example") or record.name.startswith("autobyteus.cli"):
+            if record.name.startswith("browser_agent_example") or record.name.startswith("autobyteus.cli"):
                 return True
             if record.levelno >= logging.CRITICAL:
                 return True
@@ -126,83 +126,52 @@ def setup_logging(args: argparse.Namespace):
 
 # --- Environment Variable Checks ---
 def check_required_env_vars():
-    """Checks for environment variables required by this example and returns them."""
-    required_vars = {
-        "script_path": "TEST_SQLITE_MCP_SCRIPT_PATH",
-        "db_path": "TEST_SQLITE_DB_PATH",
-    }
-    env_values = {}
-    missing_vars = []
-    for key, var_name in required_vars.items():
-        value = os.environ.get(var_name)
-        if not value:
-            missing_vars.append(var_name)
-        else:
-            env_values[key] = value
-    if missing_vars:
-        logger.error("This example requires the following environment variables to be set: %s", missing_vars)
-        logger.error("Example usage in your .env file:")
-        logger.error('TEST_SQLITE_MCP_SCRIPT_PATH="/path/to/mcp-database-server/dist/src/index.js"')
-        logger.error('TEST_SQLITE_DB_PATH="/path/to/your/database.db"')
-        sys.exit(1)
-
-    script_path_obj = Path(env_values["script_path"])
-    if not script_path_obj.exists():
-        logger.error(f"The script path specified by TEST_SQLITE_MCP_SCRIPT_PATH does not exist: {script_path_obj}")
-        sys.exit(1)
-
-    db_path_obj = Path(env_values["db_path"])
-    if not db_path_obj.exists():
-        logger.error(f"The database path specified by TEST_SQLITE_DB_PATH does not exist: {db_path_obj}")
-        logger.error("Please ensure the database file is created before running the agent.")
-        sys.exit(1)
-        
-    return env_values
+    """Checks for environment variables required by this example. None are required for the browser agent."""
+    # The browser MCP server is self-contained via npx and doesn't require env vars.
+    # This function is kept for structural consistency.
+    logger.info("No specific environment variables are required for the browser agent example.")
+    return {}
 
 async def main(args: argparse.Namespace):
-    """Main function to configure and run the SQLiteAgent."""
-    logger.info("--- Starting SQLite Agent Example ---")
-    env_vars = check_required_env_vars()
+    """Main function to configure and run the BrowserAgent."""
+    logger.info("--- Starting Browser Agent Example ---")
+    check_required_env_vars()
 
     # 1. Instantiate the core MCP and registry components.
     tool_registry = default_tool_registry
     registrar = McpToolRegistrar()
 
     # 2. Define the configuration for the MCP server as a dictionary.
-    server_id = "sqlite-mcp"
-    sqlite_mcp_config_dict = {
+    server_id = "browsermcp"
+    browser_mcp_config_dict = {
         server_id: {
             "transport_type": "stdio",
             "stdio_params": {
-                "command": "node",
-                "args": [
-                    env_vars["script_path"],
-                    env_vars["db_path"],
-                ],
+                "command": "npx",
+                "args": ["@browsermcp/mcp@latest"],
                 "env": {},
             },
             "enabled": True,
-            "tool_name_prefix": "sqlite",
         }
     }
 
     try:
         # 3. Discover and register tools by passing the config dictionary directly.
-        logger.info(f"Performing targeted discovery for remote SQLite tools from server: '{server_id}'...")
-        await registrar.discover_and_register_tools(mcp_config=sqlite_mcp_config_dict)
+        logger.info(f"Performing targeted discovery for remote Browser tools from server: '{server_id}'...")
+        await registrar.discover_and_register_tools(mcp_config=browser_mcp_config_dict)
         logger.info("Remote tool registration complete.")
 
         # 4. Create tool instances from the registry for our agent.
         # Use the ToolRegistry to get tools by their source server ID.
-        sqlite_tool_defs = tool_registry.get_tools_by_mcp_server(server_id)
-        sqlite_tool_names = [tool_def.name for tool_def in sqlite_tool_defs]
+        browser_tool_defs = tool_registry.get_tools_by_mcp_server(server_id)
+        browser_tool_names = [tool_def.name for tool_def in browser_tool_defs]
 
-        if not sqlite_tool_names:
-            logger.error(f"No SQLite tools were found in the registry for server '{server_id}' after discovery. Cannot create agent.")
+        if not browser_tool_names:
+            logger.error(f"No Browser tools were found in the registry for server '{server_id}' after discovery. Cannot create agent.")
             return
 
-        logger.info(f"Creating instances for registered SQLite tools: {sqlite_tool_names}")
-        tools_for_agent = [tool_registry.create_tool(name) for name in sqlite_tool_names]
+        logger.info(f"Creating instances for registered Browser tools: {browser_tool_names}")
+        tools_for_agent = [tool_registry.create_tool(name) for name in browser_tool_names]
         
         # 5. Configure and create the agent.
         try:
@@ -222,19 +191,17 @@ async def main(args: argparse.Namespace):
         llm_instance = default_llm_factory.create_llm(model_identifier=args.llm_model)
 
         system_prompt = (
-            "You are a database administrator assistant. Your role is to help users interact with a SQLite database "
-            "by using a specialized set of tools.\n"
-            "When a user asks to query the database, you must formulate the correct SQL statement and use the appropriate tool to execute it.\n"
-            "If a user asks about the tables or their schemas, use the tools available for listing tables or describing their structure.\n"
-            "Always analyze the user's request carefully to determine the best tool and parameters for the job.\n\n"
+            "You are a helpful assistant that can browse the web to find information. "
+            "You have access to a set of specialized tools for this purpose.\n"
+            "When asked to perform a task on a browser, you should understand the user's intent and use the available tools to fulfill it.\n\n"
             "Here is the manifest of tools available to you, including their definitions and examples:\n"
             "{{tools}}"
         )
 
-        sqlite_agent_config = AgentConfig(
-            name="SQLiteAgent",
-            role="DatabaseAdministrator",
-            description="An agent that can query and manage a SQLite database using a set of remote tools.",
+        browser_agent_config = AgentConfig(
+            name="BrowserAgent",
+            role="WebNavigator",
+            description="An agent that can browse the web using a set of remote tools.",
             llm_instance=llm_instance,
             system_prompt=system_prompt,
             tools=tools_for_agent,
@@ -242,8 +209,8 @@ async def main(args: argparse.Namespace):
             use_xml_tool_format=False
         )
 
-        agent = AgentFactory().create_agent(config=sqlite_agent_config)
-        logger.info(f"SQLite Agent instance created: {agent.agent_id}")
+        agent = AgentFactory().create_agent(config=browser_agent_config)
+        logger.info(f"Browser Agent instance created: {agent.agent_id}")
 
         # 6. Run the agent in an interactive CLI session.
         logger.info(f"Starting interactive session for agent {agent.agent_id}...")
@@ -253,15 +220,15 @@ async def main(args: argparse.Namespace):
     except Exception as e:
         logger.error(f"An error occurred during the agent workflow: {e}", exc_info=True)
     
-    logger.info("--- SQLite Agent Example Finished ---")
+    logger.info("--- Browser Agent Example Finished ---")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run the SQLiteAgent interactively.")
-    parser.add_argument("--llm-model", type=str, default="kimi-latest", help=f"The LLM model to use. Call --help-models for list.")
+    parser = argparse.ArgumentParser(description="Run the BrowserAgent interactively.")
+    parser.add_argument("--llm-model", type=str, default="gemini-2-0-flash-rpa", help=f"The LLM model to use. Call --help-models for list.")
     parser.add_argument("--help-models", action="store_true", help="Display available LLM models and exit.")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging.")
-    parser.add_argument("--agent-log-file", type=str, default="./agent_logs_sqlite.txt", 
-                       help="Path to the log file for autobyteus.* library logs. (Default: ./agent_logs_sqlite.txt)")
+    parser.add_argument("--agent-log-file", type=str, default="./agent_logs_browser.txt", 
+                       help="Path to the log file for autobyteus.* library logs. (Default: ./agent_logs_browser.txt)")
     parser.add_argument("--no-tool-logs", action="store_true", 
                         help="Disable display of [Tool Log (...)] messages on the console by the agent_cli.")
 

@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Type, TYPE_CHECKING
 from autobyteus.tools.registry.tool_definition import ToolDefinition
 from autobyteus.utils.singleton import SingletonMeta
 from autobyteus.tools.tool_config import ToolConfig
+from autobyteus.tools.tool_category import ToolCategory
 
 if TYPE_CHECKING:
     from autobyteus.tools.base_tool import BaseTool
@@ -78,19 +79,8 @@ class ToolRegistry(metaclass=SingletonMeta):
 
     def create_tool(self, name: str, config: Optional[ToolConfig] = None) -> 'BaseTool':
         """
-        Creates a tool instance using its definition, either from a factory or a class.
-
-        Args:
-            name: The name of the tool to create.
-            config: Optional ToolConfig with constructor parameters for class-based tools
-                    or to be passed to a custom factory.
-
-        Returns:
-            The tool instance if the definition exists.
-
-        Raises:
-            ValueError: If the tool definition is not found or is invalid.
-            TypeError: If tool instantiation fails.
+        Creates a tool instance using its definition and injects the definition
+        back into the instance.
         """
         definition = self.get_tool_definition(name)
         if not definition:
@@ -98,24 +88,20 @@ class ToolRegistry(metaclass=SingletonMeta):
             raise ValueError(f"No tool definition found for name '{name}'")
         
         try:
-            # Prefer the custom factory if it exists
+            tool_instance: 'BaseTool'
             if definition.custom_factory:
                 logger.info(f"Creating tool instance for '{name}' using its custom factory.")
-                # Pass the config to the factory. The factory can choose to use it or not.
                 tool_instance = definition.custom_factory(config)
-            
-            # Fall back to instantiating the tool_class
             elif definition.tool_class:
-                # For class-based tools, the convention is to pass the ToolConfig object
-                # itself to the constructor under the 'config' keyword argument.
                 logger.info(f"Creating tool instance for '{name}' using class '{definition.tool_class.__name__}' and passing ToolConfig.")
                 tool_instance = definition.tool_class(config=config)
-            
             else:
-                # This case should be prevented by ToolDefinition's validation
                 raise ValueError(f"ToolDefinition for '{name}' is invalid: missing both tool_class and custom_factory.")
 
-            logger.debug(f"Successfully created tool instance for '{name}'")
+            # Inject the definition into the newly created instance.
+            tool_instance.definition = definition
+            logger.debug(f"Injected ToolDefinition into instance of '{name}'.")
+
             return tool_instance
 
         except Exception as e:
@@ -126,23 +112,36 @@ class ToolRegistry(metaclass=SingletonMeta):
     def list_tools(self) -> List[ToolDefinition]:
         """
         Returns a list of all registered tool definitions.
-
-        Returns:
-            A list of ToolDefinition objects.
         """
         return list(self._definitions.values())
 
     def list_tool_names(self) -> List[str]:
         """
         Returns a list of the names of all registered tools.
-
-        Returns:
-            A list of tool name strings.
         """
         return list(self._definitions.keys())
 
     def get_all_definitions(self) -> Dict[str, ToolDefinition]:
         """Returns the internal dictionary of definitions."""
         return dict(ToolRegistry._definitions)
+        
+    def get_tools_by_mcp_server(self, server_id: str) -> List[ToolDefinition]:
+        """
+        Returns a list of all registered tool definitions that originated
+        from a specific MCP server.
+
+        Args:
+            server_id: The unique ID of the MCP server to query for.
+
+        Returns:
+            A list of matching ToolDefinition objects.
+        """
+        if not server_id:
+            return []
+        
+        return [
+            td for td in self._definitions.values()
+            if td.category == ToolCategory.MCP and td.metadata.get("mcp_server_id") == server_id
+        ]
 
 default_tool_registry = ToolRegistry()

@@ -9,6 +9,7 @@ from .agent_runtime_queue_initialization_step import AgentRuntimeQueueInitializa
 from .workspace_context_initialization_step import WorkspaceContextInitializationStep
 # ToolInitializationStep is no longer a bootstrap step.
 from .system_prompt_processing_step import SystemPromptProcessingStep
+from .mcp_server_prewarming_step import McpServerPrewarmingStep
 # LLMConfigFinalizationStep and LLMInstanceCreationStep removed.
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "AgentRuntimeQueueInitializationStep", # UPDATED
     "WorkspaceContextInitializationStep",
     "SystemPromptProcessingStep",
+    "McpServerPrewarmingStep",
 ]
