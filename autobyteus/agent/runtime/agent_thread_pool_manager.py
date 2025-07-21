@@ -2,6 +2,8 @@
 import asyncio
 import logging
 import concurrent.futures
+import sys
+import inspect
 from typing import TYPE_CHECKING, Optional, Callable, Any
 
 from autobyteus.utils.singleton import SingletonMeta 
@@ -73,7 +75,6 @@ class AgentThreadPoolManager(metaclass=SingletonMeta):
         logger.info(f"AgentThreadPoolManager shutting down shared ThreadPoolExecutor (wait={wait}, cancel_futures={cancel_futures})...")
         self._is_shutdown = True 
         
-        import inspect
         sig = inspect.signature(self._thread_pool.shutdown)
         if 'cancel_futures' in sig.parameters:
              self._thread_pool.shutdown(wait=wait, cancel_futures=cancel_futures)
@@ -83,6 +84,11 @@ class AgentThreadPoolManager(metaclass=SingletonMeta):
         logger.info("AgentThreadPoolManager shared ThreadPoolExecutor shutdown process complete.")
 
     def __del__(self): # pragma: no cover
-        if not self._is_shutdown:
-            logger.warning("AgentThreadPoolManager deleted without explicit shutdown. Attempting non-waiting shutdown of thread pool.")
-            self.shutdown(wait=False)
+        # Check if Python is shutting down to avoid ImportError
+        if hasattr(sys, 'meta_path') and sys.meta_path is not None and not self._is_shutdown:
+            try:
+                logger.warning("AgentThreadPoolManager deleted without explicit shutdown. Attempting non-waiting shutdown of thread pool.")
+                self.shutdown(wait=False)
+            except Exception:
+                # Silently ignore errors during shutdown cleanup
+                pass

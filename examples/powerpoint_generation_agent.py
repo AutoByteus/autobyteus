@@ -30,11 +30,12 @@ except ImportError:
 
 from autobyteus.agent.context.agent_config import AgentConfig
 from autobyteus.agent.factory.agent_factory import AgentFactory
+from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.llm_factory import LLMFactory
 from autobyteus.llm.utils.llm_config import LLMConfig
 from autobyteus.tools.base_tool import BaseTool
-from autobyteus.tools.functional_tool import FunctionalTool
+from autobyteus.tools.functional_tool import FunctionalTool, tool
 from autobyteus.tools.registry.tool_registry import ToolRegistry
 
 logging.basicConfig(level=logging.INFO)
@@ -184,64 +185,60 @@ async def create_powerpoint(content: Dict[str, Any], images: Dict[int, str], out
     logger.info(f"Saved: {output_path}")
     return output_path
 
-# Create tools for the agent
+# Create tools using the @tool decorator
+@tool(name="generate_slides", description="Generate slide content from user input")
+async def generate_slides_tool(user_input: str, num_slides: int = 5) -> str:
+    result = await generate_slide_content(user_input, num_slides)
+    import json
+    return json.dumps(result)
+
+@tool(name="generate_image", description="Generate image for a slide")
+async def generate_image_tool(prompt: str, slide_num: int) -> str:
+    return await generate_slide_image(prompt, slide_num)
+
+@tool(name="create_pptx", description="Create PowerPoint from content and images")
+async def create_pptx_tool(content: str, images: str, output_path: str) -> str:
+    # Parse JSON strings back to objects
+    import json
+    content_dict = json.loads(content) if isinstance(content, str) else content
+    images_raw = json.loads(images) if isinstance(images, str) else images
+    # Convert string keys to integers for images dict
+    images_dict = {int(k): v for k, v in images_raw.items()}
+    return await create_powerpoint(content_dict, images_dict, output_path)
+
 def create_tools():
-    tools = []
-    
-    # Tool 1: Generate slide content
-    content_tool = FunctionalTool(
-        name="generate_slides",
-        description="Generate slide content from user input",
-        func=generate_slide_content,
-        parameters={
-            "user_input": {"type": "string", "description": "Title or paragraph"},
-            "num_slides": {"type": "integer", "description": "Number of slides", "default": 5}
-        }
-    )
-    tools.append(content_tool)
-    
-    # Tool 2: Generate images
-    image_tool = FunctionalTool(
-        name="generate_image",
-        description="Generate image for a slide",
-        func=generate_slide_image,
-        parameters={
-            "prompt": {"type": "string", "description": "Image prompt"},
-            "slide_num": {"type": "integer", "description": "Slide number"}
-        }
-    )
-    tools.append(image_tool)
-    
-    # Tool 3: Create PowerPoint
-    pptx_tool = FunctionalTool(
-        name="create_pptx",
-        description="Create PowerPoint from content and images",
-        func=create_powerpoint,
-        parameters={
-            "content": {"type": "object", "description": "Slide content"},
-            "images": {"type": "object", "description": "Image paths"},
-            "output_path": {"type": "string", "description": "Output file path"}
-        }
-    )
-    tools.append(pptx_tool)
-    
-    return tools
+    return [generate_slides_tool, generate_image_tool, create_pptx_tool]
 
-SYSTEM_PROMPT = """You are a PowerPoint Generation Agent. Your task is to create presentations by:
+SYSTEM_PROMPT = """You are a PowerPoint Generation Agent. You MUST use the provided tools to actually create presentations.
 
-1. First, use generate_slides to create content from the user's input
-2. Then, for each slide that needs an image, use generate_image with the image_prompt
-3. Finally, use create_pptx to create the PowerPoint file
+CRITICAL: You must invoke tools using this exact XML format. Do NOT just describe what you would do.
 
-Always generate images for all slides except the title slide.
-Save presentations to the specified output path.
-Report what you created and where it was saved."""
+Example:
+<tool name="generate_slides">
+    <arguments>
+        <arg name="user_input">AI in healthcare</arg>
+        <arg name="num_slides">3</arg>
+    </arguments>
+</tool>
+
+WORKFLOW:
+1. Start by calling generate_slides with the user's topic and number of slides
+2. When you get the JSON response, identify slides that have image_prompt
+3. For each slide needing an image, call generate_image with the image_prompt
+4. Finally, call create_pptx with the content JSON and images dictionary
+
+For create_pptx:
+- content: the exact JSON string from generate_slides
+- images: JSON like {"1": "/path/to/image.png", "2": "/path/to/image2.png"}  
+- output_path: the specified file path
+
+You MUST call the tools, not just plan what you would do."""
 
 async def main():
     parser = argparse.ArgumentParser(description="PowerPoint Generation Agent")
     parser.add_argument("input", help="Title or paragraph for presentation")
     parser.add_argument("--output", default="./presentation.pptx", help="Output path")
-    parser.add_argument("--slides", type=int, default=5, help="Number of slides")
+    parser.add_argument("--slides", type=int, default=3, help="Number of slides")
     parser.add_argument("--agent-llm", default="gemini-2.5-pro", help="LLM for agent orchestration")
     
     args = parser.parse_args()
@@ -270,14 +267,23 @@ async def main():
         agent = AgentFactory().create_agent(config=config)
         
         # Send request
-        message = f"""Create a presentation about: {args.input}
+        message_content = f"""Create a presentation about: {args.input}
 Number of slides: {args.slides}
 Output path: {args.output}
 
 Generate all content and images, then create the PowerPoint file."""
         
-        await agent.send_message(message)
-        await agent.wait_for_idle()
+        user_message = AgentInputUserMessage(content=message_content)
+        
+        # Start the agent if not already running
+        agent.start()
+        await asyncio.sleep(0.5)  # Give it time to start
+        
+        await agent.post_user_message(user_message)
+        
+        # Wait for agent to complete all work
+        from autobyteus.agent.utils.wait_for_idle import wait_for_agent_to_be_idle
+        await wait_for_agent_to_be_idle(agent, timeout=120.0)  # Longer timeout for tool execution
         
         logger.info(f"✅ Presentation created: {args.output}")
         
