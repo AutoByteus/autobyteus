@@ -17,6 +17,8 @@ class ContextFileType(str, Enum):
     HTML = "html"          # .html, .htm
     PYTHON = "python"      # .py
     JAVASCRIPT = "javascript" # .js
+    AUDIO = "audio"        # .mp3, .wav, .m4a, .flac, .ogg
+    VIDEO = "video"        # .mp4, .mov, .avi, .mkv, .webm
     IMAGE = "image"        # .png, .jpg, .jpeg, .gif, .webp (when image is for contextual analysis, not direct LLM vision input)
     UNKNOWN = "unknown"    # Fallback for unrecognized types
 
@@ -54,6 +56,10 @@ class ContextFileType(str, Enum):
             return cls.PYTHON
         elif extension == ".js":
             return cls.JAVASCRIPT
+        elif extension in [".mp3", ".wav", ".m4a", ".flac", ".ogg"]:
+            return cls.AUDIO
+        elif extension in [".mp4", ".mov", ".avi", ".mkv", ".webm"]:
+            return cls.VIDEO
         elif extension in [".png", ".jpg", ".jpeg", ".gif", ".webp"]:
             return cls.IMAGE 
         else:

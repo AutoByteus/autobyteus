@@ -53,6 +53,11 @@ class BaseAgentWorkspace(ABC, metaclass=WorkspaceMeta):
         """Configuration for the workspace. Implementations can use this as needed."""
         return self._config
 
+    @abstractmethod
+    def get_base_path(self) -> str:
+        """Returns the base path for the workspace, which can be used to resolve relative paths."""
+        pass
+
     # --- Methods for self-description ---
 
     @classmethod
