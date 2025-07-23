@@ -6,7 +6,7 @@ from typing import Dict, Any, List as TypingList, Type, TYPE_CHECKING, Optional,
 from autobyteus.llm.providers import LLMProvider
 from autobyteus.tools.tool_config import ToolConfig
 from autobyteus.tools.parameter_schema import ParameterSchema
-from autobyteus.tools.tool_category import ToolCategory
+from autobyteus.tools.tool_origin import ToolOrigin
 from autobyteus.tools.usage.providers import (
     XmlSchemaProvider, 
     JsonSchemaProvider, 
@@ -28,7 +28,8 @@ class ToolDefinition:
                  name: str,
                  description: str,
                  argument_schema: Optional['ParameterSchema'],
-                 category: ToolCategory,
+                 origin: ToolOrigin,
+                 category: str,
                  config_schema: Optional['ParameterSchema'] = None,
                  tool_class: Optional[Type['BaseTool']] = None,
                  custom_factory: Optional[Callable[['ToolConfig'], 'BaseTool']] = None,
@@ -55,12 +56,12 @@ class ToolDefinition:
              raise TypeError(f"ToolDefinition '{name}' received an invalid 'argument_schema'. Expected ParameterSchema or None.")
         if config_schema is not None and not isinstance(config_schema, ParameterSchema):
              raise TypeError(f"ToolDefinition '{name}' received an invalid 'config_schema'. Expected ParameterSchema or None.")
-        if not isinstance(category, ToolCategory):
-            raise TypeError(f"ToolDefinition '{name}' requires a ToolCategory for 'category'. Got {type(category)}")
+        if not isinstance(origin, ToolOrigin):
+            raise TypeError(f"ToolDefinition '{name}' requires a ToolOrigin for 'origin'. Got {type(origin)}")
         
         # Validation for MCP-specific metadata
-        if category == ToolCategory.MCP and not (metadata and metadata.get("mcp_server_id")):
-            raise ValueError(f"ToolDefinition '{name}' with category MCP must provide a 'mcp_server_id' in its metadata.")
+        if origin == ToolOrigin.MCP and not (metadata and metadata.get("mcp_server_id")):
+            raise ValueError(f"ToolDefinition '{name}' with origin MCP must provide a 'mcp_server_id' in its metadata.")
 
         self._name = name
         self._description = description
@@ -68,6 +69,7 @@ class ToolDefinition:
         self._config_schema: Optional['ParameterSchema'] = config_schema
         self._tool_class = tool_class
         self._custom_factory = custom_factory
+        self._origin = origin
         self._category = category
         self._metadata = metadata or {}
         
@@ -87,7 +89,9 @@ class ToolDefinition:
     @property
     def config_schema(self) -> Optional['ParameterSchema']: return self._config_schema
     @property
-    def category(self) -> ToolCategory: return self._category
+    def origin(self) -> ToolOrigin: return self._origin
+    @property
+    def category(self) -> str: return self._category
     @property
     def metadata(self) -> Dict[str, Any]: return self._metadata
     
@@ -145,4 +149,4 @@ class ToolDefinition:
     def __repr__(self) -> str:
         creator_repr = f"class='{self._tool_class.__name__}'" if self._tool_class else "factory=True"
         metadata_repr = f", metadata={self.metadata}" if self.metadata else ""
-        return (f"ToolDefinition(name='{self.name}', category='{self.category.value}'{metadata_repr}, {creator_repr})")
+        return (f"ToolDefinition(name='{self.name}', origin='{self.origin.value}', category='{self.category}'{metadata_repr}, {creator_repr})")

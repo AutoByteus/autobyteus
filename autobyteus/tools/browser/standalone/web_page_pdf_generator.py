@@ -1,5 +1,6 @@
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.tool_config import ToolConfig
+from autobyteus.tools.tool_category import ToolCategory
 from brui_core.ui_integrator import UIIntegrator
 import os
 import logging
@@ -18,6 +19,8 @@ class WebPagePDFGenerator(BaseTool, UIIntegrator):
     A class that generates a PDF of a given webpage URL using Playwright.
     Saves the PDF to a specified directory. This is a standalone browser tool.
     """
+    CATEGORY = ToolCategory.WEB
+    
     def __init__(self, config: Optional[ToolConfig] = None): 
         BaseTool.__init__(self, config=config)
         UIIntegrator.__init__(self)

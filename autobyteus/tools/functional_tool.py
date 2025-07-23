@@ -8,6 +8,7 @@ from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.tool_config import ToolConfig
 from autobyteus.tools.registry import default_tool_registry, ToolDefinition
+from autobyteus.tools.tool_origin import ToolOrigin
 from autobyteus.tools.tool_category import ToolCategory
 
 if TYPE_CHECKING:
@@ -200,7 +201,8 @@ def tool(
     name: Optional[str] = None,
     description: Optional[str] = None,
     argument_schema: Optional[ParameterSchema] = None,
-    config_schema: Optional[ParameterSchema] = None
+    config_schema: Optional[ParameterSchema] = None,
+    category: str = ToolCategory.GENERAL
 ):
     def decorator(func: Callable) -> FunctionalTool:
         tool_name = name or func.__name__
@@ -227,8 +229,6 @@ def tool(
                 instantiation_config=inst_config.params if inst_config else None
             )
         
-        # The decorator's responsibility is now just to assemble the raw metadata
-        # and create the definition. It does NOT generate usage strings.
         tool_def = ToolDefinition(
             name=tool_name,
             description=tool_desc,
@@ -236,7 +236,8 @@ def tool(
             config_schema=config_schema,
             custom_factory=factory,
             tool_class=None,
-            category=ToolCategory.LOCAL
+            origin=ToolOrigin.LOCAL,
+            category=category
         )
         default_tool_registry.register_tool(tool_def)
         

@@ -9,6 +9,7 @@ from autobyteus.tools.browser.session_aware.shared_browser_session import Shared
 from autobyteus.tools.browser.session_aware.web_element_action import WebElementAction
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.tool_config import ToolConfig
+from autobyteus.tools.tool_category import ToolCategory
 
 if TYPE_CHECKING:
     pass
@@ -19,6 +20,8 @@ class BrowserSessionAwareWebElementTrigger(BrowserSessionAwareTool):
     """
     A session-aware tool to trigger actions on web elements identified by a CSS selector.
     """
+    CATEGORY = ToolCategory.WEB
+    
     def __init__(self, config: Optional[ToolConfig] = None):
         super().__init__(config=config)
         logger.debug("BrowserSessionAwareWebElementTrigger tool initialized.")

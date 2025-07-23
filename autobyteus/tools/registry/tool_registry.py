@@ -1,11 +1,12 @@
 # file: autobyteus/tools/registry/tool_registry.py
 import logging
 from typing import Dict, List, Optional, Type, TYPE_CHECKING
+from collections import defaultdict
 
 from autobyteus.tools.registry.tool_definition import ToolDefinition
 from autobyteus.utils.singleton import SingletonMeta
 from autobyteus.tools.tool_config import ToolConfig
-from autobyteus.tools.tool_category import ToolCategory
+from autobyteus.tools.tool_origin import ToolOrigin
 
 if TYPE_CHECKING:
     from autobyteus.tools.base_tool import BaseTool
@@ -141,7 +142,54 @@ class ToolRegistry(metaclass=SingletonMeta):
         
         return [
             td for td in self._definitions.values()
-            if td.category == ToolCategory.MCP and td.metadata.get("mcp_server_id") == server_id
+            if td.origin == ToolOrigin.MCP and td.metadata.get("mcp_server_id") == server_id
         ]
+
+    def get_tools_by_category(self, category: str) -> List[ToolDefinition]:
+        """
+        Returns a list of all registered tool definitions that match a specific category.
+
+        Args:
+            category: The category string to filter by.
+
+        Returns:
+            A list of matching ToolDefinition objects, sorted by name.
+        """
+        if not category:
+            return []
+        
+        matching_tools = [
+            td for td in self._definitions.values() if td.category == category
+        ]
+        return sorted(matching_tools, key=lambda td: td.name)
+
+    def get_tools_grouped_by_category(self, origin: Optional[ToolOrigin] = None) -> Dict[str, List[ToolDefinition]]:
+        """
+        Returns all registered tool definitions, grouped into a dictionary by their category.
+        Can optionally filter by tool origin before grouping.
+
+        Args:
+            origin: If provided, only tools from this origin will be included.
+
+        Returns:
+            A dictionary where keys are category strings and values are lists
+            of ToolDefinition objects belonging to that category. Both the categories
+            and the tools within each category are sorted alphabetically.
+        """
+        grouped_tools = defaultdict(list)
+        
+        tools_to_process = self._definitions.values()
+        if origin:
+            tools_to_process = [td for td in tools_to_process if td.origin == origin]
+
+        for td in tools_to_process:
+            grouped_tools[td.category].append(td)
+        
+        # Sort tools within each category and sort the categories themselves for deterministic output
+        sorted_grouped_tools = {}
+        for category in sorted(grouped_tools.keys()):
+            sorted_grouped_tools[category] = sorted(grouped_tools[category], key=lambda td: td.name)
+            
+        return sorted_grouped_tools
 
 default_tool_registry = ToolRegistry()

@@ -7,6 +7,7 @@ from typing import Optional, TYPE_CHECKING, Any
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.tool_config import ToolConfig 
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType 
+from autobyteus.tools.tool_category import ToolCategory
 from PIL import Image
 from io import BytesIO
 from autobyteus.utils.file_utils import get_default_download_folder
@@ -18,6 +19,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 class ImageDownloader(BaseTool):
+    CATEGORY = ToolCategory.WEB
     supported_formats = ['.jpeg', '.jpg', '.gif', '.png', '.webp']
     
     def __init__(self, config: Optional[ToolConfig] = None):

@@ -2,10 +2,20 @@
 from enum import Enum
 
 class ToolCategory(str, Enum):
-    """Enumeration of tool categories to identify their origin."""
-    LOCAL = "local"
-    MCP = "mcp"
-    # BUILT_IN, USER_DEFINED etc. could be added later.
+    """
+    Provides standardized string constants for common tool categories.
+    While tools can use any string for a category, using these constants
+    is recommended to ensure consistency in UI grouping.
+    """
+    USER_INTERACTION = "User Interaction"
+    FILE_SYSTEM = "File System"
+    WEB = "Web"
+    SYSTEM = "System"
+    UTILITY = "Utility"
+    AGENT_COMMUNICATION = "Agent Communication"
+    PROMPT_MANAGEMENT = "Prompt Management"
+    GENERAL = "General"
+    MCP = "MCP"
 
     def __str__(self) -> str:
         return self.value

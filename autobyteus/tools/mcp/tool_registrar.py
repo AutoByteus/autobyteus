@@ -11,6 +11,7 @@ from .types import BaseMcpConfig
 from .server import BaseManagedMcpServer
 
 from autobyteus.tools.registry import ToolRegistry, ToolDefinition
+from autobyteus.tools.tool_origin import ToolOrigin
 from autobyteus.tools.tool_category import ToolCategory
 from autobyteus.utils.singleton import SingletonMeta
 from mcp import types as mcp_types
@@ -70,7 +71,8 @@ class McpToolRegistrar(metaclass=SingletonMeta):
             name=registered_name,
             description=actual_desc,
             argument_schema=actual_arg_schema,
-            category=ToolCategory.MCP,
+            origin=ToolOrigin.MCP,
+            category=server_config.server_id, # Use server_id as the category
             metadata={"mcp_server_id": server_config.server_id}, # Store origin in generic metadata
             custom_factory=tool_factory.create_tool,
             config_schema=None,

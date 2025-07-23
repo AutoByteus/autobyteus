@@ -1,6 +1,7 @@
 from autobyteus.tools.browser.session_aware.browser_session_aware_tool import BrowserSessionAwareTool
 from autobyteus.tools.browser.session_aware.shared_browser_session import SharedBrowserSession
 from autobyteus.tools.tool_config import ToolConfig
+from autobyteus.tools.tool_category import ToolCategory
 from urllib.parse import urlparse
 from typing import Optional, TYPE_CHECKING, Any
 import logging
@@ -16,6 +17,7 @@ class BrowserSessionAwareNavigateTo(BrowserSessionAwareTool):
     """
     A session-aware tool for navigating to a specified website using a shared browser session.
     """
+    CATEGORY = ToolCategory.WEB
 
     def __init__(self, config: Optional[ToolConfig] = None):
         super().__init__(config=config)

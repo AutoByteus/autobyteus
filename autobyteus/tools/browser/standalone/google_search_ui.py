@@ -9,6 +9,7 @@ from typing import Optional, TYPE_CHECKING, Any
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.tool_config import ToolConfig 
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType 
+from autobyteus.tools.tool_category import ToolCategory
 from brui_core.ui_integrator import UIIntegrator 
 from autobyteus.utils.html_cleaner import clean, CleaningMode
 
@@ -22,6 +23,7 @@ class GoogleSearch(BaseTool, UIIntegrator): # Multiple inheritance
     A tool that allows for performing a Google search using Playwright and retrieving the search results.
     Inherits from BaseTool for tool framework compatibility and UIIntegrator for Playwright integration.
     """
+    CATEGORY = ToolCategory.WEB
 
     def __init__(self, config: Optional[ToolConfig] = None):
         BaseTool.__init__(self, config=config)

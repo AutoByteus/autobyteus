@@ -5,6 +5,7 @@ from typing import Dict, Any
 
 from autobyteus.tools.registry import default_tool_registry, ToolDefinition
 from autobyteus.tools.parameter_schema import ParameterSchema
+from autobyteus.tools.tool_origin import ToolOrigin
 from autobyteus.tools.tool_category import ToolCategory
 
 logger = logging.getLogger(__name__)
@@ -53,6 +54,9 @@ class ToolMeta(ABCMeta):
                         instantiation_config_schema = None
                 except Exception as e:
                     logger.warning(f"Tool class {name} ({tool_name}) has get_config_schema() but it failed: {e}. Assuming no instantiation config.")
+
+            # Get category from class attribute, defaulting to "General"
+            category_str = getattr(cls, 'CATEGORY', ToolCategory.GENERAL)
             
             # Create the definition without pre-generating usage strings
             definition = ToolDefinition(
@@ -62,7 +66,8 @@ class ToolMeta(ABCMeta):
                 custom_factory=None,
                 argument_schema=argument_schema,
                 config_schema=instantiation_config_schema,
-                category=ToolCategory.LOCAL
+                origin=ToolOrigin.LOCAL,
+                category=category_str
             )
             default_tool_registry.register_tool(definition)
             

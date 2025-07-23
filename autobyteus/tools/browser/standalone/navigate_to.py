@@ -1,5 +1,6 @@
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.tool_config import ToolConfig
+from autobyteus.tools.tool_category import ToolCategory
 from brui_core.ui_integrator import UIIntegrator
 from urllib.parse import urlparse
 from typing import Optional, TYPE_CHECKING, Any
@@ -17,6 +18,7 @@ class NavigateTo(BaseTool, UIIntegrator):
     A standalone tool for navigating to a specified website using Playwright.
     It initializes and closes its own browser instance for each navigation.
     """
+    CATEGORY = ToolCategory.WEB
 
     def __init__(self, config: Optional[ToolConfig] = None):
         BaseTool.__init__(self, config=config)

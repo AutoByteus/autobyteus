@@ -3,13 +3,14 @@ import logging
 from typing import TYPE_CHECKING
 
 from autobyteus.tools import tool # Main @tool decorator
+from autobyteus.tools.tool_category import ToolCategory
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
 
 logger = logging.getLogger(__name__)
 
-@tool(name="AskUserInput") # Explicit name matching the old class name
+@tool(name="AskUserInput", category=ToolCategory.USER_INTERACTION)
 async def ask_user_input(context: 'AgentContext', request: str) -> str: # Function name can be ask_user_input
     """
     Requests input from the user based on a given prompt and returns the user's textual response.

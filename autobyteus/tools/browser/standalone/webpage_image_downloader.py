@@ -1,5 +1,6 @@
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.tool_config import ToolConfig
+from autobyteus.tools.tool_category import ToolCategory
 from brui_core.ui_integrator import UIIntegrator
 import os
 import logging 
@@ -18,6 +19,8 @@ class WebPageImageDownloader(BaseTool, UIIntegrator):
     A class that downloads images (excluding SVGs and data URIs) from a given webpage URL using Playwright.
     Saves images to a specified directory.
     """
+    CATEGORY = ToolCategory.WEB
+    
     def __init__(self, config: Optional[ToolConfig] = None): 
         BaseTool.__init__(self, config=config)
         UIIntegrator.__init__(self)
