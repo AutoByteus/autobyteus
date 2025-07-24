@@ -3,6 +3,7 @@ from typing import Optional, TYPE_CHECKING, Any
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.tool_config import ToolConfig 
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType 
+from autobyteus.tools.tool_category import ToolCategory
 from autobyteus.events.event_emitter import EventEmitter 
 from autobyteus.events.event_types import EventType
 import logging 
@@ -17,6 +18,7 @@ class Timer(BaseTool, EventEmitter):
     A tool that provides timer functionality with configurable duration and event emission.
     The timer runs independently after being started and emits TIMER_UPDATE events.
     """
+    CATEGORY = ToolCategory.UTILITY
 
     def __init__(self, config: Optional[ToolConfig] = None):
         BaseTool.__init__(self, config=config)

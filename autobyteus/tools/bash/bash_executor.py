@@ -4,13 +4,14 @@ import logging
 from typing import TYPE_CHECKING, Optional
 
 from autobyteus.tools import tool 
+from autobyteus.tools.tool_category import ToolCategory
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
 
 logger = logging.getLogger(__name__)
 
-@tool(name="BashExecutor")
+@tool(name="BashExecutor", category=ToolCategory.SYSTEM)
 async def bash_executor(context: Optional['AgentContext'], command: str, cwd: Optional[str] = None) -> str:
     """
     Executes bash commands and retrieves their standard output.

@@ -8,6 +8,7 @@ from typing import Optional, TYPE_CHECKING, Any
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.tool_config import ToolConfig 
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType 
+from autobyteus.tools.tool_category import ToolCategory
 from brui_core.ui_integrator import UIIntegrator 
 from autobyteus.utils.html_cleaner import clean, CleaningMode
 
@@ -20,6 +21,7 @@ class WebPageReader(BaseTool, UIIntegrator):
     """
     A class that reads and cleans the HTML content from a given webpage using Playwright.
     """
+    CATEGORY = ToolCategory.WEB
 
     def __init__(self, config: Optional[ToolConfig] = None):
         BaseTool.__init__(self, config=config)

@@ -3,13 +3,14 @@ import logging
 from typing import TYPE_CHECKING
 
 from autobyteus.tools import tool
+from autobyteus.tools.tool_category import ToolCategory
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
 
 logger = logging.getLogger(__name__)
 
-@tool(name="FileReader")
+@tool(name="FileReader", category=ToolCategory.FILE_SYSTEM)
 async def file_reader(context: 'AgentContext', path: str) -> str:
     """
     Reads content from a specified file.

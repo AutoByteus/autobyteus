@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
 from autobyteus.tools import tool
+from autobyteus.tools.tool_category import ToolCategory
 from autobyteus.utils.file_utils import get_default_download_folder
 
 if TYPE_CHECKING:
@@ -14,7 +15,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-@tool(name="PDFDownloader")
+@tool(name="PDFDownloader", category=ToolCategory.WEB)
 async def pdf_downloader( # function name can be pdf_downloader
     context: 'AgentContext', 
     url: str, 
