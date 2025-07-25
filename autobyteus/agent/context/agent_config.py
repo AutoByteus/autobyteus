@@ -10,6 +10,7 @@ from autobyteus.agent.llm_response_processor import ProviderAwareToolUsageProces
 if TYPE_CHECKING:
     from autobyteus.tools.base_tool import BaseTool
     from autobyteus.agent.input_processor import BaseAgentUserInputMessageProcessor
+    from autobyteus.agent.tool_execution_result_processor import BaseToolExecutionResultProcessor
     from autobyteus.llm.base_llm import BaseLLM
     from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
     from autobyteus.agent.hooks.base_phase_hook import BasePhaseHook
@@ -39,6 +40,7 @@ class AgentConfig:
                  input_processors: Optional[List['BaseAgentUserInputMessageProcessor']] = None,
                  llm_response_processors: Optional[List['BaseLLMResponseProcessor']] = None,
                  system_prompt_processors: Optional[List['BaseSystemPromptProcessor']] = None,
+                 tool_execution_result_processors: Optional[List['BaseToolExecutionResultProcessor']] = None,
                  workspace: Optional['BaseAgentWorkspace'] = None,
                  phase_hooks: Optional[List['BasePhaseHook']] = None,
                  initial_custom_data: Optional[Dict[str, Any]] = None):
@@ -58,6 +60,7 @@ class AgentConfig:
             input_processors: A list of input processor instances.
             llm_response_processors: A list of LLM response processor instances.
             system_prompt_processors: A list of system prompt processor instances.
+            tool_execution_result_processors: A list of tool execution result processor instances.
             workspace: An optional pre-initialized workspace instance for the agent.
             phase_hooks: An optional list of phase transition hook instances.
             initial_custom_data: An optional dictionary of data to pre-populate
@@ -75,6 +78,7 @@ class AgentConfig:
         self.input_processors = input_processors or []
         self.llm_response_processors = llm_response_processors if llm_response_processors is not None else list(self.DEFAULT_LLM_RESPONSE_PROCESSORS)
         self.system_prompt_processors = system_prompt_processors if system_prompt_processors is not None else list(self.DEFAULT_SYSTEM_PROMPT_PROCESSORS)
+        self.tool_execution_result_processors = tool_execution_result_processors or []
         self.phase_hooks = phase_hooks or []
         self.initial_custom_data = initial_custom_data
 
