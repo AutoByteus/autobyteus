@@ -9,12 +9,11 @@ from autobyteus.tools.mcp import (
     McpConfigService,
     McpTransportType,
     StdioMcpServerConfig,
-    SseMcpServerConfig,
     StreamableHttpMcpServerConfig,
     BaseMcpConfig
 )
 
-# Test Data: Using 'server_id' as key, and nested 'stdio_params', 'sse_params' etc.
+# Test Data: Using 'server_id' as key, and nested 'stdio_params', 'streamable_http_params' etc.
 # The McpConfigService is now expected to un-nest these.
 
 USER_EXAMPLE_1_FLAT_DICT_AS_INPUT = {
@@ -33,13 +32,6 @@ USER_EXAMPLE_1_FLAT_DICT_AS_INPUT = {
     }
 }
 
-VALID_STDIO_SINGLE_CONFIG_DICT = {
-    "server_id": "stdio_server_1",
-    "transport_type": "stdio",
-    "stdio_params": {"command": "python"}
-}
-
-
 VALID_STDIO_CONFIG_LIST_ITEM = {
     "server_id": "stdio_server_1",
     "transport_type": "stdio",
@@ -50,18 +42,6 @@ VALID_STDIO_CONFIG_LIST_ITEM = {
         "args": ["-m", "my_mcp_server"],
         "env": {"PYTHONUNBUFFERED": "1"},
         "cwd": "/tmp"
-    }
-}
-
-VALID_SSE_CONFIG_LIST_ITEM = {
-    "server_id": "sse_server_1",
-    "transport_type": "sse",
-    "enabled": False,
-    "tool_name_prefix": "sse_remote_",
-    "sse_params": {
-        "url": "http://localhost:8000/events",
-        "token": "secret-token",
-        "headers": {"X-Custom-Header": "value"}
     }
 }
 
@@ -102,7 +82,7 @@ def test_load_config_singular(mcp_config_service: McpConfigService):
     assert len(mcp_config_service.get_all_configs()) == 1
 
 def test_load_configs_plural_from_list(mcp_config_service: McpConfigService):
-    configs_data = [VALID_STDIO_CONFIG_LIST_ITEM, VALID_SSE_CONFIG_LIST_ITEM]
+    configs_data = [VALID_STDIO_CONFIG_LIST_ITEM, VALID_HTTP_CONFIG_LIST_ITEM]
     loaded = mcp_config_service.load_configs(configs_data)
     assert len(loaded) == 2
     assert len(mcp_config_service.get_all_configs()) == 2
@@ -111,9 +91,9 @@ def test_load_configs_plural_from_list(mcp_config_service: McpConfigService):
     assert isinstance(config1, StdioMcpServerConfig)
     assert config1.command == "python"
 
-    config2 = mcp_config_service.get_config("sse_server_1")
-    assert isinstance(config2, SseMcpServerConfig)
-    assert config2.url == "http://localhost:8000/events"
+    config2 = mcp_config_service.get_config("http_server_1")
+    assert isinstance(config2, StreamableHttpMcpServerConfig)
+    assert config2.url == "http://localhost:9000/stream"
 
 def test_load_configs_plural_from_dict_of_dicts(mcp_config_service: McpConfigService):
     configs_data = USER_EXAMPLE_1_FLAT_DICT_AS_INPUT
@@ -125,7 +105,7 @@ def test_load_configs_plural_from_dict_of_dicts(mcp_config_service: McpConfigSer
 
 
 def test_load_configs_from_file(mcp_config_service: McpConfigService, tmp_path):
-    file_content = [VALID_STDIO_CONFIG_LIST_ITEM, VALID_SSE_CONFIG_LIST_ITEM]
+    file_content = [VALID_STDIO_CONFIG_LIST_ITEM, VALID_HTTP_CONFIG_LIST_ITEM]
     config_file = tmp_path / "mcp_config_list.json"
     config_file.write_text(json.dumps(file_content))
 
@@ -136,15 +116,14 @@ def test_load_configs_from_file(mcp_config_service: McpConfigService, tmp_path):
     assert isinstance(stdio_conf, StdioMcpServerConfig)
     assert stdio_conf.command == "python"
 
-    sse_conf = mcp_config_service.get_config("sse_server_1")
-    assert isinstance(sse_conf, SseMcpServerConfig)
-    assert sse_conf.url == "http://localhost:8000/events"
+    http_conf = mcp_config_service.get_config("http_server_1")
+    assert isinstance(http_conf, StreamableHttpMcpServerConfig)
+    assert http_conf.url == "http://localhost:9000/stream"
 
 @pytest.mark.parametrize("invalid_data, error_message_match", [
     ([{"transport_type": "stdio"}], "missing 'server_id' field"),
     ({"myid": {"transport_type": "invalid_type"}}, "Invalid 'transport_type' string 'invalid_type'"),
     ({"myid": {"transport_type": "stdio", "stdio_params": {"command": 123}}}, "incompatible parameters for STDIO config"),
-    ({"myid": {"transport_type": "sse", "sse_params": {"url": None}}}, "incompatible parameters for SSE config"),
     ({"myid": {"transport_type": "streamable_http", "streamable_http_params": {}}}, "incompatible parameters for STREAMABLE_HTTP config"),
 ])
 def test_load_configs_invalid_data_raises_value_error(mcp_config_service: McpConfigService, invalid_data, error_message_match):

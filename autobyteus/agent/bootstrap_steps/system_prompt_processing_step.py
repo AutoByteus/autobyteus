@@ -34,8 +34,10 @@ class SystemPromptProcessingStep(BaseBootstrapStep):
             if not llm_instance:
                 raise ValueError("LLM instance not found in agent state. It must be provided in AgentConfig.")
 
-            current_system_prompt = context.config.system_prompt
-            logger.debug(f"Agent '{agent_id}': Retrieved base system prompt from agent config.")
+            # If a specific system_prompt is not provided in AgentConfig, fall back
+            # to the default system_message from the LLM's own configuration.
+            current_system_prompt = context.config.system_prompt or llm_instance.config.system_message
+            logger.debug(f"Agent '{agent_id}': Retrieved base system prompt.")
             
             processor_instances = context.config.system_prompt_processors
             tool_instances_for_processor = context.tool_instances

@@ -33,8 +33,8 @@ class AgentConfig:
                  role: str,
                  description: str,
                  llm_instance: 'BaseLLM',
-                 system_prompt: str,
-                 tools: List['BaseTool'],
+                 system_prompt: Optional[str] = None,
+                 tools: Optional[List['BaseTool']] = None,
                  auto_execute_tools: bool = True,
                  use_xml_tool_format: bool = True,
                  input_processors: Optional[List['BaseAgentUserInputMessageProcessor']] = None,
@@ -53,8 +53,9 @@ class AgentConfig:
             description: A description of the agent.
             llm_instance: A pre-initialized LLM instance (subclass of BaseLLM).
                           The user is responsible for creating and configuring this instance.
-            system_prompt: The base system prompt.
-            tools: A list of pre-initialized tool instances (subclasses of BaseTool).
+            system_prompt: The base system prompt. If None, the system_message from the
+                           llm_instance's config will be used as the base.
+            tools: An optional list of pre-initialized tool instances (subclasses of BaseTool).
             auto_execute_tools: If True, the agent will execute tools without approval.
             use_xml_tool_format: Whether to use XML for tool descriptions and examples.
             input_processors: A list of input processor instances.
@@ -71,7 +72,7 @@ class AgentConfig:
         self.description = description
         self.llm_instance = llm_instance
         self.system_prompt = system_prompt
-        self.tools = tools
+        self.tools = tools or []
         self.workspace = workspace
         self.auto_execute_tools = auto_execute_tools
         self.use_xml_tool_format = use_xml_tool_format

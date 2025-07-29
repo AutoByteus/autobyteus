@@ -2,14 +2,15 @@
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch, ANY
 
-from autobyteus.tools.mcp.tool_registrar import McpToolRegistrar
+from autobyteus.tools.mcp.tool_registrar import McpToolRegistrar # Corrected import
 from autobyteus.tools.mcp.config_service import McpConfigService
 from autobyteus.tools.mcp.types import StdioMcpServerConfig
 from autobyteus.tools.mcp.server_instance_manager import McpServerInstanceManager
 from autobyteus.tools.registry import ToolRegistry, ToolDefinition
-from autobyteus.tools.tool_category import ToolCategory
+from autobyteus.tools.parameter_schema import ParameterType
 
 # Mock the external mcp.types.Tool for type checking and isolation
+# This is a class, so we mock its instances
 MockMcpTool = MagicMock()
 MockMcpTool.name = "remoteToolA"
 MockMcpTool.description = "A remote tool for testing."
@@ -18,7 +19,6 @@ MockMcpTool.inputSchema = {"type": "object", "properties": {"paramA": {"type": "
 @pytest.fixture(autouse=True)
 def clear_singleton_cache():
     """Ensures each test gets a fresh singleton instance."""
-    # Use a list to handle potential KeyErrors if a singleton wasn't instantiated
     singletons_to_clear = [McpToolRegistrar, McpConfigService, ToolRegistry, McpServerInstanceManager]
     for singleton_class in singletons_to_clear:
         if singleton_class in singleton_class._instances:
@@ -37,7 +37,6 @@ def mock_dependencies(mocker):
     # cause it to be initialized with our mocks.
     registrar = McpToolRegistrar()
     
-    # Return the instance and its mocked dependencies for use in tests
     return {
         "registrar": registrar,
         "config_service": registrar._config_service,
@@ -56,7 +55,7 @@ async def test_discover_and_register_full_scan(mock_dependencies, mocker):
     server_config = StdioMcpServerConfig(server_id="server1", command="cmd1", enabled=True, tool_name_prefix="s1_")
     mock_config_service.get_all_configs.return_value = [server_config]
     
-    # Directly patch the registrar's helper method to isolate its logic
+    # Directly patch the registrar's helper method to isolate its logic from connection details
     mock_fetch = mocker.patch.object(registrar, '_fetch_tools_from_server', new_callable=AsyncMock)
     mock_fetch.return_value = [MockMcpTool]
 
@@ -79,8 +78,8 @@ async def test_discover_and_register_full_scan(mock_dependencies, mocker):
     registered_def = mock_tool_registry.register_tool.call_args[0][0]
     assert isinstance(registered_def, ToolDefinition)
     assert registered_def.name == "s1_remoteToolA"
-    assert registered_def.category == ToolCategory.MCP
-    assert registered_def.metadata["source_server_id"] == "server1"
+    assert registered_def.category == "server1" # Category is server_id
+    assert registered_def.metadata["mcp_server_id"] == "server1"
 
     # Assert internal state is correct
     assert "stale_server" not in registrar._registered_tools_by_server
@@ -92,6 +91,7 @@ async def test_discover_and_register_targeted(mock_dependencies, mocker):
     """Tests passing a specific config, ensuring old tools for that server are unregistered first."""
     registrar = mock_dependencies["registrar"]
     mock_tool_registry = mock_dependencies["tool_registry"]
+    mock_config_service = mock_dependencies["config_service"]
 
     # --- Arrange ---
     target_config = StdioMcpServerConfig(server_id="target_server", command="cmd_target", enabled=True)
@@ -102,7 +102,7 @@ async def test_discover_and_register_targeted(mock_dependencies, mocker):
     # Prime the registrar with a stale tool for the *same* server
     stale_tool_def = MagicMock(spec=ToolDefinition, name="old_tool_for_target")
     registrar._registered_tools_by_server["target_server"] = [stale_tool_def]
-
+    
     # --- Act ---
     await registrar.discover_and_register_tools(mcp_config=target_config)
 
@@ -110,6 +110,7 @@ async def test_discover_and_register_targeted(mock_dependencies, mocker):
     mock_fetch.assert_awaited_once_with(target_config)
     mock_tool_registry.unregister_tool.assert_called_once_with("old_tool_for_target")
     mock_tool_registry.register_tool.assert_called_once()
+    mock_config_service.add_config.assert_called_once_with(target_config)
 
 @pytest.mark.asyncio
 async def test_discover_and_register_fetch_fails(mock_dependencies, mocker):
@@ -151,13 +152,11 @@ async def test_list_remote_tools_previews_without_side_effects(mock_dependencies
     # --- Assert ---
     mock_fetch.assert_awaited_once_with(preview_config)
     
-    # Assert correct tool definition was created for preview
     assert len(tool_defs) == 1
     assert isinstance(tool_defs[0], ToolDefinition)
     assert tool_defs[0].name == "remoteToolA"
-    assert tool_defs[0].metadata["source_server_id"] == "preview_server"
+    assert tool_defs[0].metadata["mcp_server_id"] == "preview_server"
     
-    # Assert no side effects
     mock_tool_registry.register_tool.assert_not_called()
     assert not registrar._registered_tools_by_server
 
@@ -166,14 +165,11 @@ def test_unregister_tools_from_server(mock_dependencies):
     registrar = mock_dependencies["registrar"]
     mock_tool_registry = mock_dependencies["tool_registry"]
 
-    # Arrange
     tool_def = MagicMock(spec=ToolDefinition); tool_def.name = "tool_to_remove"
     registrar._registered_tools_by_server["server1"] = [tool_def]
 
-    # Act
     result = registrar.unregister_tools_from_server("server1")
 
-    # Assert
     assert result is True
     mock_tool_registry.unregister_tool.assert_called_once_with("tool_to_remove")
     assert "server1" not in registrar._registered_tools_by_server

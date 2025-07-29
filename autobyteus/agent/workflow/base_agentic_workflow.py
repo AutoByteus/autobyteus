@@ -1,31 +1,33 @@
 # file: autobyteus/autobyteus/agent/workflow/base_agentic_workflow.py
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional, Any, Union
+from typing import Optional, Any, TYPE_CHECKING
 
-from autobyteus.agent.workflow.agentic_workflow import AgenticWorkflow
-from autobyteus.agent.group.agent_group import AgentGroup
+# These are forward declarations that might be used by subclasses.
+# The actual circular dependency is avoided by type-hinting strings.
+if TYPE_CHECKING:
+    from .agentic_workflow import AgenticWorkflow
+    from autobyteus.agent.group import AgentGroup
 
 logger = logging.getLogger(__name__)
 
 class BaseAgenticWorkflow(ABC):
     """
-    FR28: Optional abstract base class for creating domain-specific, type-safe
+    Optional abstract base class for creating domain-specific, type-safe
     APIs for agentic workflows.
 
-    FR29: Users can subclass BaseAgenticWorkflow if they wish to create a more
-    structured and specific interface for their multi-agent tasks, rather than
-    using the generic `AgenticWorkflow.process(**kwargs)` method directly.
+    Users can subclass BaseAgenticWorkflow to create a more structured and
+    specific interface for their multi-agent tasks, rather than using the
+    generic `AgenticWorkflow.process(**kwargs)` method directly.
 
-    FR30: Subclasses would typically encapsulate an `AgenticWorkflow` instance
-    or an `AgentGroup` instance directly. They then define methods that map
-    domain-specific inputs to the underlying workflow's execution, providing
-    type safety and a clearer API for that particular workflow.
+    Subclasses would typically encapsulate an `AgenticWorkflow` or an `AgentGroup`
+    instance and define methods that map domain-specific inputs to the
+    underlying workflow's execution.
     """
 
     def __init__(self,
                  name: str,
-                 wrapped_workflow_instance: Optional[Union[AgenticWorkflow, AgentGroup]] = None):
+                 wrapped_workflow_instance: Optional[Any] = None):
         """
         Initializes the BaseAgenticWorkflow.
 
@@ -37,7 +39,7 @@ class BaseAgenticWorkflow(ABC):
                                        workflow/group instance.
         """
         self.name: str = name
-        self._wrapped_workflow: Optional[Union[AgenticWorkflow, AgentGroup]] = wrapped_workflow_instance
+        self._wrapped_workflow: Optional[Any] = wrapped_workflow_instance
         
         if self._wrapped_workflow:
             logger.info(f"BaseAgenticWorkflow '{self.name}' initialized, wrapping an instance of "
@@ -47,7 +49,7 @@ class BaseAgenticWorkflow(ABC):
                         "Subclass should handle workflow/group setup.")
 
     @property
-    def wrapped_workflow(self) -> Optional[Union[AgenticWorkflow, AgentGroup]]:
+    def wrapped_workflow(self) -> Optional[Any]:
         """Provides access to the wrapped AgenticWorkflow or AgentGroup instance."""
         return self._wrapped_workflow
 
@@ -76,23 +78,13 @@ class BaseAgenticWorkflow(ABC):
         """
         pass
     
-    # Subclasses will define their own domain-specific process methods, for example:
-    # @abstractmethod
-    # async def generate_report(self, topic: str, length_words: int) -> Report:
-    #     pass
-    #
-    # @abstractmethod
-    # async def translate_document(self, document_path: str, target_language: str) -> TranslatedDocument:
-    #     pass
-
     def __repr__(self) -> str:
         running_status = "N/A (not implemented by subclass)"
         try:
             running_status = str(self.is_running)
-        except NotImplementedError: # pragma: no cover
-            pass # Keep default N/A
+        except NotImplementedError:
+            pass
             
         return (f"<{self.__class__.__name__} name='{self.name}', "
                 f"wraps='{self._wrapped_workflow.__class__.__name__ if self._wrapped_workflow else 'NoneInternal'}', "
                 f"is_running={running_status}>")
-
