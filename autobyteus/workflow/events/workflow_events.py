@@ -33,7 +33,7 @@ class ProcessRequestEvent(OperationalWorkflowEvent):
     user_message: AgentInputUserMessage
 
 @dataclass
-class PostInterAgentMessageRequestEvent(OperationalWorkflowEvent):
+class InterAgentMessageRequestEvent(OperationalWorkflowEvent):
     """
     An internal request within the workflow to post a message from one agent to another.
     This triggers on-demand startup logic if needed.

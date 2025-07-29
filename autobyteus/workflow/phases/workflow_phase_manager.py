@@ -3,10 +3,10 @@ import logging
 from typing import TYPE_CHECKING, Optional
 
 from autobyteus.workflow.phases.workflow_operational_phase import WorkflowOperationalPhase
-from autobyteus.workflow.streaming.workflow_event_notifier import WorkflowExternalEventNotifier
 
 if TYPE_CHECKING:
     from autobyteus.workflow.context.workflow_context import WorkflowContext
+    from autobyteus.workflow.streaming.workflow_event_notifier import WorkflowExternalEventNotifier
 
 logger = logging.getLogger(__name__)
 

@@ -8,7 +8,7 @@ from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefiniti
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
     from autobyteus.workflow.context.team_manager import TeamManager
-    from autobyteus.workflow.events.workflow_events import PostInterAgentMessageRequestEvent
+    from autobyteus.workflow.events.workflow_events import InterAgentMessageRequestEvent
 
 logger = logging.getLogger(__name__)
 
@@ -69,11 +69,11 @@ class SendMessageTo(BaseTool):
                        content: str, 
                        message_type: str) -> str:
         """
-        Creates and dispatches a PostInterAgentMessageRequestEvent to the parent workflow
+        Creates and dispatches a InterAgentMessageRequestEvent to the parent workflow
         using the injected team_manager.
         """
         # Local import to break circular dependency at module load time.
-        from autobyteus.workflow.events.workflow_events import PostInterAgentMessageRequestEvent
+        from autobyteus.workflow.events.workflow_events import InterAgentMessageRequestEvent
 
         if self._team_manager is None:
             error_msg = "Critical error: SendMessageTo tool is not configured for workflow communication. It can only be used within a managed AgenticWorkflow."
@@ -98,7 +98,7 @@ class SendMessageTo(BaseTool):
         logger.info(f"Tool '{self.get_name()}': Agent '{sender_agent_id}' requesting to send message to '{recipient_name}'.")
 
         # Create the event for the workflow to handle
-        event = PostInterAgentMessageRequestEvent(
+        event = InterAgentMessageRequestEvent(
             sender_agent_id=sender_agent_id,
             recipient_name=recipient_name,
             content=content,

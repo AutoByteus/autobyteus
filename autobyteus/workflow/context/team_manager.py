@@ -7,7 +7,7 @@ from autobyteus.agent.context.agent_config import AgentConfig
 
 if TYPE_CHECKING:
     from autobyteus.agent.agent import Agent
-    from autobyteus.workflow.events.workflow_events import PostInterAgentMessageRequestEvent
+    from autobyteus.workflow.events.workflow_events import InterAgentMessageRequestEvent
     from autobyteus.workflow.runtime.workflow_runtime import WorkflowRuntime
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ class TeamManager:
         self._final_agent_configs = configs
         logger.info(f"TeamManager for workflow '{self.workflow_id}' populated with {len(configs)} final agent configs.")
 
-    async def dispatch_inter_agent_message_request(self, event: 'PostInterAgentMessageRequestEvent'):
+    async def dispatch_inter_agent_message_request(self, event: 'InterAgentMessageRequestEvent'):
         """Forwards an event from a tool to the main workflow runtime."""
         logger.debug(f"TeamManager for workflow '{self.workflow_id}' dispatching event {type(event).__name__} to runtime.")
         await self._runtime.submit_event(event)

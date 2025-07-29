@@ -3,10 +3,10 @@ import pytest
 import logging
 from unittest.mock import MagicMock
 
-from autobyteus.agent.workflow.bootstrap_steps.workflow_runtime_queue_initialization_step import WorkflowRuntimeQueueInitializationStep
-from autobyteus.agent.workflow.events.workflow_input_event_queue_manager import WorkflowInputEventQueueManager
-from autobyteus.agent.workflow.context import WorkflowContext
-from autobyteus.agent.workflow.phases.workflow_phase_manager import WorkflowPhaseManager
+from autobyteus.workflow.bootstrap_steps.workflow_runtime_queue_initialization_step import WorkflowRuntimeQueueInitializationStep
+from autobyteus.workflow.events.workflow_input_event_queue_manager import WorkflowInputEventQueueManager
+from autobyteus.workflow.context import WorkflowContext
+from autobyteus.workflow.phases.workflow_phase_manager import WorkflowPhaseManager
 
 @pytest.fixture
 def queue_init_step():
@@ -32,7 +32,7 @@ async def test_execute_success(
     mock_queue_manager_class = MagicMock(return_value=mock_queue_manager_instance)
     
     monkeypatch.setattr(
-        "autobyteus.agent.workflow.bootstrap_steps.workflow_runtime_queue_initialization_step.WorkflowInputEventQueueManager",
+        "autobyteus.workflow.bootstrap_steps.workflow_runtime_queue_initialization_step.WorkflowInputEventQueueManager",
         mock_queue_manager_class
     )
     
@@ -64,7 +64,7 @@ async def test_execute_failure_on_instantiation(
     mock_queue_manager_class = MagicMock(side_effect=RuntimeError(exception_message))
     
     monkeypatch.setattr(
-        "autobyteus.agent.workflow.bootstrap_steps.workflow_runtime_queue_initialization_step.WorkflowInputEventQueueManager",
+        "autobyteus.workflow.bootstrap_steps.workflow_runtime_queue_initialization_step.WorkflowInputEventQueueManager",
         mock_queue_manager_class
     )
 

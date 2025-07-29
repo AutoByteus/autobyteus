@@ -1,5 +1,6 @@
 # file: autobyteus/autobyteus/agent/workspace/base_workspace.py
 import logging
+import uuid
 from abc import ABC, abstractmethod
 from typing import Optional, Any, Dict, TYPE_CHECKING
 from autobyteus.tools.parameter_schema import ParameterSchema
@@ -29,7 +30,8 @@ class BaseAgentWorkspace(ABC, metaclass=WorkspaceMeta):
         """
         self._config: WorkspaceConfig = config or WorkspaceConfig()
         self.context: Optional['AgentContext'] = None
-        logger.debug(f"{self.__class__.__name__} instance initialized. Context pending injection.")
+        self.workspace_id: str = str(uuid.uuid4())
+        logger.debug(f"{self.__class__.__name__} instance initialized with ID {self.workspace_id}. Context pending injection.")
 
     def set_context(self, context: 'AgentContext'):
         """
@@ -57,6 +59,14 @@ class BaseAgentWorkspace(ABC, metaclass=WorkspaceMeta):
     def get_base_path(self) -> str:
         """Returns the base path for the workspace, which can be used to resolve relative paths."""
         pass
+    
+    def get_name(self) -> str:
+        """
+        Returns a user-friendly name for this workspace instance.
+        By default, it returns the unique workspace ID.
+        Subclasses can override this to provide a more descriptive name (e.g., a directory name).
+        """
+        return self.workspace_id
 
     # --- Methods for self-description ---
 
@@ -79,4 +89,4 @@ class BaseAgentWorkspace(ABC, metaclass=WorkspaceMeta):
         pass
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} agent_id='{self.agent_id or 'N/A'}>"
+        return f"<{self.__class__.__name__} workspace_id='{self.workspace_id}' agent_id='{self.agent_id or 'N/A'}>"

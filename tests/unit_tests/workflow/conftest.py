@@ -6,15 +6,16 @@ from unittest.mock import MagicMock, AsyncMock
 import pytest
 
 from autobyteus.agent.context import AgentConfig
-from autobyteus.agent.workflow.context import (
+from autobyteus.workflow.context import (
     WorkflowConfig,
     WorkflowNodeConfig,
     WorkflowRuntimeState,
     WorkflowContext,
+    TeamManager,
 )
-from autobyteus.agent.workflow.phases.workflow_phase_manager import WorkflowPhaseManager
-from autobyteus.agent.workflow.events.workflow_input_event_queue_manager import WorkflowInputEventQueueManager
-from autobyteus.agent.workflow.streaming.workflow_event_notifier import WorkflowExternalEventNotifier
+from autobyteus.workflow.phases.workflow_phase_manager import WorkflowPhaseManager
+from autobyteus.workflow.events.workflow_input_event_queue_manager import WorkflowInputEventQueueManager
+from autobyteus.workflow.streaming.workflow_event_notifier import WorkflowExternalEventNotifier
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.llm_config import LLMConfig
 from autobyteus.agent.agent import Agent
@@ -80,6 +81,14 @@ def mock_workflow_event_queue_manager():
     return manager
 
 @pytest.fixture
+def mock_team_manager():
+    """Provides a mocked TeamManager instance."""
+    manager = MagicMock(spec=TeamManager)
+    manager.set_agent_configs = MagicMock()
+    manager.get_and_configure_coordinator = MagicMock()
+    return manager
+
+@pytest.fixture
 def mock_workflow_phase_manager():
     """Provides a mocked WorkflowPhaseManager with async methods."""
     # This fixture no longer depends on workflow_context, breaking the circular dependency.
@@ -96,7 +105,7 @@ def mock_workflow_phase_manager():
     return manager
 
 @pytest.fixture
-def workflow_context(sample_workflow_config, workflow_runtime_state, mock_workflow_event_queue_manager, mock_workflow_phase_manager):
+def workflow_context(sample_workflow_config, workflow_runtime_state, mock_workflow_event_queue_manager, mock_workflow_phase_manager, mock_team_manager):
     """
     Provides a fully-composed WorkflowContext ready for use in handler/step tests.
     """
@@ -108,6 +117,7 @@ def workflow_context(sample_workflow_config, workflow_runtime_state, mock_workfl
     # Simulate a post-bootstrap state for handlers/steps:
     context.state.input_event_queues = mock_workflow_event_queue_manager
     context.state.phase_manager_ref = mock_workflow_phase_manager
+    context.state.team_manager = mock_team_manager
     return context
 
 @pytest.fixture

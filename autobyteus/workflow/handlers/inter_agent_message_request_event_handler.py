@@ -1,9 +1,9 @@
-# file: autobyteus/autobyteus/workflow/handlers/post_inter_agent_message_request_event_handler.py
+# file: autobyteus/autobyteus/workflow/handlers/inter_agent_message_request_event_handler.py
 import logging
 from typing import TYPE_CHECKING, Any
 
 from autobyteus.workflow.handlers.base_workflow_event_handler import BaseWorkflowEventHandler
-from autobyteus.workflow.events.workflow_events import PostInterAgentMessageRequestEvent
+from autobyteus.workflow.events.workflow_events import InterAgentMessageRequestEvent
 from autobyteus.agent.message.inter_agent_message import InterAgentMessage
 from autobyteus.agent.utils.wait_for_idle import wait_for_agent_to_be_idle
 from autobyteus.agent.streaming.agent_event_stream import AgentEventStream
@@ -14,12 +14,12 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-class PostInterAgentMessageRequestEventHandler(BaseWorkflowEventHandler):
+class InterAgentMessageRequestEventHandler(BaseWorkflowEventHandler):
     """
     Handles requests to send messages between agents, orchestrating on-demand
     startup and streaming the sub-task's activity.
     """
-    async def handle(self, event: PostInterAgentMessageRequestEvent, context: 'WorkflowContext') -> None:
+    async def handle(self, event: InterAgentMessageRequestEvent, context: 'WorkflowContext') -> None:
         workflow_id = context.workflow_id
         notifier = context.phase_manager.notifier
         team_manager = context.team_manager

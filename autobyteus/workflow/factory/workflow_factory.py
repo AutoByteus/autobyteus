@@ -13,8 +13,8 @@ from autobyteus.workflow.runtime.workflow_runtime import WorkflowRuntime
 from autobyteus.workflow.handlers.workflow_event_handler_registry import WorkflowEventHandlerRegistry
 from autobyteus.workflow.handlers.process_request_event_handler import ProcessRequestEventHandler
 from autobyteus.workflow.handlers.lifecycle_workflow_event_handler import LifecycleWorkflowEventHandler
-from autobyteus.workflow.handlers.post_inter_agent_message_request_event_handler import PostInterAgentMessageRequestEventHandler
-from autobyteus.workflow.events.workflow_events import ProcessRequestEvent, WorkflowReadyEvent, WorkflowErrorEvent, PostInterAgentMessageRequestEvent
+from autobyteus.workflow.handlers.inter_agent_message_request_event_handler import InterAgentMessageRequestEventHandler
+from autobyteus.workflow.events.workflow_events import ProcessRequestEvent, WorkflowReadyEvent, WorkflowErrorEvent, InterAgentMessageRequestEvent
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ class WorkflowFactory(metaclass=SingletonMeta):
         """Returns a registry with default handlers for a new workflow."""
         registry = WorkflowEventHandlerRegistry()
         registry.register(ProcessRequestEvent, ProcessRequestEventHandler())
-        registry.register(PostInterAgentMessageRequestEvent, PostInterAgentMessageRequestEventHandler())
+        registry.register(InterAgentMessageRequestEvent, InterAgentMessageRequestEventHandler())
         lifecycle_handler = LifecycleWorkflowEventHandler()
         registry.register(WorkflowReadyEvent, lifecycle_handler)
         registry.register(WorkflowErrorEvent, lifecycle_handler)

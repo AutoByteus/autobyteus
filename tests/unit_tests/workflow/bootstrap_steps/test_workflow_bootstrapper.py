@@ -3,9 +3,9 @@ import pytest
 import logging
 from unittest.mock import AsyncMock, patch
 
-from autobyteus.agent.workflow.bootstrap_steps.workflow_bootstrapper import WorkflowBootstrapper
-from autobyteus.agent.workflow.bootstrap_steps.base_workflow_bootstrap_step import BaseWorkflowBootstrapStep
-from autobyteus.agent.workflow.events.workflow_events import WorkflowReadyEvent
+from autobyteus.workflow.bootstrap_steps.workflow_bootstrapper import WorkflowBootstrapper
+from autobyteus.workflow.bootstrap_steps.base_workflow_bootstrap_step import BaseWorkflowBootstrapStep
+from autobyteus.workflow.events.workflow_events import WorkflowReadyEvent
 
 # Dummy classes for robust spec'ing
 class MockStep1(BaseWorkflowBootstrapStep):
@@ -28,20 +28,19 @@ def mock_step_2():
 
 def test_bootstrapper_initialization_default(caplog):
     """Test that the bootstrapper initializes with default steps if none are provided."""
-    # Patch the classes and capture the mocks to check if they were instantiated
-    with patch('autobyteus.agent.workflow.bootstrap_steps.workflow_bootstrapper.WorkflowRuntimeQueueInitializationStep') as mock_q_init, \
-         patch('autobyteus.agent.workflow.bootstrap_steps.workflow_bootstrapper.CoordinatorPromptPreparationStep') as mock_prompt_prep, \
-         patch('autobyteus.agent.workflow.bootstrap_steps.workflow_bootstrapper.CoordinatorAndTeamContextInitializationStep') as mock_team_init:
+    with patch('autobyteus.workflow.bootstrap_steps.workflow_bootstrapper.WorkflowRuntimeQueueInitializationStep') as mock_q_init, \
+         patch('autobyteus.workflow.bootstrap_steps.workflow_bootstrapper.CoordinatorPromptPreparationStep') as mock_prompt_prep, \
+         patch('autobyteus.workflow.bootstrap_steps.workflow_bootstrapper.AgentToolInjectionStep') as mock_tool_inject, \
+         patch('autobyteus.workflow.bootstrap_steps.workflow_bootstrapper.CoordinatorInitializationStep') as mock_coord_init:
         
         bootstrapper = WorkflowBootstrapper()
         
-        # Verify that the bootstrapper tried to instantiate each of the default steps
         mock_q_init.assert_called_once()
         mock_prompt_prep.assert_called_once()
-        mock_team_init.assert_called_once()
+        mock_tool_inject.assert_called_once()
+        mock_coord_init.assert_called_once()
         
-        # Verify that the bootstrapper's list contains the correct number of (mocked) steps
-        assert len(bootstrapper.bootstrap_steps) == 3
+        assert len(bootstrapper.bootstrap_steps) == 4
 
 def test_bootstrapper_initialization_custom(mock_step_1, mock_step_2):
     """Test that the bootstrapper initializes with a custom list of steps."""
@@ -63,7 +62,6 @@ async def test_run_success(workflow_context, mock_step_1, mock_step_2):
     mock_step_1.execute.assert_awaited_once_with(workflow_context, phase_manager)
     mock_step_2.execute.assert_awaited_once_with(workflow_context, phase_manager)
     
-    # Verify WorkflowReadyEvent was enqueued
     workflow_context.state.input_event_queues.enqueue_internal_system_event.assert_awaited_once()
     enqueued_event = workflow_context.state.input_event_queues.enqueue_internal_system_event.call_args[0][0]
     assert isinstance(enqueued_event, WorkflowReadyEvent)
@@ -73,7 +71,7 @@ async def test_run_success(workflow_context, mock_step_1, mock_step_2):
 @pytest.mark.asyncio
 async def test_run_fails_and_stops(workflow_context, mock_step_1, mock_step_2):
     """Test a failed run where one step returns False, halting the process."""
-    mock_step_1.execute.return_value = False  # First step fails
+    mock_step_1.execute.return_value = False
     
     bootstrapper = WorkflowBootstrapper(steps=[mock_step_1, mock_step_2])
     phase_manager = workflow_context.phase_manager
@@ -83,14 +81,12 @@ async def test_run_fails_and_stops(workflow_context, mock_step_1, mock_step_2):
     assert success is False
     phase_manager.notify_bootstrapping_started.assert_awaited_once()
     mock_step_1.execute.assert_awaited_once()
-    mock_step_2.execute.assert_not_awaited()  # Second step should not be executed
+    mock_step_2.execute.assert_not_awaited()
     
-    # Verify error was notified
     phase_manager.notify_error_occurred.assert_awaited_once()
     args, kwargs = phase_manager.notify_error_occurred.call_args
     assert "Bootstrap step MockStep1 failed." in args[0]
 
-    # Verify WorkflowReadyEvent was NOT enqueued
     workflow_context.state.input_event_queues.enqueue_internal_system_event.assert_not_called()
 
 @pytest.mark.asyncio
@@ -99,7 +95,6 @@ async def test_run_fails_if_queues_not_set_after_success(workflow_context, mock_
     bootstrapper = WorkflowBootstrapper(steps=[mock_step_1])
     phase_manager = workflow_context.phase_manager
     
-    # Simulate steps succeeding but queues not being set
     workflow_context.state.input_event_queues = None
     
     success = await bootstrapper.run(workflow_context, phase_manager)
@@ -108,7 +103,6 @@ async def test_run_fails_if_queues_not_set_after_success(workflow_context, mock_
     phase_manager.notify_bootstrapping_started.assert_awaited_once()
     mock_step_1.execute.assert_awaited_once()
     
-    # Verify error was notified for this specific critical failure
     phase_manager.notify_error_occurred.assert_awaited_once()
     args, kwargs = phase_manager.notify_error_occurred.call_args
     assert "Queues unavailable after bootstrap." in args[0]
