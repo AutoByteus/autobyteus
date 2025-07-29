@@ -2,13 +2,13 @@
 import logging
 from typing import TYPE_CHECKING, Any, Optional
 
-from ...tools.base_tool import BaseTool
-from ...tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.tools.base_tool import BaseTool
+from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 # This import is for type hinting only and avoids circular dependencies at runtime
 if TYPE_CHECKING:
-    from ..context import AgentContext
-    from ..workflow.context.team_manager import TeamManager
-    from ..workflow.events.workflow_events import PostInterAgentMessageRequestEvent
+    from autobyteus.agent.context import AgentContext
+    from autobyteus.workflow.context.team_manager import TeamManager
+    from autobyteus.workflow.events.workflow_events import PostInterAgentMessageRequestEvent
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,7 @@ class SendMessageTo(BaseTool):
         using the injected team_manager.
         """
         # Local import to break circular dependency at module load time.
-        from ..workflow.events.workflow_events import PostInterAgentMessageRequestEvent
+        from autobyteus.workflow.events.workflow_events import PostInterAgentMessageRequestEvent
 
         if self._team_manager is None:
             error_msg = "Critical error: SendMessageTo tool is not configured for workflow communication. It can only be used within a managed AgenticWorkflow."
