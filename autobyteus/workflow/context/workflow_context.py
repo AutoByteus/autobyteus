@@ -1,6 +1,6 @@
 # file: autobyteus/autobyteus/workflow/context/workflow_context.py
 import logging
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Dict
 
 if TYPE_CHECKING:
     from autobyteus.workflow.context.workflow_config import WorkflowConfig
@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from autobyteus.workflow.phases.workflow_phase_manager import WorkflowPhaseManager
     from autobyteus.workflow.context.team_manager import TeamManager
     from autobyteus.workflow.streaming.agent_event_multiplexer import AgentEventMultiplexer
+    from autobyteus.agent.context import AgentConfig
 
 logger = logging.getLogger(__name__)
 
@@ -49,3 +50,8 @@ class WorkflowContext:
     @property
     def multiplexer(self) -> Optional['AgentEventMultiplexer']:
         return self.state.multiplexer_ref
+
+    @property
+    def resolved_agent_configs(self) -> Optional[Dict[str, 'AgentConfig']]:
+        """Returns the dictionary of final, resolved agent configurations after bootstrapping."""
+        return self.state.resolved_agent_configs

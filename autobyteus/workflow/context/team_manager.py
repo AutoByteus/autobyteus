@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 class TeamManager:
     """
     Manages agents within a workflow, handling lazy creation, on-demand startup,
-    and event stream multiplexing.
+    and event stream multiplexing. It reads agent configurations from the central
+    workflow runtime state.
     """
     def __init__(self, workflow_id: str, runtime: 'WorkflowRuntime', multiplexer: 'AgentEventMultiplexer'):
         self.workflow_id = workflow_id
@@ -27,12 +28,7 @@ class TeamManager:
         self._agent_factory = AgentFactory()
         self._agents_cache: Dict[str, 'Agent'] = {}
         self._coordinator_agent: Optional['Agent'] = None
-        self._final_agent_configs: Dict[str, AgentConfig] = {}
         logger.info(f"TeamManager created for workflow '{self.workflow_id}'.")
-
-    def set_agent_configs(self, configs: Dict[str, AgentConfig]):
-        self._final_agent_configs = configs
-        logger.info(f"TeamManager for workflow '{self.workflow_id}' populated with {len(configs)} final agent configs.")
 
     async def dispatch_inter_agent_message_request(self, event: 'InterAgentMessageRequestEvent'):
         await self._runtime.submit_event(event)
@@ -40,13 +36,20 @@ class TeamManager:
     async def ensure_agent_is_ready(self, name: str) -> Optional['Agent']:
         """
         Retrieves an agent by its unique friendly name. If the agent has not
-        been created yet, it is instantiated. If it is not running, it is
-        started and awaited until idle. Returns a fully ready agent or None on failure.
+        been created yet, it is instantiated using the resolved config from the
+        workflow state. If it is not running, it is started and awaited until
+        idle. Returns a fully ready agent or None on failure.
         """
         agent = self._agents_cache.get(name)
         was_created = False
         if not agent:
-            agent_config = self._final_agent_configs.get(name)
+            # Read configs from the central workflow state.
+            resolved_configs = self._runtime.context.resolved_agent_configs
+            if not resolved_configs:
+                logger.error(f"Resolved agent configs not found in workflow state for workflow '{self.workflow_id}'.")
+                return None
+            
+            agent_config = resolved_configs.get(name)
             if not agent_config:
                 logger.error(f"No prepared config for agent '{name}' in workflow '{self.workflow_id}'.")
                 return None

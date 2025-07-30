@@ -26,7 +26,8 @@ class WorkflowRuntimeState:
         
         # State populated by bootstrap steps
         self.prepared_coordinator_prompt: Optional[str] = None
-        
+        self.resolved_agent_configs: Optional[Dict[str, 'AgentConfig']] = None
+
         # Core services
         self.team_manager: Optional['TeamManager'] = None
 
@@ -40,6 +41,8 @@ class WorkflowRuntimeState:
     def __repr__(self) -> str:
         agents_count = len(self.team_manager.get_all_agents()) if self.team_manager else 0
         coordinator_set = self.team_manager.coordinator_agent is not None if self.team_manager else False
+        resolved_configs_count = len(self.resolved_agent_configs) if self.resolved_agent_configs else 0
         return (f"<WorkflowRuntimeState id='{self.workflow_id}', phase='{self.current_phase.value}', "
                 f"agents_count={agents_count}, coordinator_set={coordinator_set}, "
+                f"resolved_configs_count={resolved_configs_count}, "
                 f"team_manager_set={self.team_manager is not None}>")

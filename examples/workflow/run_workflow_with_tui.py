@@ -68,22 +68,20 @@ def create_demo_workflow(model_name: str):
         print(f"\nCRITICAL ERROR: LLM Model '{model_name}' is not valid. Use --help-models to see available models.\nCheck log file for details.")
         sys.exit(1)
 
-    llm_instance = default_llm_factory.create_llm(model_identifier=model_name)
-
-    # Coordinator Agent Config
+    # Coordinator Agent Config - Gets its own LLM instance
     coordinator_config = AgentConfig(
         name="Coordinator",
         role="Project Manager",
         description="Delegates tasks to the team to fulfill the user's request.",
-        llm_instance=llm_instance,
+        llm_instance=default_llm_factory.create_llm(model_identifier=model_name),
     )
 
-    # Specialist Agent Config (FactChecker)
+    # Specialist Agent Config (FactChecker) - Gets its own LLM instance
     fact_checker_config = AgentConfig(
         name="FactChecker",
         role="Specialist",
         description="An agent with a limited, internal knowledge base for answering direct factual questions.",
-        llm_instance=llm_instance,
+        llm_instance=default_llm_factory.create_llm(model_identifier=model_name),
         system_prompt=(
             "You are a fact-checking bot. You have the following knowledge:\n"
             "- The capital of France is Paris.\n"
@@ -115,7 +113,7 @@ async def main(args: argparse.Namespace, log_file: Path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run an AgenticWorkflow with a Textual TUI.")
-    parser.add_argument("--llm-model", type=str, default="kimi-latest", help="The LLM model to use for the agents.")
+    parser.add_argument("--llm-model", type=str, default="hf.co/Menlo/Jan-nano-gguf:Q8_0", help="The LLM model to use for the agents.")
     parser.add_argument("--help-models", action="store_true", help="Display available LLM models and exit.")
     
     if "--help-models" in sys.argv:

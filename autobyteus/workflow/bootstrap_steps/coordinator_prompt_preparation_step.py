@@ -50,6 +50,12 @@ class CoordinatorPromptPreparationStep(BaseWorkflowBootstrapStep):
     def _generate_prompt(self, context: 'WorkflowContext', member_node_ids: Dict[WorkflowNodeConfig, str]) -> str:
         prompt_parts: List[str] = []
 
+        tools_section = (
+            "### Your Tools\n"
+            "To accomplish your goal, you have access to the following tools. You should use them as needed.\n"
+            "{{tools}}"
+        )
+
         if member_node_ids:
             role_and_goal = (
                 "You are the coordinator of a team of specialist agents. Your primary goal is to achieve the "
@@ -71,6 +77,8 @@ class CoordinatorPromptPreparationStep(BaseWorkflowBootstrapStep):
             if rules_list:
                 rules_section = "### Execution Rules\n" + "\n".join(rules_list)
                 prompt_parts.append(rules_section)
+
+            prompt_parts.append(tools_section)
                 
             final_instruction = "### Your Task\nAnalyze the user's request, formulate a plan, and use the `SendMessageTo` tool to delegate tasks to your team. Address team members by their unique ID as listed under 'Your Team'."
             prompt_parts.append(final_instruction)
@@ -81,6 +89,7 @@ class CoordinatorPromptPreparationStep(BaseWorkflowBootstrapStep):
             )
             prompt_parts.append(role_and_goal)
             prompt_parts.append("### Your Team\nYou are working alone on this task.")
+            prompt_parts.append(tools_section)
             final_instruction = "### Your Task\nAnalyze the user's request, formulate a plan, and use your available tools to achieve the goal."
             prompt_parts.append(final_instruction)
 

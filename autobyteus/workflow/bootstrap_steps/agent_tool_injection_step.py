@@ -18,6 +18,7 @@ class AgentToolInjectionStep(BaseWorkflowBootstrapStep):
     """
     Bootstrap step to finalize agent configs by injecting workflow-aware tools
     like SendMessageTo. It also applies the prepared coordinator prompt.
+    The final configs are stored in the workflow's runtime state.
     """
     async def execute(self, context: 'WorkflowContext', phase_manager: 'WorkflowPhaseManager') -> bool:
         workflow_id = context.workflow_id
@@ -62,9 +63,10 @@ class AgentToolInjectionStep(BaseWorkflowBootstrapStep):
 
                 final_agent_configs[friendly_name] = modified_config
 
-            team_manager.set_agent_configs(final_agent_configs)
+            # Store the resolved configs in the central workflow state.
+            context.state.resolved_agent_configs = final_agent_configs
 
-            logger.info(f"Workflow '{workflow_id}': Agent tool injection complete. Final configs populated in TeamManager.")
+            logger.info(f"Workflow '{workflow_id}': Agent tool injection complete. Final configs populated in WorkflowRuntimeState.")
             return True
         except Exception as e:
             logger.error(f"Workflow '{workflow_id}': Failed during agent tool injection: {e}", exc_info=True)
