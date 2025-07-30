@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from autobyteus.agent.agent import Agent
     from autobyteus.workflow.phases.workflow_phase_manager import WorkflowPhaseManager
     from autobyteus.workflow.context.team_manager import TeamManager
+    from autobyteus.workflow.streaming.agent_event_multiplexer import AgentEventMultiplexer
 
 logger = logging.getLogger(__name__)
 
@@ -44,3 +45,7 @@ class WorkflowContext:
     @property
     def team_manager(self) -> Optional['TeamManager']:
         return self.state.team_manager
+        
+    @property
+    def multiplexer(self) -> Optional['AgentEventMultiplexer']:
+        return self.state.multiplexer_ref

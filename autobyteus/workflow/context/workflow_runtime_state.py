@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from autobyteus.workflow.phases.workflow_phase_manager import WorkflowPhaseManager
     from autobyteus.workflow.context.workflow_node_config import WorkflowNodeConfig
     from autobyteus.workflow.context.team_manager import TeamManager
+    from autobyteus.workflow.streaming.agent_event_multiplexer import AgentEventMultiplexer
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +30,10 @@ class WorkflowRuntimeState:
         # Core services
         self.team_manager: Optional['TeamManager'] = None
 
-        # Runtime components
+        # Runtime components and references
         self.input_event_queues: Optional['WorkflowInputEventQueueManager'] = None
         self.phase_manager_ref: Optional['WorkflowPhaseManager'] = None
+        self.multiplexer_ref: Optional['AgentEventMultiplexer'] = None
 
         logger.info(f"WorkflowRuntimeState initialized for workflow_id '{self.workflow_id}'.")
 

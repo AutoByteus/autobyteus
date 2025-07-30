@@ -4,7 +4,7 @@ import logging
 from typing import AsyncIterator, Optional, List, Any, Dict, TYPE_CHECKING 
 
 from autobyteus.agent.runtime.agent_runtime import AgentRuntime
-from autobyteus.agent.context.phases import AgentOperationalPhase 
+from autobyteus.agent.phases.phase_enum import AgentOperationalPhase 
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.agent.message.inter_agent_message import InterAgentMessage
 from autobyteus.agent.events import UserMessageReceivedEvent, InterAgentMessageReceivedEvent, ToolExecutionApprovalEvent, BaseEvent 

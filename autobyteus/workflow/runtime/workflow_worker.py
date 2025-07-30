@@ -31,6 +31,10 @@ class WorkflowWorker:
         self._done_callbacks: list[Callable[[concurrent.futures.Future], None]] = []
         logger.info(f"WorkflowWorker initialized for workflow '{self.context.workflow_id}'.")
 
+    def get_worker_loop(self) -> Optional[asyncio.AbstractEventLoop]:
+        """Returns the worker's event loop if it's running."""
+        return self._worker_loop if self._worker_loop and self._worker_loop.is_running() else None
+
     def add_done_callback(self, callback: Callable):
         if self._thread_future:
             self._thread_future.add_done_callback(callback)
@@ -74,9 +78,9 @@ class WorkflowWorker:
         while not self._async_stop_event.is_set():
             try:
                 # Combine queues for a single wait point
-                process_task = asyncio.create_task(self.context.state.input_event_queues.process_request_queue.get())
+                user_message_task = asyncio.create_task(self.context.state.input_event_queues.user_message_queue.get())
                 system_task = asyncio.create_task(self.context.state.input_event_queues.internal_system_event_queue.get())
-                done, pending = await asyncio.wait([process_task, system_task], return_when=asyncio.FIRST_COMPLETED, timeout=0.2)
+                done, pending = await asyncio.wait([user_message_task, system_task], return_when=asyncio.FIRST_COMPLETED, timeout=0.2)
                 
                 for task in pending:
                     task.cancel()

@@ -1,0 +1,51 @@
+/* file: autobyteus/autobyteus/cli/workflow_tui/app.css */
+
+Screen {
+    layout: vertical;
+}
+
+#app-header {
+    height: 3;
+    background: $primary;
+    color: $text;
+    dock: top;
+    content-align: center middle;
+}
+
+#main-container {
+    layout: horizontal;
+}
+
+AgentListSidebar {
+    width: 25%;
+    min-width: 20;
+    max-width: 40;
+    border-right: heavy $primary;
+    background: $surface;
+    padding: 0 1;
+}
+
+FocusPane {
+    width: 75%;
+    padding: 0 1;
+}
+
+#focus-pane-title {
+    height: 1;
+    margin: 1 0;
+}
+
+#focus-pane-log-container {
+    background: $panel;
+    border: round $primary;
+}
+
+#focus-pane-input {
+    dock: bottom;
+    margin-top: 1;
+}
+
+StatusBar {
+    dock: bottom;
+    height: 1;
+}

@@ -3,7 +3,9 @@ import logging
 from typing import TYPE_CHECKING, Any, Optional
 
 from autobyteus.tools.base_tool import BaseTool
+from autobyteus.tools.tool_category import ToolCategory
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.tools.tool_config import ToolConfig
 # This import is for type hinting only and avoids circular dependencies at runtime
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
@@ -19,17 +21,21 @@ class SendMessageTo(BaseTool):
     workflow framework to enable communication with the parent orchestrator.
     """
     TOOL_NAME = "SendMessageTo"
+    CATEGORY = ToolCategory.AGENT_COMMUNICATION
 
-    def __init__(self, team_manager: Optional['TeamManager'] = None):
+    def __init__(self, config: Optional[ToolConfig] = None):
         """
-        Initializes the SendMessageTo tool.
+        Initializes the SendMessageTo tool. The TeamManager is injected separately
+        after instantiation.
+        """
+        super().__init__(config=config)
+        self._team_manager: Optional['TeamManager'] = None
+        logger.debug("SendMessageTo tool initialized. TeamManager is not yet injected.")
 
-        Args:
-            team_manager: An optional TeamManager instance. This is
-                          typically injected by the TeamManager itself at agent creation.
-        """
+    def set_team_manager(self, team_manager: 'TeamManager'):
+        """Sets the TeamManager instance after the tool has been created."""
         self._team_manager = team_manager
-        logger.debug(f"SendMessageTo tool initialized. TeamManager injected: {self._team_manager is not None}")
+        logger.debug(f"TeamManager was set on SendMessageTo instance post-creation.")
 
     @classmethod
     def get_name(cls) -> str:

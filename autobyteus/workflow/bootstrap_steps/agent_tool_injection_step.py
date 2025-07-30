@@ -1,12 +1,12 @@
 # file: autobyteus/autobyteus/workflow/bootstrap_steps/agent_tool_injection_step.py
 import logging
-import copy
 from typing import TYPE_CHECKING, Dict, Set
 
 from autobyteus.workflow.bootstrap_steps.base_workflow_bootstrap_step import BaseWorkflowBootstrapStep
 from autobyteus.agent.context import AgentConfig
 from autobyteus.agent.message.send_message_to import SendMessageTo
 from autobyteus.workflow.context.workflow_node_config import WorkflowNodeConfig
+from autobyteus.tools.registry import default_tool_registry
 
 if TYPE_CHECKING:
     from autobyteus.workflow.context.workflow_context import WorkflowContext
@@ -40,16 +40,22 @@ class AgentToolInjectionStep(BaseWorkflowBootstrapStep):
             node_ids[coordinator_node] = coordinator_node.name
 
             for node, friendly_name in node_ids.items():
-                modified_config = copy.deepcopy(node.effective_config)
+                modified_config = node.effective_config.copy()
 
-                has_send_message_tool = any(isinstance(tool, SendMessageTo) for tool in modified_config.tools)
-                if not has_send_message_tool:
-                    modified_config.tools.append(SendMessageTo(team_manager=team_manager))
+                # --- FIX: Use ToolRegistry to create SendMessageTo tool and inject definition ---
+                tool_registry = default_tool_registry
+                send_message_tool_instance = tool_registry.create_tool(SendMessageTo.get_name())
+                
+                if isinstance(send_message_tool_instance, SendMessageTo):
+                    send_message_tool_instance.set_team_manager(team_manager)
                 else:
-                    modified_config.tools = [
-                        tool if not isinstance(tool, SendMessageTo) else SendMessageTo(team_manager=team_manager)
-                        for tool in modified_config.tools
-                    ]
+                    # This should not happen if the tool is registered correctly.
+                    logger.error(f"Failed to create SendMessageTo tool for agent '{friendly_name}'. Tool created was not of the correct type.")
+                    return False
+
+                # Remove any existing SendMessageTo instance and add the new one
+                modified_config.tools = [t for t in modified_config.tools if not isinstance(t, SendMessageTo)]
+                modified_config.tools.append(send_message_tool_instance)
                 
                 if node == coordinator_node:
                     modified_config.system_prompt = coordinator_prompt

@@ -28,9 +28,10 @@ class WorkflowErrorEvent(LifecycleWorkflowEvent):
     exception_details: Optional[str] = None
 
 @dataclass
-class ProcessRequestEvent(OperationalWorkflowEvent):
-    """Carries a user's request to be processed by the workflow."""
+class ProcessUserMessageEvent(OperationalWorkflowEvent):
+    """Carries a user's message to be processed by a specific agent in the workflow."""
     user_message: AgentInputUserMessage
+    target_agent_name: str
 
 @dataclass
 class InterAgentMessageRequestEvent(OperationalWorkflowEvent):

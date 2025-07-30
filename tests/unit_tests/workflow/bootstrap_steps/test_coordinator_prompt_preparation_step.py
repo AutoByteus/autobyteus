@@ -17,13 +17,12 @@ def prompt_prep_step():
 @pytest.mark.asyncio
 async def test_execute_success_with_team(
     prompt_prep_step: CoordinatorPromptPreparationStep,
-    workflow_context: WorkflowContext,
-    mock_workflow_phase_manager: MagicMock
+    workflow_context: WorkflowContext
 ):
     """
     Tests successful execution for a standard team with a coordinator and one member.
     """
-    success = await prompt_prep_step.execute(workflow_context, mock_workflow_phase_manager)
+    success = await prompt_prep_step.execute(workflow_context, workflow_context.phase_manager)
 
     assert success is True
     
@@ -38,8 +37,7 @@ async def test_execute_success_with_team(
 @pytest.mark.asyncio
 async def test_execute_with_solo_coordinator(
     prompt_prep_step: CoordinatorPromptPreparationStep,
-    workflow_context: WorkflowContext,
-    mock_workflow_phase_manager: MagicMock
+    workflow_context: WorkflowContext
 ):
     """
     Tests successful execution for a workflow with only a single coordinator node.
@@ -51,7 +49,7 @@ async def test_execute_with_solo_coordinator(
         description="Solo workflow"
     )
 
-    success = await prompt_prep_step.execute(workflow_context, mock_workflow_phase_manager)
+    success = await prompt_prep_step.execute(workflow_context, workflow_context.phase_manager)
 
     assert success is True
     prompt = workflow_context.state.prepared_coordinator_prompt
@@ -62,7 +60,6 @@ async def test_execute_with_solo_coordinator(
 async def test_execute_failure_path(
     prompt_prep_step: CoordinatorPromptPreparationStep,
     workflow_context: WorkflowContext,
-    mock_workflow_phase_manager: MagicMock,
     monkeypatch
 ):
     """
@@ -75,7 +72,7 @@ async def test_execute_failure_path(
         MagicMock(side_effect=ValueError(error_message))
     )
 
-    success = await prompt_prep_step.execute(workflow_context, mock_workflow_phase_manager)
+    success = await prompt_prep_step.execute(workflow_context, workflow_context.phase_manager)
 
     assert success is False
     assert workflow_context.state.prepared_coordinator_prompt is None

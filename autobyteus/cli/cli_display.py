@@ -4,7 +4,7 @@ import sys
 from typing import Optional, List, Dict, Any
 import json 
 
-from autobyteus.agent.context.phases import AgentOperationalPhase
+from autobyteus.agent.phases.phase_enum import AgentOperationalPhase
 from autobyteus.agent.streaming.stream_events import StreamEvent, StreamEventType
 from autobyteus.agent.streaming.stream_event_payloads import (
     AssistantChunkData,

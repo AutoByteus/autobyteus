@@ -17,7 +17,6 @@ def queue_init_step():
 async def test_execute_success(
     queue_init_step: WorkflowRuntimeQueueInitializationStep,
     workflow_context: WorkflowContext,
-    mock_workflow_phase_manager: WorkflowPhaseManager,
     monkeypatch
 ):
     """
@@ -36,7 +35,7 @@ async def test_execute_success(
         mock_queue_manager_class
     )
     
-    success = await queue_init_step.execute(workflow_context, mock_workflow_phase_manager)
+    success = await queue_init_step.execute(workflow_context, workflow_context.phase_manager)
 
     assert success is True
     
@@ -50,7 +49,6 @@ async def test_execute_success(
 async def test_execute_failure_on_instantiation(
     queue_init_step: WorkflowRuntimeQueueInitializationStep,
     workflow_context: WorkflowContext,
-    mock_workflow_phase_manager: WorkflowPhaseManager,
     caplog,
     monkeypatch
 ):
@@ -69,7 +67,7 @@ async def test_execute_failure_on_instantiation(
     )
 
     with caplog.at_level(logging.ERROR):
-        success = await queue_init_step.execute(workflow_context, mock_workflow_phase_manager)
+        success = await queue_init_step.execute(workflow_context, workflow_context.phase_manager)
 
     assert success is False
     

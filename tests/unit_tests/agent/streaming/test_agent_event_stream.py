@@ -5,12 +5,13 @@ import threading
 from typing import List, Any, AsyncIterator, Coroutine, Generator
 from unittest.mock import MagicMock
 
+from autobyteus.agent.context.agent_context import AgentContext
 from autobyteus.agent.streaming.agent_event_stream import AgentEventStream
 from autobyteus.agent.streaming.stream_events import StreamEvent, StreamEventType
 from autobyteus.agent.streaming.stream_event_payloads import AssistantChunkData, AssistantCompleteResponseData, ErrorEventData, AgentOperationalPhaseTransitionData
 from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 from autobyteus.agent.agent import Agent
-from autobyteus.agent.context import AgentContext, AgentPhaseManager
+from autobyteus.agent.phases.manager import AgentPhaseManager
 from autobyteus.agent.events.notifiers import AgentExternalEventNotifier
 from autobyteus.agent.phases import AgentOperationalPhase
 

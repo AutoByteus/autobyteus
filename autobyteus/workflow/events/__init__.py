@@ -8,7 +8,7 @@ from autobyteus.workflow.events.workflow_events import (
     OperationalWorkflowEvent,
     WorkflowReadyEvent,
     WorkflowErrorEvent,
-    ProcessRequestEvent,
+    ProcessUserMessageEvent,
     InterAgentMessageRequestEvent
 )
 from autobyteus.workflow.events.workflow_event_dispatcher import WorkflowEventDispatcher
@@ -20,7 +20,7 @@ __all__ = [
     "OperationalWorkflowEvent",
     "WorkflowReadyEvent",
     "WorkflowErrorEvent",
-    "ProcessRequestEvent",
+    "ProcessUserMessageEvent",
     "InterAgentMessageRequestEvent",
     "WorkflowEventDispatcher",
     "WorkflowInputEventQueueManager",

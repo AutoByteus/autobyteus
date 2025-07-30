@@ -21,8 +21,7 @@ from autobyteus.agent.events.agent_events import ( # Updated relative import pat
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
     from autobyteus.agent.handlers import EventHandlerRegistry
-    from autobyteus.agent.context.agent_phase_manager import AgentPhaseManager
-
+    from autobyteus.agent.phases import AgentPhaseManager
 logger = logging.getLogger(__name__)
 
 class WorkerEventDispatcher:

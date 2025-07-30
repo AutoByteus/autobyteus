@@ -20,8 +20,6 @@ from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.llm_config import LLMConfig
 from autobyteus.agent.agent import Agent
 
-# This conftest provides common, simplified fixtures for workflow-related unit tests.
-
 @pytest.fixture
 def mock_llm_instance():
     """Provides a mocked BaseLLM instance."""
@@ -38,10 +36,17 @@ def agent_config_factory(mock_llm_instance):
             role=f"{name}_role",
             description=f"Description for {name}",
             llm_instance=mock_llm_instance,
-            system_prompt=f"System prompt for {name}",
-            tools=[] # Provide default empty list for tools to prevent TypeError
+            tools=[]
         )
     return _factory
+
+@pytest.fixture
+def mock_agent_config():
+    """Provides a mocked AgentConfig with necessary attributes."""
+    mock_config = MagicMock(spec=AgentConfig)
+    mock_config.name = "MockAgent"
+    mock_config.role = "MockRole"
+    return mock_config
 
 @pytest.fixture
 def workflow_node_factory(agent_config_factory):
@@ -54,9 +59,6 @@ def workflow_node_factory(agent_config_factory):
 def sample_workflow_config(workflow_node_factory):
     """Provides a sample 2-node WorkflowConfig."""
     coordinator_node = workflow_node_factory("Coordinator")
-    # To test the coordinator prompt fix, we create its config without a system prompt
-    coordinator_node.agent_config.system_prompt = None
-    
     member_node = workflow_node_factory("Member")
     return WorkflowConfig(
         nodes=[coordinator_node, member_node],
@@ -67,16 +69,15 @@ def sample_workflow_config(workflow_node_factory):
 @pytest.fixture
 def workflow_runtime_state(sample_workflow_config):
     """Provides a default WorkflowRuntimeState."""
-    workflow_id = f"test_workflow_{uuid.uuid4().hex[:6]}"
-    return WorkflowRuntimeState(workflow_id=workflow_id)
+    return WorkflowRuntimeState(workflow_id=f"test_workflow_{uuid.uuid4().hex[:6]}")
 
 @pytest.fixture
 def mock_workflow_event_queue_manager():
     """Provides a mocked WorkflowInputEventQueueManager."""
     manager = MagicMock(spec=WorkflowInputEventQueueManager)
-    manager.process_request_queue = AsyncMock(spec=asyncio.Queue)
+    manager.user_message_queue = AsyncMock(spec=asyncio.Queue)
     manager.internal_system_event_queue = AsyncMock(spec=asyncio.Queue)
-    manager.enqueue_process_request = AsyncMock()
+    manager.enqueue_user_message = AsyncMock()
     manager.enqueue_internal_system_event = AsyncMock()
     return manager
 
@@ -85,13 +86,13 @@ def mock_team_manager():
     """Provides a mocked TeamManager instance."""
     manager = MagicMock(spec=TeamManager)
     manager.set_agent_configs = MagicMock()
-    manager.get_and_configure_coordinator = MagicMock()
+    manager.ensure_coordinator_is_ready = AsyncMock()
+    manager.ensure_agent_is_ready = AsyncMock(return_value=None)
     return manager
 
 @pytest.fixture
 def mock_workflow_phase_manager():
-    """Provides a mocked WorkflowPhaseManager with async methods."""
-    # This fixture no longer depends on workflow_context, breaking the circular dependency.
+    """Provides a self-contained, mocked WorkflowPhaseManager with async methods."""
     notifier_mock = AsyncMock(spec=WorkflowExternalEventNotifier)
     for attr_name in dir(WorkflowExternalEventNotifier):
         if attr_name.startswith("notify_"):
@@ -105,19 +106,21 @@ def mock_workflow_phase_manager():
     return manager
 
 @pytest.fixture
-def workflow_context(sample_workflow_config, workflow_runtime_state, mock_workflow_event_queue_manager, mock_workflow_phase_manager, mock_team_manager):
+def workflow_context(sample_workflow_config, workflow_runtime_state, mock_workflow_event_queue_manager, mock_team_manager, mock_workflow_phase_manager):
     """
-    Provides a fully-composed WorkflowContext ready for use in handler/step tests.
+    Provides a fully-composed and linked WorkflowContext ready for use in tests.
+    Any test that requests this fixture will have a context with a phase manager.
     """
     context = WorkflowContext(
         workflow_id=workflow_runtime_state.workflow_id,
         config=sample_workflow_config,
         state=workflow_runtime_state
     )
-    # Simulate a post-bootstrap state for handlers/steps:
+    # Simulate a post-bootstrap state:
     context.state.input_event_queues = mock_workflow_event_queue_manager
-    context.state.phase_manager_ref = mock_workflow_phase_manager
     context.state.team_manager = mock_team_manager
+    # Link the mock phase manager, ensuring context.phase_manager is always available.
+    context.state.phase_manager_ref = mock_workflow_phase_manager
     return context
 
 @pytest.fixture
@@ -128,4 +131,7 @@ def mock_agent():
     agent.is_running = False
     agent.start = MagicMock()
     agent.stop = AsyncMock()
+    agent.post_user_message = AsyncMock()
+    agent.post_inter_agent_message = AsyncMock()
+    agent.context = MagicMock()
     return agent

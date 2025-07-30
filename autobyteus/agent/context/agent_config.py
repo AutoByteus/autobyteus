@@ -1,5 +1,6 @@
 # file: autobyteus/autobyteus/agent/context/agent_config.py
 import logging
+import copy
 from typing import List, Optional, Union, Tuple, TYPE_CHECKING, Dict, Any
 
 # Correctly import the new master processor and the base class
@@ -84,6 +85,30 @@ class AgentConfig:
         self.initial_custom_data = initial_custom_data
 
         logger.debug(f"AgentConfig created for name '{self.name}', role '{self.role}'.")
+
+    def copy(self) -> 'AgentConfig':
+        """
+        Creates a copy of this AgentConfig.
+        It performs a deepcopy on most attributes but keeps a reference to the
+        complex, un-copyable `llm_instance`.
+        """
+        return AgentConfig(
+            name=self.name,
+            role=self.role,
+            description=self.description,
+            llm_instance=self.llm_instance,  # Keep reference, do not copy
+            system_prompt=self.system_prompt,
+            tools=copy.deepcopy(self.tools),
+            auto_execute_tools=self.auto_execute_tools,
+            use_xml_tool_format=self.use_xml_tool_format,
+            input_processors=copy.deepcopy(self.input_processors),
+            llm_response_processors=copy.deepcopy(self.llm_response_processors),
+            system_prompt_processors=copy.deepcopy(self.system_prompt_processors),
+            tool_execution_result_processors=copy.deepcopy(self.tool_execution_result_processors),
+            workspace=copy.deepcopy(self.workspace),
+            phase_hooks=copy.deepcopy(self.phase_hooks),
+            initial_custom_data=copy.deepcopy(self.initial_custom_data)
+        )
 
     def __repr__(self) -> str:
         return (f"AgentConfig(name='{self.name}', role='{self.role}', llm_instance='{self.llm_instance.__class__.__name__}', workspace_configured={self.workspace is not None})")

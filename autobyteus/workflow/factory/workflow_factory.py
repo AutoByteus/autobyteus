@@ -11,10 +11,10 @@ from autobyteus.workflow.context.workflow_runtime_state import WorkflowRuntimeSt
 from autobyteus.workflow.context.team_manager import TeamManager
 from autobyteus.workflow.runtime.workflow_runtime import WorkflowRuntime
 from autobyteus.workflow.handlers.workflow_event_handler_registry import WorkflowEventHandlerRegistry
-from autobyteus.workflow.handlers.process_request_event_handler import ProcessRequestEventHandler
+from autobyteus.workflow.handlers.process_user_message_event_handler import ProcessUserMessageEventHandler
 from autobyteus.workflow.handlers.lifecycle_workflow_event_handler import LifecycleWorkflowEventHandler
 from autobyteus.workflow.handlers.inter_agent_message_request_event_handler import InterAgentMessageRequestEventHandler
-from autobyteus.workflow.events.workflow_events import ProcessRequestEvent, WorkflowReadyEvent, WorkflowErrorEvent, InterAgentMessageRequestEvent
+from autobyteus.workflow.events.workflow_events import ProcessUserMessageEvent, WorkflowReadyEvent, WorkflowErrorEvent, InterAgentMessageRequestEvent
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class WorkflowFactory(metaclass=SingletonMeta):
     def _get_default_event_handler_registry(self) -> WorkflowEventHandlerRegistry:
         """Returns a registry with default handlers for a new workflow."""
         registry = WorkflowEventHandlerRegistry()
-        registry.register(ProcessRequestEvent, ProcessRequestEventHandler())
+        registry.register(ProcessUserMessageEvent, ProcessUserMessageEventHandler())
         registry.register(InterAgentMessageRequestEvent, InterAgentMessageRequestEventHandler())
         lifecycle_handler = LifecycleWorkflowEventHandler()
         registry.register(WorkflowReadyEvent, lifecycle_handler)
@@ -50,21 +50,20 @@ class WorkflowFactory(metaclass=SingletonMeta):
             workflow_id = f"workflow_{uuid.uuid4().hex[:8]}"
 
         # --- Component Assembly as per new architecture ---
-        # 1. Instantiate state and context containers first.
         state = WorkflowRuntimeState(workflow_id=workflow_id)
         context = WorkflowContext(workflow_id=workflow_id, config=config, state=state)
         
-        # 2. Instantiate the pure execution engine.
         handler_registry = self._get_default_event_handler_registry()
         runtime = WorkflowRuntime(context=context, event_handler_registry=handler_registry)
         
-        # 3. Instantiate the team manager, giving it a reference to the runtime.
-        team_manager = TeamManager(workflow_id=workflow_id, runtime=runtime)
+        team_manager = TeamManager(
+            workflow_id=workflow_id,
+            runtime=runtime,
+            multiplexer=runtime.multiplexer # Pass multiplexer created in runtime
+        )
         
-        # 4. Populate the context with the core services.
         context.state.team_manager = team_manager
         
-        # 5. Instantiate the final facade.
         workflow = AgenticWorkflow(runtime=runtime)
         
         self._active_workflows[workflow_id] = workflow

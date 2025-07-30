@@ -29,9 +29,10 @@ try:
     from autobyteus.agent.context import AgentConfig
     from autobyteus.llm.models import LLMModel
     from autobyteus.llm.llm_factory import default_llm_factory, LLMFactory
-    from autobyteus.agent.workflow import AgenticWorkflow
-    from autobyteus.agent.workflow.workflow_config import WorkflowConfig
-    from autobyteus.agent.workflow.workflow_node_config import WorkflowNodeConfig
+    from autobyteus.workflow.agentic_workflow import AgenticWorkflow
+    from autobyteus.workflow.context.workflow_config import WorkflowConfig
+    from autobyteus.workflow.context.workflow_node_config import WorkflowNodeConfig
+    from autobyteus.workflow.factory.workflow_factory import WorkflowFactory
     from autobyteus.cli import workflow_cli
 except ImportError as e:
     print(f"Error importing autobyteus components: {e}", file=sys.stderr)
@@ -141,7 +142,7 @@ async def main(args: argparse.Namespace):
     
     # 4. Create and Run the Workflow
     
-    research_workflow = AgenticWorkflow(config=workflow_config)
+    research_workflow = WorkflowFactory().create_workflow(config=workflow_config)
     logger.info(f"Workflow instance created with ID: {research_workflow.workflow_id}")
 
     try:
@@ -190,4 +191,3 @@ if __name__ == "__main__":
         logger.error(f"An unhandled error occurred at the top level: {e}", exc_info=True)
     finally:
         logger.info("Exiting script.")
-

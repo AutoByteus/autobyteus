@@ -3,7 +3,7 @@ import logging
 import traceback
 from typing import TYPE_CHECKING
 
-from autobyteus.workflow.events.workflow_events import BaseWorkflowEvent, WorkflowReadyEvent, ProcessRequestEvent
+from autobyteus.workflow.events.workflow_events import BaseWorkflowEvent, WorkflowReadyEvent, ProcessUserMessageEvent
 
 if TYPE_CHECKING:
     from autobyteus.workflow.context.workflow_context import WorkflowContext

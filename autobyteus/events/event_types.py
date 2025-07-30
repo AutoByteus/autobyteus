@@ -42,5 +42,8 @@ class EventType(Enum):
     # --- Agent Errors (not necessarily phase changes, e.g., error during output generation) ---
     AGENT_ERROR_OUTPUT_GENERATION = "agent_error_output_generation"
 
+    # --- Workflow Events ---
+    WORKFLOW_STREAM_EVENT = "workflow_stream_event" # For unified workflow event stream
+
     def __str__(self): 
         return self.value

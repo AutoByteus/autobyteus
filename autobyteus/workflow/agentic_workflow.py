@@ -3,7 +3,7 @@ import logging
 from typing import Optional
 
 from autobyteus.workflow.runtime.workflow_runtime import WorkflowRuntime
-from autobyteus.workflow.events.workflow_events import ProcessRequestEvent
+from autobyteus.workflow.events.workflow_events import ProcessUserMessageEvent
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 
 logger = logging.getLogger(__name__)
@@ -28,11 +28,17 @@ class AgenticWorkflow:
         self.workflow_id: str = self._runtime.context.workflow_id
         logger.info(f"AgenticWorkflow facade created for workflow ID '{self.workflow_id}'.")
 
-    async def post_user_message(self, user_message: AgentInputUserMessage) -> None:
-        """Submits a task to the workflow for processing."""
+    async def post_message(self, message: AgentInputUserMessage, target_agent_name: Optional[str] = None) -> None:
+        """Submits a message to the workflow, routing it to a specific agent."""
         if not self._runtime.is_running:
             self.start()
-        event = ProcessRequestEvent(user_message=user_message)
+
+        final_target_name = target_agent_name or self._runtime.context.config.coordinator_node.name
+        
+        event = ProcessUserMessageEvent(
+            user_message=message,
+            target_agent_name=final_target_name
+        )
         await self._runtime.submit_event(event)
 
     def start(self) -> None:

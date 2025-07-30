@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 
 class CoordinatorInitializationStep(BaseWorkflowBootstrapStep):
     """
-    Bootstrap step that eagerly instantiates the coordinator agent using the
-    TeamManager. This ensures the coordinator is ready before the workflow
-    becomes idle.
+    Bootstrap step that eagerly instantiates and starts the coordinator agent
+    using the TeamManager. This ensures the coordinator is ready before the
+    workflow becomes idle.
     """
     async def execute(self, context: 'WorkflowContext', phase_manager: 'WorkflowPhaseManager') -> bool:
         workflow_id = context.workflow_id
@@ -27,10 +27,13 @@ class CoordinatorInitializationStep(BaseWorkflowBootstrapStep):
 
             coordinator_name = context.config.coordinator_node.name
 
-            # This call creates the agent, caches it, and sets it as the coordinator inside TeamManager.
-            team_manager.get_and_configure_coordinator(coordinator_name)
+            # This call now ensures the coordinator agent is fully created and ready.
+            coordinator = await team_manager.ensure_coordinator_is_ready(coordinator_name)
             
-            logger.info(f"Workflow '{workflow_id}': Coordinator '{coordinator_name}' initialized via TeamManager.")
+            if not coordinator:
+                raise RuntimeError(f"TeamManager failed to return a ready coordinator agent for '{coordinator_name}'.")
+
+            logger.info(f"Workflow '{workflow_id}': Coordinator '{coordinator_name}' initialized and started via TeamManager.")
             return True
         
         except Exception as e:
