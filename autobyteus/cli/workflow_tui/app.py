@@ -29,6 +29,9 @@ logger = logging.getLogger(__name__)
 class WorkflowApp(App):
     """A Textual TUI for interacting with an agentic workflow."""
 
+    # NEW: Set the application title
+    TITLE = "AutoByteus"
+
     CSS_PATH = "app.css"
     BINDINGS = [
         ("d", "toggle_dark", "Toggle Dark Mode"),
@@ -46,7 +49,8 @@ class WorkflowApp(App):
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
-        yield Header(id="app-header", name="AutoByteUs Workflow TUI")
+        # NEW: Update the header widget's name
+        yield Header(id="app-header", name="AutoByteus")
         with Horizontal(id="main-container"):
             yield AgentListSidebar(id="sidebar")
             yield FocusPane(id="focus-pane")

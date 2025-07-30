@@ -37,14 +37,12 @@ class FocusPane(Static):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.focused_agent_name: str = ""
-        # FIX: State to manage the current streaming widget
         self._current_stream_widget: Optional[Static] = None
         self._current_stream_text: Optional[Text] = None
 
     def compose(self):
         """Compose the widget's contents."""
         yield Static("No agent selected", id="focus-pane-title")
-        # FIX: Revert to VerticalScroll to properly contain Static widgets
         yield VerticalScroll(id="focus-pane-log-container")
         yield Input(placeholder="Send a message to the focused agent...", id="focus-pane-input")
 
@@ -52,6 +50,16 @@ class FocusPane(Static):
         """Handle message submission."""
         text = event.value
         if text and self.focused_agent_name:
+            log_container = self.query_one("#focus-pane-log-container")
+            
+            # --- NEW: Display the user's message immediately ---
+            # Add a blank line for spacing before the user's message
+            log_container.mount(Static(""))
+            user_message_text = Text(f"You: {text}", style="bright_blue")
+            log_container.mount(Static(user_message_text))
+            log_container.scroll_end(animate=False)
+            # --- END NEW ---
+
             logger.info(f"FocusPane: User submitted message for '{self.focused_agent_name}'.")
             self.post_message(self.MessageSubmitted(text, self.focused_agent_name))
             self.query_one(Input).clear()
@@ -66,7 +74,6 @@ class FocusPane(Static):
         self._clear_stream_state()
         self.query_one("#focus-pane-title").update(f"▼ [bold]{agent_name}[/bold]")
         
-        # FIX: Target the container to clear it
         log_container = self.query_one("#focus-pane-log-container")
         log_container.remove_children()
         
@@ -85,28 +92,23 @@ class FocusPane(Static):
         if event.event_type == AgentStreamEventType.ASSISTANT_CHUNK:
             data: AssistantChunkData = event.data
             
-            # If a stream isn't active, start one
             if self._current_stream_widget is None:
                 self._current_stream_text = Text()
                 self._current_stream_widget = Static(self._current_stream_text)
                 log_container.mount(self._current_stream_widget)
 
-            # Append content and reasoning to the Text object
             if data.reasoning:
                 self._current_stream_text.append(data.reasoning, style="dim italic cyan")
             if data.content:
                 self._current_stream_text.append(data.content, style="default")
 
-            # Update the widget with the new renderable
             self._current_stream_widget.update(self._current_stream_text)
             log_container.scroll_end(animate=False)
             return
 
         # --- Discrete Event Logic (for all other event types) ---
-        # Any discrete event ends the current stream.
         self._clear_stream_state()
         
-        # FIX: Create Text objects with Rich markup for proper rendering.
         formatted_text: Optional[Text] = None
 
         if event.event_type == AgentStreamEventType.ASSISTANT_COMPLETE_RESPONSE:
@@ -116,8 +118,7 @@ class FocusPane(Static):
                     f"[Token Usage: Prompt={data.usage.prompt_tokens}, "
                     f"Completion={data.usage.completion_tokens}, Total={data.usage.total_tokens}]"
                 )
-                formatted_text = Text(usage_text, style="dim")
-            # Add a blank line for separation by mounting an empty Static
+                formatted_text = Text(usage_text, style="italic #8B8B8B")
             log_container.mount(Static(""))
 
         elif event.event_type == AgentStreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION:
@@ -126,11 +127,11 @@ class FocusPane(Static):
             msg = f"Phase: {old_phase_str} -> {data.new_phase.value}"
             if data.tool_name: msg += f" (tool: {data.tool_name})"
             if data.error_message: msg += f" (error: {data.error_message})"
-            formatted_text = Text(msg, style="dim")
+            formatted_text = Text(msg, style="italic #8B8B8B")
 
         elif event.event_type == AgentStreamEventType.TOOL_INTERACTION_LOG_ENTRY:
             data: ToolInteractionLogEntryData = event.data
-            formatted_text = Text(data.log_entry, style="bright_black")
+            formatted_text = Text(data.log_entry, style="#8B8B8B")
 
         elif event.event_type == AgentStreamEventType.TOOL_INVOCATION_AUTO_EXECUTING:
             data: ToolInvocationAutoExecutingData = event.data
@@ -160,7 +161,7 @@ class FocusPane(Static):
                 formatted_text.append("\n" + data.details, style="red")
 
         elif event.event_type == AgentStreamEventType.AGENT_IDLE:
-            formatted_text = Text("Agent is now idle.", style="dim green")
+            formatted_text = Text("Agent is now idle.", style="green")
         
         else:
             formatted_text = Text(f"Unhandled Event: {str(event)}", style="dim red")
