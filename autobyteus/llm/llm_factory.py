@@ -16,6 +16,7 @@ from autobyteus.llm.api.deepseek_llm import DeepSeekLLM
 from autobyteus.llm.api.grok_llm import GrokLLM
 from autobyteus.llm.api.kimi_llm import KimiLLM
 from autobyteus.llm.ollama_provider import OllamaModelProvider
+from autobyteus.llm.lmstudio_provider import LMStudioModelProvider
 from autobyteus.utils.singleton import SingletonMeta
 
 logger = logging.getLogger(__name__)
@@ -307,6 +308,7 @@ class LLMFactory(metaclass=SingletonMeta):
 
         OllamaModelProvider.discover_and_register()
         AutobyteusModelProvider.discover_and_register()
+        LMStudioModelProvider.discover_and_register()
 
     @staticmethod
     def register_model(model: LLMModel):

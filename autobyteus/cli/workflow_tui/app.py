@@ -5,18 +5,18 @@ The main Textual application class for the workflow TUI.
 
 import asyncio
 import logging
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal
-from textual.widgets import Header
+from textual.widgets import Header, Tree
 
 from autobyteus.workflow.agentic_workflow import AgenticWorkflow
 from autobyteus.workflow.streaming.workflow_event_stream import WorkflowEventStream
 from autobyteus.workflow.streaming.workflow_stream_events import WorkflowStreamEvent
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.agent.phases import AgentOperationalPhase
-from autobyteus.agent.streaming.stream_events import StreamEventType as AgentStreamEventType
+from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent, StreamEventType as AgentStreamEventType
 from autobyteus.agent.streaming.stream_event_payloads import AgentOperationalPhaseTransitionData, AssistantChunkData
 from autobyteus.workflow.streaming.workflow_stream_event_payloads import AgentEventRebroadcastPayload
 
@@ -29,7 +29,6 @@ logger = logging.getLogger(__name__)
 class WorkflowApp(App):
     """A Textual TUI for interacting with an agentic workflow."""
 
-    # NEW: Set the application title
     TITLE = "AutoByteus"
 
     CSS_PATH = "app.css"
@@ -46,10 +45,10 @@ class WorkflowApp(App):
         self.workflow = workflow
         self.workflow_stream: Optional[WorkflowEventStream] = None
         self.agent_phases: Dict[str, AgentOperationalPhase] = {}
+        self.agent_event_history: Dict[str, List[AgentStreamEvent]] = {}
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
-        # NEW: Update the header widget's name
         yield Header(id="app-header", name="AutoByteus")
         with Horizontal(id="main-container"):
             yield AgentListSidebar(id="sidebar")
@@ -62,6 +61,13 @@ class WorkflowApp(App):
         self.workflow_stream = WorkflowEventStream(self.workflow)
         self.run_worker(self._listen_for_workflow_events(), name="workflow_listener", group="listeners")
         logger.info("Workflow TUI mounted and workflow listener started.")
+
+    async def on_unmount(self) -> None:
+        """Called when the app is unmounted, before exiting."""
+        logger.info("TUI is unmounting. Stopping the workflow...")
+        if self.workflow and self.workflow.is_running:
+            await self.workflow.stop()
+        logger.info("Workflow stop command issued from TUI.")
 
     async def _listen_for_workflow_events(self) -> None:
         """A background worker that listens for and processes workflow events."""
@@ -80,28 +86,43 @@ class WorkflowApp(App):
                 agent_name = payload.agent_name
                 agent_event = payload.agent_event
 
-                # Add agent to sidebar if it's the first time we see it
+                if agent_name not in self.agent_event_history:
+                    self.agent_event_history[agent_name] = []
+                self.agent_event_history[agent_name].append(agent_event)
+
                 if agent_name not in sidebar._agent_nodes:
-                    # A simple heuristic to identify the coordinator
                     is_coordinator = agent_name.lower().startswith("coordinator") or "manager" in agent_name.lower()
                     sidebar.add_agent(agent_name, is_coordinator=is_coordinator)
                     if is_coordinator:
-                        focus_pane.set_agent_focus(agent_name)
+                        history = self.agent_event_history.get(agent_name, [])
+                        focus_pane.set_agent_focus(agent_name, history)
 
-                # Update agent status based on phase transitions
+                # --- Auto-focus switching logic ---
+                if agent_event.event_type == AgentStreamEventType.ASSISTANT_CHUNK:
+                    chunk_data: AssistantChunkData = agent_event.data
+                    if chunk_data.content and agent_name != focus_pane.focused_agent_name:
+                        logger.info(f"Auto-switching focus to '{agent_name}' due to ASSISTANT_CHUNK event.")
+                        history = self.agent_event_history.get(agent_name, [])
+                        focus_pane.set_agent_focus(agent_name, history)
+                        
+                        if agent_name in sidebar._agent_nodes:
+                            tree = sidebar.query_one(Tree)
+                            node_to_select = sidebar._agent_nodes[agent_name]
+                            tree.select_node(node_to_select)
+                            # FIX: Removed the unsupported 'top' keyword argument.
+                            tree.scroll_to_node(node_to_select, animate=True)
+
                 if agent_event.event_type == AgentStreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION:
                     phase_data: AgentOperationalPhaseTransitionData = agent_event.data
                     self.agent_phases[agent_name] = phase_data.new_phase
                     sidebar.update_agent_status(agent_name, phase_data.new_phase)
                 
-                # Update agent status to "speaking" temporarily on content chunks
                 if agent_event.event_type == AgentStreamEventType.ASSISTANT_CHUNK:
                     chunk_data: AssistantChunkData = agent_event.data
                     if chunk_data.content:
                         base_phase = self.agent_phases.get(agent_name, AgentOperationalPhase.IDLE)
                         sidebar.update_agent_activity_to_speaking(agent_name, base_phase)
 
-                # If the event is for the focused agent, pass it to the focus pane
                 if agent_name == focus_pane.focused_agent_name:
                     focus_pane.add_agent_event(agent_event)
 
@@ -115,7 +136,8 @@ class WorkflowApp(App):
 
     async def on_agent_list_sidebar_agent_selected(self, message: AgentListSidebar.AgentSelected) -> None:
         """Handle an agent being selected in the sidebar."""
-        self.query_one(FocusPane).set_agent_focus(message.agent_name)
+        history = self.agent_event_history.get(message.agent_name, [])
+        self.query_one(FocusPane).set_agent_focus(message.agent_name, history)
 
     async def on_focus_pane_message_submitted(self, message: FocusPane.MessageSubmitted) -> None:
         """Handle a message being submitted in the focus pane."""

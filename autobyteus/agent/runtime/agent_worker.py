@@ -221,6 +221,7 @@ class AgentWorker:
         # Wait for the main thread future to complete.
         if self._thread_future:
             try:
+                # FIX: Use asyncio.wait_for() to handle the timeout correctly.
                 await asyncio.wait_for(asyncio.wrap_future(self._thread_future), timeout=timeout)
                 logger.info(f"AgentWorker '{agent_id}': Worker thread has terminated.")
             except asyncio.TimeoutError:

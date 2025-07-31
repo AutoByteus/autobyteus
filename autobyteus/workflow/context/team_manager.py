@@ -33,45 +33,62 @@ class TeamManager:
     async def dispatch_inter_agent_message_request(self, event: 'InterAgentMessageRequestEvent'):
         await self._runtime.submit_event(event)
 
-    async def ensure_agent_is_ready(self, name: str) -> Optional['Agent']:
+    async def ensure_agent_is_ready(self, name_or_id: str) -> Optional['Agent']:
         """
-        Retrieves an agent by its unique friendly name. If the agent has not
-        been created yet, it is instantiated using the resolved config from the
-        workflow state. If it is not running, it is started and awaited until
-        idle. Returns a fully ready agent or None on failure.
+        Retrieves an agent by its unique friendly name or full agent_id. If the agent
+        has not been created yet, it is instantiated using the resolved config from the
+        workflow state (lookup by friendly name only). If it is not running, it is
+        started and awaited until idle. Returns a fully ready agent or None on failure.
         """
-        agent = self._agents_cache.get(name)
+        agent: Optional['Agent'] = None
+        
+        # 1. Check cache by friendly name first.
+        agent = self._agents_cache.get(name_or_id)
+        
+        # 2. If not found, check cache by full agent_id.
+        if not agent:
+            for cached_agent in self._agents_cache.values():
+                if cached_agent.agent_id == name_or_id:
+                    agent = cached_agent
+                    logger.debug(f"Resolved agent via full agent_id '{name_or_id}' from cache.")
+                    break
+        
         was_created = False
         if not agent:
-            # Read configs from the central workflow state.
+            # 3. If still not found, assume it's a friendly name and try to lazily create the agent.
+            logger.debug(f"Agent '{name_or_id}' not in cache. Attempting lazy creation.")
             resolved_configs = self._runtime.context.resolved_agent_configs
             if not resolved_configs:
                 logger.error(f"Resolved agent configs not found in workflow state for workflow '{self.workflow_id}'.")
                 return None
             
-            agent_config = resolved_configs.get(name)
+            agent_config = resolved_configs.get(name_or_id)
             if not agent_config:
-                logger.error(f"No prepared config for agent '{name}' in workflow '{self.workflow_id}'.")
+                logger.error(f"No prepared config for agent '{name_or_id}' in workflow '{self.workflow_id}'.")
                 return None
 
-            logger.info(f"Lazily creating agent '{name}' in workflow '{self.workflow_id}'.")
+            logger.info(f"Lazily creating agent '{name_or_id}' in workflow '{self.workflow_id}'.")
             agent = self._agent_factory.create_agent(config=agent_config)
-            self._agents_cache[name] = agent
+            self._agents_cache[name_or_id] = agent # Cache by friendly name
             was_created = True
         
-        if was_created:
+        if was_created and agent:
             # Trigger the multiplexer to start bridging events for the new agent.
-            self._multiplexer.start_bridging_agent_events(agent, name)
+            self._multiplexer.start_bridging_agent_events(agent, name_or_id)
         
-        # --- On-Demand Startup Logic ---
+        if not agent:
+            # This case should theoretically not be reached if logic is correct.
+            logger.error(f"Could not find or create an agent for identifier '{name_or_id}'.")
+            return None
+
+        # 4. On-Demand Startup Logic for the found/created agent.
         if not agent.is_running:
-            logger.info(f"Workflow '{self.workflow_id}': Agent '{name}' is not running. Starting on-demand.")
+            logger.info(f"Workflow '{self.workflow_id}': Agent '{agent.agent_id}' is not running. Starting on-demand.")
             try:
                 agent.start()
                 await wait_for_agent_to_be_idle(agent, timeout=60.0)
             except Exception as e:
-                logger.error(f"Workflow '{self.workflow_id}': Failed to start agent '{name}' on-demand: {e}", exc_info=True)
-                # Return None to signal failure to the caller
+                logger.error(f"Workflow '{self.workflow_id}': Failed to start agent '{agent.agent_id}' on-demand: {e}", exc_info=True)
                 return None
         
         return agent

@@ -106,7 +106,8 @@ class WorkflowWorker:
             self._worker_loop.call_soon_threadsafe(self._async_stop_event.set)
         if self._thread_future:
             try:
-                await asyncio.wrap_future(self._thread_future, timeout=timeout)
+                # FIX: Use asyncio.wait_for() to handle the timeout correctly.
+                await asyncio.wait_for(asyncio.wrap_future(self._thread_future), timeout=timeout)
             except asyncio.TimeoutError:
                 logger.warning(f"Timeout waiting for workflow worker '{self.context.workflow_id}' to terminate.")
         self._is_active = False

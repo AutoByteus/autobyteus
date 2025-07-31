@@ -4,7 +4,7 @@ Defines the main focus pane widget for displaying an agent's detailed log.
 
 import logging
 import json
-from typing import Optional
+from typing import Optional, List
 
 from rich.text import Text
 from textual.message import Message
@@ -64,18 +64,23 @@ class FocusPane(Static):
             self.post_message(self.MessageSubmitted(text, self.focused_agent_name))
             self.query_one(Input).clear()
 
-    def set_agent_focus(self, agent_name: str) -> None:
-        """Sets the focus to a specific agent."""
+    def set_agent_focus(self, agent_name: str, history: List[AgentStreamEvent]) -> None:
+        """Sets the focus to a specific agent and populates it with history."""
         if self.focused_agent_name == agent_name:
             return
 
         logger.info(f"Switching focus pane to agent: '{agent_name}'.")
         self.focused_agent_name = agent_name
-        self._clear_stream_state()
         self.query_one("#focus-pane-title").update(f"▼ [bold]{agent_name}[/bold]")
+        
+        self._clear_stream_state()
         
         log_container = self.query_one("#focus-pane-log-container")
         log_container.remove_children()
+
+        # Replay the historical events to populate the pane
+        for event in history:
+            self.add_agent_event(event)
         
         self.query_one(Input).focus()
 
