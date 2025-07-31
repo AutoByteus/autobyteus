@@ -50,11 +50,15 @@ class FocusPane(Static):
         self._focused_node_type: Optional[str] = None
         self._pending_approval_data: Optional[ToolInvocationApprovalRequestedData] = None
         
-        # New state variables for streaming
+        # State variables for streaming
         self._thinking_widget: Optional[Static] = None
         self._thinking_text: Optional[Text] = None
         self._assistant_content_widget: Optional[Static] = None
         self._assistant_content_text: Optional[Text] = None
+        
+        # Buffers for batched UI updates to improve performance
+        self._reasoning_buffer: str = ""
+        self._content_buffer: str = ""
 
     def compose(self):
         yield Static("Select a node from the sidebar", id="focus-pane-title")
@@ -126,6 +130,9 @@ class FocusPane(Static):
                              all_workflow_phases: Dict[str, WorkflowOperationalPhase]):
         """The main method to update the entire pane based on new state.
         This is called when focus SWITCHES."""
+        # First, flush any buffers from the previously focused node.
+        self.flush_stream_buffers()
+
         self._focused_node_name = node_data['name']
         self._focused_node_type = node_data['type']
         self._pending_approval_data = pending_approval
@@ -186,6 +193,7 @@ class FocusPane(Static):
     async def _close_thinking_block(self, scroll: bool = True):
         """Finalizes and closes the current thinking block if it's open."""
         if self._thinking_widget and self._thinking_text:
+            self.flush_stream_buffers() # Ensure any buffered reasoning is flushed first
             self._thinking_text.append("\n</Thinking>", style="dim italic cyan")
             self._thinking_widget.update(self._thinking_text)
             if scroll:
@@ -193,8 +201,26 @@ class FocusPane(Static):
             self._thinking_widget = None
             self._thinking_text = None
 
+    def flush_stream_buffers(self):
+        """Flushes the content of the stream buffers to the UI."""
+        scrolled = False
+        if self._reasoning_buffer and self._thinking_widget and self._thinking_text:
+            self._thinking_text.append(self._reasoning_buffer)
+            self._thinking_widget.update(self._thinking_text)
+            self._reasoning_buffer = ""
+            scrolled = True
+
+        if self._content_buffer and self._assistant_content_widget and self._assistant_content_text:
+            self._assistant_content_text.append(self._content_buffer)
+            self._assistant_content_widget.update(self._assistant_content_text)
+            self._content_buffer = ""
+            scrolled = True
+        
+        if scrolled:
+            self.query_one("#focus-pane-log-container").scroll_end(animate=False)
+
     async def add_agent_event(self, event: AgentStreamEvent):
-        """Adds a single agent event to the log view, enabling live streaming."""
+        """Buffers a single agent event to the log view, enabling live streaming."""
         log_container = self.query_one("#focus-pane-log-container")
         widget_to_mount: Optional[Static] = None
 
@@ -203,92 +229,66 @@ class FocusPane(Static):
 
             if data.reasoning:
                 if self._thinking_widget is None:
-                    # Spacing before a new thinking block
+                    # A new thought process is starting. Flush any old buffers.
+                    self.flush_stream_buffers()
                     await log_container.mount(Static(""))
                     self._thinking_text = Text("<Thinking>\n", style="dim italic cyan")
                     self._thinking_widget = Static(self._thinking_text)
                     await log_container.mount(self._thinking_widget)
-                    # Scroll when a new thinking block is created.
-                    log_container.scroll_end(animate=False)
-                
-                # This should never be None if the widget exists, but we check to be safe
-                if self._thinking_text is not None:
-                    self._thinking_text.append(data.reasoning, style="dim italic cyan")
-                    self._thinking_widget.update(self._thinking_text)
+                self._reasoning_buffer += data.reasoning
 
             if data.content:
                 # If content arrives, the "thinking" that led to it is done.
-                await self._close_thinking_block()
+                if self._thinking_widget:
+                    await self._close_thinking_block()
                 
                 if self._assistant_content_widget is None:
-                    # Spacing before a new assistant content block
                     await log_container.mount(Static(""))
                     self._assistant_content_text = Text()
+                    self._assistant_content_text.append("assistant: ", style="bold green")
                     self._assistant_content_widget = Static(self._assistant_content_text)
                     await log_container.mount(self._assistant_content_widget)
-                    # Scroll when a new content block is created.
-                    log_container.scroll_end(animate=False)
-
-                # This should never be None if the widget exists, but we check to be safe
-                if self._assistant_content_text is not None:
-                    # Prepend "assistant: " only if the text is currently empty.
-                    if not self._assistant_content_text.plain:
-                        self._assistant_content_text.append("assistant: ", style="bold green")
-
-                    self._assistant_content_text.append(data.content, style="default")
-                    self._assistant_content_widget.update(self._assistant_content_text)
-
-            # We no longer scroll on every chunk, only when new blocks are created.
+                
+                self._content_buffer += data.content
             return
 
-        # Any other event breaks all streams.
-        # Close thinking block but don't scroll; we'll do one scroll at the end.
+        # Any other event breaks all streams. Flush buffers first.
+        self.flush_stream_buffers()
         await self._close_thinking_block(scroll=False)
         self._assistant_content_widget = None
         self._assistant_content_text = None
         
-        # Add spacing before rendering a new, non-chunk event
         await log_container.mount(Static(""))
         
         if event.event_type == AgentStreamEventType.ASSISTANT_COMPLETE_RESPONSE:
-            # This event is mainly for state reconciliation.
-            # The content is assumed to have been rendered via chunks.
-            # We don't render anything here to avoid duplication.
             pass
-        
         elif event.event_type == AgentStreamEventType.TOOL_INTERACTION_LOG_ENTRY:
             data: ToolInteractionLogEntryData = event.data
             log_text = Text(f"[tool-log] {data.log_entry}", style="dim")
             widget_to_mount = Static(log_text)
-
         elif event.event_type == AgentStreamEventType.TOOL_INVOCATION_AUTO_EXECUTING:
             data: ToolInvocationAutoExecutingData = event.data
             args_str = json.dumps(data.arguments, indent=2)
-            text_content = Text()
-            text_content.append("Executing tool '", style="default")
+            text_content = Text("Executing tool '", style="default")
             text_content.append(f"{data.tool_name}", style="bold yellow")
             text_content.append("' with arguments:\n", style="default")
             text_content.append(args_str, style="yellow")
             widget_to_mount = Static(text_content)
-
         elif event.event_type == AgentStreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED:
             data: ToolInvocationApprovalRequestedData = event.data
             args_str = json.dumps(data.arguments, indent=2)
-            text_content = Text()
-            text_content.append("Requesting approval for tool '", style="default")
+            text_content = Text("Requesting approval for tool '", style="default")
             text_content.append(f"{data.tool_name}", style="bold yellow")
             text_content.append("' with arguments:\n", style="default")
             text_content.append(args_str, style="yellow")
             widget_to_mount = Static(text_content)
             self._pending_approval_data = data
             await self._show_approval_prompt()
-        
         elif event.event_type == AgentStreamEventType.ERROR_EVENT:
             data: ErrorEventData = event.data
             error_text = f"Error from {data.source}: {data.message}"
             if data.details: error_text += f"\nDetails: {data.details}"
             widget_to_mount = Static(Text(error_text, style="bold red"))
-            
         elif event.event_type in [AgentStreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION, AgentStreamEventType.AGENT_IDLE]:
             data: AgentOperationalPhaseTransitionData = event.data
             old_phase = data.old_phase.value if data.old_phase else 'uninitialized'
@@ -298,5 +298,4 @@ class FocusPane(Static):
         if widget_to_mount:
             await log_container.mount(widget_to_mount)
         
-        # A single scroll at the end for all non-chunk events ensures the new content is visible.
         log_container.scroll_end(animate=False)

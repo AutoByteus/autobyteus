@@ -81,14 +81,15 @@ class WorkflowApp(App):
     def _throttled_ui_updater(self) -> None:
         """
         Periodically checks if the UI state is dirty and, if so, triggers
-        the reactive update for components that can be updated less frequently,
-        like the sidebar tree. This prevents the UI from trying to re-render
-        on every single streaming event.
+        reactive updates. It also flushes streaming buffers from the focus pane.
         """
         if self._ui_update_pending:
             self._ui_update_pending = False
             # This is the throttled trigger for the sidebar update.
             self.store_version = self.store.version
+        
+        # Always flush the focus pane's streaming buffer for smooth text rendering.
+        self.query_one(FocusPane).flush_stream_buffers()
 
     async def _listen_for_workflow_events(self) -> None:
         """A background worker that forwards workflow events to the state store and updates the UI."""
@@ -103,7 +104,7 @@ class WorkflowApp(App):
                 
                 # 3. Handle real-time, incremental updates directly.
                 # This is for components like the FocusPane's text stream, which needs
-                # to be as low-latency as possible and is cheap to update.
+                # to be as low-latency as possible. The actual UI update is buffered.
                 if isinstance(event.data, AgentEventRebroadcastPayload):
                     payload = event.data
                     agent_name = payload.agent_name
@@ -112,7 +113,8 @@ class WorkflowApp(App):
                     
                     is_currently_focused = (focus_pane._focused_node_name == agent_name and focus_pane._focused_node_type == 'agent')
 
-                    # If the event is for the currently focused agent, append the new event to its log.
+                    # If the event is for the currently focused agent, send the event
+                    # to be buffered and eventually rendered.
                     if is_currently_focused:
                         await focus_pane.add_agent_event(agent_event)
 
