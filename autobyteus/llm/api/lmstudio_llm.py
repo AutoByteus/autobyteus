@@ -14,9 +14,9 @@ class LMStudioLLM(OpenAICompatibleLLM):
     It expects the LM Studio server to be running at the address specified by the `LMSTUDIO_HOST`
     environment variable, or at `http://localhost:1234` by default.
 
-    Note: The LM Studio server does not require an API key for authentication. However, to satisfy
-    the requirements of the underlying OpenAI client library, the `LMSTUDIO_API_KEY` environment
-    variable must be set to any non-empty string (e.g., "lm-studio").
+    Note: The LM Studio server does not require a real API key. A dummy key "lm-studio" is used
+    by default. If you need to use a different key, you can set the `LMSTUDIO_API_KEY`
+    environment variable.
     """
     DEFAULT_LMSTUDIO_HOST = 'http://localhost:1234'
     
@@ -28,7 +28,8 @@ class LMStudioLLM(OpenAICompatibleLLM):
             model=model,
             llm_config=llm_config,
             api_key_env_var="LMSTUDIO_API_KEY",
-            base_url=base_url
+            base_url=base_url,
+            api_key_default="lm-studio"
         )
         logger.info(f"LMStudioLLM initialized with model: {self.model.name} and base URL: {base_url}")
 

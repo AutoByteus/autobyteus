@@ -21,12 +21,29 @@ class OpenAICompatibleLLM(BaseLLM, ABC):
         model: LLMModel,
         llm_config: LLMConfig,
         api_key_env_var: str,
-        base_url: str
+        base_url: str,
+        api_key_default: Optional[str] = None
     ):
+        """
+        Initializes an OpenAI-compatible LLM.
+
+        Args:
+            model (LLMModel): The model to use.
+            llm_config (LLMConfig): Configuration for the LLM.
+            api_key_env_var (str): The name of the environment variable for the API key.
+            base_url (str): The base URL for the API.
+            api_key_default (Optional[str], optional): A default API key to use if the
+                                                       environment variable is not set.
+                                                       Defaults to None.
+        """
         api_key = os.getenv(api_key_env_var)
         if not api_key:
-            logger.error(f"{api_key_env_var} environment variable is not set.")
-            raise ValueError(f"{api_key_env_var} environment variable is not set.")
+            if api_key_default:
+                api_key = api_key_default
+                logger.info(f"{api_key_env_var} not set, using default key.")
+            else:
+                logger.error(f"{api_key_env_var} environment variable is not set.")
+                raise ValueError(f"{api_key_env_var} environment variable is not set.")
 
         self.client = OpenAI(api_key=api_key, base_url=base_url)
         logger.info(f"Initialized OpenAI compatible client with base_url: {base_url}")
