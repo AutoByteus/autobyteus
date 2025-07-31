@@ -1,8 +1,7 @@
 # file: autobyteus/examples/workflow/run_debate_workflow.py
 """
 This example script demonstrates a hierarchical workflow.
-A parent workflow (The Debate) manages two sub-workflows (Debating Teams)
-and a regular agent (The Analyst).
+A parent workflow (The Debate) manages two sub-workflows (Debating Teams).
 """
 import asyncio
 import logging
@@ -47,7 +46,7 @@ def setup_file_logging() -> Path:
     return log_file_path
 
 def create_debate_workflow(model_name: str):
-    """Creates a hierarchical 4-agent debate workflow for the TUI demonstration."""
+    """Creates a hierarchical debate workflow for the TUI demonstration."""
     # Validate model
     try:
         _ = LLMModel[model_name]
@@ -63,18 +62,12 @@ def create_debate_workflow(model_name: str):
         name="DebateModerator", role="Coordinator", description="Manages the debate, gives turns, and summarizes.",
         llm_instance=default_llm_factory.create_llm(model_identifier=model_name),
         system_prompt=(
-            "You are the impartial moderator of a debate between two teams. Your goal is to facilitate a structured debate on a user's topic.\n"
-            "Your team consists of Team_Affirmative, Team_Negative, and an Analyst. You will delegate tasks to them using their unique names.\n"
+            "You are the impartial moderator of a debate between two teams. Your goal is to facilitate a structured, turn-by-turn debate on a user's topic.\n"
+            "Your team consists of Team_Affirmative and Team_Negative. You will delegate tasks to them using their unique names.\n"
             "Responsibilities: 1. Announce the topic. 2. Ask Team_Affirmative for an opening statement. 3. Ask Team_Negative for a rebuttal. "
-            "4. Facilitate a structured flow of arguments. 5. Call upon the Analyst for summaries. 6. Conclude the debate.\n"
-            "You MUST use the `SendMessageTo` tool to communicate with your team. Do not debate yourself.\n\n{{tools}}"
-        )
-    )
-    analyst_config = AgentConfig(
-        name="Analyst", role="Specialist", description="Provides neutral analysis of the debate.",
-        llm_instance=default_llm_factory.create_llm(model_identifier=model_name),
-        system_prompt=(
-            "You are a neutral Analyst in a debate. You will receive instructions from the DebateModerator. Your role is to provide objective analysis, summarize points, and identify logical fallacies. Remain neutral.\n\n{{tools}}"
+            "4. Facilitate a structured flow of arguments. 5. Conclude the debate.\n"
+            "CRITICAL RULE: You must enforce a strict turn-based system. Only communicate with ONE team at a time using the `SendMessageTo` tool. After sending a message, you must wait for a response before messaging the other team.\n"
+            "Do not debate yourself. Your role is to moderate.\n\n{{tools}}"
         )
     )
 
@@ -133,7 +126,6 @@ def create_debate_workflow(model_name: str):
         .set_coordinator(moderator_config)
         .add_workflow_node(team_affirmative_workflow)
         .add_workflow_node(team_negative_workflow)
-        .add_agent_node(analyst_config)
         .build()
     )
 
