@@ -88,9 +88,10 @@ class AgentConfig:
 
     def copy(self) -> 'AgentConfig':
         """
-        Creates a copy of this AgentConfig.
-        It performs a deepcopy on most attributes but keeps a reference to the
-        complex, un-copyable `llm_instance`.
+        Creates a copy of this AgentConfig. It avoids deep-copying complex objects
+        like tools, workspaces, and processors that may contain un-pickleable state.
+        Instead, it creates shallow copies of the lists, allowing the lists themselves
+        to be modified independently while sharing the object instances within them.
         """
         return AgentConfig(
             name=self.name,
@@ -98,16 +99,16 @@ class AgentConfig:
             description=self.description,
             llm_instance=self.llm_instance,  # Keep reference, do not copy
             system_prompt=self.system_prompt,
-            tools=copy.deepcopy(self.tools),
+            tools=self.tools.copy(),  # Shallow copy the list, but reference the original tool instances
             auto_execute_tools=self.auto_execute_tools,
             use_xml_tool_format=self.use_xml_tool_format,
-            input_processors=copy.deepcopy(self.input_processors),
-            llm_response_processors=copy.deepcopy(self.llm_response_processors),
-            system_prompt_processors=copy.deepcopy(self.system_prompt_processors),
-            tool_execution_result_processors=copy.deepcopy(self.tool_execution_result_processors),
-            workspace=copy.deepcopy(self.workspace),
-            phase_hooks=copy.deepcopy(self.phase_hooks),
-            initial_custom_data=copy.deepcopy(self.initial_custom_data)
+            input_processors=self.input_processors.copy(), # Shallow copy the list
+            llm_response_processors=self.llm_response_processors.copy(), # Shallow copy the list
+            system_prompt_processors=self.system_prompt_processors.copy(), # Shallow copy the list
+            tool_execution_result_processors=self.tool_execution_result_processors.copy(), # Shallow copy the list
+            workspace=self.workspace,  # Pass by reference, do not copy
+            phase_hooks=self.phase_hooks.copy(), # Shallow copy the list
+            initial_custom_data=copy.deepcopy(self.initial_custom_data) # Deep copy for simple data
         )
 
     def __repr__(self) -> str:
