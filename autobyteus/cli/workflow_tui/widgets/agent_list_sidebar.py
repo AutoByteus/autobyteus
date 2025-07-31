@@ -41,11 +41,34 @@ class AgentListSidebar(Static):
             self.post_message(self.NodeSelected(event.node.data))
         event.stop()
 
+    def _build_label(self, name: str, node_data: Dict, agent_phases: Dict, workflow_phases: Dict, speaking_agents: Dict) -> str:
+        """Constructs the display label for a tree node."""
+        node_type = node_data["type"]
+        icon = DEFAULT_ICON
+        
+        if node_type == "agent":
+            phase = agent_phases.get(name, AgentOperationalPhase.UNINITIALIZED)
+            icon = SPEAKING_ICON if speaking_agents.get(name) else AGENT_PHASE_ICONS.get(phase, DEFAULT_ICON)
+            label = f"{icon} {name}"
+        elif node_type in ["workflow", "subworkflow"]:
+            phase = workflow_phases.get(name, WorkflowOperationalPhase.UNINITIALIZED)
+            default_icon = WORKFLOW_ICON if node_type == "workflow" else SUB_WORKFLOW_ICON
+            icon = WORKFLOW_PHASE_ICONS.get(phase, default_icon)
+            role = node_data.get("role")
+            label = f"{icon} {role or name}"
+            if role and role != name:
+                label += f" ({name})"
+        else:
+            label = f"{icon} {name}"
+            
+        return label
+
     def update_tree(self, tree_data: Dict, agent_phases: Dict[str, AgentOperationalPhase], workflow_phases: Dict[str, WorkflowOperationalPhase], speaking_agents: Dict[str, bool]):
-        """Rebuilds the entire tree from the state store data."""
+        """
+        Performs an in-place update of the tree to reflect the new state,
+        avoiding a full rebuild for better performance and preserving UI state like expansion.
+        """
         tree = self.query_one(Tree)
-        tree.clear()
-        self._node_map.clear()
 
         if not tree_data:
             tree.root.set_label("Initializing workflow...")
@@ -53,43 +76,57 @@ class AgentListSidebar(Static):
 
         root_name = list(tree_data.keys())[0]
         root_node_data = tree_data[root_name]
-        
-        root_phase = workflow_phases.get(root_name, WorkflowOperationalPhase.UNINITIALIZED)
-        root_icon = WORKFLOW_PHASE_ICONS.get(root_phase, WORKFLOW_ICON)
-        
-        root_label = f"{root_icon} {root_node_data.get('role') or root_name}"
-        if root_node_data.get('role') and root_node_data.get('role') != root_name:
-            root_label += f" ({root_name})"
-        
-        tree.root.set_label(root_label)
-        tree.root.data = root_node_data
-        self._node_map[root_name] = tree.root
-        
-        self._build_tree_recursively(tree.root, root_node_data.get("children", {}), agent_phases, workflow_phases, speaking_agents)
-        tree.show_root = True
-        tree.root.expand()
 
-    def _build_tree_recursively(self, parent_node: TreeNode, children_data: Dict, agent_phases: Dict, workflow_phases: Dict, speaking_agents: Dict):
-        """Helper to recursively build the tree."""
-        for name, node_data in children_data.items():
-            node_type = node_data["type"]
-            
-            if node_type == "agent":
-                phase = agent_phases.get(name, AgentOperationalPhase.UNINITIALIZED)
-                icon = SPEAKING_ICON if speaking_agents.get(name) else AGENT_PHASE_ICONS.get(phase, DEFAULT_ICON)
-                label = f"{icon} {name}"
-                new_node = parent_node.add_leaf(label, data=node_data)
-            elif node_type == "subworkflow":
-                phase = workflow_phases.get(name, WorkflowOperationalPhase.UNINITIALIZED)
-                icon = WORKFLOW_PHASE_ICONS.get(phase, SUB_WORKFLOW_ICON)
-                role = node_data.get("role")
-                label = f"{icon} {role or name}"
-                if role and role != name:
-                    label += f" ({name})"
-                new_node = parent_node.add(label, data=node_data)
-                self._build_tree_recursively(new_node, node_data.get("children", {}), agent_phases, workflow_phases, speaking_agents)
-            
-            self._node_map[name] = new_node
+        # Kick off the recursive update from the root.
+        self._update_node_recursively(tree.root, root_node_data, agent_phases, workflow_phases, speaking_agents)
+        
+        # Ensure the root is expanded on the first run.
+        if not tree.root.is_expanded:
+            tree.root.expand()
+
+    def _update_node_recursively(self, ui_node: TreeNode, node_data: Dict, agent_phases: Dict, workflow_phases: Dict, speaking_agents: Dict):
+        """Recursively updates a node and reconciles its children."""
+        # 1. Update the current node's label and data
+        name = node_data['name']
+        label = self._build_label(name, node_data, agent_phases, workflow_phases, speaking_agents)
+        ui_node.set_label(label)
+        ui_node.data = node_data
+        self._node_map[name] = ui_node  # Ensure map is always up-to-date
+
+        # 2. Reconcile children
+        new_children_data = node_data.get("children", {})
+        existing_ui_children_by_name = {child.data['name']: child for child in ui_node.children if child.data}
+
+        # Add new nodes and update existing ones
+        for child_name, child_data in new_children_data.items():
+            if child_name in existing_ui_children_by_name:
+                # Node exists, so we recursively update it
+                child_ui_node = existing_ui_children_by_name[child_name]
+                self._update_node_recursively(child_ui_node, child_data, agent_phases, workflow_phases, speaking_agents)
+            else:
+                # Node is new, so we add it
+                new_child_label = self._build_label(child_name, child_data, agent_phases, workflow_phases, speaking_agents)
+                is_leaf = child_data.get("children", {}) == {} and child_data['type'] == 'agent'
+                
+                if is_leaf:
+                    new_ui_node = ui_node.add_leaf(new_child_label, data=child_data)
+                else:
+                    new_ui_node = ui_node.add(new_child_label, data=child_data)
+                    # Since this is a new branch, we must build its children too
+                    self._update_node_recursively(new_ui_node, child_data, agent_phases, workflow_phases, speaking_agents)
+                
+                self._node_map[child_name] = new_ui_node
+
+        # Remove old nodes that no longer exist in the new data
+        nodes_to_remove = []
+        for existing_child_name, existing_child_node in existing_ui_children_by_name.items():
+            if existing_child_name not in new_children_data:
+                nodes_to_remove.append(existing_child_node)
+                if existing_child_name in self._node_map:
+                    del self._node_map[existing_child_name]
+        
+        for node in nodes_to_remove:
+            node.remove()
 
     def update_selection(self, node_name: Optional[str]):
         """Updates the tree's selection and expands parents to make it visible."""

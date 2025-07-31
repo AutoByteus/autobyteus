@@ -45,6 +45,8 @@ class WorkflowApp(App):
         self.workflow = workflow
         self.store = TUIStateStore(workflow=self.workflow)
         self.workflow_stream: Optional[WorkflowEventStream] = None
+        # Flag to indicate that the UI needs an update, used for throttling.
+        self._ui_update_pending = False
 
     def compose(self) -> ComposeResult:
         yield Header(id="app-header", name="AutoByteus Mission Control")
@@ -67,22 +69,41 @@ class WorkflowApp(App):
         self.store_version = self.store.version # Trigger initial render
         
         self.run_worker(self._listen_for_workflow_events(), name="workflow_listener")
-        logger.info("Workflow TUI mounted and workflow listener started.")
+        
+        # Set up a timer to run the throttled UI updater at ~15 FPS.
+        self.set_interval(1 / 15, self._throttled_ui_updater, name="ui_updater")
+        logger.info("Workflow TUI mounted, workflow listener and throttled UI updater started.")
 
     async def on_unmount(self) -> None:
         if self.workflow and self.workflow.is_running:
             await self.workflow.stop()
+
+    def _throttled_ui_updater(self) -> None:
+        """
+        Periodically checks if the UI state is dirty and, if so, triggers
+        the reactive update for components that can be updated less frequently,
+        like the sidebar tree. This prevents the UI from trying to re-render
+        on every single streaming event.
+        """
+        if self._ui_update_pending:
+            self._ui_update_pending = False
+            # This is the throttled trigger for the sidebar update.
+            self.store_version = self.store.version
 
     async def _listen_for_workflow_events(self) -> None:
         """A background worker that forwards workflow events to the state store and updates the UI."""
         if not self.workflow_stream: return
         try:
             async for event in self.workflow_stream.all_events():
+                # 1. Always update the central state store immediately.
                 self.store.process_event(event)
-                # Update the store_version to trigger the watcher.
-                # This ensures the UI refreshes after any state change.
-                self.store_version = self.store.version
                 
+                # 2. Mark the UI as needing an update for the throttled components.
+                self._ui_update_pending = True
+                
+                # 3. Handle real-time, incremental updates directly.
+                # This is for components like the FocusPane's text stream, which needs
+                # to be as low-latency as possible and is cheap to update.
                 if isinstance(event.data, AgentEventRebroadcastPayload):
                     payload = event.data
                     agent_name = payload.agent_name
@@ -91,9 +112,7 @@ class WorkflowApp(App):
                     
                     is_currently_focused = (focus_pane._focused_node_name == agent_name and focus_pane._focused_node_type == 'agent')
 
-                    # --- Auto-focus Logic has been REMOVED as per user request ---
-
-                    # --- Incremental Update Logic: If the event is for the currently focused agent, append the new event ---
+                    # If the event is for the currently focused agent, append the new event to its log.
                     if is_currently_focused:
                         await focus_pane.add_agent_event(agent_event)
 
@@ -107,7 +126,11 @@ class WorkflowApp(App):
     # --- Reactive Watchers ---
 
     def watch_store_version(self, new_version: int):
-        """Reacts to any change in the state store by updating the sidebar."""
+        """
+        Reacts to changes in the store version. This is now called by the throttled
+        updater, not on every event. Its main job is to update less-frequently
+        changing components like the sidebar tree.
+        """
         sidebar = self.query_one(AgentListSidebar)
         # Fetch fresh data from the store for the update
         tree_data = self.store.get_tree_data()
@@ -118,7 +141,7 @@ class WorkflowApp(App):
         sidebar.update_tree(tree_data, agent_phases, workflow_phases, speaking_agents)
 
     async def watch_focused_node_data(self, new_node_data: Optional[Dict[str, Any]]):
-        """Reacts to changes in which node is focused. Primarily used for full pane reloads."""
+        """Reacts to changes in which node is focused. Primarily used for full pane reloads on user click."""
         if not new_node_data: return
         
         node_name = new_node_data['name']

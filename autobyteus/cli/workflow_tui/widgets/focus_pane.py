@@ -183,11 +183,13 @@ class FocusPane(Static):
                     team_text.append(f" ▪ {wf_icon} {name} (Sub-Workflow): {wf_phase.value}\n")
             await log_container.mount(Static(Panel(team_text, title="Team Status", border_style="blue", title_align="left")))
 
-    async def _close_thinking_block(self):
+    async def _close_thinking_block(self, scroll: bool = True):
         """Finalizes and closes the current thinking block if it's open."""
         if self._thinking_widget and self._thinking_text:
             self._thinking_text.append("\n</Thinking>", style="dim italic cyan")
             self._thinking_widget.update(self._thinking_text)
+            if scroll:
+                self.query_one("#focus-pane-log-container").scroll_end(animate=False)
             self._thinking_widget = None
             self._thinking_text = None
 
@@ -206,6 +208,8 @@ class FocusPane(Static):
                     self._thinking_text = Text("<Thinking>\n", style="dim italic cyan")
                     self._thinking_widget = Static(self._thinking_text)
                     await log_container.mount(self._thinking_widget)
+                    # Scroll when a new thinking block is created.
+                    log_container.scroll_end(animate=False)
                 
                 # This should never be None if the widget exists, but we check to be safe
                 if self._thinking_text is not None:
@@ -222,6 +226,8 @@ class FocusPane(Static):
                     self._assistant_content_text = Text()
                     self._assistant_content_widget = Static(self._assistant_content_text)
                     await log_container.mount(self._assistant_content_widget)
+                    # Scroll when a new content block is created.
+                    log_container.scroll_end(animate=False)
 
                 # This should never be None if the widget exists, but we check to be safe
                 if self._assistant_content_text is not None:
@@ -232,11 +238,12 @@ class FocusPane(Static):
                     self._assistant_content_text.append(data.content, style="default")
                     self._assistant_content_widget.update(self._assistant_content_text)
 
-            log_container.scroll_end(animate=False)
+            # We no longer scroll on every chunk, only when new blocks are created.
             return
 
         # Any other event breaks all streams.
-        await self._close_thinking_block()
+        # Close thinking block but don't scroll; we'll do one scroll at the end.
+        await self._close_thinking_block(scroll=False)
         self._assistant_content_widget = None
         self._assistant_content_text = None
         
@@ -291,4 +298,5 @@ class FocusPane(Static):
         if widget_to_mount:
             await log_container.mount(widget_to_mount)
         
+        # A single scroll at the end for all non-chunk events ensures the new content is visible.
         log_container.scroll_end(animate=False)
