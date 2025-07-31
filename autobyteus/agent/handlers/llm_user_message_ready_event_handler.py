@@ -45,7 +45,7 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
             raise RuntimeError(error_msg) 
 
         llm_user_message: LLMUserMessage = event.llm_user_message
-        logger.info(f"Agent '{agent_id}' handling LLMUserMessageReadyEvent: '{llm_user_message.content[:100]}...'") 
+        logger.info(f"Agent '{agent_id}' handling LLMUserMessageReadyEvent: '{llm_user_message.content}'") 
         logger.debug(f"Agent '{agent_id}' preparing to send full message to LLM:\n---\n{llm_user_message.content}\n---")
         
         context.state.add_message_to_history({"role": "user", "content": llm_user_message.content})

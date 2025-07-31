@@ -35,7 +35,7 @@ class UserInputMessageEventHandler(AgentEventHandler):
         original_agent_input_user_msg: AgentInputUserMessage = event.agent_input_user_message 
         processed_agent_input_user_msg: AgentInputUserMessage = original_agent_input_user_msg 
         
-        logger.info(f"Agent '{context.agent_id}' handling UserMessageReceivedEvent: '{original_agent_input_user_msg.content[:100]}...'") 
+        logger.info(f"Agent '{context.agent_id}' handling UserMessageReceivedEvent: '{original_agent_input_user_msg.content}'") 
         
         processor_instances = context.config.input_processors
         if processor_instances:

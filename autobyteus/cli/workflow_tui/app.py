@@ -86,6 +86,9 @@ class WorkflowApp(App):
                 agent_name = payload.agent_name
                 agent_event = payload.agent_event
 
+                # Flag to prevent double-processing an event when focus is set.
+                focus_was_set_this_iteration = False
+
                 if agent_name not in self.agent_event_history:
                     self.agent_event_history[agent_name] = []
                 self.agent_event_history[agent_name].append(agent_event)
@@ -96,6 +99,7 @@ class WorkflowApp(App):
                     if is_coordinator:
                         history = self.agent_event_history.get(agent_name, [])
                         focus_pane.set_agent_focus(agent_name, history)
+                        focus_was_set_this_iteration = True
 
                 # --- Auto-focus switching logic ---
                 if agent_event.event_type == AgentStreamEventType.ASSISTANT_CHUNK:
@@ -104,12 +108,12 @@ class WorkflowApp(App):
                         logger.info(f"Auto-switching focus to '{agent_name}' due to ASSISTANT_CHUNK event.")
                         history = self.agent_event_history.get(agent_name, [])
                         focus_pane.set_agent_focus(agent_name, history)
+                        focus_was_set_this_iteration = True
                         
                         if agent_name in sidebar._agent_nodes:
                             tree = sidebar.query_one(Tree)
                             node_to_select = sidebar._agent_nodes[agent_name]
                             tree.select_node(node_to_select)
-                            # FIX: Removed the unsupported 'top' keyword argument.
                             tree.scroll_to_node(node_to_select, animate=True)
 
                 if agent_event.event_type == AgentStreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION:
@@ -123,7 +127,7 @@ class WorkflowApp(App):
                         base_phase = self.agent_phases.get(agent_name, AgentOperationalPhase.IDLE)
                         sidebar.update_agent_activity_to_speaking(agent_name, base_phase)
 
-                if agent_name == focus_pane.focused_agent_name:
+                if agent_name == focus_pane.focused_agent_name and not focus_was_set_this_iteration:
                     focus_pane.add_agent_event(agent_event)
 
         except asyncio.CancelledError:

@@ -108,7 +108,7 @@ class ToolResultEventHandler(AgentEventHandler):
                 f"Result:\n{result_str_for_llm}\n" 
                 f"Based on this result, what is the next step or final answer?"
             )
-            log_msg_success_processed = f"[TOOL_RESULT_SUCCESS_PROCESSED] Agent_ID: {agent_id}, Tool: {processed_event.tool_name}, Invocation_ID: {tool_invocation_id}, Result (first 200 chars of stringified): {str(processed_event.result)[:200]}"
+            log_msg_success_processed = f"[TOOL_RESULT_SUCCESS_PROCESSED] Agent_ID: {agent_id}, Tool: {processed_event.tool_name}, Invocation_ID: {tool_invocation_id}, Result: {str(processed_event.result)}"
             if notifier:
                 try:
                     log_data = {
