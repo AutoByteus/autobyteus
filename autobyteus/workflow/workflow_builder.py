@@ -1,6 +1,6 @@
 # file: autobyteus/autobyteus/workflow/workflow_builder.py
 import logging
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Union
 
 from autobyteus.workflow.agentic_workflow import AgenticWorkflow
 from autobyteus.workflow.context.workflow_config import WorkflowConfig
@@ -10,76 +10,89 @@ from autobyteus.workflow.factory.workflow_factory import WorkflowFactory
 
 logger = logging.getLogger(__name__)
 
+# Define a type hint for the possible definition types for clarity
+NodeDefinition = Union[AgentConfig, WorkflowConfig]
+
 class WorkflowBuilder:
     """
     A fluent API for constructing and configuring an AgenticWorkflow.
     
-    This builder simplifies the process of creating a workflow by abstracting
-    away the manual creation of WorkflowConfig and WorkflowNodeConfig objects,
-    and providing a more intuitive way to define the agent graph and its
-    dependencies.
-
-    Example:
-        researcher_config = AgentConfig(name="Researcher", ...)
-        writer_config = AgentConfig(name="Writer", ...)
-
-        workflow = (
-            WorkflowBuilder(description="Create a blog post about topic X.")
-            .set_coordinator(researcher_config)
-            .add_node(writer_config, dependencies=[researcher_config])
-            .build()
-        )
+    This builder simplifies creating a workflow by abstracting away the manual
+    creation of config objects and providing an intuitive way to define the
+    agent and sub-workflow graph.
     """
-    def __init__(self, description: str):
+    def __init__(self, name: str, description: str, role: Optional[str] = None):
         """
         Initializes the WorkflowBuilder.
 
         Args:
+            name: A unique name for the workflow.
             description: A high-level description of the workflow's goal.
+            role: An optional role description for when this workflow is used
+                  as a sub-workflow within a parent.
         """
+        if not name or not isinstance(name, str):
+            raise ValueError("Workflow name must be a non-empty string.")
         if not description or not isinstance(description, str):
             raise ValueError("Workflow description must be a non-empty string.")
 
+        self._name = name
         self._description = description
-        self._nodes: Dict[AgentConfig, List[AgentConfig]] = {}
+        self._role = role
+        self._nodes: Dict[NodeDefinition, List[NodeDefinition]] = {}
         self._coordinator_config: Optional[AgentConfig] = None
-        logger.info(f"WorkflowBuilder initialized for workflow: '{description[:50]}...'")
+        logger.info(f"WorkflowBuilder initialized for workflow: '{self._name}'.")
 
-    def add_node(self, agent_config: AgentConfig, dependencies: Optional[List[AgentConfig]] = None) -> 'WorkflowBuilder':
+    def add_agent_node(self, agent_config: AgentConfig, dependencies: Optional[List[NodeDefinition]] = None) -> 'WorkflowBuilder':
         """
         Adds a regular agent node to the workflow.
 
         Args:
             agent_config: The configuration for the agent at this node.
-            dependencies: A list of AgentConfig objects for nodes that this
-                          node depends on. These dependencies must have been
-                          added to the builder previously.
+            dependencies: A list of AgentConfig or WorkflowConfig objects for nodes 
+                          that this node depends on. These must have been added previously.
 
         Returns:
             The builder instance for fluent chaining.
         """
-        if not isinstance(agent_config, AgentConfig):
-            raise TypeError("agent_config must be an instance of AgentConfig.")
-        
-        if agent_config in self._nodes or agent_config == self._coordinator_config:
-            raise ValueError(f"AgentConfig for '{agent_config.name}' has already been added to the workflow.")
+        self._add_node_internal(agent_config, dependencies)
+        return self
 
-        # Validate that dependencies have already been added
+    def add_workflow_node(self, workflow_config: WorkflowConfig, dependencies: Optional[List[NodeDefinition]] = None) -> 'WorkflowBuilder':
+        """
+        Adds a sub-workflow node to the workflow.
+
+        Args:
+            workflow_config: The configuration for the sub-workflow.
+            dependencies: A list of AgentConfig or WorkflowConfig objects for nodes 
+                          that this node depends on. These must have been added previously.
+
+        Returns:
+            The builder instance for fluent chaining.
+        """
+        self._add_node_internal(workflow_config, dependencies)
+        return self
+
+    def _add_node_internal(self, node_definition: NodeDefinition, dependencies: Optional[List[NodeDefinition]]):
+        """Internal helper to add a node of any type."""
+        if not isinstance(node_definition, (AgentConfig, WorkflowConfig)):
+            raise TypeError("node_definition must be an instance of AgentConfig or WorkflowConfig.")
+        
+        if node_definition in self._nodes or node_definition == self._coordinator_config:
+            raise ValueError(f"Node definition for '{node_definition.name}' has already been added to the workflow.")
+
         if dependencies:
             for dep_config in dependencies:
                 if dep_config not in self._nodes and dep_config != self._coordinator_config:
-                    raise ValueError(f"Dependency agent '{dep_config.name}' must be added to the builder before being used as a dependency.")
+                    raise ValueError(f"Dependency node '{dep_config.name}' must be added to the builder before being used as a dependency.")
 
-        self._nodes[agent_config] = dependencies or []
-        logger.debug(f"Added node '{agent_config.name}' to builder with {len(dependencies or [])} dependencies.")
-        return self
+        self._nodes[node_definition] = dependencies or []
+        node_type = "Sub-workflow" if isinstance(node_definition, WorkflowConfig) else "Agent"
+        logger.debug(f"Added {node_type} node '{node_definition.name}' to builder with {len(dependencies or [])} dependencies.")
 
     def set_coordinator(self, agent_config: AgentConfig) -> 'WorkflowBuilder':
         """
-        Sets the coordinator agent for the workflow.
-
-        A workflow can only have one coordinator. This agent is typically the
-        entry point for tasks and is responsible for delegating to other nodes.
+        Sets the coordinator agent for the workflow. A coordinator must be an agent.
 
         Args:
             agent_config: The configuration for the coordinator agent.
@@ -91,7 +104,7 @@ class WorkflowBuilder:
             raise ValueError("A coordinator has already been set for this workflow.")
             
         if not isinstance(agent_config, AgentConfig):
-            raise TypeError("agent_config must be an instance of AgentConfig.")
+            raise TypeError("Coordinator must be an instance of AgentConfig.")
 
         self._coordinator_config = agent_config
         logger.debug(f"Set coordinator for workflow to '{agent_config.name}'.")
@@ -101,49 +114,38 @@ class WorkflowBuilder:
         """
         Constructs and returns the final AgenticWorkflow instance using the
         singleton WorkflowFactory.
-
-        This method validates the workflow structure, builds the dependency graph,
-        creates the necessary configuration objects, and then delegates the final
-        instantiation to the factory.
-
-        Returns:
-            A configured and ready-to-use AgenticWorkflow instance.
-            
-        Raises:
-            ValueError: If the workflow configuration is invalid (e.g., no coordinator set).
         """
         logger.info("Building AgenticWorkflow from builder...")
         if self._coordinator_config is None:
-            raise ValueError("Cannot build workflow: A coordinator must be set using set_coordinator().")
+            raise ValueError("Cannot build workflow: A coordinator must be set.")
 
-        # Step 1: Create a map from AgentConfig to a new WorkflowNodeConfig instance
-        node_map: Dict[AgentConfig, WorkflowNodeConfig] = {}
-        all_configs = list(self._nodes.keys()) + [self._coordinator_config]
+        node_map: Dict[NodeDefinition, WorkflowNodeConfig] = {}
+        all_definitions = list(self._nodes.keys()) + [self._coordinator_config]
         
-        for config in all_configs:
-            # Create node configs without dependencies for now
-            node_map[config] = WorkflowNodeConfig(agent_config=config)
+        for definition in all_definitions:
+            node_map[definition] = WorkflowNodeConfig(node_definition=definition)
         
-        # Step 2: Build the dependency graph by linking the created nodes
         all_nodes_with_deps = self._nodes.copy()
+        all_nodes_with_deps[self._coordinator_config] = [] # Coordinator has no explicit deps in this model
         
-        for agent_cfg, dep_cfgs in all_nodes_with_deps.items():
-            current_node = node_map[agent_cfg]
-            dependency_nodes = [node_map[dep_cfg] for dep_cfg in dep_cfgs]
-            current_node.dependencies = dependency_nodes
+        for node_def, dep_defs in all_nodes_with_deps.items():
+            if node_def in node_map and dep_defs:
+                current_node = node_map[node_def]
+                dependency_nodes = [node_map[dep_def] for dep_def in dep_defs]
+                current_node.dependencies = tuple(dependency_nodes)
 
-        # Step 3: Create the final WorkflowConfig
         final_nodes = list(node_map.values())
         coordinator_node_instance = node_map[self._coordinator_config]
 
         workflow_config = WorkflowConfig(
-            nodes=final_nodes,
-            coordinator_node=coordinator_node_instance,
-            description=self._description
+            name=self._name,
+            description=self._description,
+            role=self._role,
+            nodes=tuple(final_nodes),
+            coordinator_node=coordinator_node_instance
         )
         
-        logger.info(f"WorkflowConfig created successfully. Total nodes: {len(final_nodes)}. Coordinator: '{coordinator_node_instance.name}'.")
+        logger.info(f"WorkflowConfig created successfully. Name: '{workflow_config.name}'. Total nodes: {len(final_nodes)}. Coordinator: '{coordinator_node_instance.name}'.")
 
-        # Step 4: Use the factory to instantiate and return the AgenticWorkflow
         factory = WorkflowFactory()
         return factory.create_workflow(config=workflow_config)

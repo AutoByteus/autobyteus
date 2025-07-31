@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Dict, Set, List
 from autobyteus.workflow.bootstrap_steps.base_workflow_bootstrap_step import BaseWorkflowBootstrapStep
 from autobyteus.agent.context import AgentConfig
 from autobyteus.workflow.context.workflow_node_config import WorkflowNodeConfig
+from autobyteus.workflow.context.workflow_config import WorkflowConfig
 
 if TYPE_CHECKING:
     from autobyteus.workflow.context.workflow_context import WorkflowContext
@@ -58,13 +59,23 @@ class CoordinatorPromptPreparationStep(BaseWorkflowBootstrapStep):
 
         if member_node_ids:
             role_and_goal = (
-                "You are the coordinator of a team of specialist agents. Your primary goal is to achieve the "
-                "following objective by delegating tasks to your team members:\n"
+                "You are the coordinator of a team of specialist agents and sub-workflows. Your primary goal is to "
+                "achieve the following objective by delegating tasks to your team members:\n"
                 f"### Goal\n{context.config.description}"
             )
             prompt_parts.append(role_and_goal)
             
-            team_lines = [f"- **{uid}** (Role: {node.effective_config.role}): {node.effective_config.description}" for node, uid in member_node_ids.items()]
+            team_lines = []
+            for node, uid in member_node_ids.items():
+                node_def = node.node_definition
+                if node.is_subworkflow and isinstance(node_def, WorkflowConfig):
+                    # For sub-workflows, use its role and description
+                    role = node_def.role or "(Sub-Workflow)"
+                    team_lines.append(f"- **{uid}** (Role: {role}): {node_def.description}")
+                elif isinstance(node_def, AgentConfig):
+                    # For agents, use its role and description
+                    team_lines.append(f"- **{uid}** (Role: {node_def.role}): {node_def.description}")
+
             team_manifest = "### Your Team\n" + "\n".join(team_lines)
             prompt_parts.append(team_manifest)
 
@@ -94,3 +105,4 @@ class CoordinatorPromptPreparationStep(BaseWorkflowBootstrapStep):
             prompt_parts.append(final_instruction)
 
         return "\n\n".join(prompt_parts)
+

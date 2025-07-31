@@ -3,6 +3,8 @@ import logging
 from typing import TYPE_CHECKING, List, Optional
 
 from autobyteus.workflow.shutdown_steps.base_workflow_shutdown_step import BaseWorkflowShutdownStep
+from autobyteus.workflow.shutdown_steps.bridge_cleanup_step import BridgeCleanupStep
+from autobyteus.workflow.shutdown_steps.sub_workflow_shutdown_step import SubWorkflowShutdownStep
 from autobyteus.workflow.shutdown_steps.agent_team_shutdown_step import AgentTeamShutdownStep
 
 if TYPE_CHECKING:
@@ -14,6 +16,8 @@ class WorkflowShutdownOrchestrator:
     """Orchestrates the workflow's shutdown process."""
     def __init__(self, steps: Optional[List[BaseWorkflowShutdownStep]] = None):
         self.shutdown_steps = steps or [
+            BridgeCleanupStep(),
+            SubWorkflowShutdownStep(),
             AgentTeamShutdownStep(),
         ]
 

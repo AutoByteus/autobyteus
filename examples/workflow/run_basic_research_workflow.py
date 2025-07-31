@@ -29,10 +29,7 @@ try:
     from autobyteus.agent.context import AgentConfig
     from autobyteus.llm.models import LLMModel
     from autobyteus.llm.llm_factory import default_llm_factory, LLMFactory
-    from autobyteus.workflow.agentic_workflow import AgenticWorkflow
-    from autobyteus.workflow.context.workflow_config import WorkflowConfig
-    from autobyteus.workflow.context.workflow_node_config import WorkflowNodeConfig
-    from autobyteus.workflow.factory.workflow_factory import WorkflowFactory
+    from autobyteus.workflow.workflow_builder import WorkflowBuilder
     from autobyteus.cli import workflow_cli
 except ImportError as e:
     print(f"Error importing autobyteus components: {e}", file=sys.stderr)
@@ -103,13 +100,14 @@ async def main(args: argparse.Namespace):
         role="Coordinator",
         description="A manager agent that receives research goals and delegates them to specialists.",
         llm_instance=llm_instance,
+        # The prompt is now simpler, as the workflow builder will handle context.
+        # The {{tools}} placeholder is essential for tool injection.
         system_prompt=(
             "You are the manager of a research team. Your job is to understand the user's research goal and delegate it to the correct specialist agent on your team. "
             "Do not answer questions yourself; always delegate. "
-            "You have one specialist available: 'FactChecker'."
-            # The --- WORKFLOW CONTEXT --- block will be dynamically appended by the workflow engine.
+            "You will be provided a manifest of your team members and available tools.\n\n"
+            "{{tools}}"
         ),
-        # Tools will be auto-injected by the workflow, including SendMessageTo
     )
 
     # The Worker/Specialist Agent
@@ -127,23 +125,21 @@ async def main(args: argparse.Namespace):
         )
     )
 
-    # 3. Define the Workflow Structure
+    # 3. Define and Build the Workflow using WorkflowBuilder
     
-    # Create nodes for the workflow graph
-    manager_node = WorkflowNodeConfig(agent_config=research_manager_config)
-    checker_node = WorkflowNodeConfig(agent_config=fact_checker_config)
-    
-    # Assemble the final workflow configuration
-    workflow_config = WorkflowConfig(
-        nodes=[manager_node, checker_node],
-        coordinator_node=manager_node,
-        description="A simple two-agent workflow for delegating and answering research questions."
+    research_workflow = (
+        WorkflowBuilder(
+            name="BasicResearchWorkflow",
+            description="A simple two-agent workflow for delegating and answering research questions."
+        )
+        .set_coordinator(research_manager_config)
+        .add_agent_node(fact_checker_config, dependencies=[])
+        .build()
     )
     
-    # 4. Create and Run the Workflow
+    # 4. Run the Workflow
     
-    research_workflow = WorkflowFactory().create_workflow(config=workflow_config)
-    logger.info(f"Workflow instance created with ID: {research_workflow.workflow_id}")
+    logger.info(f"Workflow instance '{research_workflow.name}' created with ID: {research_workflow.workflow_id}")
 
     try:
         logger.info("Starting interactive workflow session...")

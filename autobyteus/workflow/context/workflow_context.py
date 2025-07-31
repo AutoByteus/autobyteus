@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from autobyteus.workflow.context.team_manager import TeamManager
     from autobyteus.workflow.streaming.agent_event_multiplexer import AgentEventMultiplexer
     from autobyteus.agent.context import AgentConfig
+    from autobyteus.workflow.context.workflow_node_config import WorkflowNodeConfig
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +23,16 @@ class WorkflowContext:
         self.workflow_id: str = workflow_id
         self.config: 'WorkflowConfig' = config
         self.state: 'WorkflowRuntimeState' = state
+        self._node_config_map: Optional[Dict[str, 'WorkflowNodeConfig']] = None
         
         logger.info(f"WorkflowContext composed for workflow_id '{self.workflow_id}'.")
+
+    def get_node_config_by_name(self, name: str) -> Optional['WorkflowNodeConfig']:
+        """Efficiently retrieves a node's config by its friendly name."""
+        if self._node_config_map is None:
+            # Build cache on first access
+            self._node_config_map = {node.name: node for node in self.config.nodes}
+        return self._node_config_map.get(name)
 
     @property
     def agents(self) -> List['Agent']:
@@ -50,8 +59,3 @@ class WorkflowContext:
     @property
     def multiplexer(self) -> Optional['AgentEventMultiplexer']:
         return self.state.multiplexer_ref
-
-    @property
-    def resolved_agent_configs(self) -> Optional[Dict[str, 'AgentConfig']]:
-        """Returns the dictionary of final, resolved agent configurations after bootstrapping."""
-        return self.state.resolved_agent_configs

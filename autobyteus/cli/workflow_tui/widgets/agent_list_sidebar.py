@@ -1,115 +1,108 @@
 # file: autobyteus/autobyteus/cli/workflow_tui/widgets/agent_list_sidebar.py
 """
-Defines the sidebar widget that lists all agents in the workflow.
+Defines the sidebar widget that lists all nodes in the workflow hierarchy.
 """
-
 import logging
-from typing import Dict, Optional
+from typing import Dict, Any, Optional
 
 from textual.message import Message
 from textual.widgets import Static, Tree
 from textual.widgets.tree import TreeNode
 
 from autobyteus.agent.phases import AgentOperationalPhase
+from autobyteus.workflow.phases import WorkflowOperationalPhase
+from .shared import (
+    AGENT_PHASE_ICONS, WORKFLOW_PHASE_ICONS, SUB_WORKFLOW_ICON, 
+    WORKFLOW_ICON, SPEAKING_ICON, DEFAULT_ICON
+)
 
 logger = logging.getLogger(__name__)
 
-# A mapping from agent operational phases to display icons.
-PHASE_ICONS: Dict[AgentOperationalPhase, str] = {
-    AgentOperationalPhase.UNINITIALIZED: "⚪",
-    AgentOperationalPhase.BOOTSTRAPPING: "⏳",
-    AgentOperationalPhase.IDLE: "🟢",
-    AgentOperationalPhase.PROCESSING_USER_INPUT: "💭",
-    AgentOperationalPhase.AWAITING_LLM_RESPONSE: "💭",
-    AgentOperationalPhase.ANALYZING_LLM_RESPONSE: "🤔",
-    AgentOperationalPhase.AWAITING_TOOL_APPROVAL: "❓",
-    AgentOperationalPhase.TOOL_DENIED: "❌",
-    AgentOperationalPhase.EXECUTING_TOOL: "🛠️",
-    AgentOperationalPhase.PROCESSING_TOOL_RESULT: "⚙️",
-    AgentOperationalPhase.SHUTTING_DOWN: "🌙",
-    AgentOperationalPhase.SHUTDOWN_COMPLETE: "⚫",
-    AgentOperationalPhase.ERROR: "❗",
-}
-DEFAULT_ICON = "❓"
-
 class AgentListSidebar(Static):
-    """A widget to display the list of agents in the workflow."""
+    """A widget to display the hierarchical list of workflow nodes. This is a dumb
+    rendering component driven by the TUIStateStore."""
 
-    class AgentSelected(Message):
-        """Posted when an agent is selected in the tree."""
-        def __init__(self, agent_name: str) -> None:
-            self.agent_name = agent_name
+    class NodeSelected(Message):
+        """Posted when any node is selected in the tree."""
+        def __init__(self, node_data: Dict[str, Any]) -> None:
+            self.node_data = node_data
             super().__init__()
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._agent_nodes: Dict[str, TreeNode] = {}
-        self.speaking_timers: Dict[str, Optional[object]] = {}
-
+        self._node_map: Dict[str, TreeNode] = {} # Maps node names to TreeNode objects
 
     def compose(self):
-        """Compose the widget's contents."""
-        yield Tree("Agents", id="agent-tree")
-
-    def on_mount(self) -> None:
-        """Called when the widget is mounted."""
-        self.query_one(Tree).show_root = False
+        yield Tree("Workflow", id="agent-tree")
 
     def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
-        """Handle agent selection from the tree."""
-        agent_name = event.node.data
-        if agent_name:
-            logger.info(f"Sidebar: User selected agent '{agent_name}'. Posting AgentSelected message.")
-            self.post_message(self.AgentSelected(agent_name))
+        """Handle node selection from the tree."""
+        if event.node.data:
+            self.post_message(self.NodeSelected(event.node.data))
+        event.stop()
 
-    def add_agent(self, agent_name: str, is_coordinator: bool = False) -> None:
-        """Adds a new agent to the list."""
-        if agent_name in self._agent_nodes:
-            logger.warning(f"Attempted to add agent '{agent_name}' that already exists in the sidebar.")
-            return
-
+    def update_tree(self, tree_data: Dict, agent_phases: Dict[str, AgentOperationalPhase], workflow_phases: Dict[str, WorkflowOperationalPhase], speaking_agents: Dict[str, bool]):
+        """Rebuilds the entire tree from the state store data."""
         tree = self.query_one(Tree)
-        # Store the node data as the agent name for easy retrieval.
-        node = tree.root.add(agent_name, data=agent_name)
-        self._agent_nodes[agent_name] = node
-        logger.info(f"Added agent '{agent_name}' to the sidebar.")
+        tree.clear()
+        self._node_map.clear()
 
-        # If it's the first agent (coordinator), select it by default.
-        if is_coordinator:
-            tree.select_node(node)
-            tree.scroll_to_node(node, animate=False)
-
-    def _get_status_label(self, agent_name: str, phase: AgentOperationalPhase) -> str:
-        """Constructs the label with icon and name."""
-        icon = PHASE_ICONS.get(phase, DEFAULT_ICON)
-        return f"{icon} {agent_name}"
-
-    def update_agent_status(self, agent_name: str, phase: AgentOperationalPhase) -> None:
-        """Updates the status icon for a given agent."""
-        if agent_name not in self._agent_nodes:
-            logger.warning(f"Cannot update status for unknown agent '{agent_name}'.")
+        if not tree_data:
+            tree.root.set_label("Initializing workflow...")
             return
+
+        root_name = list(tree_data.keys())[0]
+        root_node_data = tree_data[root_name]
         
-        # Stop any temporary "speaking" timer for this agent
-        if agent_name in self.speaking_timers and self.speaking_timers[agent_name] is not None:
-            self.speaking_timers[agent_name].stop()
-            self.speaking_timers[agent_name] = None
+        root_phase = workflow_phases.get(root_name, WorkflowOperationalPhase.UNINITIALIZED)
+        root_icon = WORKFLOW_PHASE_ICONS.get(root_phase, WORKFLOW_ICON)
         
-        node = self._agent_nodes[agent_name]
-        node.set_label(self._get_status_label(agent_name, phase))
-        logger.debug(f"Updated agent '{agent_name}' status in sidebar to '{phase.value}'.")
-    
-    def update_agent_activity_to_speaking(self, agent_name: str, base_phase: AgentOperationalPhase) -> None:
-        """Temporarily sets an agent's status to 'Speaking'."""
-        if agent_name not in self._agent_nodes:
+        root_label = f"{root_icon} {root_node_data.get('role') or root_name}"
+        if root_node_data.get('role') and root_node_data.get('role') != root_name:
+            root_label += f" ({root_name})"
+        
+        tree.root.set_label(root_label)
+        tree.root.data = root_node_data
+        self._node_map[root_name] = tree.root
+        
+        self._build_tree_recursively(tree.root, root_node_data.get("children", {}), agent_phases, workflow_phases, speaking_agents)
+        tree.show_root = True
+        tree.root.expand()
+
+    def _build_tree_recursively(self, parent_node: TreeNode, children_data: Dict, agent_phases: Dict, workflow_phases: Dict, speaking_agents: Dict):
+        """Helper to recursively build the tree."""
+        for name, node_data in children_data.items():
+            node_type = node_data["type"]
+            
+            if node_type == "agent":
+                phase = agent_phases.get(name, AgentOperationalPhase.UNINITIALIZED)
+                icon = SPEAKING_ICON if speaking_agents.get(name) else AGENT_PHASE_ICONS.get(phase, DEFAULT_ICON)
+                label = f"{icon} {name}"
+                new_node = parent_node.add_leaf(label, data=node_data)
+            elif node_type == "subworkflow":
+                phase = workflow_phases.get(name, WorkflowOperationalPhase.UNINITIALIZED)
+                icon = WORKFLOW_PHASE_ICONS.get(phase, SUB_WORKFLOW_ICON)
+                role = node_data.get("role")
+                label = f"{icon} {role or name}"
+                if role and role != name:
+                    label += f" ({name})"
+                new_node = parent_node.add(label, data=node_data)
+                self._build_tree_recursively(new_node, node_data.get("children", {}), agent_phases, workflow_phases, speaking_agents)
+            
+            self._node_map[name] = new_node
+
+    def update_selection(self, node_name: Optional[str]):
+        """Updates the tree's selection and expands parents to make it visible."""
+        if not node_name or node_name not in self._node_map:
             return
             
-        node = self._agent_nodes[agent_name]
-        node.set_label(f"🔊 {agent_name}")
-
-        # If there's an existing timer, cancel it
-        if agent_name in self.speaking_timers and self.speaking_timers[agent_name] is not None:
-            self.speaking_timers[agent_name].stop()
-
-        # Set a timer to revert to the base phase status after a short delay
-        self.speaking_timers[agent_name] = self.set_timer(2.0, lambda: self.update_agent_status(agent_name, base_phase))
+        tree = self.query_one(Tree)
+        node_to_select = self._node_map[node_name]
+        
+        parent = node_to_select.parent
+        while parent:
+            parent.expand()
+            parent = parent.parent
+        
+        tree.select_node(node_to_select)
+        tree.scroll_to_node(node_to_select)

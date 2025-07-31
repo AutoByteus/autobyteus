@@ -1,41 +1,42 @@
+# file: autobyteus/autobyteus/cli/workflow_tui/widgets/focus_pane.py
 """
-Defines the main focus pane widget for displaying an agent's detailed log.
+Defines the main focus pane widget for displaying detailed logs or summaries.
 """
-
 import logging
 import json
-from typing import Optional, List
+from typing import Optional, List, Any, Dict
 
 from rich.text import Text
+from rich.panel import Panel
+from rich.syntax import Syntax
 from textual.message import Message
 from textual.widgets import Input, Static, Button
 from textual.containers import VerticalScroll, Horizontal
 
+from autobyteus.agent.phases import AgentOperationalPhase
+from autobyteus.workflow.phases import WorkflowOperationalPhase
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent, StreamEventType as AgentStreamEventType
 from autobyteus.agent.streaming.stream_event_payloads import (
-    AgentOperationalPhaseTransitionData,
-    AssistantChunkData,
-    AssistantCompleteResponseData,
-    ErrorEventData,
-    ToolInteractionLogEntryData,
-    ToolInvocationApprovalRequestedData,
-    ToolInvocationAutoExecutingData,
+    AgentOperationalPhaseTransitionData, AssistantChunkData, AssistantCompleteResponseData,
+    ErrorEventData, ToolInteractionLogEntryData, ToolInvocationApprovalRequestedData, ToolInvocationAutoExecutingData
 )
+from .shared import AGENT_PHASE_ICONS, WORKFLOW_PHASE_ICONS, SUB_WORKFLOW_ICON, DEFAULT_ICON
 
 logger = logging.getLogger(__name__)
 
 class FocusPane(Static):
-    """A widget to display the detailed log and input for a single agent."""
+    """
+    A widget to display detailed logs for agents or high-level dashboards for workflows.
+    This is a dumb rendering component driven by the TUIStateStore.
+    """
 
     class MessageSubmitted(Message):
-        """Posted when a message is submitted from the input."""
         def __init__(self, text: str, agent_name: str) -> None:
             self.text = text
             self.agent_name = agent_name
             super().__init__()
 
     class ApprovalSubmitted(Message):
-        """Posted when an approval/denial is submitted."""
         def __init__(self, agent_name: str, invocation_id: str, is_approved: bool, reason: Optional[str]) -> None:
             self.agent_name = agent_name
             self.invocation_id = invocation_id
@@ -45,193 +46,210 @@ class FocusPane(Static):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.focused_agent_name: str = ""
+        self._focused_node_name: Optional[str] = None
+        self._focused_node_type: Optional[str] = None
+        self._pending_approval_data: Optional[ToolInvocationApprovalRequestedData] = None
         self._current_stream_widget: Optional[Static] = None
         self._current_stream_text: Optional[Text] = None
-        self.pending_approval: Optional[ToolInvocationApprovalRequestedData] = None
 
     def compose(self):
-        """Compose the widget's contents."""
-        yield Static("No agent selected", id="focus-pane-title")
+        yield Static("Select a node from the sidebar", id="focus-pane-title")
         yield VerticalScroll(id="focus-pane-log-container")
         yield Horizontal(id="approval-buttons")
-        yield Input(placeholder="Send a message to the focused agent...", id="focus-pane-input")
+        yield Input(placeholder="Select an agent to send messages...", id="focus-pane-input", disabled=True)
 
-    def on_input_submitted(self, event: Input.Submitted) -> None:
-        """Handle message submission."""
-        text = event.value
-        if text and self.focused_agent_name:
+    async def on_input_submitted(self, event: Input.Submitted) -> None:
+        if event.value and self._focused_node_name and self._focused_node_type == 'agent':
             log_container = self.query_one("#focus-pane-log-container")
-            
-            log_container.mount(Static(""))
-            user_message_text = Text(f"You: {text}", style="bright_blue")
-            log_container.mount(Static(user_message_text))
+            user_message_text = Text(f"You: {event.value}", style="bright_blue")
+            await log_container.mount(Static(""))
+            await log_container.mount(Static(user_message_text))
             log_container.scroll_end(animate=False)
             
-            logger.info(f"FocusPane: User submitted message for '{self.focused_agent_name}'.")
-            self.post_message(self.MessageSubmitted(text, self.focused_agent_name))
+            self.post_message(self.MessageSubmitted(event.value, self._focused_node_name))
             self.query_one(Input).clear()
+        event.stop()
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
-        """Handle tool approval button presses."""
-        if not self.pending_approval:
+        if not self._pending_approval_data or not self._focused_node_name:
             return
 
         is_approved = event.button.id == "approve-btn"
         reason = "User approved via TUI." if is_approved else "User denied via TUI."
-
-        self.post_message(
-            self.ApprovalSubmitted(
-                agent_name=self.focused_agent_name,
-                invocation_id=self.pending_approval.invocation_id,
-                is_approved=is_approved,
-                reason=reason
-            )
-        )
-
+        
         log_container = self.query_one("#focus-pane-log-container")
         approval_text = "APPROVED" if is_approved else "DENIED"
         display_text = Text(f"You: {approval_text} (Reason: {reason})", style="bright_cyan")
-        log_container.mount(Static(""))
-        log_container.mount(Static(display_text))
+        await log_container.mount(Static(""))
+        await log_container.mount(Static(display_text))
         log_container.scroll_end(animate=False)
 
-        # Clean up UI
-        await self.query_one("#approval-buttons").remove_children()
-        self.query_one(Input).disabled = False
-        self.query_one(Input).placeholder = "Send a message to the focused agent..."
-        self.query_one(Input).focus()
-        self.pending_approval = None
+        self.post_message(self.ApprovalSubmitted(
+            agent_name=self._focused_node_name,
+            invocation_id=self._pending_approval_data.invocation_id,
+            is_approved=is_approved, reason=reason
+        ))
+        await self._clear_approval_ui()
         event.stop()
 
-    async def show_approval_prompt(self, approval_data: ToolInvocationApprovalRequestedData):
-        """Explicitly shows the approval UI."""
-        self.pending_approval = approval_data
-        
+    async def _clear_approval_ui(self):
+        self._pending_approval_data = None
+        await self.query_one("#approval-buttons").remove_children()
         input_widget = self.query_one(Input)
-        input_widget.placeholder = "Please approve or deny the tool call using the buttons above."
-        input_widget.disabled = True
+        if self._focused_node_type == "agent":
+            input_widget.disabled = False
+            input_widget.placeholder = f"Send a message to {self._focused_node_name}..."
+            input_widget.focus()
+        else:
+            input_widget.disabled = True
+            input_widget.placeholder = "Select an agent to send messages..."
 
+    async def _show_approval_prompt(self):
+        if not self._pending_approval_data: return
+        input_widget = self.query_one(Input)
+        input_widget.placeholder = "Please approve or deny the tool call..."
+        input_widget.disabled = True
         button_container = self.query_one("#approval-buttons")
-        await button_container.remove_children() # Clear any stale buttons
+        await button_container.remove_children()
         await button_container.mount(
             Button("Approve", variant="success", id="approve-btn"),
             Button("Deny", variant="error", id="deny-btn")
         )
 
-    async def set_agent_focus(self, agent_name: str, history: List[AgentStreamEvent]) -> None:
-        """Sets the focus to a specific agent and populates it with history."""
-        if self.focused_agent_name == agent_name:
-            return
+    async def update_content(self, node_data: Dict[str, Any], history: List[Any], 
+                             pending_approval: Optional[ToolInvocationApprovalRequestedData], 
+                             all_agent_phases: Dict[str, AgentOperationalPhase], 
+                             all_workflow_phases: Dict[str, WorkflowOperationalPhase]):
+        """The main method to update the entire pane based on new state.
+        This is called when focus SWITCHES."""
+        self._focused_node_name = node_data['name']
+        self._focused_node_type = node_data['type']
+        self._pending_approval_data = pending_approval
+        
+        node_name = node_data.get("name", "Unknown")
+        node_type_str = node_data.get("type", "node").replace("_", " ").capitalize()
+        
+        self.query_one("#focus-pane-title").update(f"▼ {node_type_str}: [bold]{node_name}[/bold]")
 
-        logger.info(f"Switching focus pane to agent: '{agent_name}'.")
-        self.focused_agent_name = agent_name
-        self.query_one("#focus-pane-title").update(f"▼ [bold]{agent_name}[/bold]")
-        
-        # Clean up approval state when switching agents
-        self.pending_approval = None
-        await self.query_one("#approval-buttons").remove_children()
-        input_widget = self.query_one(Input)
-        input_widget.disabled = False
-        input_widget.placeholder = "Send a message to the focused agent..."
-        
-        self._clear_stream_state()
-        
         log_container = self.query_one("#focus-pane-log-container")
         await log_container.remove_children()
-
-        for event in history:
-            await self.add_agent_event(event)
-        
-        input_widget.focus()
-
-    def _clear_stream_state(self) -> None:
-        """Resets the state of any ongoing text stream."""
         self._current_stream_widget = None
         self._current_stream_text = None
+        await self._clear_approval_ui()
 
-    async def add_agent_event(self, event: AgentStreamEvent) -> None:
-        """Adds a formatted log entry based on an agent event."""
+        if self._focused_node_type == 'agent':
+            for event in history:
+                await self.add_agent_event(event)
+            if self._pending_approval_data:
+                await self._show_approval_prompt()
+        elif self._focused_node_type in ['workflow', 'subworkflow']:
+            await self._render_workflow_dashboard(node_data, all_agent_phases, all_workflow_phases)
+
+    async def _render_workflow_dashboard(self, node_data: Dict[str, Any], 
+                                         all_agent_phases: Dict[str, AgentOperationalPhase],
+                                         all_workflow_phases: Dict[str, WorkflowOperationalPhase]):
+        """Renders a static summary dashboard for a workflow or sub-workflow."""
         log_container = self.query_one("#focus-pane-log-container")
+        
+        phase = all_workflow_phases.get(node_data['name'], WorkflowOperationalPhase.UNINITIALIZED)
+        phase_icon = WORKFLOW_PHASE_ICONS.get(phase, DEFAULT_ICON)
+        info_text = Text()
+        info_text.append(f"Name: {node_data['name']}\n", style="bold")
+        if node_data.get('role'):
+            info_text.append(f"Role: {node_data['role']}\n")
+        info_text.append(f"Status: {phase_icon} {phase.value}")
+        await log_container.mount(Static(Panel(info_text, title="Workflow Info", border_style="green", title_align="left")))
+
+        children_data = node_data.get("children", {})
+        if children_data:
+            team_text = Text()
+            for name, child_node in children_data.items():
+                if child_node['type'] == 'agent':
+                    agent_phase = all_agent_phases.get(name, AgentOperationalPhase.UNINITIALIZED)
+                    agent_icon = AGENT_PHASE_ICONS.get(agent_phase, DEFAULT_ICON)
+                    team_text.append(f" ▪ {agent_icon} {name} (Agent): {agent_phase.value}\n")
+                elif child_node['type'] == 'subworkflow':
+                    wf_phase = all_workflow_phases.get(name, WorkflowOperationalPhase.UNINITIALIZED)
+                    wf_icon = WORKFLOW_PHASE_ICONS.get(wf_phase, SUB_WORKFLOW_ICON)
+                    team_text.append(f" ▪ {wf_icon} {name} (Sub-Workflow): {wf_phase.value}\n")
+            await log_container.mount(Static(Panel(team_text, title="Team Status", border_style="blue", title_align="left")))
+
+    async def add_agent_event(self, event: AgentStreamEvent):
+        """Adds a single agent event to the log view, enabling live streaming."""
+        log_container = self.query_one("#focus-pane-log-container")
+        widget_to_mount: Optional[Static] = None
 
         if event.event_type == AgentStreamEventType.ASSISTANT_CHUNK:
             data: AssistantChunkData = event.data
-            
+            # If this is the start of a new stream of text
             if self._current_stream_widget is None:
+                await log_container.mount(Static("")) # Add spacing
                 self._current_stream_text = Text()
                 self._current_stream_widget = Static(self._current_stream_text)
                 await log_container.mount(self._current_stream_widget)
 
-            if data.reasoning:
-                self._current_stream_text.append(data.reasoning, style="dim italic cyan")
-            if data.content:
-                self._current_stream_text.append(data.content, style="default")
-
+            # Prepend "assistant: " to the very first chunk of a stream
+            if not self._current_stream_text:
+                self._current_stream_text.append("assistant: ", style="bold green")
+            
+            # Append reasoning and content
+            if data.reasoning: self._current_stream_text.append(data.reasoning, style="dim italic cyan")
+            if data.content: self._current_stream_text.append(data.content, style="default")
+            
             self._current_stream_widget.update(self._current_stream_text)
             log_container.scroll_end(animate=False)
             return
 
-        self._clear_stream_state()
+        # Any other event breaks the stream.
+        self._current_stream_widget = None
+        self._current_stream_text = None
         
-        formatted_text: Optional[Text] = None
-
+        # Add spacing before rendering a new, non-chunk event
+        await log_container.mount(Static(""))
+        
         if event.event_type == AgentStreamEventType.ASSISTANT_COMPLETE_RESPONSE:
-            data: AssistantCompleteResponseData = event.data
-            if data.usage:
-                usage_text = (
-                    f"[Token Usage: Prompt={data.usage.prompt_tokens}, "
-                    f"Completion={data.usage.completion_tokens}, Total={data.usage.total_tokens}]"
-                )
-                formatted_text = Text(usage_text, style="italic #8B8B8B")
-            await log_container.mount(Static(""))
-
-        elif event.event_type == AgentStreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION:
-            data: AgentOperationalPhaseTransitionData = event.data
-            old_phase_str = data.old_phase.value if data.old_phase else 'None'
-            msg = f"Phase: {old_phase_str} -> {data.new_phase.value}"
-            if data.tool_name: msg += f" (tool: {data.tool_name})"
-            if data.error_message: msg += f" (error: {data.error_message})"
-            formatted_text = Text(msg, style="italic #8B8B8B")
-
+            pass # Avoid duplicate content
+        
         elif event.event_type == AgentStreamEventType.TOOL_INTERACTION_LOG_ENTRY:
             data: ToolInteractionLogEntryData = event.data
-            formatted_text = Text(data.log_entry, style="#8B8B8B")
+            log_text = Text(f"[tool-log] {data.log_entry}", style="dim")
+            widget_to_mount = Static(log_text)
 
         elif event.event_type == AgentStreamEventType.TOOL_INVOCATION_AUTO_EXECUTING:
             data: ToolInvocationAutoExecutingData = event.data
-            try:
-                args_str = json.dumps(data.arguments, indent=2)
-                msg = f"Auto-executing tool [bold]{data.tool_name}[/bold] with args:\n{args_str}"
-            except Exception:
-                args_str = str(data.arguments)
-                msg = f"Auto-executing tool [bold]{data.tool_name}[/bold] with args: {args_str}"
-            formatted_text = Text.from_markup(msg, style="yellow")
+            args_str = json.dumps(data.arguments, indent=2)
+            text_content = Text()
+            text_content.append("Executing tool '", style="default")
+            text_content.append(f"{data.tool_name}", style="bold yellow")
+            text_content.append("' with arguments:\n", style="default")
+            text_content.append(args_str, style="yellow")
+            widget_to_mount = Static(text_content)
 
         elif event.event_type == AgentStreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED:
-            # THIS IS THE KEY CHANGE: Only display the text, do not change the UI state.
             data: ToolInvocationApprovalRequestedData = event.data
-            try:
-                args_str = json.dumps(data.arguments, indent=2)
-                msg = f"Tool [bold]{data.tool_name}[/bold] is requesting approval with args:\n{args_str}"
-            except Exception:
-                args_str = str(data.arguments)
-                msg = f"Tool [bold]{data.tool_name}[/bold] is requesting approval with args: {args_str}"
-            formatted_text = Text.from_markup(msg, style="bold magenta")
-
+            args_str = json.dumps(data.arguments, indent=2)
+            text_content = Text()
+            text_content.append("Requesting approval for tool '", style="default")
+            text_content.append(f"{data.tool_name}", style="bold yellow")
+            text_content.append("' with arguments:\n", style="default")
+            text_content.append(args_str, style="yellow")
+            widget_to_mount = Static(text_content)
+            self._pending_approval_data = data
+            await self._show_approval_prompt()
+        
         elif event.event_type == AgentStreamEventType.ERROR_EVENT:
             data: ErrorEventData = event.data
-            msg = f"Error ({data.source}): {data.message}"
-            formatted_text = Text(msg, style="bold red")
-            if data.details:
-                formatted_text.append("\n" + data.details, style="red")
+            error_text = f"Error from {data.source}: {data.message}"
+            if data.details: error_text += f"\nDetails: {data.details}"
+            widget_to_mount = Static(Text(error_text, style="bold red"))
+            
+        elif event.event_type == AgentStreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION:
+            data: AgentOperationalPhaseTransitionData = event.data
+            old_phase = data.old_phase.value if data.old_phase else 'uninitialized'
+            phase_text = Text(f"Phase: {old_phase} -> {data.new_phase.value}", style="italic dim")
+            widget_to_mount = Static(phase_text)
 
-        elif event.event_type == AgentStreamEventType.AGENT_IDLE:
-            formatted_text = Text("Agent is now idle.", style="green")
-        
-        else:
-            formatted_text = Text(f"Unhandled Event: {str(event)}", style="dim red")
-        
-        if formatted_text:
-            await log_container.mount(Static(formatted_text))
+        if widget_to_mount:
+            await log_container.mount(widget_to_mount)
         
         log_container.scroll_end(animate=False)
