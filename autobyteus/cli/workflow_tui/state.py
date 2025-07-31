@@ -42,6 +42,9 @@ class TUIStateStore:
         self._pending_approvals: Dict[str, ToolInvocationApprovalRequestedData] = {}
         self._speaking_agents: Dict[str, bool] = {}
 
+        # Version counter to signal state changes to the UI
+        self.version = 0
+
     def _extract_node_roles(self, workflow: AgenticWorkflow) -> Dict[str, str]:
         """Builds a map of node names to their defined roles from the config."""
         roles = {}
@@ -72,6 +75,9 @@ class TUIStateStore:
             self._workflow_phases[self.workflow_name] = event.data.new_phase
         
         self._process_event_recursively(event, self.workflow_name)
+        
+        # Increment version to signal that the state has changed.
+        self.version += 1
 
     def _process_event_recursively(self, event: WorkflowStreamEvent, parent_name: str):
         """Recursively processes events to build up the state tree."""

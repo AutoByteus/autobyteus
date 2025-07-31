@@ -37,7 +37,8 @@ class WorkflowApp(App):
     ]
 
     focused_node_data: reactive[Optional[Dict[str, Any]]] = reactive(None)
-    tree_data: reactive[Dict] = reactive({})
+    # The store_version property will trigger UI updates for the sidebar.
+    store_version: reactive[int] = reactive(0)
 
     def __init__(self, workflow: AgenticWorkflow, **kwargs):
         super().__init__(**kwargs)
@@ -57,12 +58,13 @@ class WorkflowApp(App):
         self.workflow.start()
         self.workflow_stream = WorkflowEventStream(self.workflow)
         
+        # Initialize the UI with the starting state
         initial_tree = self.store.get_tree_data()
         initial_focus_node = initial_tree.get(self.workflow.name)
         
         self.store.set_focused_node(initial_focus_node)
-        self.tree_data = initial_tree
         self.focused_node_data = initial_focus_node
+        self.store_version = self.store.version # Trigger initial render
         
         self.run_worker(self._listen_for_workflow_events(), name="workflow_listener")
         logger.info("Workflow TUI mounted and workflow listener started.")
@@ -77,7 +79,9 @@ class WorkflowApp(App):
         try:
             async for event in self.workflow_stream.all_events():
                 self.store.process_event(event)
-                self.tree_data = self.store.get_tree_data()
+                # Update the store_version to trigger the watcher.
+                # This ensures the UI refreshes after any state change.
+                self.store_version = self.store.version
                 
                 if isinstance(event.data, AgentEventRebroadcastPayload):
                     payload = event.data
@@ -87,18 +91,10 @@ class WorkflowApp(App):
                     
                     is_currently_focused = (focus_pane._focused_node_name == agent_name and focus_pane._focused_node_type == 'agent')
 
-                    # --- Auto-focus Logic: Switch focus if a non-focused agent starts talking ---
-                    is_speaking_event = (agent_event.event_type == AgentStreamEventType.ASSISTANT_CHUNK and 
-                                         isinstance(agent_event.data, AssistantChunkData) and agent_event.data.content)
+                    # --- Auto-focus Logic has been REMOVED as per user request ---
 
-                    if is_speaking_event and not is_currently_focused:
-                        new_focus_node_data = self.store._find_node(agent_name)
-                        if new_focus_node_data:
-                            self.store.set_focused_node(new_focus_node_data)
-                            self.focused_node_data = new_focus_node_data # This triggers watcher for a full reload
-                    
-                    # --- Incremental Update Logic: If already focused, just append the new event ---
-                    elif is_currently_focused:
+                    # --- Incremental Update Logic: If the event is for the currently focused agent, append the new event ---
+                    if is_currently_focused:
                         await focus_pane.add_agent_event(agent_event)
 
         except asyncio.CancelledError:
@@ -110,15 +106,16 @@ class WorkflowApp(App):
 
     # --- Reactive Watchers ---
 
-    def watch_tree_data(self, new_tree_data: Dict):
-        """Reacts to changes in the overall tree structure."""
+    def watch_store_version(self, new_version: int):
+        """Reacts to any change in the state store by updating the sidebar."""
         sidebar = self.query_one(AgentListSidebar)
-        sidebar.update_tree(
-            new_tree_data, 
-            self.store._agent_phases, 
-            self.store._workflow_phases, 
-            self.store._speaking_agents
-        )
+        # Fetch fresh data from the store for the update
+        tree_data = self.store.get_tree_data()
+        agent_phases = self.store._agent_phases
+        workflow_phases = self.store._workflow_phases
+        speaking_agents = self.store._speaking_agents
+        
+        sidebar.update_tree(tree_data, agent_phases, workflow_phases, speaking_agents)
 
     async def watch_focused_node_data(self, new_node_data: Optional[Dict[str, Any]]):
         """Reacts to changes in which node is focused. Primarily used for full pane reloads."""

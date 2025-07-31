@@ -49,8 +49,12 @@ class FocusPane(Static):
         self._focused_node_name: Optional[str] = None
         self._focused_node_type: Optional[str] = None
         self._pending_approval_data: Optional[ToolInvocationApprovalRequestedData] = None
-        self._current_stream_widget: Optional[Static] = None
-        self._current_stream_text: Optional[Text] = None
+        
+        # New state variables for streaming
+        self._thinking_widget: Optional[Static] = None
+        self._thinking_text: Optional[Text] = None
+        self._assistant_content_widget: Optional[Static] = None
+        self._assistant_content_text: Optional[Text] = None
 
     def compose(self):
         yield Static("Select a node from the sidebar", id="focus-pane-title")
@@ -133,8 +137,13 @@ class FocusPane(Static):
 
         log_container = self.query_one("#focus-pane-log-container")
         await log_container.remove_children()
-        self._current_stream_widget = None
-        self._current_stream_text = None
+
+        # Reset streaming state
+        self._thinking_widget = None
+        self._thinking_text = None
+        self._assistant_content_widget = None
+        self._assistant_content_text = None
+
         await self._clear_approval_ui()
 
         if self._focused_node_type == 'agent':
@@ -174,6 +183,14 @@ class FocusPane(Static):
                     team_text.append(f" ▪ {wf_icon} {name} (Sub-Workflow): {wf_phase.value}\n")
             await log_container.mount(Static(Panel(team_text, title="Team Status", border_style="blue", title_align="left")))
 
+    async def _close_thinking_block(self):
+        """Finalizes and closes the current thinking block if it's open."""
+        if self._thinking_widget and self._thinking_text:
+            self._thinking_text.append("\n</Thinking>", style="dim italic cyan")
+            self._thinking_widget.update(self._thinking_text)
+            self._thinking_widget = None
+            self._thinking_text = None
+
     async def add_agent_event(self, event: AgentStreamEvent):
         """Adds a single agent event to the log view, enabling live streaming."""
         log_container = self.query_one("#focus-pane-log-container")
@@ -181,34 +198,56 @@ class FocusPane(Static):
 
         if event.event_type == AgentStreamEventType.ASSISTANT_CHUNK:
             data: AssistantChunkData = event.data
-            # If this is the start of a new stream of text
-            if self._current_stream_widget is None:
-                await log_container.mount(Static("")) # Add spacing
-                self._current_stream_text = Text()
-                self._current_stream_widget = Static(self._current_stream_text)
-                await log_container.mount(self._current_stream_widget)
 
-            # Prepend "assistant: " to the very first chunk of a stream
-            if not self._current_stream_text:
-                self._current_stream_text.append("assistant: ", style="bold green")
-            
-            # Append reasoning and content
-            if data.reasoning: self._current_stream_text.append(data.reasoning, style="dim italic cyan")
-            if data.content: self._current_stream_text.append(data.content, style="default")
-            
-            self._current_stream_widget.update(self._current_stream_text)
+            if data.reasoning:
+                if self._thinking_widget is None:
+                    # Spacing before a new thinking block
+                    await log_container.mount(Static(""))
+                    self._thinking_text = Text("<Thinking>\n", style="dim italic cyan")
+                    self._thinking_widget = Static(self._thinking_text)
+                    await log_container.mount(self._thinking_widget)
+                
+                # This should never be None if the widget exists, but we check to be safe
+                if self._thinking_text is not None:
+                    self._thinking_text.append(data.reasoning, style="dim italic cyan")
+                    self._thinking_widget.update(self._thinking_text)
+
+            if data.content:
+                # If content arrives, the "thinking" that led to it is done.
+                await self._close_thinking_block()
+                
+                if self._assistant_content_widget is None:
+                    # Spacing before a new assistant content block
+                    await log_container.mount(Static(""))
+                    self._assistant_content_text = Text()
+                    self._assistant_content_widget = Static(self._assistant_content_text)
+                    await log_container.mount(self._assistant_content_widget)
+
+                # This should never be None if the widget exists, but we check to be safe
+                if self._assistant_content_text is not None:
+                    # Prepend "assistant: " only if the text is currently empty.
+                    if not self._assistant_content_text.plain:
+                        self._assistant_content_text.append("assistant: ", style="bold green")
+
+                    self._assistant_content_text.append(data.content, style="default")
+                    self._assistant_content_widget.update(self._assistant_content_text)
+
             log_container.scroll_end(animate=False)
             return
 
-        # Any other event breaks the stream.
-        self._current_stream_widget = None
-        self._current_stream_text = None
+        # Any other event breaks all streams.
+        await self._close_thinking_block()
+        self._assistant_content_widget = None
+        self._assistant_content_text = None
         
         # Add spacing before rendering a new, non-chunk event
         await log_container.mount(Static(""))
         
         if event.event_type == AgentStreamEventType.ASSISTANT_COMPLETE_RESPONSE:
-            pass # Avoid duplicate content
+            # This event is mainly for state reconciliation.
+            # The content is assumed to have been rendered via chunks.
+            # We don't render anything here to avoid duplication.
+            pass
         
         elif event.event_type == AgentStreamEventType.TOOL_INTERACTION_LOG_ENTRY:
             data: ToolInteractionLogEntryData = event.data
@@ -243,7 +282,7 @@ class FocusPane(Static):
             if data.details: error_text += f"\nDetails: {data.details}"
             widget_to_mount = Static(Text(error_text, style="bold red"))
             
-        elif event.event_type == AgentStreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION:
+        elif event.event_type in [AgentStreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION, AgentStreamEventType.AGENT_IDLE]:
             data: AgentOperationalPhaseTransitionData = event.data
             old_phase = data.old_phase.value if data.old_phase else 'uninitialized'
             phase_text = Text(f"Phase: {old_phase} -> {data.new_phase.value}", style="italic dim")
