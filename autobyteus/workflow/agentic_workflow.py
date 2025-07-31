@@ -1,4 +1,3 @@
-# file: autobyteus/autobyteus/workflow/agentic_workflow.py
 import logging
 from typing import Optional
 
@@ -30,10 +29,11 @@ class AgenticWorkflow:
 
     async def post_message(self, message: AgentInputUserMessage, target_agent_name: Optional[str] = None) -> None:
         """Submits a message to the workflow, routing it to a specific agent."""
+        final_target_name = target_agent_name or self._runtime.context.config.coordinator_node.name
+        logger.info(f"Workflow '{self.workflow_id}': post_message called. Target: '{final_target_name}'.")
+
         if not self._runtime.is_running:
             self.start()
-
-        final_target_name = target_agent_name or self._runtime.context.config.coordinator_node.name
         
         event = ProcessUserMessageEvent(
             user_message=message,
