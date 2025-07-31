@@ -14,7 +14,14 @@ from autobyteus.workflow.handlers.workflow_event_handler_registry import Workflo
 from autobyteus.workflow.handlers.process_user_message_event_handler import ProcessUserMessageEventHandler
 from autobyteus.workflow.handlers.lifecycle_workflow_event_handler import LifecycleWorkflowEventHandler
 from autobyteus.workflow.handlers.inter_agent_message_request_event_handler import InterAgentMessageRequestEventHandler
-from autobyteus.workflow.events.workflow_events import ProcessUserMessageEvent, WorkflowReadyEvent, WorkflowErrorEvent, InterAgentMessageRequestEvent
+from autobyteus.workflow.handlers.tool_approval_workflow_event_handler import ToolApprovalWorkflowEventHandler
+from autobyteus.workflow.events.workflow_events import (
+    ProcessUserMessageEvent,
+    WorkflowReadyEvent,
+    WorkflowErrorEvent,
+    InterAgentMessageRequestEvent,
+    ToolApprovalWorkflowEvent
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +39,7 @@ class WorkflowFactory(metaclass=SingletonMeta):
         registry = WorkflowEventHandlerRegistry()
         registry.register(ProcessUserMessageEvent, ProcessUserMessageEventHandler())
         registry.register(InterAgentMessageRequestEvent, InterAgentMessageRequestEventHandler())
+        registry.register(ToolApprovalWorkflowEvent, ToolApprovalWorkflowEventHandler())
         lifecycle_handler = LifecycleWorkflowEventHandler()
         registry.register(WorkflowReadyEvent, lifecycle_handler)
         registry.register(WorkflowErrorEvent, lifecycle_handler)

@@ -17,7 +17,11 @@ from autobyteus.workflow.streaming.workflow_stream_events import WorkflowStreamE
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.agent.phases import AgentOperationalPhase
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent, StreamEventType as AgentStreamEventType
-from autobyteus.agent.streaming.stream_event_payloads import AgentOperationalPhaseTransitionData, AssistantChunkData
+from autobyteus.agent.streaming.stream_event_payloads import (
+    AgentOperationalPhaseTransitionData,
+    AssistantChunkData,
+    ToolInvocationApprovalRequestedData,
+)
 from autobyteus.workflow.streaming.workflow_stream_event_payloads import AgentEventRebroadcastPayload
 
 from .widgets.agent_list_sidebar import AgentListSidebar
@@ -46,6 +50,8 @@ class WorkflowApp(App):
         self.workflow_stream: Optional[WorkflowEventStream] = None
         self.agent_phases: Dict[str, AgentOperationalPhase] = {}
         self.agent_event_history: Dict[str, List[AgentStreamEvent]] = {}
+        # New: State management for pending approvals
+        self.pending_approvals: Dict[str, ToolInvocationApprovalRequestedData] = {}
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -86,7 +92,20 @@ class WorkflowApp(App):
                 agent_name = payload.agent_name
                 agent_event = payload.agent_event
 
-                # Flag to prevent double-processing an event when focus is set.
+                # --- New: Centralized State Management ---
+                if agent_event.event_type == AgentStreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED:
+                    approval_data: ToolInvocationApprovalRequestedData = agent_event.data
+                    self.pending_approvals[agent_name] = approval_data
+                    logger.info(f"WorkflowApp: Stored pending approval for agent '{agent_name}', invocation ID '{approval_data.invocation_id}'.")
+                
+                # An agent moving to another phase (like executing tool or idle) implies approval is resolved.
+                if agent_event.event_type == AgentStreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION:
+                    if agent_name in self.pending_approvals:
+                        logger.info(f"WorkflowApp: Clearing pending approval for agent '{agent_name}' due to phase transition.")
+                        del self.pending_approvals[agent_name]
+
+                # --- End State Management ---
+
                 focus_was_set_this_iteration = False
 
                 if agent_name not in self.agent_event_history:
@@ -98,8 +117,12 @@ class WorkflowApp(App):
                     sidebar.add_agent(agent_name, is_coordinator=is_coordinator)
                     if is_coordinator:
                         history = self.agent_event_history.get(agent_name, [])
-                        focus_pane.set_agent_focus(agent_name, history)
+                        await focus_pane.set_agent_focus(agent_name, history)
                         focus_was_set_this_iteration = True
+                        # New: Check for pending approval on initial focus
+                        if agent_name in self.pending_approvals:
+                            await focus_pane.show_approval_prompt(self.pending_approvals[agent_name])
+
 
                 # --- Auto-focus switching logic ---
                 if agent_event.event_type == AgentStreamEventType.ASSISTANT_CHUNK:
@@ -107,7 +130,7 @@ class WorkflowApp(App):
                     if chunk_data.content and agent_name != focus_pane.focused_agent_name:
                         logger.info(f"Auto-switching focus to '{agent_name}' due to ASSISTANT_CHUNK event.")
                         history = self.agent_event_history.get(agent_name, [])
-                        focus_pane.set_agent_focus(agent_name, history)
+                        await focus_pane.set_agent_focus(agent_name, history)
                         focus_was_set_this_iteration = True
                         
                         if agent_name in sidebar._agent_nodes:
@@ -115,6 +138,11 @@ class WorkflowApp(App):
                             node_to_select = sidebar._agent_nodes[agent_name]
                             tree.select_node(node_to_select)
                             tree.scroll_to_node(node_to_select, animate=True)
+                        
+                        # New: Check for pending approval on auto-focus
+                        if agent_name in self.pending_approvals:
+                            await focus_pane.show_approval_prompt(self.pending_approvals[agent_name])
+
 
                 if agent_event.event_type == AgentStreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION:
                     phase_data: AgentOperationalPhaseTransitionData = agent_event.data
@@ -128,7 +156,12 @@ class WorkflowApp(App):
                         sidebar.update_agent_activity_to_speaking(agent_name, base_phase)
 
                 if agent_name == focus_pane.focused_agent_name and not focus_was_set_this_iteration:
-                    focus_pane.add_agent_event(agent_event)
+                    await focus_pane.add_agent_event(agent_event)
+                    # New: Show prompt if event is an approval request
+                    if agent_event.event_type == AgentStreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED:
+                        if agent_name in self.pending_approvals:
+                            await focus_pane.show_approval_prompt(self.pending_approvals[agent_name])
+
 
         except asyncio.CancelledError:
             logger.info("Workflow event listener task was cancelled.")
@@ -140,10 +173,33 @@ class WorkflowApp(App):
 
     async def on_agent_list_sidebar_agent_selected(self, message: AgentListSidebar.AgentSelected) -> None:
         """Handle an agent being selected in the sidebar."""
+        focus_pane = self.query_one(FocusPane)
         history = self.agent_event_history.get(message.agent_name, [])
-        self.query_one(FocusPane).set_agent_focus(message.agent_name, history)
+        await focus_pane.set_agent_focus(message.agent_name, history)
+        
+        # New: Check for pending approval on manual focus change
+        if message.agent_name in self.pending_approvals:
+            await focus_pane.show_approval_prompt(self.pending_approvals[message.agent_name])
+
 
     async def on_focus_pane_message_submitted(self, message: FocusPane.MessageSubmitted) -> None:
         """Handle a message being submitted in the focus pane."""
         user_message = AgentInputUserMessage(content=message.text)
         await self.workflow.post_message(message=user_message, target_agent_name=message.agent_name)
+
+    async def on_focus_pane_approval_submitted(self, message: FocusPane.ApprovalSubmitted) -> None:
+        """Handle a tool approval/denial being submitted from the focus pane."""
+        logger.info(f"WorkflowApp received approval submission for agent '{message.agent_name}'. Approved: {message.is_approved}. Forwarding to workflow.")
+        
+        # New: Remove the pending approval from state
+        if message.agent_name in self.pending_approvals:
+            if self.pending_approvals[message.agent_name].invocation_id == message.invocation_id:
+                del self.pending_approvals[message.agent_name]
+                logger.info(f"WorkflowApp: Cleared pending approval for agent '{message.agent_name}'.")
+
+        await self.workflow.post_tool_execution_approval(
+            agent_name=message.agent_name,
+            tool_invocation_id=message.invocation_id,
+            is_approved=message.is_approved,
+            reason=message.reason,
+        )

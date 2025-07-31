@@ -40,6 +40,12 @@ FocusPane {
     border: round $primary;
 }
 
+#approval-buttons {
+    height: auto;
+    align: center middle;
+    padding-top: 1;
+}
+
 #focus-pane-input {
     dock: bottom;
     margin-top: 1;

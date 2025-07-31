@@ -2,7 +2,7 @@ import logging
 from typing import Optional
 
 from autobyteus.workflow.runtime.workflow_runtime import WorkflowRuntime
-from autobyteus.workflow.events.workflow_events import ProcessUserMessageEvent
+from autobyteus.workflow.events.workflow_events import ProcessUserMessageEvent, ToolApprovalWorkflowEvent
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 
 logger = logging.getLogger(__name__)
@@ -38,6 +38,27 @@ class AgenticWorkflow:
         event = ProcessUserMessageEvent(
             user_message=message,
             target_agent_name=final_target_name
+        )
+        await self._runtime.submit_event(event)
+
+    async def post_tool_execution_approval(
+        self,
+        agent_name: str,
+        tool_invocation_id: str,
+        is_approved: bool,
+        reason: Optional[str] = None
+    ):
+        """Submits a tool execution approval/denial to a specific agent in the workflow."""
+        logger.info(f"Workflow '{self.workflow_id}': post_tool_execution_approval called for agent '{agent_name}'. Approved: {is_approved}.")
+        if not self._runtime.is_running:
+            logger.warning(f"Workflow '{self.workflow_id}' is not running. Cannot post approval.")
+            return
+
+        event = ToolApprovalWorkflowEvent(
+            agent_name=agent_name,
+            tool_invocation_id=tool_invocation_id,
+            is_approved=is_approved,
+            reason=reason,
         )
         await self._runtime.submit_event(event)
 

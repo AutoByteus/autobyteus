@@ -43,3 +43,11 @@ class InterAgentMessageRequestEvent(OperationalWorkflowEvent):
     recipient_name: str
     content: str
     message_type: str
+
+@dataclass
+class ToolApprovalWorkflowEvent(OperationalWorkflowEvent):
+    """Carries a user's approval/denial for a tool execution to a specific agent."""
+    agent_name: str
+    tool_invocation_id: str
+    is_approved: bool
+    reason: Optional[str] = None
