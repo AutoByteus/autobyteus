@@ -197,6 +197,16 @@ class LLMFactory(metaclass=SingletonMeta):
                 )
             ),
             LLMModel(
+                name="gemini-2.5-flash-lite",
+                value="gemini-2.5-flash-lite",
+                provider=LLMProvider.GEMINI,
+                llm_class=GeminiLLM,
+                canonical_name="gemini-2.5-flash-lite",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(0.000001, 0.000002)
+                )
+            ),
+            LLMModel(
                 name="GEMINI_2_0_FLASH_API",
                 value="gemini-2.0-flash-preview-image-generation",
                 provider=LLMProvider.GEMINI,

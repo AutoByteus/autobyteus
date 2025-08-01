@@ -2,6 +2,7 @@ import logging
 from typing import Dict, Optional, List, AsyncGenerator, Union, Tuple
 import google.generativeai as genai
 from google.generativeai import types
+from google.generativeai.types import HarmCategory, HarmBlockThreshold
 import os
 import base64
 from io import BytesIO
@@ -32,11 +33,35 @@ class GeminiLLM(BaseLLM):
             
         super().__init__(model=model, llm_config=llm_config)
         self.initialize()
+        self.model_instance = None
+        self._reconfigure_model_with_tools()
+
+    def _reconfigure_model_with_tools(self):
+        """
+        Reconfigures the Gemini model instance with the latest system prompt.
+        NOTE: We are intentionally NOT passing the tools to the Gemini model
+        in the native format. The Gemini API's native tool calling requires a
+        multi-turn conversation to send back tool results, which is not yet
+        supported by the current agent architecture in streaming mode.
+        Instead, the agent relies on a strong system prompt and the LLM's
+        ability to generate tool calls in a text format (e.g., XML) that is
+        then parsed by the ProviderAwareToolUsageProcessor.
+        """
         self.model_instance = genai.GenerativeModel(
             model_name=self.model.value,
             generation_config=self.generation_config,
-            system_instruction=self.system_message
+            system_instruction=self.system_message,
+            # tools=gemini_tools,  # Intentionally disabled for now
+            safety_settings={
+                HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+            }
         )
+        tool_names = [tool.name for tool in self.tools]
+        logging.info(f"Gemini model '{self.model.value}' reconfigured. Tools are available but native tool calling is disabled for streaming stability.")
+        logging.info(f"Available tools for text-based invocation: {tool_names if tool_names else 'None'}")
 
     @classmethod
     def initialize(cls):
@@ -71,7 +96,13 @@ class GeminiLLM(BaseLLM):
         try:
             history = self._prepare_history()
             response = await self.model_instance.generate_content_async(history)
-            assistant_message = response.text
+            
+            # Handle potential tool calls
+            if response.candidates and response.candidates[0].content.parts and hasattr(response.candidates[0].content.parts[0], 'function_call'):
+                assistant_message = "" # Or some representation of the tool call
+            else:
+                assistant_message = response.text
+
             self.add_assistant_message(assistant_message)
             
             token_usage = None
@@ -501,4 +532,4 @@ class GeminiLLM(BaseLLM):
                 
         except Exception as e:
             logger.error(f"Error generating video with Gemini: {str(e)}")
-            raise ValueError(f"Error generating video with Gemini: {str(e)}")
+            raise ValueError(f"Error generating video with Gemini: {str(e)}") 
