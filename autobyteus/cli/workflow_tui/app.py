@@ -83,13 +83,17 @@ class WorkflowApp(App):
         Periodically checks if the UI state is dirty and, if so, triggers
         reactive updates. It also flushes streaming buffers from the focus pane.
         """
+        focus_pane = self.query_one(FocusPane)
         if self._ui_update_pending:
             self._ui_update_pending = False
             # This is the throttled trigger for the sidebar update.
             self.store_version = self.store.version
         
+        # Always update the focus pane's title with the latest status
+        focus_pane.update_current_node_status(self.store._agent_phases, self.store._workflow_phases)
+        
         # Always flush the focus pane's streaming buffer for smooth text rendering.
-        self.query_one(FocusPane).flush_stream_buffers()
+        focus_pane.flush_stream_buffers()
 
     async def _listen_for_workflow_events(self) -> None:
         """A background worker that forwards workflow events to the state store and updates the UI."""
@@ -111,7 +115,7 @@ class WorkflowApp(App):
                     agent_event = payload.agent_event
                     focus_pane = self.query_one(FocusPane)
                     
-                    is_currently_focused = (focus_pane._focused_node_name == agent_name and focus_pane._focused_node_type == 'agent')
+                    is_currently_focused = (focus_pane._focused_node_data and focus_pane._focused_node_data.get('name') == agent_name)
 
                     # If the event is for the currently focused agent, send the event
                     # to be buffered and eventually rendered.

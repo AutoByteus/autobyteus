@@ -20,7 +20,10 @@ from autobyteus.agent.streaming.stream_event_payloads import (
     AgentOperationalPhaseTransitionData, AssistantChunkData, AssistantCompleteResponseData,
     ErrorEventData, ToolInteractionLogEntryData, ToolInvocationApprovalRequestedData, ToolInvocationAutoExecutingData
 )
-from .shared import AGENT_PHASE_ICONS, WORKFLOW_PHASE_ICONS, SUB_WORKFLOW_ICON, DEFAULT_ICON
+from .shared import (
+    AGENT_PHASE_ICONS, WORKFLOW_PHASE_ICONS, SUB_WORKFLOW_ICON, DEFAULT_ICON,
+    USER_ICON, ASSISTANT_ICON, WORKFLOW_ICON, AGENT_ICON
+)
 from . import renderables
 
 logger = logging.getLogger(__name__)
@@ -47,8 +50,7 @@ class FocusPane(Static):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._focused_node_name: Optional[str] = None
-        self._focused_node_type: Optional[str] = None
+        self._focused_node_data: Optional[Dict[str, Any]] = None
         self._pending_approval_data: Optional[ToolInvocationApprovalRequestedData] = None
         
         # State variables for streaming
@@ -68,19 +70,19 @@ class FocusPane(Static):
         yield Input(placeholder="Select an agent to send messages...", id="focus-pane-input", disabled=True)
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:
-        if event.value and self._focused_node_name and self._focused_node_type == 'agent':
+        if event.value and self._focused_node_data and self._focused_node_data.get("type") == 'agent':
             log_container = self.query_one("#focus-pane-log-container")
-            user_message_text = Text(f"You: {event.value}", style="bright_blue")
+            user_message_text = Text(f"{USER_ICON} You: {event.value}", style="bright_blue")
             await log_container.mount(Static(""))
             await log_container.mount(Static(user_message_text))
             log_container.scroll_end(animate=False)
             
-            self.post_message(self.MessageSubmitted(event.value, self._focused_node_name))
+            self.post_message(self.MessageSubmitted(event.value, self._focused_node_data['name']))
             self.query_one(Input).clear()
         event.stop()
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
-        if not self._pending_approval_data or not self._focused_node_name:
+        if not self._pending_approval_data or not self._focused_node_data:
             return
 
         is_approved = event.button.id == "approve-btn"
@@ -88,13 +90,13 @@ class FocusPane(Static):
         
         log_container = self.query_one("#focus-pane-log-container")
         approval_text = "APPROVED" if is_approved else "DENIED"
-        display_text = Text(f"You: {approval_text} (Reason: {reason})", style="bright_cyan")
+        display_text = Text(f"{USER_ICON} You: {approval_text} (Reason: {reason})", style="bright_cyan")
         await log_container.mount(Static(""))
         await log_container.mount(Static(display_text))
         log_container.scroll_end(animate=False)
 
         self.post_message(self.ApprovalSubmitted(
-            agent_name=self._focused_node_name,
+            agent_name=self._focused_node_data['name'],
             invocation_id=self._pending_approval_data.invocation_id,
             is_approved=is_approved, reason=reason
         ))
@@ -105,9 +107,9 @@ class FocusPane(Static):
         self._pending_approval_data = None
         await self.query_one("#approval-buttons").remove_children()
         input_widget = self.query_one(Input)
-        if self._focused_node_type == "agent":
+        if self._focused_node_data and self._focused_node_data.get("type") == "agent":
             input_widget.disabled = False
-            input_widget.placeholder = f"Send a message to {self._focused_node_name}..."
+            input_widget.placeholder = f"Send a message to {self._focused_node_data['name']}..."
             input_widget.focus()
         else:
             input_widget.disabled = True
@@ -125,23 +127,50 @@ class FocusPane(Static):
             Button("Deny", variant="error", id="deny-btn")
         )
 
+    def _update_title(self, agent_phases: Dict[str, AgentOperationalPhase], workflow_phases: Dict[str, WorkflowOperationalPhase]):
+        """Renders the title of the focus pane with the node's current status."""
+        if not self._focused_node_data:
+            self.query_one("#focus-pane-title").update("Select a node from the sidebar")
+            return
+
+        node_name = self._focused_node_data.get("name", "Unknown")
+        node_type = self._focused_node_data.get("type", "node")
+        node_type_str = node_type.replace("_", " ").capitalize()
+
+        title_icon = DEFAULT_ICON
+        phase_str = ""
+
+        if node_type == 'agent':
+            title_icon = AGENT_ICON
+            phase = agent_phases.get(node_name, AgentOperationalPhase.UNINITIALIZED)
+            phase_str = f" (Status: {phase.value})"
+        elif node_type == 'subworkflow':
+            title_icon = SUB_WORKFLOW_ICON
+            phase = workflow_phases.get(node_name, WorkflowOperationalPhase.UNINITIALIZED)
+            phase_str = f" (Status: {phase.value})"
+        elif node_type == 'workflow':
+            title_icon = WORKFLOW_ICON
+            phase = workflow_phases.get(node_name, WorkflowOperationalPhase.UNINITIALIZED)
+            phase_str = f" (Status: {phase.value})"
+
+        self.query_one("#focus-pane-title").update(f"▼ {title_icon} {node_type_str}: [bold]{node_name}[/bold]{phase_str}")
+        
+    def update_current_node_status(self, all_agent_phases: Dict, all_workflow_phases: Dict):
+        """A lightweight method to only update the title with the latest status."""
+        self._update_title(all_agent_phases, all_workflow_phases)
+
     async def update_content(self, node_data: Dict[str, Any], history: List[Any], 
                              pending_approval: Optional[ToolInvocationApprovalRequestedData], 
                              all_agent_phases: Dict[str, AgentOperationalPhase], 
                              all_workflow_phases: Dict[str, WorkflowOperationalPhase]):
         """The main method to update the entire pane based on new state.
         This is called when focus SWITCHES."""
-        # First, flush any buffers from the previously focused node.
         self.flush_stream_buffers()
 
-        self._focused_node_name = node_data['name']
-        self._focused_node_type = node_data['type']
+        self._focused_node_data = node_data
         self._pending_approval_data = pending_approval
         
-        node_name = node_data.get("name", "Unknown")
-        node_type_str = node_data.get("type", "node").replace("_", " ").capitalize()
-        
-        self.query_one("#focus-pane-title").update(f"▼ {node_type_str}: [bold]{node_name}[/bold]")
+        self._update_title(all_agent_phases, all_workflow_phases)
 
         log_container = self.query_one("#focus-pane-log-container")
         await log_container.remove_children()
@@ -154,12 +183,12 @@ class FocusPane(Static):
 
         await self._clear_approval_ui()
 
-        if self._focused_node_type == 'agent':
+        if self._focused_node_data.get("type") == 'agent':
             for event in history:
                 await self.add_agent_event(event)
             if self._pending_approval_data:
                 await self._show_approval_prompt()
-        elif self._focused_node_type in ['workflow', 'subworkflow']:
+        elif self._focused_node_data.get("type") in ['workflow', 'subworkflow']:
             await self._render_workflow_dashboard(node_data, all_agent_phases, all_workflow_phases)
 
     async def _render_workflow_dashboard(self, node_data: Dict[str, Any], 
@@ -221,11 +250,12 @@ class FocusPane(Static):
             self.query_one("#focus-pane-log-container").scroll_end(animate=False)
 
     async def add_agent_event(self, event: AgentStreamEvent):
-        """Adds a single agent event to the log view, delegating rendering logic."""
+        """Adds a single agent event to the log view, handling stream state correctly."""
         log_container = self.query_one("#focus-pane-log-container")
-        
-        # --- Streaming logic remains here, as it's tied to live widget updates ---
-        if event.event_type == AgentStreamEventType.ASSISTANT_CHUNK:
+        event_type = event.event_type
+
+        # Handle streaming content events
+        if event_type == AgentStreamEventType.ASSISTANT_CHUNK:
             data: AssistantChunkData = event.data
             if data.reasoning:
                 if self._thinking_widget is None:
@@ -242,48 +272,64 @@ class FocusPane(Static):
                 if self._assistant_content_widget is None:
                     await log_container.mount(Static(""))
                     self._assistant_content_text = Text()
-                    self._assistant_content_text.append("assistant: ", style="bold green")
+                    self._assistant_content_text.append(f"{ASSISTANT_ICON} assistant: ", style="bold green")
                     self._assistant_content_widget = Static(self._assistant_content_text)
                     await log_container.mount(self._assistant_content_widget)
                 self._content_buffer += data.content
-            return
-        
-        # --- Logic for all non-chunk events is delegated ---
-        
-        # Any other event type breaks all active streams. Flush buffers first.
-        was_streaming_content = self._assistant_content_widget is not None
-        self.flush_stream_buffers()
-        await self._close_thinking_block(scroll=False)
-        self._assistant_content_widget = None
-        self._assistant_content_text = None
-        await log_container.mount(Static(""))
+            return  # This event is handled, do nothing more.
 
-        renderable = None
-        renderables_list = []
+        # Handle the explicit end of a stream
+        if event_type == AgentStreamEventType.ASSISTANT_COMPLETE_RESPONSE:
+            was_streaming_content = self._assistant_content_widget is not None
+            self.flush_stream_buffers()
+            await self._close_thinking_block()
+            self._assistant_content_widget = None
+            self._assistant_content_text = None
 
-        if event.event_type == AgentStreamEventType.ASSISTANT_COMPLETE_RESPONSE:
-            # If we were just live-streaming content, the content in this event is redundant.
-            # Only render it if this is a pre-aggregated event from history (i.e., we were not streaming).
+            # If we weren't streaming, it means this is a non-streamed response. We should render it.
             if not was_streaming_content:
                 renderables_list = renderables.render_assistant_complete_response(event.data)
-        elif event.event_type == AgentStreamEventType.TOOL_INTERACTION_LOG_ENTRY:
+                if renderables_list:
+                    await log_container.mount(Static(""))
+                    for item in renderables_list:
+                        await log_container.mount(Static(item))
+                    log_container.scroll_end(animate=False)
+            return  # This event's purpose is to end the stream.
+
+        # For all other events, first check if they should break an ongoing stream.
+        is_stream_breaking_event = event_type in [
+            AgentStreamEventType.TOOL_INTERACTION_LOG_ENTRY,
+            AgentStreamEventType.TOOL_INVOCATION_AUTO_EXECUTING,
+            AgentStreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED,
+            AgentStreamEventType.ERROR_EVENT,
+        ]
+
+        if is_stream_breaking_event:
+            # Finalize any open assistant block before rendering this event.
+            self.flush_stream_buffers()
+            await self._close_thinking_block()
+            self._assistant_content_widget = None
+            self._assistant_content_text = None
+        
+        # Now, render the event if it has a visual representation.
+        renderable = None
+        
+        if event_type == AgentStreamEventType.TOOL_INTERACTION_LOG_ENTRY:
             renderable = renderables.render_tool_interaction_log(event.data)
-        elif event.event_type == AgentStreamEventType.TOOL_INVOCATION_AUTO_EXECUTING:
+        elif event_type == AgentStreamEventType.TOOL_INVOCATION_AUTO_EXECUTING:
             renderable = renderables.render_tool_auto_executing(event.data)
-        elif event.event_type == AgentStreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED:
+        elif event_type == AgentStreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED:
             renderable = renderables.render_tool_approval_request(event.data)
             self._pending_approval_data = event.data
             await self._show_approval_prompt()
-        elif event.event_type == AgentStreamEventType.ERROR_EVENT:
+        elif event_type == AgentStreamEventType.ERROR_EVENT:
             renderable = renderables.render_error(event.data)
-        elif event.event_type in [AgentStreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION, AgentStreamEventType.AGENT_IDLE]:
-            renderable = renderables.render_phase_transition(event.data)
+        elif event_type in [AgentStreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION, AgentStreamEventType.AGENT_IDLE]:
+            # These are informational and do not have a renderable in the log pane.
+            pass
 
         if renderable:
+            await log_container.mount(Static("")) # Add spacer
             await log_container.mount(Static(renderable))
-        
-        for item in renderables_list:
-            await log_container.mount(Static(item))
-            await log_container.mount(Static("")) # Add space between items
 
         log_container.scroll_end(animate=False)

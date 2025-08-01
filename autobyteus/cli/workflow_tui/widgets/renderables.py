@@ -13,6 +13,7 @@ from autobyteus.agent.streaming.stream_event_payloads import (
     AgentOperationalPhaseTransitionData, AssistantCompleteResponseData,
     ErrorEventData, ToolInteractionLogEntryData, ToolInvocationApprovalRequestedData, ToolInvocationAutoExecutingData
 )
+from .shared import ASSISTANT_ICON, TOOL_ICON, PROMPT_ICON, ERROR_ICON, LOG_ICON
 
 def render_assistant_complete_response(data: AssistantCompleteResponseData) -> list[Text | Panel]:
     """Renders a complete, pre-aggregated assistant response."""
@@ -25,7 +26,7 @@ def render_assistant_complete_response(data: AssistantCompleteResponseData) -> l
     
     if data.content:
         content_text = Text()
-        content_text.append("assistant: ", style="bold green")
+        content_text.append(f"{ASSISTANT_ICON} assistant: ", style="bold green")
         content_text.append(data.content)
         renderables.append(content_text)
     
@@ -33,7 +34,7 @@ def render_assistant_complete_response(data: AssistantCompleteResponseData) -> l
 
 def render_tool_interaction_log(data: ToolInteractionLogEntryData) -> Text:
     """Renders a tool interaction log entry."""
-    return Text(f"[tool-log] {data.log_entry}", style="dim")
+    return Text(f"{LOG_ICON} [tool-log] {data.log_entry}", style="dim")
 
 def render_tool_auto_executing(data: ToolInvocationAutoExecutingData) -> Text:
     """Renders a notification that a tool is being executed automatically."""
@@ -42,7 +43,7 @@ def render_tool_auto_executing(data: ToolInvocationAutoExecutingData) -> Text:
     except (TypeError, OverflowError):
         args_str = str(data.arguments)
         
-    text_content = Text("Executing tool '", style="default")
+    text_content = Text(f"{TOOL_ICON} Executing tool '", style="default")
     text_content.append(f"{data.tool_name}", style="bold yellow")
     text_content.append("' with arguments:\n", style="default")
     text_content.append(args_str, style="yellow")
@@ -55,7 +56,7 @@ def render_tool_approval_request(data: ToolInvocationApprovalRequestedData) -> T
     except (TypeError, OverflowError):
         args_str = str(data.arguments)
 
-    text_content = Text("Requesting approval for tool '", style="default")
+    text_content = Text(f"{PROMPT_ICON} Requesting approval for tool '", style="default")
     text_content.append(f"{data.tool_name}", style="bold yellow")
     text_content.append("' with arguments:\n", style="default")
     text_content.append(args_str, style="yellow")
@@ -66,9 +67,4 @@ def render_error(data: ErrorEventData) -> Text:
     error_text = f"Error from {data.source}: {data.message}"
     if data.details: 
         error_text += f"\nDetails: {data.details}"
-    return Text(error_text, style="bold red")
-
-def render_phase_transition(data: AgentOperationalPhaseTransitionData) -> Text:
-    """Renders an agent's operational phase transition."""
-    old_phase = data.old_phase.value if data.old_phase else 'uninitialized'
-    return Text(f"Phase: {old_phase} -> {data.new_phase.value}", style="italic dim")
+    return Text(f"{ERROR_ICON} {error_text}", style="bold red")

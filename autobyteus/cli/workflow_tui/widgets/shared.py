@@ -32,7 +32,20 @@ WORKFLOW_PHASE_ICONS: Dict[WorkflowOperationalPhase, str] = {
     WorkflowOperationalPhase.ERROR: "❗",
 }
 
+# Main component icons
 SUB_WORKFLOW_ICON = "📂"
 WORKFLOW_ICON = "🏁"
+AGENT_ICON = "🤖"
+
+# General UI icons
 SPEAKING_ICON = "🔊"
 DEFAULT_ICON = "❓"
+
+# Semantic icons for log entries
+USER_ICON = "👤"
+ASSISTANT_ICON = "🤖"
+TOOL_ICON = "🛠️"
+PROMPT_ICON = "❓"
+ERROR_ICON = "💥"
+PHASE_ICON = "🔄"
+LOG_ICON = "📄"
