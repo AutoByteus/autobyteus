@@ -11,7 +11,10 @@ from autobyteus.workflow.agentic_workflow import AgenticWorkflow
 from autobyteus.agent.phases import AgentOperationalPhase
 from autobyteus.workflow.phases import WorkflowOperationalPhase
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent, StreamEventType as AgentStreamEventType
-from autobyteus.agent.streaming.stream_event_payloads import AgentOperationalPhaseTransitionData, ToolInvocationApprovalRequestedData
+from autobyteus.agent.streaming.stream_event_payloads import (
+    AgentOperationalPhaseTransitionData, ToolInvocationApprovalRequestedData, 
+    AssistantChunkData, AssistantCompleteResponseData
+)
 from autobyteus.workflow.streaming.workflow_stream_events import WorkflowStreamEvent
 from autobyteus.workflow.streaming.workflow_stream_event_payloads import AgentEventRebroadcastPayload, SubWorkflowEventRebroadcastPayload, WorkflowPhaseTransitionData
 
@@ -41,6 +44,9 @@ class TUIStateStore:
         self._workflow_event_history: Dict[str, List[WorkflowStreamEvent]] = {self.workflow_name: []}
         self._pending_approvals: Dict[str, ToolInvocationApprovalRequestedData] = {}
         self._speaking_agents: Dict[str, bool] = {}
+        
+        # Used to pre-aggregate streaming events for non-focused agents for performance.
+        self._agent_stream_aggregators: Dict[str, Dict[str, str]] = {}
 
         # Version counter to signal state changes to the UI
         self.version = 0
@@ -79,6 +85,28 @@ class TUIStateStore:
         # Increment version to signal that the state has changed.
         self.version += 1
 
+    def _flush_aggregator_for_agent(self, agent_name: str):
+        """
+        Converts aggregated stream data into a single event and adds it to history.
+        This is called before displaying a non-focused agent's history or when
+        a stream-breaking event arrives for a non-focused agent.
+        """
+        aggregator = self._agent_stream_aggregators.pop(agent_name, None)
+        if not aggregator or (not aggregator["reasoning"] and not aggregator["content"]):
+            return
+
+        # Create a synthetic "complete" event from the aggregated data.
+        complete_data = AssistantCompleteResponseData(
+            reasoning=aggregator["reasoning"] or None,
+            content=aggregator["content"] or None,
+        )
+        synthetic_event = AgentStreamEvent(
+            event_type=AgentStreamEventType.ASSISTANT_COMPLETE_RESPONSE,
+            data=complete_data
+        )
+        self._agent_event_history.setdefault(agent_name, []).append(synthetic_event)
+        logger.debug(f"Flushed aggregated stream for non-focused agent '{agent_name}' into a single event.")
+
     def _process_event_recursively(self, event: WorkflowStreamEvent, parent_name: str):
         """Recursively processes events to build up the state tree."""
         if parent_name not in self._workflow_event_history:
@@ -90,6 +118,14 @@ class TUIStateStore:
             payload = event.data
             agent_name = payload.agent_name
             agent_event = payload.agent_event
+            
+            # Purposefully ignore the ASSISTANT_COMPLETE_RESPONSE event from the stream.
+            # Its content is fully redundant because we already aggregate all the preceding
+            # ASSISTANT_CHUNK events. Dropping this event prevents duplicate content
+            # from appearing in the TUI. A synthetic "complete" event is created later
+            # by `_flush_aggregator_for_agent` when needed.
+            if agent_event.event_type == AgentStreamEventType.ASSISTANT_COMPLETE_RESPONSE:
+                return
 
             if agent_name not in self._agent_event_history:
                 self._agent_event_history[agent_name] = []
@@ -99,8 +135,31 @@ class TUIStateStore:
                 else:
                     logger.error(f"Cannot add agent node '{agent_name}': parent '{parent_name}' not found in state tree.")
 
-            self._agent_event_history[agent_name].append(agent_event)
+            # --- Aggregation logic for non-focused agents ---
+            is_focused = self.focused_node_data is not None and self.focused_node_data.get('name') == agent_name
 
+            # If the agent is not focused and we get a chunk, aggregate it instead of storing it.
+            if not is_focused and agent_event.event_type == AgentStreamEventType.ASSISTANT_CHUNK:
+                data: AssistantChunkData = agent_event.data
+                aggregator = self._agent_stream_aggregators.setdefault(agent_name, {"reasoning": "", "content": ""})
+                if data.reasoning: aggregator["reasoning"] += data.reasoning
+                if data.content: aggregator["content"] += data.content
+                # Do not append the raw chunk to history; we've aggregated it.
+            else:
+                # For focused agents OR non-chunk events for non-focused agents.
+                is_stream_breaker = agent_event.event_type not in [
+                    AgentStreamEventType.ASSISTANT_CHUNK,
+                    AgentStreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION,
+                    AgentStreamEventType.TOOL_INTERACTION_LOG_ENTRY
+                ]
+                # If a stream-breaking event arrives for a non-focused agent, flush any pending chunks first.
+                if not is_focused and is_stream_breaker and agent_name in self._agent_stream_aggregators:
+                    self._flush_aggregator_for_agent(agent_name)
+                
+                # Append the actual event to history.
+                self._agent_event_history[agent_name].append(agent_event)
+
+            # --- Post-processing logic for specific events ---
             if agent_event.event_type == AgentStreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION:
                 phase_data: AgentOperationalPhaseTransitionData = agent_event.data
                 self._agent_phases[agent_name] = phase_data.new_phase
@@ -155,6 +214,9 @@ class TUIStateStore:
     def get_history_for_node(self, node_name: str, node_type: str) -> List:
         """Retrieves the event history for a given node."""
         if node_type == 'agent':
+            # Flush any pending aggregated chunks before returning the history
+            # to ensure the view is up-to-date on focus change.
+            self._flush_aggregator_for_agent(node_name)
             return self._agent_event_history.get(node_name, [])
         elif node_type in ['workflow', 'subworkflow']:
             # For workflows, we don't show history, so return empty list.
@@ -172,4 +234,7 @@ class TUIStateStore:
     
     def set_focused_node(self, node_data: Optional[Dict[str, Any]]):
         """Sets the currently focused node in the state."""
+        # When focus changes, flush any aggregator that was active for the *previously* focused node.
+        if self.focused_node_data and self.focused_node_data.get('type') == 'agent':
+             self._flush_aggregator_for_agent(self.focused_node_data['name'])
         self.focused_node_data = node_data

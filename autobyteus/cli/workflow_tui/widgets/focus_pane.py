@@ -21,6 +21,7 @@ from autobyteus.agent.streaming.stream_event_payloads import (
     ErrorEventData, ToolInteractionLogEntryData, ToolInvocationApprovalRequestedData, ToolInvocationAutoExecutingData
 )
 from .shared import AGENT_PHASE_ICONS, WORKFLOW_PHASE_ICONS, SUB_WORKFLOW_ICON, DEFAULT_ICON
+from . import renderables
 
 logger = logging.getLogger(__name__)
 
@@ -220,16 +221,14 @@ class FocusPane(Static):
             self.query_one("#focus-pane-log-container").scroll_end(animate=False)
 
     async def add_agent_event(self, event: AgentStreamEvent):
-        """Buffers a single agent event to the log view, enabling live streaming."""
+        """Adds a single agent event to the log view, delegating rendering logic."""
         log_container = self.query_one("#focus-pane-log-container")
-        widget_to_mount: Optional[Static] = None
-
+        
+        # --- Streaming logic remains here, as it's tied to live widget updates ---
         if event.event_type == AgentStreamEventType.ASSISTANT_CHUNK:
             data: AssistantChunkData = event.data
-
             if data.reasoning:
                 if self._thinking_widget is None:
-                    # A new thought process is starting. Flush any old buffers.
                     self.flush_stream_buffers()
                     await log_container.mount(Static(""))
                     self._thinking_text = Text("<Thinking>\n", style="dim italic cyan")
@@ -238,64 +237,53 @@ class FocusPane(Static):
                 self._reasoning_buffer += data.reasoning
 
             if data.content:
-                # If content arrives, the "thinking" that led to it is done.
                 if self._thinking_widget:
                     await self._close_thinking_block()
-                
                 if self._assistant_content_widget is None:
                     await log_container.mount(Static(""))
                     self._assistant_content_text = Text()
                     self._assistant_content_text.append("assistant: ", style="bold green")
                     self._assistant_content_widget = Static(self._assistant_content_text)
                     await log_container.mount(self._assistant_content_widget)
-                
                 self._content_buffer += data.content
             return
-
-        # Any other event breaks all streams. Flush buffers first.
+        
+        # --- Logic for all non-chunk events is delegated ---
+        
+        # Any other event type breaks all active streams. Flush buffers first.
+        was_streaming_content = self._assistant_content_widget is not None
         self.flush_stream_buffers()
         await self._close_thinking_block(scroll=False)
         self._assistant_content_widget = None
         self._assistant_content_text = None
-        
         await log_container.mount(Static(""))
-        
+
+        renderable = None
+        renderables_list = []
+
         if event.event_type == AgentStreamEventType.ASSISTANT_COMPLETE_RESPONSE:
-            pass
+            # If we were just live-streaming content, the content in this event is redundant.
+            # Only render it if this is a pre-aggregated event from history (i.e., we were not streaming).
+            if not was_streaming_content:
+                renderables_list = renderables.render_assistant_complete_response(event.data)
         elif event.event_type == AgentStreamEventType.TOOL_INTERACTION_LOG_ENTRY:
-            data: ToolInteractionLogEntryData = event.data
-            log_text = Text(f"[tool-log] {data.log_entry}", style="dim")
-            widget_to_mount = Static(log_text)
+            renderable = renderables.render_tool_interaction_log(event.data)
         elif event.event_type == AgentStreamEventType.TOOL_INVOCATION_AUTO_EXECUTING:
-            data: ToolInvocationAutoExecutingData = event.data
-            args_str = json.dumps(data.arguments, indent=2)
-            text_content = Text("Executing tool '", style="default")
-            text_content.append(f"{data.tool_name}", style="bold yellow")
-            text_content.append("' with arguments:\n", style="default")
-            text_content.append(args_str, style="yellow")
-            widget_to_mount = Static(text_content)
+            renderable = renderables.render_tool_auto_executing(event.data)
         elif event.event_type == AgentStreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED:
-            data: ToolInvocationApprovalRequestedData = event.data
-            args_str = json.dumps(data.arguments, indent=2)
-            text_content = Text("Requesting approval for tool '", style="default")
-            text_content.append(f"{data.tool_name}", style="bold yellow")
-            text_content.append("' with arguments:\n", style="default")
-            text_content.append(args_str, style="yellow")
-            widget_to_mount = Static(text_content)
-            self._pending_approval_data = data
+            renderable = renderables.render_tool_approval_request(event.data)
+            self._pending_approval_data = event.data
             await self._show_approval_prompt()
         elif event.event_type == AgentStreamEventType.ERROR_EVENT:
-            data: ErrorEventData = event.data
-            error_text = f"Error from {data.source}: {data.message}"
-            if data.details: error_text += f"\nDetails: {data.details}"
-            widget_to_mount = Static(Text(error_text, style="bold red"))
+            renderable = renderables.render_error(event.data)
         elif event.event_type in [AgentStreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION, AgentStreamEventType.AGENT_IDLE]:
-            data: AgentOperationalPhaseTransitionData = event.data
-            old_phase = data.old_phase.value if data.old_phase else 'uninitialized'
-            phase_text = Text(f"Phase: {old_phase} -> {data.new_phase.value}", style="italic dim")
-            widget_to_mount = Static(phase_text)
+            renderable = renderables.render_phase_transition(event.data)
 
-        if widget_to_mount:
-            await log_container.mount(widget_to_mount)
+        if renderable:
+            await log_container.mount(Static(renderable))
         
+        for item in renderables_list:
+            await log_container.mount(Static(item))
+            await log_container.mount(Static("")) # Add space between items
+
         log_container.scroll_end(animate=False)
