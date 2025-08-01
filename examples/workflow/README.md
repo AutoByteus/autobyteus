@@ -144,8 +144,7 @@ You can assign different LLM models to each agent to simulate a team with differ
 
 ```bash
 python examples/workflow/run_code_review_workflow.py \
-    --llm-model kimi-latest \
-    --engineer-model gpt-4o
+    --llm-model qwen/qwen3-30b-a3b-2507 \
 ```
 
 ### Listing Available Models

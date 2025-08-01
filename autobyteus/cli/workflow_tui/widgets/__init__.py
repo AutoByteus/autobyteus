@@ -3,3 +3,4 @@
 Custom Textual widgets for the workflow TUI.
 """
 from . import renderables
+from .logo import Logo

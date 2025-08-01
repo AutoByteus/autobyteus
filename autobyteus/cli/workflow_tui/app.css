@@ -1,4 +1,4 @@
-/* file: autobyteus/autobyteus/cli/workflow_tui/app.css */
+# file: autobyteus/autobyteus/cli/workflow_tui/app.css
 
 Screen {
     layout: vertical;
@@ -23,6 +23,33 @@ AgentListSidebar {
     border-right: heavy $primary;
     background: $surface;
     padding: 0 1;
+}
+
+/* Make the Tree fill available space, pushing the logo down. */
+AgentListSidebar > Vertical > Tree {
+    height: 1fr;
+}
+
+/* Style for the new Logo widget container */
+Logo {
+    height: auto;
+    background: $surface-darken-1;
+    width: 100%;
+    margin-top: 1;
+    padding: 1 0;
+}
+
+.logo-art {
+    color: $text-muted;
+    height: auto;
+}
+
+.logo-tagline {
+    width: 100%;
+    height: auto;
+    content-align: center bottom;
+    color: $text-muted;
+    text-style: italic;
 }
 
 FocusPane {

@@ -8,6 +8,7 @@ from typing import Dict, Any, Optional
 from textual.message import Message
 from textual.widgets import Static, Tree
 from textual.widgets.tree import TreeNode
+from textual.containers import Vertical
 
 from autobyteus.agent.phases import AgentOperationalPhase
 from autobyteus.workflow.phases import WorkflowOperationalPhase
@@ -15,6 +16,7 @@ from .shared import (
     AGENT_PHASE_ICONS, WORKFLOW_PHASE_ICONS, SUB_WORKFLOW_ICON, 
     WORKFLOW_ICON, SPEAKING_ICON, DEFAULT_ICON
 )
+from .logo import Logo
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +35,9 @@ class AgentListSidebar(Static):
         self._node_map: Dict[str, TreeNode] = {} # Maps node names to TreeNode objects
 
     def compose(self):
-        yield Tree("Workflow", id="agent-tree")
+        with Vertical():
+            yield Tree("Workflow", id="agent-tree")
+            yield Logo()
 
     def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
         """Handle node selection from the tree."""

@@ -153,7 +153,7 @@ class FocusPane(Static):
             phase = workflow_phases.get(node_name, WorkflowOperationalPhase.UNINITIALIZED)
             phase_str = f" (Status: {phase.value})"
 
-        self.query_one("#focus-pane-title").update(f"▼ {title_icon} {node_type_str}: [bold]{node_name}[/bold]{phase_str}")
+        self.query_one("#focus-pane-title").update(f"{title_icon} {node_type_str}: [bold]{node_name}[/bold]{phase_str}")
         
     def update_current_node_status(self, all_agent_phases: Dict, all_workflow_phases: Dict):
         """A lightweight method to only update the title with the latest status."""
@@ -164,7 +164,7 @@ class FocusPane(Static):
                              all_agent_phases: Dict[str, AgentOperationalPhase], 
                              all_workflow_phases: Dict[str, WorkflowOperationalPhase]):
         """The main method to update the entire pane based on new state.
-        This is called when focus SWITCHES."""
+        This is called when focus SWITCHES, or when data for a focused workflow is REFRESHED."""
         self.flush_stream_buffers()
 
         self._focused_node_data = node_data

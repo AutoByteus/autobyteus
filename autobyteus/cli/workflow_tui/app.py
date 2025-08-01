@@ -9,7 +9,7 @@ from typing import Dict, Optional, Any
 
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal
-from textual.widgets import Header
+from textual.widgets import Header, Static
 from textual.reactive import reactive
 
 from autobyteus.workflow.agentic_workflow import AgenticWorkflow
@@ -17,7 +17,7 @@ from autobyteus.workflow.streaming.workflow_event_stream import WorkflowEventStr
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.agent.streaming.stream_events import StreamEventType as AgentStreamEventType
 from autobyteus.agent.streaming.stream_event_payloads import AssistantChunkData
-from autobyteus.workflow.streaming.workflow_stream_event_payloads import AgentEventRebroadcastPayload
+from autobyteus.workflow.streaming.workflow_stream_event_payloads import AgentEventRebroadcastPayload, WorkflowPhaseTransitionData
 
 from .state import TUIStateStore
 from .widgets.agent_list_sidebar import AgentListSidebar
@@ -86,11 +86,8 @@ class WorkflowApp(App):
         focus_pane = self.query_one(FocusPane)
         if self._ui_update_pending:
             self._ui_update_pending = False
-            # This is the throttled trigger for the sidebar update.
+            # This is the throttled trigger for the async watcher.
             self.store_version = self.store.version
-        
-        # Always update the focus pane's title with the latest status
-        focus_pane.update_current_node_status(self.store._agent_phases, self.store._workflow_phases)
         
         # Always flush the focus pane's streaming buffer for smooth text rendering.
         focus_pane.flush_stream_buffers()
@@ -131,20 +128,41 @@ class WorkflowApp(App):
 
     # --- Reactive Watchers ---
 
-    def watch_store_version(self, new_version: int):
+    async def watch_store_version(self, new_version: int):
         """
         Reacts to changes in the store version. This is now called by the throttled
         updater, not on every event. Its main job is to update less-frequently
-        changing components like the sidebar tree.
+        changing components like the sidebar tree and workflow dashboards.
         """
         sidebar = self.query_one(AgentListSidebar)
+        focus_pane = self.query_one(FocusPane)
+
         # Fetch fresh data from the store for the update
         tree_data = self.store.get_tree_data()
         agent_phases = self.store._agent_phases
         workflow_phases = self.store._workflow_phases
         speaking_agents = self.store._speaking_agents
         
+        # Update sidebar
         sidebar.update_tree(tree_data, agent_phases, workflow_phases, speaking_agents)
+        
+        # Intelligently update the focus pane
+        focused_data = self.focused_node_data
+        if focused_data and focused_data.get("type") in ['workflow', 'subworkflow']:
+            # If a workflow/subworkflow is focused, its dashboard might be out of date.
+            # A full re-render is cheap and ensures consistency for its title and panels.
+            history = self.store.get_history_for_node(focused_data['name'], focused_data['type'])
+            await focus_pane.update_content(
+                node_data=focused_data,
+                history=history,
+                pending_approval=None,
+                all_agent_phases=agent_phases,
+                all_workflow_phases=workflow_phases
+            )
+        elif focused_data and focused_data.get("type") == 'agent':
+            # For agents, we only need to update the title status, not the whole log.
+            focus_pane.update_current_node_status(agent_phases, workflow_phases)
+
 
     async def watch_focused_node_data(self, new_node_data: Optional[Dict[str, Any]]):
         """Reacts to changes in which node is focused. Primarily used for full pane reloads on user click."""
