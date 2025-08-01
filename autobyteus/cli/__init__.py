@@ -6,6 +6,6 @@ from .agent_cli import run
 from .cli_display import InteractiveCLIDisplay
 
 __all__ = [
-    "run", 
+    "run",
     "InteractiveCLIDisplay",
 ]

@@ -43,7 +43,7 @@ class InterAgentMessageReceivedEventHandler(AgentEventHandler):
         logger.info(
             f"Agent '{context.agent_id}' handling InterAgentMessageReceivedEvent from sender "
             f"'{inter_agent_msg.sender_agent_id}', type '{inter_agent_msg.message_type.value}'. "
-            f"Content: '{inter_agent_msg.content[:100]}...'"
+            f"Content: '{inter_agent_msg.content}'"
         )
 
         content_for_llm = (

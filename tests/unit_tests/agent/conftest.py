@@ -8,7 +8,7 @@ import pytest
 from autobyteus.agent.context.agent_config import AgentConfig
 from autobyteus.agent.context.agent_runtime_state import AgentRuntimeState
 from autobyteus.agent.context.agent_context import AgentContext
-from autobyteus.agent.context.agent_phase_manager import AgentPhaseManager 
+from autobyteus.agent.phases.manager import AgentPhaseManager 
 
 from autobyteus.agent.events.agent_input_event_queue_manager import AgentInputEventQueueManager
 from autobyteus.agent.events.notifiers import AgentExternalEventNotifier 

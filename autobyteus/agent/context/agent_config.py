@@ -1,5 +1,6 @@
 # file: autobyteus/autobyteus/agent/context/agent_config.py
 import logging
+import copy
 from typing import List, Optional, Union, Tuple, TYPE_CHECKING, Dict, Any
 
 # Correctly import the new master processor and the base class
@@ -33,8 +34,8 @@ class AgentConfig:
                  role: str,
                  description: str,
                  llm_instance: 'BaseLLM',
-                 system_prompt: str,
-                 tools: List['BaseTool'],
+                 system_prompt: Optional[str] = None,
+                 tools: Optional[List['BaseTool']] = None,
                  auto_execute_tools: bool = True,
                  use_xml_tool_format: bool = True,
                  input_processors: Optional[List['BaseAgentUserInputMessageProcessor']] = None,
@@ -53,8 +54,9 @@ class AgentConfig:
             description: A description of the agent.
             llm_instance: A pre-initialized LLM instance (subclass of BaseLLM).
                           The user is responsible for creating and configuring this instance.
-            system_prompt: The base system prompt.
-            tools: A list of pre-initialized tool instances (subclasses of BaseTool).
+            system_prompt: The base system prompt. If None, the system_message from the
+                           llm_instance's config will be used as the base.
+            tools: An optional list of pre-initialized tool instances (subclasses of BaseTool).
             auto_execute_tools: If True, the agent will execute tools without approval.
             use_xml_tool_format: Whether to use XML for tool descriptions and examples.
             input_processors: A list of input processor instances.
@@ -71,7 +73,7 @@ class AgentConfig:
         self.description = description
         self.llm_instance = llm_instance
         self.system_prompt = system_prompt
-        self.tools = tools
+        self.tools = tools or []
         self.workspace = workspace
         self.auto_execute_tools = auto_execute_tools
         self.use_xml_tool_format = use_xml_tool_format
@@ -83,6 +85,31 @@ class AgentConfig:
         self.initial_custom_data = initial_custom_data
 
         logger.debug(f"AgentConfig created for name '{self.name}', role '{self.role}'.")
+
+    def copy(self) -> 'AgentConfig':
+        """
+        Creates a copy of this AgentConfig. It avoids deep-copying complex objects
+        like tools, workspaces, and processors that may contain un-pickleable state.
+        Instead, it creates shallow copies of the lists, allowing the lists themselves
+        to be modified independently while sharing the object instances within them.
+        """
+        return AgentConfig(
+            name=self.name,
+            role=self.role,
+            description=self.description,
+            llm_instance=self.llm_instance,  # Keep reference, do not copy
+            system_prompt=self.system_prompt,
+            tools=self.tools.copy(),  # Shallow copy the list, but reference the original tool instances
+            auto_execute_tools=self.auto_execute_tools,
+            use_xml_tool_format=self.use_xml_tool_format,
+            input_processors=self.input_processors.copy(), # Shallow copy the list
+            llm_response_processors=self.llm_response_processors.copy(), # Shallow copy the list
+            system_prompt_processors=self.system_prompt_processors.copy(), # Shallow copy the list
+            tool_execution_result_processors=self.tool_execution_result_processors.copy(), # Shallow copy the list
+            workspace=self.workspace,  # Pass by reference, do not copy
+            phase_hooks=self.phase_hooks.copy(), # Shallow copy the list
+            initial_custom_data=copy.deepcopy(self.initial_custom_data) # Deep copy for simple data
+        )
 
     def __repr__(self) -> str:
         return (f"AgentConfig(name='{self.name}', role='{self.role}', llm_instance='{self.llm_instance.__class__.__name__}', workspace_configured={self.workspace is not None})")

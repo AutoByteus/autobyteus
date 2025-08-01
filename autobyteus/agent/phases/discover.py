@@ -3,7 +3,8 @@ import inspect
 import logging
 from typing import List, Optional
 
-from autobyteus.agent.context.agent_phase_manager import AgentPhaseManager
+from autobyteus.agent.phases.manager import AgentPhaseManager
+
 from .transition_info import PhaseTransitionInfo
 
 logger = logging.getLogger(__name__)

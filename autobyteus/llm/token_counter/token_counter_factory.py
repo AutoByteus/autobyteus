@@ -36,6 +36,8 @@ def get_token_counter(model: LLMModel, llm: 'BaseLLM') -> BaseTokenCounter:
         return KimiTokenCounter(model, llm)
     elif model.provider == LLMProvider.OLLAMA:
         return OpenAITokenCounter(model, llm)
+    elif model.provider == LLMProvider.LMSTUDIO:
+        return OpenAITokenCounter(model, llm)
     elif model.provider == LLMProvider.GEMINI:
         return OpenAITokenCounter(model, llm)
     else:
