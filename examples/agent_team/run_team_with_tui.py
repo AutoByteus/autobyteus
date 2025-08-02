@@ -1,6 +1,6 @@
-# file: autobyteus/examples/workflow/run_workflow_with_tui.py
+# file: autobyteus/examples/agent_team/run_team_with_tui.py
 """
-This example script demonstrates how to run an AgenticWorkflow with the
+This example script demonstrates how to run an AgentTeam with the
 new Textual-based user interface.
 """
 import asyncio
@@ -23,13 +23,13 @@ try:
 except ImportError:
     pass
 
-# --- Imports for the Workflow TUI Example ---
+# --- Imports for the Agent Team TUI Example ---
 try:
     from autobyteus.agent.context import AgentConfig
     from autobyteus.llm.models import LLMModel
     from autobyteus.llm.llm_factory import default_llm_factory, LLMFactory
-    from autobyteus.workflow.workflow_builder import WorkflowBuilder
-    from autobyteus.cli.workflow_tui.app import WorkflowApp
+    from autobyteus.agent_team.agent_team_builder import AgentTeamBuilder
+    from autobyteus.cli.agent_team_tui.app import AgentTeamApp
 except ImportError as e:
     print(f"Error importing autobyteus components: {e}", file=sys.stderr)
     sys.exit(1)
@@ -42,7 +42,7 @@ def setup_file_logging() -> Path:
     """
     log_dir = PACKAGE_ROOT / "logs"
     log_dir.mkdir(exist_ok=True)
-    log_file_path = log_dir / "workflow_tui_app.log"
+    log_file_path = log_dir / "agent_team_tui_app.log"
     
     logging.basicConfig(
         level=logging.INFO,
@@ -56,8 +56,8 @@ def setup_file_logging() -> Path:
     
     return log_file_path
 
-def create_demo_workflow(model_name: str):
-    """Creates a simple two-agent workflow for the TUI demonstration."""
+def create_demo_team(model_name: str):
+    """Creates a simple two-agent team for the TUI demonstration."""
     # The factory will handle API key checks based on the selected model's provider.
 
     # Validate model
@@ -76,7 +76,7 @@ def create_demo_workflow(model_name: str):
         llm_instance=default_llm_factory.create_llm(model_identifier=model_name),
         system_prompt=(
             "You are a project manager. Your job is to understand the user's request and delegate tasks to your team. "
-            "The workflow will provide you with a team manifest. Use your tools to communicate with your team.\n\n"
+            "The system will provide you with a team manifest. Use your tools to communicate with your team.\n\n"
             "Here are your available tools:\n"
             "{{tools}}"
         )
@@ -98,32 +98,32 @@ def create_demo_workflow(model_name: str):
         )
     )
 
-    # Build the workflow
-    workflow = (
-        WorkflowBuilder(
-            name="TUIDemoWorkflow",
-            description="A simple two-agent workflow for demonstrating the TUI."
+    # Build the agent team
+    team = (
+        AgentTeamBuilder(
+            name="TUIDemoTeam",
+            description="A simple two-agent team for demonstrating the TUI."
         )
         .set_coordinator(coordinator_config)
         .add_agent_node(fact_checker_config, dependencies=[])
         .build()
     )
-    return workflow
+    return team
 
 async def main(args: argparse.Namespace, log_file: Path):
-    """Main async function to create the workflow and run the TUI app."""
-    print("Setting up workflow...")
+    """Main async function to create the agent team and run the TUI app."""
+    print("Setting up agent team...")
     print(f"--> Logs will be written to: {log_file.resolve()}")
     try:
-        workflow = create_demo_workflow(model_name=args.llm_model)
-        app = WorkflowApp(workflow=workflow)
+        team = create_demo_team(model_name=args.llm_model)
+        app = AgentTeamApp(team=team)
         await app.run_async()
     except Exception as e:
-        logging.critical(f"Failed to create or run workflow TUI: {e}", exc_info=True)
+        logging.critical(f"Failed to create or run agent team TUI: {e}", exc_info=True)
         print(f"\nCRITICAL ERROR: {e}\nCheck log file for details: {log_file.resolve()}")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run an AgenticWorkflow with a Textual TUI.")
+    parser = argparse.ArgumentParser(description="Run an AgentTeam with a Textual TUI.")
     parser.add_argument("--llm-model", type=str, default="kimi-latest", help="The LLM model to use for the agents.")
     parser.add_argument("--help-models", action="store_true", help="Display available LLM models and exit.")
     

@@ -9,16 +9,16 @@ from autobyteus.tools.tool_config import ToolConfig
 # This import is for type hinting only and avoids circular dependencies at runtime
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
-    from autobyteus.workflow.context.team_manager import TeamManager
-    from autobyteus.workflow.events.workflow_events import InterAgentMessageRequestEvent
+    from autobyteus.agent_team.context.team_manager import TeamManager
+    from autobyteus.agent_team.events.agent_team_events import InterAgentMessageRequestEvent
 
 logger = logging.getLogger(__name__)
 
 class SendMessageTo(BaseTool):
     """
-    A tool for sending messages to other agents within the same workflow team.
+    A tool for sending messages to other agents within the same agent team.
     This tool requires a TeamManager to be injected at runtime by the
-    workflow framework to enable communication with the parent orchestrator.
+    agent team framework to enable communication with the parent orchestrator.
     """
     TOOL_NAME = "SendMessageTo"
     CATEGORY = ToolCategory.AGENT_COMMUNICATION
@@ -75,14 +75,14 @@ class SendMessageTo(BaseTool):
                        content: str, 
                        message_type: str) -> str:
         """
-        Creates and dispatches a InterAgentMessageRequestEvent to the parent workflow
+        Creates and dispatches a InterAgentMessageRequestEvent to the parent agent team
         using the injected team_manager.
         """
         # Local import to break circular dependency at module load time.
-        from autobyteus.workflow.events.workflow_events import InterAgentMessageRequestEvent
+        from autobyteus.agent_team.events.agent_team_events import InterAgentMessageRequestEvent
 
         if self._team_manager is None:
-            error_msg = "Critical error: SendMessageTo tool is not configured for workflow communication. It can only be used within a managed AgenticWorkflow."
+            error_msg = "Critical error: SendMessageTo tool is not configured for team communication. It can only be used within a managed AgentTeam."
             logger.error(f"Agent '{context.agent_id}': {error_msg}")
             return f"Error: {error_msg}"
 
@@ -103,7 +103,7 @@ class SendMessageTo(BaseTool):
         sender_agent_id = context.agent_id
         logger.info(f"Tool '{self.get_name()}': Agent '{sender_agent_id}' requesting to send message to '{recipient_name}'.")
 
-        # Create the event for the workflow to handle
+        # Create the event for the agent team to handle
         event = InterAgentMessageRequestEvent(
             sender_agent_id=sender_agent_id,
             recipient_name=recipient_name,
@@ -111,7 +111,7 @@ class SendMessageTo(BaseTool):
             message_type=message_type
         )
         
-        # Dispatch the event "up" to the workflow's event loop via the team manager
+        # Dispatch the event "up" to the team's event loop via the team manager
         await self._team_manager.dispatch_inter_agent_message_request(event)
 
         success_msg = f"Message dispatch for recipient '{recipient_name}' has been successfully requested."

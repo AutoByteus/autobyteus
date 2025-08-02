@@ -1,6 +1,6 @@
-# file: autobyteus/examples/workflow/run_code_review_workflow.py
+# file: autobyteus/examples/agent_team/run_code_review_team.py
 """
-This example script demonstrates a simple software development workflow
+This example script demonstrates a simple software development agent team
 with a coordinator, an engineer, a code reviewer, a test writer, and a tester.
 """
 import asyncio
@@ -23,13 +23,13 @@ try:
 except ImportError:
     pass
 
-# --- Imports for the Workflow TUI Example ---
+# --- Imports for the Agent Team TUI Example ---
 try:
     from autobyteus.agent.context import AgentConfig
     from autobyteus.llm.models import LLMModel
     from autobyteus.llm.llm_factory import default_llm_factory, LLMFactory
-    from autobyteus.workflow.workflow_builder import WorkflowBuilder
-    from autobyteus.cli.workflow_tui.app import WorkflowApp
+    from autobyteus.agent_team.agent_team_builder import AgentTeamBuilder
+    from autobyteus.cli.agent_team_tui.app import AgentTeamApp
     from autobyteus.tools import file_writer, file_reader, bash_executor
     from autobyteus.agent.workspace import BaseAgentWorkspace, WorkspaceConfig
     from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
@@ -56,7 +56,7 @@ class SimpleLocalWorkspace(BaseAgentWorkspace):
 
     @classmethod
     def get_description(cls) -> str:
-        return "A basic workspace for local file access for the code review workflow."
+        return "A basic workspace for local file access for the code review team."
 
     @classmethod
     def get_config_schema(cls) -> ParameterSchema:
@@ -74,13 +74,13 @@ class SimpleLocalWorkspace(BaseAgentWorkspace):
 def setup_file_logging() -> Path:
     log_dir = PACKAGE_ROOT / "logs"
     log_dir.mkdir(exist_ok=True)
-    log_file_path = log_dir / "code_review_workflow_tui_app.log"
+    log_file_path = log_dir / "code_review_team_tui_app.log"
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", filename=log_file_path, filemode="w")
     logging.getLogger("asyncio").setLevel(logging.WARNING)
     logging.getLogger("textual").setLevel(logging.WARNING)
     return log_file_path
 
-def create_code_review_workflow(
+def create_code_review_team(
     coordinator_model: str, 
     engineer_model: str, 
     reviewer_model: str, 
@@ -89,7 +89,7 @@ def create_code_review_workflow(
     workspace: BaseAgentWorkspace,
     use_xml_tool_format: bool = True
 ):
-    """Creates the code review workflow."""
+    """Creates the code review agent team."""
     
     # --- AGENT CONFIGURATIONS ---
 
@@ -99,8 +99,8 @@ def create_code_review_workflow(
         llm_instance=default_llm_factory.create_llm(model_identifier=coordinator_model),
         system_prompt=(
             "You are the project manager for a software team. Your role is to manage a strict, sequential code development, review, and testing process. Your team consists of a SoftwareEngineer, a CodeReviewer, a TestWriter, and a Tester.\n\n"
-            "### Your Workflow\n"
-            "You must follow this workflow precisely:\n"
+            "### Your Process\n"
+            "You must follow this process precisely:\n"
             "1.  **Delegate to Engineer:** Receive a request from the user to write code to a specific filename. Instruct the `SoftwareEngineer` to write the code and save it.\n"
             "2.  **Delegate to Reviewer:** After the engineer confirms completion, instruct the `CodeReviewer` to review the code. You must provide the filename to the reviewer.\n"
             "3.  **Delegate to Test Writer:** After the review is complete, instruct the `TestWriter` to write pytest tests for the code. Provide the original source filename and tell them to save the tests in a new file, like `test_FILENAME.py`.\n"
@@ -123,8 +123,7 @@ def create_code_review_workflow(
             "Confirm completion once the file is saved.\n\n{{tools}}"
         ),
         tools=[file_writer],
-        workspace=workspace,
-        use_xml_tool_format=use_xml_tool_format
+        workspace=workspace
     )
     
     # Code Reviewer Agent
@@ -170,10 +169,10 @@ def create_code_review_workflow(
     )
 
 
-    # --- BUILD THE WORKFLOW ---
+    # --- BUILD THE AGENT TEAM ---
     
-    code_review_workflow = (
-        WorkflowBuilder(name="SoftwareDevWorkflow", description="A workflow for writing, reviewing, and testing code.")
+    code_review_team = (
+        AgentTeamBuilder(name="SoftwareDevTeam", description="A team for writing, reviewing, and testing code.")
         .set_coordinator(coordinator_config)
         .add_agent_node(engineer_config)
         .add_agent_node(reviewer_config)
@@ -182,11 +181,11 @@ def create_code_review_workflow(
         .build()
     )
 
-    return code_review_workflow
+    return code_review_team
 
 async def main(args: argparse.Namespace, log_file: Path):
-    """Main async function to create the workflow and run the TUI app."""
-    print("Setting up software development workflow...")
+    """Main async function to create the agent team and run the TUI app."""
+    print("Setting up software development team...")
     print(f"--> Logs will be written to: {log_file.resolve()}")
 
     workspace_path = Path(args.output_dir).resolve()
@@ -213,7 +212,7 @@ async def main(args: argparse.Namespace, log_file: Path):
     print(f"--> Using XML Tool Format: {use_xml_tool_format}")
 
     try:
-        workflow = create_code_review_workflow(
+        team = create_code_review_team(
             coordinator_model=coordinator_model,
             engineer_model=engineer_model,
             reviewer_model=reviewer_model,
@@ -222,15 +221,15 @@ async def main(args: argparse.Namespace, log_file: Path):
             workspace=workspace,
             use_xml_tool_format=use_xml_tool_format
         )
-        app = WorkflowApp(workflow=workflow)
+        app = AgentTeamApp(team=team)
         await app.run_async()
     except Exception as e:
-        logging.critical(f"Failed to create or run workflow TUI: {e}", exc_info=True)
+        logging.critical(f"Failed to create or run agent team TUI: {e}", exc_info=True)
         print(f"\nCRITICAL ERROR: {e}\nCheck log file for details: {log_file.resolve()}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Run a software development workflow with a Textual TUI.",
+        description="Run a software development agent team with a Textual TUI.",
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument("--llm-model", type=str, default="kimi-latest", help="The default LLM model for all agents.")
@@ -266,4 +265,3 @@ if __name__ == "__main__":
     except Exception as e:
         logging.critical(f"Top-level application error: {e}", exc_info=True)
         print(f"\nUNHANDLED ERROR: {e}\nCheck log file for details: {log_file_path.resolve()}")
-

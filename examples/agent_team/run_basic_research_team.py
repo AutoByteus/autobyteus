@@ -1,4 +1,4 @@
-# file: autobyteus/examples/workflow/run_basic_research_workflow.py
+# file: autobyteus/examples/agent_team/run_basic_research_team.py
 import asyncio
 import logging
 import argparse
@@ -24,72 +24,45 @@ try:
 except ImportError:
     print("Warning: python-dotenv not installed. Cannot load .env file.")
 
-# --- Imports for the Workflow Example ---
+# --- Imports for the Agent Team Example ---
 try:
     from autobyteus.agent.context import AgentConfig
     from autobyteus.llm.models import LLMModel
     from autobyteus.llm.llm_factory import default_llm_factory, LLMFactory
-    from autobyteus.workflow.workflow_builder import WorkflowBuilder
-    from autobyteus.cli import workflow_cli
+    from autobyteus.agent_team.agent_team_builder import AgentTeamBuilder
+    from autobyteus.cli.agent_team_tui.app import AgentTeamApp
 except ImportError as e:
     print(f"Error importing autobyteus components: {e}", file=sys.stderr)
     print("Please ensure that the autobyteus library is installed and accessible.", file=sys.stderr)
     sys.exit(1)
 
 # --- Logging Setup ---
-logger = logging.getLogger("basic_workflow_example")
-
-def setup_logging(args: argparse.Namespace):
-    """Configures logging for the interactive session."""
-    loggers_to_clear = [
-        logging.getLogger(),
-        logging.getLogger("autobyteus"),
-        logging.getLogger("autobyteus.cli"),
-    ]
-    for l in loggers_to_clear:
-        if l.hasHandlers():
-            for handler in l.handlers[:]:
-                l.removeHandler(handler)
-                if hasattr(handler, 'close'): handler.close()
-
-    script_log_level = logging.DEBUG if args.debug else logging.INFO
-
-    console_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
-    formatted_console_handler = logging.StreamHandler(sys.stdout)
-    formatted_console_handler.setFormatter(console_formatter)
-    
-    root_logger = logging.getLogger()
-    root_logger.addHandler(formatted_console_handler)
-    root_logger.setLevel(script_log_level) 
-    
-    # Configure the main log file
-    log_file_path = Path(args.log_file).resolve()
+def setup_file_logging(log_file_path: Path) -> None:
+    """Configures file-based logging for the TUI session."""
     log_file_path.parent.mkdir(parents=True, exist_ok=True)
-    agent_file_handler = logging.FileHandler(log_file_path, mode='w')  
-    agent_file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s:%(lineno)d - %(message)s')
-    agent_file_handler.setFormatter(agent_file_formatter)
-    file_log_level = logging.DEBUG if args.debug else logging.INFO
-
-    autobyteus_logger = logging.getLogger("autobyteus")
-    autobyteus_logger.addHandler(agent_file_handler)
-    autobyteus_logger.setLevel(file_log_level)
-    autobyteus_logger.propagate = True
-    
-    logger.info(f"Core library logs redirected to: {log_file_path} (level: {logging.getLevelName(file_log_level)})")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        filename=log_file_path,
+        filemode="w",
+    )
+    logging.getLogger("asyncio").setLevel(logging.WARNING)
+    logging.getLogger("textual").setLevel(logging.WARNING)
+    print(f"--> TUI logs will be written to: {log_file_path.resolve()}")
 
 
 async def main(args: argparse.Namespace):
-    """Main function to configure and run the research workflow."""
-    logger.info("--- Starting Basic Research Workflow Example ---")
+    """Main function to configure and run the research team."""
+    print("--- Starting Basic Research Agent Team Example ---")
 
     # 1. Create LLM instance for the agents
     try:
         _ = LLMModel[args.llm_model]
     except KeyError:
-        logger.error(f"LLM Model '{args.llm_model}' is not valid. Use --help-models to see available models.")
+        print(f"LLM Model '{args.llm_model}' is not valid. Use --help-models to see available models.", file=sys.stderr)
         sys.exit(1)
 
-    logger.info(f"Creating LLM instance for model: {args.llm_model}")
+    print(f"Creating LLM instance for model: {args.llm_model}")
     llm_instance = default_llm_factory.create_llm(model_identifier=args.llm_model)
 
     # 2. Define the Agent Configurations
@@ -100,8 +73,6 @@ async def main(args: argparse.Namespace):
         role="Coordinator",
         description="A manager agent that receives research goals and delegates them to specialists.",
         llm_instance=llm_instance,
-        # The prompt is now simpler, as the workflow builder will handle context.
-        # The {{tools}} placeholder is essential for tool injection.
         system_prompt=(
             "You are the manager of a research team. Your job is to understand the user's research goal and delegate it to the correct specialist agent on your team. "
             "Do not answer questions yourself; always delegate. "
@@ -125,41 +96,38 @@ async def main(args: argparse.Namespace):
         )
     )
 
-    # 3. Define and Build the Workflow using WorkflowBuilder
+    # 3. Define and Build the Agent Team using AgentTeamBuilder
     
-    research_workflow = (
-        WorkflowBuilder(
-            name="BasicResearchWorkflow",
-            description="A simple two-agent workflow for delegating and answering research questions."
+    research_team = (
+        AgentTeamBuilder(
+            name="BasicResearchTeam",
+            description="A simple two-agent team for delegating and answering research questions."
         )
         .set_coordinator(research_manager_config)
         .add_agent_node(fact_checker_config, dependencies=[])
         .build()
     )
     
-    # 4. Run the Workflow
+    # 4. Run the Agent Team with the TUI
     
-    logger.info(f"Workflow instance '{research_workflow.name}' created with ID: {research_workflow.workflow_id}")
+    print(f"Agent Team instance '{research_team.name}' created with ID: {research_team.team_id}")
 
     try:
-        logger.info("Starting interactive workflow session...")
-        await workflow_cli.run_workflow(
-            workflow=research_workflow, 
-            initial_prompt=args.initial_prompt
-        )
-        logger.info("Interactive workflow session finished.")
+        print("Starting interactive team TUI session...")
+        app = AgentTeamApp(team=research_team)
+        await app.run_async()
+        print("Interactive team TUI session finished.")
     except Exception as e:
-        logger.error(f"An error occurred during the workflow execution: {e}", exc_info=True)
+        logging.critical(f"An error occurred during the team execution: {e}", exc_info=True)
+        print(f"\nCRITICAL ERROR: {e}\nCheck log file for details.")
     
-    logger.info("--- Basic Research Workflow Example Finished ---")
+    print("--- Basic Research Agent Team Example Finished ---")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run a basic two-agent research workflow.")
+    parser = argparse.ArgumentParser(description="Run a basic two-agent research team with a TUI.")
     parser.add_argument("--llm-model", type=str, default="gpt-4o", help="The LLM model to use for the agents.")
     parser.add_argument("--help-models", action="store_true", help="Display available LLM models and exit.")
-    parser.add_argument("--initial-prompt", type=str, help="An optional initial prompt to start the workflow automatically.")
-    parser.add_argument("--debug", action="store_true", help="Enable debug logging.")
-    parser.add_argument("--log-file", type=str, default="./workflow_logs.txt", 
+    parser.add_argument("--log-file", type=str, default="./logs/basic_research_team.log", 
                        help="Path to the log file for autobyteus library logs.")
 
     if "--help-models" in sys.argv:
@@ -177,13 +145,16 @@ if __name__ == "__main__":
 
     parsed_args = parser.parse_args()
     
-    setup_logging(parsed_args)
+    log_file = Path(parsed_args.log_file).resolve()
+    setup_file_logging(log_file)
 
     try:
         asyncio.run(main(parsed_args))
     except (KeyboardInterrupt, SystemExit):
-        logger.info("Script interrupted by user. Exiting.")
+        logging.info("Script interrupted by user. Exiting.")
+        print("\nExiting application.")
     except Exception as e:
-        logger.error(f"An unhandled error occurred at the top level: {e}", exc_info=True)
+        logging.critical(f"An unhandled error occurred at the top level: {e}", exc_info=True)
+        print(f"\nUNHANDLED ERROR: {e}\nCheck log file for details: {log_file.resolve()}")
     finally:
-        logger.info("Exiting script.")
+        logging.info("Exiting script.")

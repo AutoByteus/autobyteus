@@ -1,7 +1,7 @@
-# file: autobyteus/examples/workflow/run_debate_workflow.py
+# file: autobyteus/examples/agent_team/run_debate_team.py
 """
-This example script demonstrates a hierarchical workflow.
-A parent workflow (The Debate) manages two sub-workflows (Debating Teams).
+This example script demonstrates a hierarchical agent team.
+A parent team (The Debate) manages two sub-teams (Debating Teams).
 """
 import asyncio
 import logging
@@ -23,14 +23,14 @@ try:
 except ImportError:
     pass
 
-# --- Imports for the Workflow TUI Example ---
+# --- Imports for the Agent Team TUI Example ---
 try:
     from autobyteus.agent.context import AgentConfig
     from autobyteus.llm.models import LLMModel
     from autobyteus.llm.llm_factory import default_llm_factory, LLMFactory
-    from autobyteus.workflow.workflow_builder import WorkflowBuilder
-    from autobyteus.cli.workflow_tui.app import WorkflowApp
-    from autobyteus.workflow.context.workflow_config import WorkflowConfig
+    from autobyteus.agent_team.agent_team_builder import AgentTeamBuilder
+    from autobyteus.cli.agent_team_tui.app import AgentTeamApp
+    from autobyteus.agent_team.context.agent_team_config import AgentTeamConfig
 except ImportError as e:
     print(f"Error importing autobyteus components: {e}", file=sys.stderr)
     sys.exit(1)
@@ -39,14 +39,14 @@ except ImportError as e:
 def setup_file_logging() -> Path:
     log_dir = PACKAGE_ROOT / "logs"
     log_dir.mkdir(exist_ok=True)
-    log_file_path = log_dir / "debate_workflow_tui_app.log"
+    log_file_path = log_dir / "debate_team_tui_app.log"
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", filename=log_file_path, filemode="w")
     logging.getLogger("asyncio").setLevel(logging.WARNING)
     logging.getLogger("textual").setLevel(logging.WARNING)
     return log_file_path
 
-def create_debate_workflow(moderator_model: str, affirmative_model: str, negative_model: str, use_xml_tool_format: bool = True):
-    """Creates a hierarchical debate workflow for the TUI demonstration."""
+def create_debate_team(moderator_model: str, affirmative_model: str, negative_model: str, use_xml_tool_format: bool = True):
+    """Creates a hierarchical debate team for the TUI demonstration."""
     # Validate models
     def _validate_model(model_name: str):
         try:
@@ -113,39 +113,39 @@ def create_debate_workflow(moderator_model: str, affirmative_model: str, negativ
         use_xml_tool_format=use_xml_tool_format
     )
 
-    # --- BUILD SUB-WORKFLOWS ---
+    # --- BUILD SUB-TEAMS ---
     
     # Build Team Affirmative
-    team_affirmative_workflow: WorkflowConfig = (
-        WorkflowBuilder(name="Team_Affirmative", description="A two-agent team that argues in favor of a proposition.", role="Argues FOR the motion")
+    team_affirmative_config: AgentTeamConfig = (
+        AgentTeamBuilder(name="Team_Affirmative", description="A two-agent team that argues in favor of a proposition.", role="Argues FOR the motion")
         .set_coordinator(lead_affirmative_config)
         .add_agent_node(proponent_config)
         .build()._runtime.context.config # Build to get the config object
     )
     
     # Build Team Negative
-    team_negative_workflow: WorkflowConfig = (
-        WorkflowBuilder(name="Team_Negative", description="A two-agent team that argues against a proposition.", role="Argues AGAINST the motion")
+    team_negative_config: AgentTeamConfig = (
+        AgentTeamBuilder(name="Team_Negative", description="A two-agent team that argues against a proposition.", role="Argues AGAINST the motion")
         .set_coordinator(lead_negative_config)
         .add_agent_node(opponent_config)
         .build()._runtime.context.config # Build to get the config object
     )
 
-    # --- BUILD PARENT WORKFLOW ---
+    # --- BUILD PARENT TEAM ---
     
-    debate_workflow = (
-        WorkflowBuilder(name="Grand_Debate", description="A hierarchical workflow for a moderated debate between two teams.")
+    debate_team = (
+        AgentTeamBuilder(name="Grand_Debate", description="A hierarchical agent team for a moderated debate between two sub-teams.")
         .set_coordinator(moderator_config)
-        .add_workflow_node(team_affirmative_workflow)
-        .add_workflow_node(team_negative_workflow)
+        .add_sub_team_node(team_affirmative_config)
+        .add_sub_team_node(team_negative_config)
         .build()
     )
 
-    return debate_workflow
+    return debate_team
 
 async def main(args: argparse.Namespace, log_file: Path):
-    """Main async function to create the workflow and run the TUI app."""
-    print("Setting up hierarchical debate workflow...")
+    """Main async function to create the agent team and run the TUI app."""
+    print("Setting up hierarchical debate team...")
     print(f"--> Logs will be written to: {log_file.resolve()}")
 
     # Resolve model for each role, falling back to the default --llm-model
@@ -161,21 +161,21 @@ async def main(args: argparse.Namespace, log_file: Path):
     print(f"--> Using XML Tool Format: {use_xml_tool_format}")
 
     try:
-        workflow = create_debate_workflow(
+        team = create_debate_team(
             moderator_model=moderator_model,
             affirmative_model=affirmative_model,
             negative_model=negative_model,
             use_xml_tool_format=use_xml_tool_format,
         )
-        app = WorkflowApp(workflow=workflow)
+        app = AgentTeamApp(team=team)
         await app.run_async()
     except Exception as e:
-        logging.critical(f"Failed to create or run debate workflow TUI: {e}", exc_info=True)
+        logging.critical(f"Failed to create or run debate team TUI: {e}", exc_info=True)
         print(f"\nCRITICAL ERROR: {e}\nCheck log file for details: {log_file.resolve()}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Run a hierarchical 2-team debate workflow with a Textual TUI.",
+        description="Run a hierarchical 2-team debate with a Textual TUI.",
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument("--llm-model", type=str, default="kimi-latest", help="The default LLM model for all agents. Can be overridden by other arguments.")
@@ -209,4 +209,3 @@ if __name__ == "__main__":
         # This catches errors during asyncio.run, which might not be logged otherwise
         logging.critical(f"Top-level application error: {e}", exc_info=True)
         print(f"\nUNHANDLED ERROR: {e}\nCheck log file for details: {log_file_path.resolve()}")
-
