@@ -5,6 +5,8 @@ from autobyteus.tools.usage.formatters.anthropic_json_example_formatter import A
 from autobyteus.tools.registry import ToolDefinition
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.base_tool import BaseTool
+from autobyteus.tools.tool_origin import ToolOrigin
+from autobyteus.tools.tool_category import ToolCategory
 
 @pytest.fixture
 def formatter():
@@ -29,13 +31,16 @@ def complex_tool_def():
         name="ComplexTool",
         description="A complex tool.",
         argument_schema=schema,
-        tool_class=DummyComplexTool
+        tool_class=DummyComplexTool,
+        origin=ToolOrigin.LOCAL,
+        category=ToolCategory.GENERAL
     )
 
 def test_provide_anthropic_example(formatter: AnthropicJsonExampleFormatter, complex_tool_def: ToolDefinition):
     xml_output = formatter.provide(complex_tool_def)
     
     assert isinstance(xml_output, str)
-    assert '<tool_call name="ComplexTool">' in xml_output
+    # Anthropic uses XML, which is handled by the DefaultXmlExampleFormatter
+    assert '<tool name="ComplexTool">' in xml_output
     assert '<arg name="input_path">example_input_path</arg>' in xml_output
     assert '<arg name="retries">3</arg>' in xml_output

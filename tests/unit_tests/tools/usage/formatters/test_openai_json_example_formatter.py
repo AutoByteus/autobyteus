@@ -6,6 +6,8 @@ from autobyteus.tools.usage.formatters.openai_json_example_formatter import Open
 from autobyteus.tools.registry import ToolDefinition
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.base_tool import BaseTool
+from autobyteus.tools.tool_origin import ToolOrigin
+from autobyteus.tools.tool_category import ToolCategory
 
 @pytest.fixture
 def formatter():
@@ -31,7 +33,9 @@ def complex_tool_def():
         name="ComplexTool",
         description="A complex tool.",
         argument_schema=schema,
-        tool_class=DummyComplexTool
+        tool_class=DummyComplexTool,
+        origin=ToolOrigin.LOCAL,
+        category=ToolCategory.GENERAL
     )
 
 def test_provide_openai_json_example_for_complex_tool(formatter: OpenAiJsonExampleFormatter, complex_tool_def: ToolDefinition):

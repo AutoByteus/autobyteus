@@ -45,7 +45,7 @@ def setup_file_logging() -> Path:
     logging.getLogger("textual").setLevel(logging.WARNING)
     return log_file_path
 
-def create_debate_team(moderator_model: str, affirmative_model: str, negative_model: str, use_xml_tool_format: bool = True):
+def create_debate_team(moderator_model: str, affirmative_model: str, negative_model: str):
     """Creates a hierarchical debate team for the TUI demonstration."""
     # Validate models
     def _validate_model(model_name: str):
@@ -60,7 +60,6 @@ def create_debate_team(moderator_model: str, affirmative_model: str, negative_mo
         _validate_model(model)
     
     logging.info(f"Using models -> Moderator: {moderator_model}, Affirmative: {affirmative_model}, Negative: {negative_model}")
-    logging.info(f"Using XML tool format: {use_xml_tool_format}")
 
     # --- AGENT CONFIGURATIONS ---
 
@@ -75,8 +74,7 @@ def create_debate_team(moderator_model: str, affirmative_model: str, negative_mo
             "4. Facilitate a structured flow of arguments. 5. Conclude the debate.\n"
             "CRITICAL RULE: You must enforce a strict turn-based system. Only communicate with ONE team at a time using the `SendMessageTo` tool. After sending a message, you must wait for a response before messaging the other team.\n"
             "Do not debate yourself. Your role is to moderate.\n\n{{tools}}"
-        ),
-        use_xml_tool_format=use_xml_tool_format
+        )
     )
 
     # Team Affirmative Agents
@@ -86,14 +84,12 @@ def create_debate_team(moderator_model: str, affirmative_model: str, negative_mo
         system_prompt=(
             "You are the lead of the Affirmative team. You receive high-level instructions from the DebateModerator (e.g., 'prepare opening statement').\n"
             "Your job is to delegate this task to your team member, the Proponent, by giving them a specific instruction.\n\n{{tools}}"
-        ),
-        use_xml_tool_format=use_xml_tool_format
+        )
     )
     proponent_config = AgentConfig(
         name="Proponent", role="Debater", description="Argues in favor of the debate topic.",
         llm_instance=default_llm_factory.create_llm(model_identifier=affirmative_model),
-        system_prompt="You are a Proponent. You will receive instructions from your team lead. Your role is to argue STRONGLY and PERSUASIVELY IN FAVOR of the motion.",
-        use_xml_tool_format=use_xml_tool_format
+        system_prompt="You are a Proponent. You will receive instructions from your team lead. Your role is to argue STRONGLY and PERSUASIVELY IN FAVOR of the motion."
     )
 
     # Team Negative Agents
@@ -103,14 +99,12 @@ def create_debate_team(moderator_model: str, affirmative_model: str, negative_mo
         system_prompt=(
             "You are the lead of the Negative team. You receive high-level instructions from the DebateModerator (e.g., 'prepare your rebuttal').\n"
             "Your job is to delegate this task to your team member, the Opponent, by giving them a specific instruction.\n\n{{tools}}"
-        ),
-        use_xml_tool_format=use_xml_tool_format
+        )
     )
     opponent_config = AgentConfig(
         name="Opponent", role="Debater", description="Argues against the debate topic.",
         llm_instance=default_llm_factory.create_llm(model_identifier=negative_model),
-        system_prompt="You are an Opponent. You will receive instructions from your team lead. Your role is to argue STRONGLY and PERSUASIVELY AGAINST the motion.",
-        use_xml_tool_format=use_xml_tool_format
+        system_prompt="You are an Opponent. You will receive instructions from your team lead. Your role is to argue STRONGLY and PERSUASIVELY AGAINST the motion."
     )
 
     # --- BUILD SUB-TEAMS ---
@@ -156,16 +150,11 @@ async def main(args: argparse.Namespace, log_file: Path):
     print(f"--> Affirmative Team Model: {affirmative_model}")
     print(f"--> Negative Team Model: {negative_model}")
 
-    # Determine tool format setting from args
-    use_xml_tool_format = not args.no_xml_tools
-    print(f"--> Using XML Tool Format: {use_xml_tool_format}")
-
     try:
         team = create_debate_team(
             moderator_model=moderator_model,
             affirmative_model=affirmative_model,
             negative_model=negative_model,
-            use_xml_tool_format=use_xml_tool_format,
         )
         app = AgentTeamApp(team=team)
         await app.run_async()
@@ -182,7 +171,6 @@ if __name__ == "__main__":
     parser.add_argument("--moderator-model", type=str, help="Specific LLM model for the Moderator. Defaults to --llm-model.")
     parser.add_argument("--affirmative-model", type=str, help="Specific LLM model for the Affirmative Team. Defaults to --llm-model.")
     parser.add_argument("--negative-model", type=str, help="Specific LLM model for the Negative Team. Defaults to --llm-model.")
-    parser.add_argument("--no-xml-tools", action="store_true", help="Disable XML-based tool formatting. Recommended for models that struggle with XML.")
     parser.add_argument("--help-models", action="store_true", help="Display available LLM models and exit.")
     
     if "--help-models" in sys.argv:

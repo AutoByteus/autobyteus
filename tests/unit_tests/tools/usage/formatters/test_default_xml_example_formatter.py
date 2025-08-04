@@ -5,6 +5,8 @@ from autobyteus.tools.usage.formatters.default_xml_example_formatter import Defa
 from autobyteus.tools.registry import ToolDefinition
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.base_tool import BaseTool
+from autobyteus.tools.tool_origin import ToolOrigin
+from autobyteus.tools.tool_category import ToolCategory
 
 @pytest.fixture
 def formatter():
@@ -30,7 +32,9 @@ def complex_tool_def():
         name="ComplexTool",
         description="A complex tool.",
         argument_schema=schema,
-        tool_class=DummyComplexTool
+        tool_class=DummyComplexTool,
+        origin=ToolOrigin.LOCAL,
+        category=ToolCategory.GENERAL
     )
 
 def test_provide_xml_example_for_complex_tool(formatter: DefaultXmlExampleFormatter, complex_tool_def: ToolDefinition):

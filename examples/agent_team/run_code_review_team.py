@@ -86,8 +86,7 @@ def create_code_review_team(
     reviewer_model: str, 
     test_writer_model: str,
     tester_model: str,
-    workspace: BaseAgentWorkspace,
-    use_xml_tool_format: bool = True
+    workspace: BaseAgentWorkspace
 ):
     """Creates the code review agent team."""
     
@@ -108,8 +107,7 @@ def create_code_review_team(
             "5.  **Report to User:** Once you receive the test results, present the final status (code written, reviewed, and tests passed/failed) to the user.\n\n"
             "**CRITICAL RULE:** This is a sequential process. You must wait for one agent to finish before contacting the next. You are the central point of communication.\n\n"
             "{{tools}}"
-        ),
-        use_xml_tool_format=use_xml_tool_format
+        )
     )
 
     # Software Engineer Agent
@@ -136,8 +134,7 @@ def create_code_review_team(
             "After reading the code, provide a constructive review, identifying any potential bugs, style issues, or areas for improvement.\n\n{{tools}}"
         ),
         tools=[file_reader],
-        workspace=workspace,
-        use_xml_tool_format=use_xml_tool_format
+        workspace=workspace
     )
 
     # Test Writer Agent
@@ -150,8 +147,7 @@ def create_code_review_team(
             "The test filename MUST start with `test_`. For example, if you are testing `code.py`, you should save the tests in `test_code.py`.\n\n{{tools}}"
         ),
         tools=[file_reader, file_writer],
-        workspace=workspace,
-        use_xml_tool_format=use_xml_tool_format
+        workspace=workspace
     )
 
     # Tester Agent
@@ -164,8 +160,7 @@ def create_code_review_team(
             "Report the full output from the command back to the Project Manager.\n\n{{tools}}"
         ),
         tools=[bash_executor],
-        workspace=workspace,
-        use_xml_tool_format=use_xml_tool_format
+        workspace=workspace
     )
 
 
@@ -208,9 +203,6 @@ async def main(args: argparse.Namespace, log_file: Path):
     print(f"--> Test Writer Model: {test_writer_model}")
     print(f"--> Tester Model: {tester_model}")
 
-    use_xml_tool_format = not args.no_xml_tools
-    print(f"--> Using XML Tool Format: {use_xml_tool_format}")
-
     try:
         team = create_code_review_team(
             coordinator_model=coordinator_model,
@@ -218,8 +210,7 @@ async def main(args: argparse.Namespace, log_file: Path):
             reviewer_model=reviewer_model,
             test_writer_model=test_writer_model,
             tester_model=tester_model,
-            workspace=workspace,
-            use_xml_tool_format=use_xml_tool_format
+            workspace=workspace
         )
         app = AgentTeamApp(team=team)
         await app.run_async()
@@ -239,7 +230,6 @@ if __name__ == "__main__":
     parser.add_argument("--test-writer-model", type=str, help="Specific LLM model for the TestWriter. Defaults to --llm-model.")
     parser.add_argument("--tester-model", type=str, help="Specific LLM model for the Tester. Defaults to --llm-model.")
     parser.add_argument("--output-dir", type=str, default="./code_review_output", help="Directory for the shared workspace.")
-    parser.add_argument("--no-xml-tools", action="store_true", help="Disable XML-based tool formatting.")
     parser.add_argument("--help-models", action="store_true", help="Display available LLM models and exit.")
     
     if "--help-models" in sys.argv:

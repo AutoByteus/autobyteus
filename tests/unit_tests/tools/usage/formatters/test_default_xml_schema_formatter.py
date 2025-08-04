@@ -6,6 +6,8 @@ from autobyteus.tools.usage.formatters.default_xml_schema_formatter import Defau
 from autobyteus.tools.registry import ToolDefinition
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.base_tool import BaseTool
+from autobyteus.tools.tool_origin import ToolOrigin
+from autobyteus.tools.tool_category import ToolCategory
 
 @pytest.fixture
 def formatter():
@@ -34,7 +36,9 @@ def complex_tool_def():
         name="AdvancedFileProcessor",
         description="Processes a file with advanced options.",
         argument_schema=schema,
-        tool_class=DummyComplexTool
+        tool_class=DummyComplexTool,
+        origin=ToolOrigin.LOCAL,
+        category=ToolCategory.GENERAL
     )
 
 @pytest.fixture
@@ -52,7 +56,9 @@ def no_arg_tool_def():
         name="NoArgTool",
         description="A tool with no arguments.",
         argument_schema=None,
-        tool_class=DummyNoArgTool
+        tool_class=DummyNoArgTool,
+        origin=ToolOrigin.LOCAL,
+        category=ToolCategory.GENERAL
     )
 
 def test_provide_with_complex_schema(formatter: DefaultXmlSchemaFormatter, complex_tool_def: ToolDefinition):

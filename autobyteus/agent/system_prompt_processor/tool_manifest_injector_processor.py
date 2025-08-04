@@ -6,6 +6,7 @@ from .base_processor import BaseSystemPromptProcessor
 from autobyteus.tools.registry import default_tool_registry, ToolDefinition
 from autobyteus.tools.usage.providers import ToolManifestProvider
 from autobyteus.prompt.prompt_template import PromptTemplate
+from autobyteus.llm.providers import LLMProvider
 
 if TYPE_CHECKING:
     from autobyteus.tools.base_tool import BaseTool
@@ -18,6 +19,7 @@ class ToolManifestInjectorProcessor(BaseSystemPromptProcessor):
     Injects a tool manifest into the system prompt using Jinja2-style placeholders.
     It primarily targets the '{{tools}}' variable. It uses PromptTemplate for
     rendering and delegates manifest generation to a ToolManifestProvider.
+    It automatically determines whether to use XML or JSON based on the LLM provider.
     """
     # The '{{tools}}' placeholder is now handled by Jinja2 via PromptTemplate.
     DEFAULT_PREFIX_FOR_TOOLS_ONLY_PROMPT = "You have access to a set of tools. Use them by outputting the appropriate tool call format. The user can only see the output of the tool, not the call itself. The available tools are:\n\n"
@@ -42,6 +44,10 @@ class ToolManifestInjectorProcessor(BaseSystemPromptProcessor):
         if "tools" not in prompt_template.required_vars:
             return system_prompt
 
+        llm_provider = None
+        if context.llm_instance and context.llm_instance.model:
+            llm_provider = context.llm_instance.model.provider
+
         # Generate the manifest string for the 'tools' variable.
         tools_manifest: str
         if not tool_instances:
@@ -52,13 +58,10 @@ class ToolManifestInjectorProcessor(BaseSystemPromptProcessor):
                 td for name in tool_instances if (td := default_tool_registry.get_tool_definition(name))
             ]
 
-            llm_provider = context.llm_instance.model.provider if context.llm_instance and context.llm_instance.model else None
-
             try:
-                # Delegate manifest generation to the provider
+                # Delegate manifest generation to the provider, which now handles all format logic.
                 tools_manifest = self._manifest_provider.provide(
                     tool_definitions=tool_definitions,
-                    use_xml=context.config.use_xml_tool_format,
                     provider=llm_provider
                 )
             except Exception as e:

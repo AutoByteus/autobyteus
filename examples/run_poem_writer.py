@@ -213,8 +213,7 @@ async def main(args: argparse.Namespace):
         system_prompt=system_prompt,
         tools=tools_for_agent,
         workspace=workspace,
-        auto_execute_tools=False,
-        use_xml_tool_format=False
+        auto_execute_tools=False
     )
 
     # Use the AgentFactory to create the agent

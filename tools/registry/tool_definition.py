@@ -1,4 +1,4 @@
-# file: autobyteus/autobyteus/tools/registry/tool_definition.py
+# file: autobyteus/tools/registry/tool_definition.py
 import logging
 import json
 from typing import Dict, Any, List as TypingList, Type, TYPE_CHECKING, Optional, Callable

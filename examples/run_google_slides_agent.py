@@ -231,8 +231,7 @@ async def main(args: argparse.Namespace):
             llm_instance=llm_instance,
             system_prompt=system_prompt,
             tools=tools_for_agent,
-            auto_execute_tools=False,
-            use_xml_tool_format=False
+            auto_execute_tools=False
         )
 
         agent = AgentFactory().create_agent(config=gslides_agent_config)

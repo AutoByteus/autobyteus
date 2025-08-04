@@ -54,9 +54,9 @@ To run the debate with the default LLM model (`kimi-latest`) for all agents, sim
 python examples/agent_team/run_debate_team.py
 ```
 
-#### Advanced Usage: Specifying Different LLMs and Options
+#### Advanced Usage: Specifying Different LLMs
 
-You can specify different LLM models for the moderator and each of the two sub-teams. This is useful for comparing the performance and "personalities" of different models.
+You can specify different LLM models for the moderator and each of the two sub-teams. This is useful for comparing the performance and "personalities" of different models. The correct tool format (XML or JSON) is now automatically determined based on the selected LLM provider.
 
 **Command-line Arguments:**
 
@@ -64,24 +64,14 @@ You can specify different LLM models for the moderator and each of the two sub-t
 -   `--moderator-model`: Sets the model for the `DebateModerator`.
 -   `--affirmative-model`: Sets the model for both agents in `Team_Affirmative`.
 -   `--negative-model`: Sets the model for both agents in `Team_Negative`.
--   `--no-xml-tools`: Disables XML-based tool formatting. This is recommended for models that do not support XML tool usage syntax.
 
-**Example 1:** Run a debate where the Affirmative team uses `gpt-4o` and the Negative team uses `claude-3-opus-20240229`. The moderator will use the default model.
+**Example:** Run a debate where the Affirmative team uses `gpt-4o` and the Negative team uses `claude-3-opus-20240229`. The moderator will use the default model.
 
 ```bash
 python examples/agent_team/run_debate_team.py \
     --llm-model qwen/qwen3-30b-a3b-2507 \
-    --affirmative-model  qwen/qwen3-30b-a3b-2507 \
-    --negative-model qwen/qwen3-30b-a3b-2507 \
-    --no-xml-tools
-```
-
-**Example 2:** Run a debate using a model that performs better without XML tool formatting.
-
-```bash
-python examples/agent_team/run_debate_team.py \
-    --llm-model some-model-name \
-    --no-xml-tools
+    --affirmative-model gpt-4o \
+    --negative-model claude-3-opus-20240229
 ```
 
 ### Listing Available Models
@@ -125,9 +115,9 @@ Once the TUI starts, you can provide a prompt like: `Please write a python funct
 
 The agents will write the code and test files to the `code_review_output/` directory by default.
 
-#### Advanced Usage: Specifying Different LLMs and Options
+#### Advanced Usage: Specifying Different LLMs
 
-You can assign different LLM models to each agent to simulate a team with different skill sets or to test various models.
+You can assign different LLM models to each agent to simulate a team with different skill sets or to test various models. The correct tool format (XML or JSON) is now automatically determined based on the selected LLM provider.
 
 **Command-line Arguments:**
 
@@ -138,13 +128,13 @@ You can assign different LLM models to each agent to simulate a team with differ
 -   `--test-writer-model`: Sets the model for the `TestWriter`.
 -   `--tester-model`: Sets the model for the `Tester`.
 -   `--output-dir`: Specifies the shared workspace directory for the agents. Defaults to `./code_review_output`.
--   `--no-xml-tools`: Disables XML-based tool formatting.
 
 **Example:** Run the team with `gpt-4o` as the engineer and `kimi-latest` for all other roles.
 
 ```bash
 python examples/agent_team/run_code_review_team.py \
-    --llm-model qwen/qwen3-30b-a3b-2507 \
+    --llm-model kimi-latest \
+    --engineer-model gpt-4o
 ```
 
 ### Listing Available Models
