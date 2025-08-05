@@ -24,13 +24,8 @@ class ToolApprovalTeamEventHandler(BaseAgentTeamEventHandler):
             await context.phase_manager.notify_error_occurred(msg, "TeamManager is not initialized.")
             return
 
-        # TODO: This method does not exist on TeamManager. This seems to be a pre-existing bug.
-        # I will assume the intended method was ensure_node_is_ready, and cast it, but this is a potential issue.
-        # For now, I'll assume a method `ensure_agent_is_ready` exists or should exist.
-        # Let's check team_manager.py again. It does not.
-        # `ensure_coordinator_is_ready` returns an agent. I'll use `ensure_node_is_ready` and check type.
         from autobyteus.agent.agent import Agent
-        target_node = await team_manager.ensure_node_is_ready(event.agent_name)
+        target_node = await team_manager.ensure_node_is_ready(name_or_agent_id=event.agent_name)
         if not isinstance(target_node, Agent):
             msg = f"Team '{team_id}': Target node '{event.agent_name}' for approval is not an agent."
             logger.error(msg)

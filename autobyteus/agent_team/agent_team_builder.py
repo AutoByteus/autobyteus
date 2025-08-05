@@ -19,7 +19,8 @@ class AgentTeamBuilder:
     
     This builder simplifies creating an agent team by abstracting away the manual
     creation of config objects and providing an intuitive way to define the
-    agent and sub-team graph.
+    agent and sub-team graph. It enforces that all nodes within the team have
+    a unique name.
     """
     def __init__(self, name: str, description: str, role: Optional[str] = None):
         """
@@ -81,10 +82,8 @@ class AgentTeamBuilder:
         
         node_name = node_definition.name
         if node_name in self._added_node_names:
-            logger.warning(
-                f"Duplicate node name '{node_name}' detected. The system will handle this by creating unique aliases "
-                f"(e.g., '{node_name}_2') for the coordinator's prompt. It is recommended to use unique names for clarity."
-            )
+            # Enforce unique names. This is the new, simpler validation.
+            raise ValueError(f"Duplicate node name '{node_name}' detected. All nodes in a team must have a unique name.")
 
         if node_definition in self._nodes or node_definition == self._coordinator_config:
             raise ValueError(f"The exact same node definition object for '{node_name}' has already been added to the team.")
@@ -118,10 +117,7 @@ class AgentTeamBuilder:
             
         node_name = agent_config.name
         if node_name in self._added_node_names:
-            logger.warning(
-                f"Coordinator name '{node_name}' is already used by another node. The system will handle this by creating unique aliases, "
-                "but it is recommended to use unique names for clarity."
-            )
+            raise ValueError(f"Duplicate node name '{node_name}' detected. The coordinator's name must also be unique within the team.")
 
         self._coordinator_config = agent_config
         self._added_node_names.add(node_name)

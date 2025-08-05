@@ -25,7 +25,7 @@ class ProcessUserMessageEventHandler(BaseAgentTeamEventHandler):
             return
 
         try:
-            target_node = await team_manager.ensure_node_is_ready(event.target_agent_name)
+            target_node = await team_manager.ensure_node_is_ready(name_or_agent_id=event.target_agent_name)
         except Exception as e:
             msg = f"Team '{context.team_id}': Node '{event.target_agent_name}' not found or failed to start. Cannot route message. Error: {e}"
             logger.error(msg, exc_info=True)

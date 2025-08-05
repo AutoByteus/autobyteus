@@ -26,7 +26,7 @@ class AgentTeamRuntimeState:
         
         # State populated by bootstrap steps
         self.prepared_coordinator_prompt: Optional[str] = None
-        self.node_alias_map: Optional[Dict[str, str]] = None
+        # REMOVED: self.node_alias_map and self.node_alias_to_config_map are no longer needed.
 
         # Core services
         self.team_manager: Optional['TeamManager'] = None

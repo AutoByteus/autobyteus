@@ -1,0 +1,57 @@
+# file: autobyteus/tests/unit_tests/agent_team/handlers/test_inter_agent_message_request_event_handler.py
+import pytest
+from unittest.mock import MagicMock, AsyncMock, patch
+
+from autobyteus.agent_team.handlers.inter_agent_message_request_event_handler import InterAgentMessageRequestEventHandler
+from autobyteus.agent_team.events.agent_team_events import InterAgentMessageRequestEvent
+from autobyteus.agent_team.context import AgentTeamContext
+from autobyteus.agent.agent import Agent
+from autobyteus.agent.message.inter_agent_message import InterAgentMessage
+
+@pytest.fixture
+def handler():
+    return InterAgentMessageRequestEventHandler()
+
+@pytest.fixture
+def event():
+    return InterAgentMessageRequestEvent(
+        sender_agent_id="sender_agent_id_123",
+        recipient_name="Recipient",
+        content="Do the thing",
+        message_type="TASK_ASSIGNMENT"
+    )
+
+@pytest.mark.asyncio
+async def test_handle_success(handler: InterAgentMessageRequestEventHandler, event: InterAgentMessageRequestEvent, agent_team_context: AgentTeamContext, mock_agent: Agent):
+    """
+    Tests the happy path where the handler gets a ready agent from TeamManager and posts a message.
+    """
+    mock_agent.context.config.role = "RecipientRole"
+    # Make the mock TeamManager's async method return our mock agent
+    agent_team_context.team_manager.ensure_node_is_ready = AsyncMock(return_value=mock_agent)
+
+    await handler.handle(event, agent_team_context)
+
+    # Assert that the handler correctly awaited the team manager
+    agent_team_context.team_manager.ensure_node_is_ready.assert_awaited_once_with(name_or_agent_id=event.recipient_name)
+    
+    # Assert that the message was posted to the now-ready agent
+    mock_agent.post_inter_agent_message.assert_awaited_once()
+    posted_message = mock_agent.post_inter_agent_message.call_args.args[0]
+    assert isinstance(posted_message, InterAgentMessage)
+    assert posted_message.content == event.content
+    assert posted_message.sender_agent_id == event.sender_agent_id
+
+@pytest.mark.asyncio
+async def test_handle_agent_not_found_or_failed_to_start(handler: InterAgentMessageRequestEventHandler, event: InterAgentMessageRequestEvent, agent_team_context: AgentTeamContext, mock_agent: Agent, caplog):
+    """
+    Tests the failure path where TeamManager raises an exception (agent not found or failed to start).
+    """
+    agent_team_context.team_manager.ensure_node_is_ready = AsyncMock(side_effect=Exception("Test Failure"))
+    
+    await handler.handle(event, agent_team_context)
+    
+    # Verify we logged the failure
+    assert f"Recipient node '{event.recipient_name}' not found or failed to start" in caplog.text
+    # Verify we did NOT attempt to post a message
+    mock_agent.post_inter_agent_message.assert_not_awaited()

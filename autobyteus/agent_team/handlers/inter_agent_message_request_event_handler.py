@@ -28,7 +28,7 @@ class InterAgentMessageRequestEventHandler(BaseAgentTeamEventHandler):
             return
 
         try:
-            target_node = await team_manager.ensure_node_is_ready(event.recipient_name)
+            target_node = await team_manager.ensure_node_is_ready(name_or_agent_id=event.recipient_name)
         except Exception as e:
             msg = f"Recipient node '{event.recipient_name}' not found or failed to start for message from '{event.sender_agent_id}'. Error: {e}"
             logger.error(f"Team '{team_id}': {msg}", exc_info=True)
