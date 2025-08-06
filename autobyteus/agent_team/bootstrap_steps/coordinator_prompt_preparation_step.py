@@ -57,28 +57,29 @@ class CoordinatorPromptPreparationStep(BaseAgentTeamBootstrapStep):
             # Sort for deterministic prompt generation
             for node in sorted(list(member_nodes), key=lambda n: n.name):
                 node_def = node.node_definition
-                if node.is_sub_team and isinstance(node_def, AgentTeamConfig):
-                    role = node_def.role or "(Sub-Team)"
-                    team_lines.append(f"- **{node.name}** (Role: {role}): {node_def.description}")
-                elif isinstance(node_def, AgentConfig):
-                    team_lines.append(f"- **{node.name}** (Role: {node_def.role}): {node_def.description}")
+                # New, more explicit key-value format as requested.
+                team_lines.append(f"- name: {node.name} description: {node_def.description}")
 
             team_manifest = "### Your Team\n" + "\n".join(team_lines)
             prompt_parts.append(team_manifest)
 
-            rules_list: List[str] = []
+            # Execution rules now include a mandatory instruction on how to address team members.
+            rules_list: List[str] = [
+                "You MUST address team members by their unique 'name' when using the `SendMessageTo` tool."
+            ]
             for node in sorted(list(member_nodes), key=lambda n: n.name):
                 if node.dependencies:
                     dep_names = [dep.name for dep in node.dependencies]
                     rules_list.append(f"To use '{node.name}', you must have already successfully used: {', '.join(f'`{name}`' for name in dep_names)}.")
             
-            if rules_list:
-                rules_section = "### Execution Rules\n" + "\n".join(rules_list)
-                prompt_parts.append(rules_section)
+            # The 'Execution Rules' section will now always be present if there are team members.
+            rules_section = "### Execution Rules\n" + "\n".join(rules_list)
+            prompt_parts.append(rules_section)
 
             prompt_parts.append(tools_section)
                 
-            final_instruction = "### Your Task\nAnalyze the user's request, formulate a plan, and use the `SendMessageTo` tool to delegate tasks to your team. Address team members by their unique name as listed under 'Your Team'."
+            # The final instruction is now simpler as the addressing requirement is a formal rule.
+            final_instruction = "### Your Task\nAnalyze the user's request, formulate a plan, and use the `SendMessageTo` tool to delegate tasks to your team."
             prompt_parts.append(final_instruction)
         else:
             # Case where coordinator is the only node
