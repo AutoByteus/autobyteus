@@ -80,6 +80,24 @@ def setup_file_logging() -> Path:
     logging.getLogger("textual").setLevel(logging.WARNING)
     return log_file_path
 
+def _validate_model(model_name: str):
+    """Validates that a model identifier is available in the factory."""
+    try:
+        _ = LLMModel[model_name]
+    except (KeyError, ValueError):
+        print(f"\nCRITICAL ERROR: LLM Model '{model_name}' is not valid or ambiguous.", file=sys.stderr)
+        try:
+            LLMFactory.ensure_initialized()
+            print("\nAvailable LLM Models (use the 'Identifier' with model arguments):")
+            all_models = sorted(list(LLMModel), key=lambda m: m.model_identifier)
+            if not all_models:
+                print("  No models found.")
+            for model in all_models:
+                print(f"  - Display Name: {model.name:<30} Identifier: {model.model_identifier}")
+        except Exception as e:
+            print(f"Additionally, an error occurred while listing models: {e}", file=sys.stderr)
+        sys.exit(1)
+
 def create_code_review_team(
     coordinator_model: str, 
     engineer_model: str, 
@@ -197,6 +215,10 @@ async def main(args: argparse.Namespace, log_file: Path):
     test_writer_model = args.test_writer_model or args.llm_model
     tester_model = args.tester_model or args.llm_model
     
+    # Validate all model identifiers before proceeding
+    for model_id in [coordinator_model, engineer_model, reviewer_model, test_writer_model, tester_model]:
+        _validate_model(model_id)
+
     print(f"--> Coordinator Model: {coordinator_model}")
     print(f"--> Engineer Model: {engineer_model}")
     print(f"--> Reviewer Model: {reviewer_model}")
@@ -223,7 +245,7 @@ if __name__ == "__main__":
         description="Run a software development agent team with a Textual TUI.",
         formatter_class=argparse.RawTextHelpFormatter
     )
-    parser.add_argument("--llm-model", type=str, default="kimi-latest", help="The default LLM model for all agents.")
+    parser.add_argument("--llm-model", type=str, default="kimi-latest", help="The default LLM model identifier for all agents.")
     parser.add_argument("--coordinator-model", type=str, help="Specific LLM model for the ProjectManager. Defaults to --llm-model.")
     parser.add_argument("--engineer-model", type=str, help="Specific LLM model for the SoftwareEngineer. Defaults to --llm-model.")
     parser.add_argument("--reviewer-model", type=str, help="Specific LLM model for the CodeReviewer. Defaults to --llm-model.")
@@ -235,12 +257,12 @@ if __name__ == "__main__":
     if "--help-models" in sys.argv:
         try:
             LLMFactory.ensure_initialized()
-            print("Available LLM Models (you can use either name or value with model arguments):")
-            all_models = sorted(list(LLMModel), key=lambda m: m.name)
+            print("Available LLM Models (use the 'Identifier' with model arguments):")
+            all_models = sorted(list(LLMModel), key=lambda m: m.model_identifier)
             if not all_models:
                 print("  No models found.")
             for model in all_models:
-                print(f"  - Name: {model.name:<35} Value: {model.value}")
+                print(f"  - Display Name: {model.name:<30} Identifier: {model.model_identifier}")
         except Exception as e:
             print(f"Error listing models: {e}")
         sys.exit(0)

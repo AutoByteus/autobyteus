@@ -63,9 +63,9 @@ def create_demo_team(model_name: str):
     # Validate model
     try:
         _ = LLMModel[model_name]
-    except KeyError:
-        logging.critical(f"LLM Model '{model_name}' is not valid. Use --help-models to see available models.")
-        print(f"\nCRITICAL ERROR: LLM Model '{model_name}' is not valid. Use --help-models to see available models.\nCheck log file for details.")
+    except (KeyError, ValueError):
+        logging.critical(f"LLM Model '{model_name}' is not valid or is ambiguous.")
+        print(f"\nCRITICAL ERROR: LLM Model '{model_name}' is not valid. Use --help-models to see available unique identifiers.", file=sys.stderr)
         sys.exit(1)
 
     # Coordinator Agent Config - Gets its own LLM instance
@@ -124,18 +124,18 @@ async def main(args: argparse.Namespace, log_file: Path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run an AgentTeam with a Textual TUI.")
-    parser.add_argument("--llm-model", type=str, default="kimi-latest", help="The LLM model to use for the agents.")
+    parser.add_argument("--llm-model", type=str, default="kimi-latest", help="The LLM model identifier to use for the agents.")
     parser.add_argument("--help-models", action="store_true", help="Display available LLM models and exit.")
     
     if "--help-models" in sys.argv:
         try:
             LLMFactory.ensure_initialized()
-            print("Available LLM Models (you can use either name or value with --llm-model):")
-            all_models = sorted(list(LLMModel), key=lambda m: m.name)
+            print("Available LLM Models (use the 'Identifier' with --llm-model):")
+            all_models = sorted(list(LLMModel), key=lambda m: m.model_identifier)
             if not all_models:
                 print("  No models found.")
             for model in all_models:
-                print(f"  - Name: {model.name:<35} Value: {model.value}")
+                print(f"  - Display Name: {model.name:<30} Identifier: {model.model_identifier}")
         except Exception as e:
             print(f"Error listing models: {e}")
         sys.exit(0)

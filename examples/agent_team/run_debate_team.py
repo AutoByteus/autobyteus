@@ -51,9 +51,9 @@ def create_debate_team(moderator_model: str, affirmative_model: str, negative_mo
     def _validate_model(model_name: str):
         try:
             _ = LLMModel[model_name]
-        except KeyError:
-            logging.critical(f"LLM Model '{model_name}' is not valid. Use --help-models to see available models.")
-            print(f"\nCRITICAL ERROR: LLM Model '{model_name}' is not valid. Use --help-models to see available models.\nCheck log file for details.")
+        except (KeyError, ValueError):
+            logging.critical(f"LLM Model '{model_name}' is not valid or is ambiguous.")
+            print(f"\nCRITICAL ERROR: LLM Model '{model_name}' is not valid or ambiguous. Use --help-models to see available unique identifiers.", file=sys.stderr)
             sys.exit(1)
 
     for model in [moderator_model, affirmative_model, negative_model]:
@@ -167,7 +167,7 @@ if __name__ == "__main__":
         description="Run a hierarchical 2-team debate with a Textual TUI.",
         formatter_class=argparse.RawTextHelpFormatter
     )
-    parser.add_argument("--llm-model", type=str, default="kimi-latest", help="The default LLM model for all agents. Can be overridden by other arguments.")
+    parser.add_argument("--llm-model", type=str, default="kimi-latest", help="The default LLM model identifier for all agents. Can be overridden.")
     parser.add_argument("--moderator-model", type=str, help="Specific LLM model for the Moderator. Defaults to --llm-model.")
     parser.add_argument("--affirmative-model", type=str, help="Specific LLM model for the Affirmative Team. Defaults to --llm-model.")
     parser.add_argument("--negative-model", type=str, help="Specific LLM model for the Negative Team. Defaults to --llm-model.")
@@ -176,12 +176,12 @@ if __name__ == "__main__":
     if "--help-models" in sys.argv:
         try:
             LLMFactory.ensure_initialized()
-            print("Available LLM Models (you can use either name or value with model arguments):")
-            all_models = sorted(list(LLMModel), key=lambda m: m.name)
+            print("Available LLM Models (use the 'Identifier' with model arguments):")
+            all_models = sorted(list(LLMModel), key=lambda m: m.model_identifier)
             if not all_models:
                 print("  No models found.")
             for model in all_models:
-                print(f"  - Name: {model.name:<35} Value: {model.value}")
+                print(f"  - Display Name: {model.name:<30} Identifier: {model.model_identifier}")
         except Exception as e:
             print(f"Error listing models: {e}")
         sys.exit(0)

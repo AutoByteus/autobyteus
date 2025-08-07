@@ -55,11 +55,21 @@ async def main(args: argparse.Namespace):
     """Main function to configure and run the research team."""
     print("--- Starting Basic Research Agent Team Example ---")
 
-    # 1. Create LLM instance for the agents
+    # 1. Validate the LLM model and create an instance for the agents
     try:
         _ = LLMModel[args.llm_model]
-    except KeyError:
-        print(f"LLM Model '{args.llm_model}' is not valid. Use --help-models to see available models.", file=sys.stderr)
+    except (KeyError, ValueError):
+        print(f"\nCRITICAL ERROR: LLM Model '{args.llm_model}' is not valid or ambiguous.", file=sys.stderr)
+        try:
+            LLMFactory.ensure_initialized()
+            print("\nAvailable LLM Models (use the 'Identifier' with --llm-model):")
+            all_models = sorted(list(LLMModel), key=lambda m: m.model_identifier)
+            if not all_models:
+                print("  No models found.")
+            for model in all_models:
+                print(f"  - Display Name: {model.name:<30} Identifier: {model.model_identifier}")
+        except Exception as e:
+            print(f"Additionally, an error occurred while listing models: {e}", file=sys.stderr)
         sys.exit(1)
 
     print(f"Creating LLM instance for model: {args.llm_model}")
@@ -125,7 +135,7 @@ async def main(args: argparse.Namespace):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run a basic two-agent research team with a TUI.")
-    parser.add_argument("--llm-model", type=str, default="gpt-4o", help="The LLM model to use for the agents.")
+    parser.add_argument("--llm-model", type=str, default="gpt-4o", help="The unique identifier of the LLM model for the agents.")
     parser.add_argument("--help-models", action="store_true", help="Display available LLM models and exit.")
     parser.add_argument("--log-file", type=str, default="./logs/basic_research_team.log", 
                        help="Path to the log file for autobyteus library logs.")
@@ -133,12 +143,12 @@ if __name__ == "__main__":
     if "--help-models" in sys.argv:
         try:
             LLMFactory.ensure_initialized() 
-            print("Available LLM Models (you can use either name or value with --llm-model):")
-            all_models = sorted(list(LLMModel), key=lambda m: m.name)
+            print("Available LLM Models (use the 'Identifier' with --llm-model):")
+            all_models = sorted(list(LLMModel), key=lambda m: m.model_identifier)
             if not all_models:
                 print("  No models found.")
             for model in all_models:
-                print(f"  - Name: {model.name:<35} Value: {model.value}")
+                print(f"  - Display Name: {model.name:<30} Identifier: {model.model_identifier}")
         except Exception as e:
             print(f"Error listing models: {e}")
         sys.exit(0)

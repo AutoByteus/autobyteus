@@ -5,13 +5,13 @@ import inspect
 from autobyteus.llm.autobyteus_provider import AutobyteusModelProvider
 from autobyteus.llm.models import LLMModel, ModelInfo, ProviderModelGroup
 from autobyteus.llm.providers import LLMProvider
+from autobyteus.llm.runtimes import LLMRuntime
 from autobyteus.llm.utils.llm_config import LLMConfig, TokenPricingConfig
 from autobyteus.llm.base_llm import BaseLLM
 
 from autobyteus.llm.api.claude_llm import ClaudeLLM
 from autobyteus.llm.api.mistral_llm import MistralLLM
 from autobyteus.llm.api.openai_llm import OpenAILLM
-from autobyteus.llm.api.ollama_llm import OllamaLLM
 from autobyteus.llm.api.deepseek_llm import DeepSeekLLM
 from autobyteus.llm.api.grok_llm import GrokLLM
 from autobyteus.llm.api.kimi_llm import KimiLLM
@@ -23,58 +23,30 @@ logger = logging.getLogger(__name__)
 
 class LLMFactory(metaclass=SingletonMeta):
     _models_by_provider: Dict[LLMProvider, List[LLMModel]] = {}
+    _models_by_identifier: Dict[str, LLMModel] = {}
     _initialized = False
 
     @staticmethod
-    def register(model: LLMModel):
-        LLMFactory.register_model(model)
-
-    @staticmethod
     def ensure_initialized():
-        """
-        Ensures the factory is initialized before use.
-        """
+        """Ensures the factory is initialized before use."""
         if not LLMFactory._initialized:
             LLMFactory._initialize_registry()
             LLMFactory._initialized = True
 
     @staticmethod
     def reinitialize():
-        """
-        Reinitializes the model registry by resetting the initialization state
-        and reinitializing the registry.
-        
-        This is useful when new provider API keys are configured and
-        we need to discover models that might be available with the new keys.
-        
-        Returns:
-            bool: True if reinitialization was successful, False otherwise.
-        """
-        try:
-            logger.info("Reinitializing LLM model registry...")
-            
-            # Reset the initialized flag
-            LLMFactory._initialized = False
-            
-            # Clear existing models registry
-            LLMFactory._models_by_provider = {}
-            
-            # Reinitialize the registry
-            LLMFactory.ensure_initialized()
-            
-            logger.info("LLM model registry reinitialized successfully")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to reinitialize LLM model registry: {str(e)}")
-            return False
+        """Reinitializes the model registry."""
+        logger.info("Reinitializing LLM model registry...")
+        LLMFactory._initialized = False
+        LLMFactory._models_by_provider.clear()
+        LLMFactory._models_by_identifier.clear()
+        LLMFactory.ensure_initialized()
+        logger.info("LLM model registry reinitialized successfully.")
 
     @staticmethod
     def _initialize_registry():
-        """
-        Initialize the registry with supported models, discover plugins,
-        organize models by provider, and assign models as attributes on LLMModel.
-        """
-        # Organize supported models by provider sections
+        """Initializes the registry with built-in models and discovers runtime models."""
+        # Hardcoded direct-API models. Runtime defaults to API.
         supported_models = [
             # OPENAI Provider Models
             LLMModel(
@@ -306,134 +278,124 @@ class LLMFactory(metaclass=SingletonMeta):
         for model in supported_models:
             LLMFactory.register_model(model)
 
+        # Discover models from runtimes
         OllamaModelProvider.discover_and_register()
-        AutobyteusModelProvider.discover_and_register()
         LMStudioModelProvider.discover_and_register()
+        AutobyteusModelProvider.discover_and_register()
 
     @staticmethod
     def register_model(model: LLMModel):
-        """
-        Register a new LLM model, storing it under its provider category.
-        If a model with the same name already exists, it will be replaced.
-        """
-        # Using a flat list of all models to check for existing model by name
-        all_models = [m for models in LLMFactory._models_by_provider.values() for m in models]
-        
-        for existing_model in all_models:
-            if existing_model.name == model.name:
-                logger.warning(f"Model with name '{model.name}' is being redefined.")
-                # Remove the old model from its provider list
-                LLMFactory._models_by_provider[existing_model.provider].remove(existing_model)
-                break
+        """Registers a new LLM model."""
+        identifier = model.model_identifier
+        if identifier in LLMFactory._models_by_identifier:
+            logger.debug(f"Redefining model with identifier '{identifier}'.")
+            # Remove old model from provider group to replace it
+            old_model = LLMFactory._models_by_identifier[identifier]
+            if old_model.provider in LLMFactory._models_by_provider:
+                # This check is needed because a model might be in _models_by_identifier but not yet in _models_by_provider if re-registering
+                if old_model in LLMFactory._models_by_provider[old_model.provider]:
+                    LLMFactory._models_by_provider[old_model.provider].remove(old_model)
 
-        models = LLMFactory._models_by_provider.setdefault(model.provider, [])
-        models.append(model)
+        LLMFactory._models_by_identifier[identifier] = model
+        LLMFactory._models_by_provider.setdefault(model.provider, []).append(model)
 
     @staticmethod
     def create_llm(model_identifier: str, llm_config: Optional[LLMConfig] = None) -> BaseLLM:
         """
-        Create an LLM instance for the specified model identifier.
+        Creates an LLM instance for the specified unique model identifier.
+        Raises an error if the identifier is not found or if a non-unique name is provided.
+        """
+        LLMFactory.ensure_initialized()
         
-        Args:
-            model_identifier (str): The model name to create an instance for.
-            llm_config (Optional[LLMConfig]): Configuration for the LLM. If None,
-                                             the model's default configuration is used.
+        # First, try a direct lookup by the unique model_identifier
+        model = LLMFactory._models_by_identifier.get(model_identifier)
+        if model:
+            return model.create_llm(llm_config)
+
+        # If not found, check if the user provided a non-unique name by mistake
+        found_by_name = [m for m in LLMFactory._models_by_identifier.values() if m.name == model_identifier]
+        if len(found_by_name) > 1:
+            identifiers = [m.model_identifier for m in found_by_name]
+            raise ValueError(
+                f"The model name '{model_identifier}' is ambiguous. Please use one of the unique "
+                f"model identifiers: {identifiers}"
+            )
         
-        Returns:
-            BaseLLM: An instance of the LLM.
+        raise ValueError(f"Model with identifier '{model_identifier}' not found.")
+
+    # --- New Public API ---
+
+    @staticmethod
+    def list_available_models() -> List[ModelInfo]:
+        """Returns a list of all available models with their detailed info."""
+        LLMFactory.ensure_initialized()
+        models = sorted(LLMFactory._models_by_identifier.values(), key=lambda m: m.model_identifier)
+        return [
+            ModelInfo(
+                model_identifier=m.model_identifier,
+                display_name=m.name,
+                value=m.value,
+                canonical_name=m.canonical_name,
+                provider=m.provider.value,
+                runtime=m.runtime.value,
+                host_url=m.host_url
+            )
+            for m in models
+        ]
+
+    @staticmethod
+    def list_models_by_provider(provider: LLMProvider) -> List[ModelInfo]:
+        """Returns a list of available models for a specific provider."""
+        LLMFactory.ensure_initialized()
+        provider_models = sorted(
+            [m for m in LLMFactory._models_by_identifier.values() if m.provider == provider],
+            key=lambda m: m.model_identifier
+        )
+        return [
+            ModelInfo(
+                model_identifier=m.model_identifier,
+                display_name=m.name,
+                value=m.value,
+                canonical_name=m.canonical_name,
+                provider=m.provider.value,
+                runtime=m.runtime.value,
+                host_url=m.host_url
+            )
+            for m in provider_models
+        ]
+
+    @staticmethod
+    def list_models_by_runtime(runtime: LLMRuntime) -> List[ModelInfo]:
+        """Returns a list of available models for a specific runtime."""
+        LLMFactory.ensure_initialized()
+        runtime_models = sorted(
+            [m for m in LLMFactory._models_by_identifier.values() if m.runtime == runtime],
+            key=lambda m: m.model_identifier
+        )
+        return [
+            ModelInfo(
+                model_identifier=m.model_identifier,
+                display_name=m.name,
+                value=m.value,
+                canonical_name=m.canonical_name,
+                provider=m.provider.value,
+                runtime=m.runtime.value,
+                host_url=m.host_url
+            )
+            for m in runtime_models
+        ]
+
+    @staticmethod
+    def get_canonical_name(model_identifier: str) -> Optional[str]:
+        """
+        Retrieves the canonical name for a given model identifier.
+        """
+        LLMFactory.ensure_initialized()
+        model = LLMFactory._models_by_identifier.get(model_identifier)
+        if model:
+            return model.canonical_name
         
-        Raises:
-            ValueError: If the model is not supported.
-        """
-        LLMFactory.ensure_initialized()
-        for models in LLMFactory._models_by_provider.values():
-            for model_instance in models:
-                if model_instance.name == model_identifier:
-                    return model_instance.create_llm(llm_config)
-        raise ValueError(f"Unsupported model: {model_identifier}")
-
-    @staticmethod
-    def get_all_models() -> List[str]:
-        """
-        Returns a list of all registered model values.
-        """
-        LLMFactory.ensure_initialized()
-        all_models = []
-        for models in LLMFactory._models_by_provider.values():
-            all_models.extend(model.name for model in models)
-        return all_models
-
-    @staticmethod
-    def get_all_providers() -> Set[LLMProvider]:
-        """
-        Returns a set of all available LLM providers.
-        """
-        LLMFactory.ensure_initialized()
-        return set(LLMProvider)
-
-    @staticmethod
-    def get_models_by_provider(provider: LLMProvider) -> List[str]:
-        """
-        Returns a list of all model values for a specific provider.
-        """
-        LLMFactory.ensure_initialized()
-        return [model.value for model in LLMFactory._models_by_provider.get(provider, [])]
-
-    @staticmethod
-    def get_models_for_provider(provider: LLMProvider) -> List[LLMModel]:
-        """
-        Returns a list of LLMModel instances for a specific provider.
-        """
-        LLMFactory.ensure_initialized()
-        return LLMFactory._models_by_provider.get(provider, [])
-
-    @staticmethod
-    def get_canonical_name(model_name: str) -> Optional[str]:
-        """
-        Get the canonical name for a model by its name.
-        
-        Args:
-            model_name (str): The model name (e.g., "gpt_4o")
-            
-        Returns:
-            Optional[str]: The canonical name if found, None otherwise
-        """
-        LLMFactory.ensure_initialized()
-        for models in LLMFactory._models_by_provider.values():
-            for model_instance in models:
-                if model_instance.name == model_name:
-                    return model_instance.canonical_name
+        logger.warning(f"Could not find model with identifier '{model_identifier}' to get its canonical name.")
         return None
-
-    @staticmethod
-    def get_models_grouped_by_provider() -> List[ProviderModelGroup]:
-        """
-        Returns a list of all providers, each with a list of its available models,
-        sorted by provider name and model name. Providers with no models are included
-        with an empty model list.
-        """
-        LLMFactory.ensure_initialized()
-        result: List[ProviderModelGroup] = []
-        # Sort all providers from the enum by name for consistent order
-        all_providers_sorted = sorted(list(LLMProvider), key=lambda p: p.name)
-        
-        for provider in all_providers_sorted:
-            # Get models for the current provider, defaults to [] if none are registered
-            models = LLMFactory._models_by_provider.get(provider, [])
-            
-            # Sort the models for this provider by name
-            sorted_models = sorted(models, key=lambda model: model.name)
-            
-            model_infos = [
-                ModelInfo(name=model.name, canonical_name=model.canonical_name)
-                for model in sorted_models
-            ]
-            
-            result.append(ProviderModelGroup(
-                provider=provider.name,
-                models=model_infos
-            ))
-            
-        return result
 
 default_llm_factory = LLMFactory()
