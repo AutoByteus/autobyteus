@@ -5,6 +5,7 @@ Defines individual, self-contained steps for the agent team bootstrapping proces
 
 from autobyteus.agent_team.bootstrap_steps.base_agent_team_bootstrap_step import BaseAgentTeamBootstrapStep
 from autobyteus.agent_team.bootstrap_steps.agent_team_runtime_queue_initialization_step import AgentTeamRuntimeQueueInitializationStep
+from autobyteus.agent_team.bootstrap_steps.team_context_initialization_step import TeamContextInitializationStep
 from autobyteus.agent_team.bootstrap_steps.coordinator_prompt_preparation_step import CoordinatorPromptPreparationStep
 from autobyteus.agent_team.bootstrap_steps.agent_tool_injection_step import AgentToolInjectionStep
 from autobyteus.agent_team.bootstrap_steps.coordinator_initialization_step import CoordinatorInitializationStep
@@ -13,6 +14,7 @@ from autobyteus.agent_team.bootstrap_steps.agent_team_bootstrapper import AgentT
 __all__ = [
     "BaseAgentTeamBootstrapStep",
     "AgentTeamRuntimeQueueInitializationStep",
+    "TeamContextInitializationStep",
     "CoordinatorPromptPreparationStep",
     "AgentToolInjectionStep",
     "CoordinatorInitializationStep",

@@ -13,6 +13,7 @@ def mock_runtime():
     """Provides a mocked AgentTeamRuntime."""
     runtime = MagicMock()
     runtime.context.get_node_config_by_name.return_value = None # Default to not found
+    runtime.context.state.final_agent_configs = {} # Initialize the config dict
     return runtime
 
 @pytest.fixture
@@ -32,38 +33,39 @@ def team_manager(mock_runtime, mock_multiplexer):
 @pytest.mark.asyncio
 @patch('autobyteus.agent_team.context.team_manager.wait_for_agent_to_be_idle', new_callable=AsyncMock)
 @patch('autobyteus.agent_team.context.team_manager.AgentFactory')
-async def test_ensure_node_is_ready_lazy_creates_and_starts_agent(MockAgentFactory, mock_wait_idle, team_manager, mock_runtime, mock_multiplexer, team_node_factory):
+async def test_ensure_node_is_ready_uses_premade_config(MockAgentFactory, mock_wait_idle, team_manager, mock_runtime, mock_multiplexer, team_node_factory):
     """
-    Tests that ensure_node_is_ready lazy-creates an agent, starts it if not running, and bridges its events.
+    Tests that ensure_node_is_ready retrieves a pre-made config from state
+    and uses it to create an agent.
     """
     # --- Setup ---
-    # Mock agent factory and the agent instance it will create
     mock_agent_factory_instance = MockAgentFactory.return_value
     mock_agent_instance = MagicMock()
-    mock_agent_instance.is_running = False  # Simulate not running
+    mock_agent_instance.is_running = False
     mock_agent_instance.agent_id = "agent_123"
     mock_agent_factory_instance.create_agent.return_value = mock_agent_instance
     
-    # Mock the node config that the TeamManager will find
     node_name = "test_agent"
-    node_config = team_node_factory(node_name)
-    mock_runtime.context.get_node_config_by_name.return_value = node_config
-    # Also set up coordinator node info for prompt injection check
-    mock_runtime.context.config.coordinator_node = team_node_factory("other_agent")
-
+    
+    # Set up the pre-made config in the state, which the TeamManager should find
+    premade_config = AgentConfig(name=node_name, description="pre-made")
+    mock_runtime.context.state.final_agent_configs[node_name] = premade_config
+    
+    # Mock the node config wrapper that the TeamManager needs to check if it's a sub-team
+    node_config_wrapper = team_node_factory(node_name)
+    node_config_wrapper.is_sub_team = False
+    mock_runtime.context.get_node_config_by_name.return_value = node_config_wrapper
+    
     # --- Execute ---
     agent = await team_manager.ensure_node_is_ready(node_name)
 
     # --- Assert ---
     assert agent is mock_agent_instance
     
-    # 1. Creation
+    # 1. Retrieval
     mock_runtime.context.get_node_config_by_name.assert_called_with(node_name)
-    mock_agent_factory_instance.create_agent.assert_called_once()
-    final_config_passed = mock_agent_factory_instance.create_agent.call_args.kwargs['config']
-    assert isinstance(final_config_passed, AgentConfig)
-    # Check that SendMessageTo tool was injected
-    assert any(isinstance(t, patch.dict.get('autobyteus.agent_team.context.team_manager.SendMessageTo', MagicMock())) for t in final_config_passed.tools)
+    # Check that it used the premade config
+    mock_agent_factory_instance.create_agent.assert_called_once_with(config=premade_config)
 
     # 2. Caching and Mapping
     assert team_manager._nodes_cache[node_name] is mock_agent_instance
@@ -112,3 +114,17 @@ async def test_ensure_node_is_ready_throws_exception_for_unknown_node(team_manag
     """
     with pytest.raises(TeamNodeNotFoundException, match="Node 'unknown_agent' not found in agent team 'test_team'"):
         await team_manager.ensure_node_is_ready("unknown_agent")
+
+@pytest.mark.asyncio
+async def test_ensure_node_throws_if_premade_config_missing(team_manager, mock_runtime, team_node_factory):
+    """
+    Tests that a runtime error occurs if the bootstrap step failed to create a config.
+    """
+    node_name = "forgotten_agent"
+    node_config_wrapper = team_node_factory(node_name)
+    node_config_wrapper.is_sub_team = False
+    mock_runtime.context.get_node_config_by_name.return_value = node_config_wrapper
+    # Note: we do NOT add the config to `final_agent_configs`
+    
+    with pytest.raises(RuntimeError, match="No pre-prepared agent configuration found"):
+        await team_manager.ensure_node_is_ready(node_name)

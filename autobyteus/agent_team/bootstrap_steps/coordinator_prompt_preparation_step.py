@@ -47,8 +47,7 @@ class CoordinatorPromptPreparationStep(BaseAgentTeamBootstrapStep):
 
         if member_nodes:
             role_and_goal = (
-                "You are the coordinator of a team of specialist agents and sub-teams. Your primary goal is to "
-                "achieve the following objective by delegating tasks to your team members:\n"
+                "You are the coordinator of a team of specialist agents. Your primary goal is to achieve the user's objective by planning and delegating tasks to your team members.\n"
                 f"### Goal\n{context.config.description}"
             )
             prompt_parts.append(role_and_goal)
@@ -57,13 +56,22 @@ class CoordinatorPromptPreparationStep(BaseAgentTeamBootstrapStep):
             # Sort for deterministic prompt generation
             for node in sorted(list(member_nodes), key=lambda n: n.name):
                 node_def = node.node_definition
-                # New, more explicit key-value format as requested.
                 team_lines.append(f"- name: {node.name} description: {node_def.description}")
 
             team_manifest = "### Your Team\n" + "\n".join(team_lines)
             prompt_parts.append(team_manifest)
 
-            # Execution rules now include a mandatory instruction on how to address team members.
+            # THE FIX: Add the "Mission Workflow" section as intended.
+            mission_workflow = (
+                "### Your Mission Workflow\n"
+                "To succeed, you must follow this workflow:\n"
+                "1.  **Analyze and Plan**: Carefully analyze the user's request. Decompose it into a logical, step-by-step plan. For each step, define a clear task, determine which team member is best suited to perform it, and note any dependencies on other tasks.\n"
+                "2.  **Publish the Plan**: Use the `PublishTaskPlan` tool to submit your complete plan to the team's shared task board. This is a critical step that makes the plan official.\n"
+                "3.  **Delegate and Inform**: Use the `SendMessageTo` tool to notify each team member that they have been assigned a new task. The message should be a simple notification, for example: 'You have a new task, please check the task board for details.' Do NOT include task details in the message itself.\n"
+                "4.  **Monitor and Adapt**: Use the `GetTaskBoardStatus` tool to monitor the team's progress. If tasks get stuck or fail, coordinate with your team to resolve the issues and adapt the plan if necessary."
+            )
+            prompt_parts.append(mission_workflow)
+
             rules_list: List[str] = [
                 "You MUST address team members by their unique 'name' when using the `SendMessageTo` tool."
             ]
@@ -72,14 +80,15 @@ class CoordinatorPromptPreparationStep(BaseAgentTeamBootstrapStep):
                     dep_names = [dep.name for dep in node.dependencies]
                     rules_list.append(f"To use '{node.name}', you must have already successfully used: {', '.join(f'`{name}`' for name in dep_names)}.")
             
-            # The 'Execution Rules' section will now always be present if there are team members.
             rules_section = "### Execution Rules\n" + "\n".join(rules_list)
             prompt_parts.append(rules_section)
 
             prompt_parts.append(tools_section)
                 
-            # The final instruction is now simpler as the addressing requirement is a formal rule.
-            final_instruction = "### Your Task\nAnalyze the user's request, formulate a plan, and use the `SendMessageTo` tool to delegate tasks to your team."
+            final_instruction = (
+                "### Your Task\n"
+                "Begin by analyzing the user's request below. Formulate a plan according to the Mission Workflow and then use your tools to publish it and delegate the work."
+            )
             prompt_parts.append(final_instruction)
         else:
             # Case where coordinator is the only node

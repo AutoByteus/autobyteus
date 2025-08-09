@@ -14,6 +14,7 @@ class ToolCategory(str, Enum):
     UTILITY = "Utility"
     AGENT_COMMUNICATION = "Agent Communication"
     PROMPT_MANAGEMENT = "Prompt Management"
+    TASK_MANAGEMENT = "Task Management" # NEW CATEGORY ADDED
     GENERAL = "General"
     MCP = "MCP"
 

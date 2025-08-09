@@ -7,21 +7,14 @@ from textual.widgets import Static
 from textual.containers import Vertical
 
 class Logo(Vertical):
-    """A widget to display the AutoByteus ASCII art logo and tagline."""
+    """A widget to display the AutoByteus logo and tagline."""
 
     def compose(self) -> None:
-        logo_text = Text(
-            """
-    _         _           _     _
-   / \\  _   _| |_ ___  __| | __| |_
-  / _ \\| | | | __/ _ \\/ _` |/ _` | |
- / ___ \\ |_| | ||  __/ (_| | (_| | |
-/_/   \\_\\__,_|\\__\\___|\\__,_|\\__,_|_|
-""",
-            justify="center",
-        )
-        logo_text.highlight_regex(r"Auto", "bold cyan")
-        logo_text.highlight_regex(r"Byteus", "bold magenta")
+        # A simple, clean, single-line text logo that is more readable
+        # and respects that "AutoByteus" is one word.
+        logo_text = Text(justify="center")
+        logo_text.append("Auto", style="bold cyan")
+        logo_text.append("Byteus", style="bold magenta")
         
         yield Static(logo_text, classes="logo-art")
         yield Static("Orchestrating AI Agent Teams.", classes="logo-tagline")
