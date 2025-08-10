@@ -27,9 +27,6 @@ try:
     from autobyteus.agent.context.agent_config import AgentConfig
     from autobyteus.llm.models import LLMModel
     from autobyteus.llm.llm_factory import default_llm_factory
-    from autobyteus.tools.powerpoint_creator import create_powerpoint
-    from autobyteus.tools.image_generator import generate_images
-    from autobyteus.tools.image_saver import save_images
     from autobyteus.tools.bash.bash_executor import bash_executor
 except ImportError as e:
     print(f"Error importing autobyteus components: {e}", file=sys.stderr)
