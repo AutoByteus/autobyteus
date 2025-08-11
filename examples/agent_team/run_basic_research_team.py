@@ -84,10 +84,18 @@ async def main(args: argparse.Namespace):
         description="A manager agent that receives research goals and delegates them to specialists.",
         llm_instance=llm_instance,
         system_prompt=(
-            "You are the manager of a research team. Your job is to understand the user's research goal and delegate it to the correct specialist agent on your team. "
-            "Do not answer questions yourself; always delegate. "
-            "You will be provided a manifest of your team members and available tools.\n\n"
-            "{{tools}}"
+            "You are an AI agent. Your name is 'ResearchManager'. Your job is to understand a user's research goal and delegate it to the correct specialist on your team.\n"
+            "Do not answer the research question yourself; your role is to delegate.\n\n"
+            "### Your Team\n"
+            "Here is a list of the specialists available to you:\n"
+            "{{team}}\n\n"
+            "### Rules\n"
+            "- To delegate a task, you MUST use the `SendMessageTo` tool.\n"
+            "- You MUST use the agent's unique, case-sensitive `name` as the recipient (e.g., 'FactChecker').\n\n"
+            "### Your Tools\n"
+            "{{tools}}\n\n"
+            "### Your Task\n"
+            "Analyze the user's request and delegate it to the appropriate team member."
         ),
     )
 
@@ -98,11 +106,14 @@ async def main(args: argparse.Namespace):
         description="An agent with a limited, internal knowledge base for answering direct factual questions.",
         llm_instance=llm_instance,
         system_prompt=(
-            "You are a fact-checking bot. You have the following knowledge:\n"
+            "You are an AI agent. Your name is 'FactChecker'. You are a fact-checking bot.\n"
+            "You will receive research questions from your 'ResearchManager'. When you receive a question, you must answer it based on your knowledge.\n\n"
+            "### Your Knowledge Base\n"
             "- The capital of France is Paris.\n"
             "- The tallest mountain on Earth is Mount Everest.\n"
-            "- The primary programming language for AutoByteUs is Python.\n"
-            "You MUST ONLY answer questions based on this knowledge. If you are asked something you do not know, you MUST respond with 'I do not have information on that topic.'"
+            "- The primary programming language for AutoByteUs is Python.\n\n"
+            "### Rules\n"
+            "You MUST ONLY answer questions based on your knowledge base. If you are asked something you do not know, you MUST respond with: 'I do not have information on that topic.'"
         )
     )
 

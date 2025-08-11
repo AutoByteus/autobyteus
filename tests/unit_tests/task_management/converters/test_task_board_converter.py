@@ -6,7 +6,7 @@ from autobyteus.task_management import (
     Task,
     TaskStatus,
     TaskBoardConverter,
-    TaskStatusReport
+    TaskStatusReportSchema
 )
 
 @pytest.fixture
@@ -33,13 +33,13 @@ def task_board_with_plan() -> InMemoryTaskBoard:
     
     return task_board
 
-def test_to_status_report_with_loaded_plan(task_board_with_plan: InMemoryTaskBoard):
+def test_to_schema_with_loaded_plan(task_board_with_plan: InMemoryTaskBoard):
     """Tests that the converter correctly transforms a populated task board."""
     # Act
-    report = TaskBoardConverter.to_status_report(task_board_with_plan)
+    report = TaskBoardConverter.to_schema(task_board_with_plan)
     
     # Assert
-    assert isinstance(report, TaskStatusReport)
+    assert isinstance(report, TaskStatusReportSchema)
     assert report.overall_goal == "Test the converter."
     assert len(report.tasks) == 3
     
@@ -57,13 +57,13 @@ def test_to_status_report_with_loaded_plan(task_board_with_plan: InMemoryTaskBoa
     assert task_two_report.dependencies == ["task_one"]
     assert task_one_report.dependencies == []
 
-def test_to_status_report_with_empty_board():
+def test_to_schema_with_empty_board():
     """Tests that the converter returns None for a board with no plan."""
     # Arrange
     empty_board = InMemoryTaskBoard(team_id="empty_team")
 
     # Act
-    report = TaskBoardConverter.to_status_report(empty_board)
+    report = TaskBoardConverter.to_schema(empty_board)
 
     # Assert
     assert report is None

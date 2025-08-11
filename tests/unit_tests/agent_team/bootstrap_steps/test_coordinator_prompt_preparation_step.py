@@ -9,65 +9,77 @@ from autobyteus.agent_team.context import (
     TeamNodeConfig,
 )
 from autobyteus.agent.context import AgentConfig
-from autobyteus.llm.base_llm import BaseLLM
 
 @pytest.fixture
 def prompt_prep_step():
     """Provides a clean instance of CoordinatorPromptPreparationStep."""
     return CoordinatorPromptPreparationStep()
 
+def _rebuild_context_with_new_config(context: AgentTeamContext, new_config: AgentTeamConfig):
+    """Helper to replace the config in a context."""
+    context.config = new_config
+    # Invalidate the node config map cache
+    context._node_config_map = None
+
 @pytest.mark.asyncio
 async def test_execute_success_with_team(
     prompt_prep_step: CoordinatorPromptPreparationStep,
-    agent_team_context: AgentTeamContext
+    agent_team_context: AgentTeamContext,
+    agent_config_factory
 ):
     """
-    Tests successful execution for a standard team with a coordinator and one member.
+    Tests successful execution where the team manifest is injected into the prompt.
     """
     # Arrange
-    # Give the member node a realistic definition
-    member_node = next(n for n in agent_team_context.config.nodes if n != agent_team_context.config.coordinator_node)
-    member_node.node_definition = AgentConfig(
-        name="Member", 
-        description="Description for Member",
-        role="MemberRole",
-        llm_instance=MagicMock(spec=BaseLLM)
+    # Rebuild context with a coordinator that has a system prompt template
+    original_config = agent_team_context.config
+    coordinator_def = agent_config_factory("Coordinator")
+    coordinator_def.system_prompt = "Team Manifest:\n{{team}}"
+
+    member_def = agent_config_factory("Member")
+    member_def.description = "This is the member agent."
+
+    coordinator_node = TeamNodeConfig(node_definition=coordinator_def)
+    member_node = TeamNodeConfig(node_definition=member_def)
+
+    new_team_config = AgentTeamConfig(
+        name=original_config.name,
+        description=original_config.description,
+        nodes=(coordinator_node, member_node),
+        coordinator_node=coordinator_node
     )
+    _rebuild_context_with_new_config(agent_team_context, new_team_config)
 
     # Act
     success = await prompt_prep_step.execute(agent_team_context, agent_team_context.phase_manager)
 
     # Assert
     assert success is True
-    
     prompt = agent_team_context.state.prepared_coordinator_prompt
-    assert isinstance(prompt, str)
-    assert "You are the coordinator of a team of specialist agents" in prompt
-    assert "### Goal\nA test agent team" in prompt
-    assert "### Your Team\n- name: Member description: Description for Member" in prompt
-    # THE FIX: Assert that the "Mission Workflow" section is now correctly included in the prompt.
-    assert "### Your Mission Workflow" in prompt
-    assert "### Your Task" in prompt
+    expected_prompt = "Team Manifest:\n- name: Member\n  description: This is the member agent."
+    assert prompt == expected_prompt
 
 @pytest.mark.asyncio
 async def test_execute_with_solo_coordinator(
     prompt_prep_step: CoordinatorPromptPreparationStep,
-    agent_team_context: AgentTeamContext
+    agent_team_context: AgentTeamContext,
+    agent_config_factory
 ):
     """
-    Tests successful execution for a agent_team with only a single coordinator node.
+    Tests successful execution for a team with only a single coordinator node.
     """
     # Arrange
-    solo_node = agent_team_context.config.coordinator_node
+    coordinator_def = agent_config_factory("Coordinator")
+    coordinator_def.system_prompt = "My Team: {{team}}"
+    coordinator_node = TeamNodeConfig(node_definition=coordinator_def)
+    
     solo_config = AgentTeamConfig(
         name="Solo Team",
-        nodes=(solo_node,),
-        coordinator_node=solo_node,
+        nodes=(coordinator_node,),
+        coordinator_node=coordinator_node,
         description="Solo agent team"
     )
-    # This is a bit of a hack for the test, in reality the context would be created with this config.
-    # We are modifying it after creation for test simplicity.
-    agent_team_context.config = solo_config
+    _rebuild_context_with_new_config(agent_team_context, solo_config)
 
     # Act
     success = await prompt_prep_step.execute(agent_team_context, agent_team_context.phase_manager)
@@ -75,23 +87,31 @@ async def test_execute_with_solo_coordinator(
     # Assert
     assert success is True
     prompt = agent_team_context.state.prepared_coordinator_prompt
-    assert prompt.startswith("You are working alone.")
-    assert "### Your Team\nYou are working alone on this task." in prompt
+    assert "You are working alone. You have no team members to delegate to." in prompt
+    assert prompt == "My Team: You are working alone. You have no team members to delegate to."
 
 @pytest.mark.asyncio
 async def test_execute_failure_path(
     prompt_prep_step: CoordinatorPromptPreparationStep,
     agent_team_context: AgentTeamContext,
-    monkeypatch
+    monkeypatch,
+    agent_config_factory
 ):
     """
-    Tests the generic failure path by mocking an exception.
+    Tests the generic failure path by mocking an exception during manifest generation.
     """
     # Arrange
+    # Setup a context with a prompt to ensure the generation step is called
+    coordinator_def = agent_config_factory("Coordinator")
+    coordinator_def.system_prompt = "{{team}}"
+    coordinator_node = TeamNodeConfig(node_definition=coordinator_def)
+    new_config = AgentTeamConfig("FailTeam", "Desc", (coordinator_node,), coordinator_node)
+    _rebuild_context_with_new_config(agent_team_context, new_config)
+    
     error_message = "Synthetic error"
     monkeypatch.setattr(
         prompt_prep_step,
-        '_generate_prompt',
+        '_generate_team_manifest',
         MagicMock(side_effect=ValueError(error_message))
     )
 

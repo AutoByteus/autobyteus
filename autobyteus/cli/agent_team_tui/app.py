@@ -104,8 +104,6 @@ class AgentTeamApp(App):
                 self._ui_update_pending = True
                 
                 # 3. Handle real-time, incremental updates directly.
-                # This is for components like the FocusPane's text stream, which needs
-                # to be as low-latency as possible. The actual UI update is buffered.
                 if isinstance(event.data, AgentEventRebroadcastPayload):
                     payload = event.data
                     agent_name = payload.agent_name
@@ -114,8 +112,6 @@ class AgentTeamApp(App):
                     
                     is_currently_focused = (focus_pane._focused_node_data and focus_pane._focused_node_data.get('name') == agent_name)
 
-                    # If the event is for the currently focused agent, send the event
-                    # to be buffered and eventually rendered.
                     if is_currently_focused:
                         await focus_pane.add_agent_event(agent_event)
 
@@ -130,37 +126,33 @@ class AgentTeamApp(App):
 
     async def watch_store_version(self, new_version: int):
         """
-        Reacts to changes in the store version. This is now called by the throttled
-        updater, not on every event. Its main job is to update less-frequently
-        changing components like the sidebar tree and team dashboards.
+        Reacts to changes in the store version.
         """
         sidebar = self.query_one(AgentListSidebar)
         focus_pane = self.query_one(FocusPane)
 
-        # Fetch fresh data from the store for the update
         tree_data = self.store.get_tree_data()
         agent_phases = self.store._agent_phases
         team_phases = self.store._team_phases
         speaking_agents = self.store._speaking_agents
         
-        # Update sidebar
         sidebar.update_tree(tree_data, agent_phases, team_phases, speaking_agents)
         
-        # Intelligently update the focus pane
         focused_data = self.focused_node_data
         if focused_data and focused_data.get("type") in ['team', 'subteam']:
-            # If a team/subteam is focused, its dashboard might be out of date.
-            # A full re-render is cheap and ensures consistency for its title and panels.
-            history = self.store.get_history_for_node(focused_data['name'], focused_data['type'])
+            node_name = focused_data['name']
+            task_plan = self.store.get_task_board_plan(node_name)
+            task_statuses = self.store.get_task_board_statuses(node_name)
             await focus_pane.update_content(
                 node_data=focused_data,
-                history=history,
+                history=[], # No history for teams
                 pending_approval=None,
                 all_agent_phases=agent_phases,
-                all_team_phases=team_phases
+                all_team_phases=team_phases,
+                task_plan=task_plan,
+                task_statuses=task_statuses
             )
         elif focused_data and focused_data.get("type") == 'agent':
-            # For agents, we only need to update the title status, not the whole log.
             focus_pane.update_current_node_status(agent_phases, team_phases)
 
 
@@ -174,6 +166,12 @@ class AgentTeamApp(App):
         history = self.store.get_history_for_node(node_name, node_type)
         pending_approval = self.store.get_pending_approval_for_agent(node_name) if node_type == 'agent' else None
         
+        task_plan = None
+        task_statuses = None
+        if node_type in ['team', 'subteam']:
+            task_plan = self.store.get_task_board_plan(node_name)
+            task_statuses = self.store.get_task_board_statuses(node_name)
+        
         sidebar = self.query_one(AgentListSidebar)
         focus_pane = self.query_one(FocusPane)
         
@@ -182,7 +180,9 @@ class AgentTeamApp(App):
             history=history,
             pending_approval=pending_approval,
             all_agent_phases=self.store._agent_phases,
-            all_team_phases=self.store._team_phases
+            all_team_phases=self.store._team_phases,
+            task_plan=task_plan,
+            task_statuses=task_statuses
         )
         
         sidebar.update_selection(node_name)

@@ -1,4 +1,3 @@
-# file: autobyteus/autobyteus/cli/agent_team_tui/state.py
 """
 Defines a centralized state store for the TUI application, following state management best practices.
 """
@@ -17,6 +16,9 @@ from autobyteus.agent.streaming.stream_event_payloads import (
 )
 from autobyteus.agent_team.streaming.agent_team_stream_events import AgentTeamStreamEvent
 from autobyteus.agent_team.streaming.agent_team_stream_event_payloads import AgentEventRebroadcastPayload, SubTeamEventRebroadcastPayload, AgentTeamPhaseTransitionData
+from autobyteus.task_management.task_plan import Task
+from autobyteus.task_management.events import TaskPlanPublishedEvent, TaskStatusUpdatedEvent
+from autobyteus.task_management.base_task_board import TaskStatus
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +28,7 @@ class TUIStateStore:
 
     This class acts as the single source of truth for the UI. It processes events
     from the backend and updates its state. The main App class can then react to
-    these state changes to update the UI components declaratively. This is a plain
-    Python class and does not use Textual reactive properties.
+    these state changes to update the UI components declaratively.
     """
 
     def __init__(self, team: AgentTeam):
@@ -45,11 +46,14 @@ class TUIStateStore:
         self._pending_approvals: Dict[str, ToolInvocationApprovalRequestedData] = {}
         self._speaking_agents: Dict[str, bool] = {}
         
+        # State for task boards
+        self._task_plans: Dict[str, List[Task]] = {} # team_name -> List[Task]
+        self._task_statuses: Dict[str, Dict[str, TaskStatus]] = {} # team_name -> {task_id: status}
+        
         # Version counter to signal state changes to the UI
         self.version = 0
 
     def _extract_node_roles(self, team: AgentTeam) -> Dict[str, str]:
-        """Builds a map of node names to their defined roles from the config."""
         roles = {}
         if team._runtime and team._runtime.context and team._runtime.context.config:
             for node_config in team._runtime.context.config.nodes:
@@ -59,7 +63,6 @@ class TUIStateStore:
         return roles
 
     def _initialize_root_node(self) -> Dict[str, Any]:
-        """Creates the initial root node for the state tree."""
         return {
             self.team_name: {
                 "type": "team",
@@ -70,25 +73,34 @@ class TUIStateStore:
         }
 
     def process_event(self, event: AgentTeamStreamEvent):
-        """
-        The main entry point for processing events from the backend.
-        This method acts as a reducer, updating the state based on the event.
-        """
+        self.version += 1 # Increment on any event to signal a change
+        
         if event.event_source_type == "TEAM" and isinstance(event.data, AgentTeamPhaseTransitionData):
             self._team_phases[self.team_name] = event.data.new_phase
         
         self._process_event_recursively(event, self.team_name)
-        
-        # Increment version to signal that the state has changed.
-        self.version += 1
 
     def _process_event_recursively(self, event: AgentTeamStreamEvent, parent_name: str):
-        """Recursively processes events to build up the state tree."""
         if parent_name not in self._team_event_history:
             self._team_event_history[parent_name] = []
         self._team_event_history[parent_name].append(event)
+        
+        if event.event_source_type == "TASK_BOARD":
+            # The 'parent_name' argument holds the friendly name of the team (or sub-team)
+            # that is the context for this event. This is the key we use for UI state.
+            team_name_key = parent_name
+            if isinstance(event.data, TaskPlanPublishedEvent):
+                self._task_plans[team_name_key] = event.data.plan.tasks
+                # Reset statuses when a new plan is published
+                self._task_statuses[team_name_key] = {task.task_id: TaskStatus.NOT_STARTED for task in event.data.plan.tasks}
+                logger.debug(f"TUI State: Updated task plan for '{team_name_key}' with {len(event.data.plan.tasks)} tasks.")
+            elif isinstance(event.data, TaskStatusUpdatedEvent):
+                if team_name_key not in self._task_statuses:
+                    self._task_statuses[team_name_key] = {}
+                self._task_statuses[team_name_key][event.data.task_id] = event.data.new_status
+                logger.debug(f"TUI State: Updated status for task '{event.data.task_id}' in team '{team_name_key}' to {event.data.new_status}.")
+            return
 
-        # AGENT EVENT (LEAF NODE)
         if isinstance(event.data, AgentEventRebroadcastPayload):
             payload = event.data
             agent_name = payload.agent_name
@@ -99,81 +111,60 @@ class TUIStateStore:
                 if self._find_node(parent_name):
                     agent_role = self._node_roles.get(agent_name, "Agent")
                     self._add_node(agent_name, {"type": "agent", "name": agent_name, "role": agent_role, "children": {}}, parent_name)
-                else:
-                    logger.error(f"Cannot add agent node '{agent_name}': parent '{parent_name}' not found in state tree.")
-
+                else: logger.error(f"Cannot add agent node '{agent_name}': parent '{parent_name}' not found.")
             self._agent_event_history[agent_name].append(agent_event)
 
-            # --- State update logic for specific events (applies to both focused and non-focused) ---
             if agent_event.event_type == AgentStreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION:
-                phase_data: AgentOperationalPhaseTransitionData = agent_event.data
-                self._agent_phases[agent_name] = phase_data.new_phase
-                if agent_name in self._pending_approvals:
-                    del self._pending_approvals[agent_name]
+                self._agent_phases[agent_name] = agent_event.data.new_phase
+                if agent_name in self._pending_approvals: del self._pending_approvals[agent_name]
             elif agent_event.event_type == AgentStreamEventType.AGENT_IDLE:
                 self._agent_phases[agent_name] = AgentOperationalPhase.IDLE
             elif agent_event.event_type == AgentStreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED:
                 self._pending_approvals[agent_name] = agent_event.data
 
-        # SUB-TEAM EVENT (BRANCH NODE)
         elif isinstance(event.data, SubTeamEventRebroadcastPayload):
             payload = event.data
             sub_team_name = payload.sub_team_node_name
             sub_team_event = payload.sub_team_event
-            
-            sub_team_node = self._find_node(sub_team_name)
-            if not sub_team_node:
+            if not self._find_node(sub_team_name):
                 role = self._node_roles.get(sub_team_name, "Sub-Team")
                 self._add_node(sub_team_name, {"type": "subteam", "name": sub_team_name, "role": role, "children": {}}, parent_name)
-
             if sub_team_event.event_source_type == "TEAM" and isinstance(sub_team_event.data, AgentTeamPhaseTransitionData):
                 self._team_phases[sub_team_name] = sub_team_event.data.new_phase
-
             self._process_event_recursively(sub_team_event, parent_name=sub_team_name)
 
     def _add_node(self, node_name: str, node_data: Dict, parent_name: str):
-        """Adds a node to the state tree under a specific parent."""
         parent = self._find_node(parent_name)
-        if parent:
-            parent["children"][node_name] = node_data
-        else:
-            logger.error(f"Could not find parent node '{parent_name}' to add child '{node_name}'.")
+        if parent: parent["children"][node_name] = node_data
+        else: logger.error(f"Could not find parent node '{parent_name}' to add child '{node_name}'.")
 
     def _find_node(self, node_name: str, tree: Optional[Dict] = None) -> Optional[Dict]:
-        """Recursively finds a node by name in the state tree."""
-        if tree is None:
-            tree = self._nodes
-        
+        tree = tree or self._nodes
         for name, node_data in tree.items():
-            if name == node_name:
-                return node_data
+            if name == node_name: return node_data
             if node_data.get("children"):
                 found = self._find_node(node_name, node_data.get("children"))
-                if found:
-                    return found
+                if found: return found
         return None
 
     def get_tree_data(self) -> Dict:
-        """Constructs a serializable representation of the tree for the sidebar."""
         return copy.deepcopy(self._nodes)
     
     def get_history_for_node(self, node_name: str, node_type: str) -> List:
-        """Retrieves the event history for a given node."""
-        if node_type == 'agent':
-            return self._agent_event_history.get(node_name, [])
-        elif node_type in ['team', 'subteam']:
-            return []
+        if node_type == 'agent': return self._agent_event_history.get(node_name, [])
         return []
         
     def get_pending_approval_for_agent(self, agent_name: str) -> Optional[ToolInvocationApprovalRequestedData]:
-        """Gets pending approval data for a specific agent."""
         return self._pending_approvals.get(agent_name)
+        
+    def get_task_board_plan(self, team_name: str) -> Optional[List[Task]]:
+        return self._task_plans.get(team_name)
+
+    def get_task_board_statuses(self, team_name: str) -> Optional[Dict[str, TaskStatus]]:
+        return self._task_statuses.get(team_name)
 
     def clear_pending_approval(self, agent_name: str):
-        """Clears a pending approval after it's been handled."""
-        if agent_name in self._pending_approvals:
-            del self._pending_approvals[agent_name]
+        if agent_name in self._pending_approvals: del self._pending_approvals[agent_name]
     
     def set_focused_node(self, node_data: Optional[Dict[str, Any]]):
-        """Sets the currently focused node in the state."""
         self.focused_node_data = node_data

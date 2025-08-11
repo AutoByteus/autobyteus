@@ -1,7 +1,7 @@
 # file: autobyteus/examples/agent_team/run_multi_researcher_team.py
 """
-This example script demonstrates how the AgentTeam framework handles multiple
-agents with the same simple name by creating unique prompt aliases.
+This example script demonstrates a team with multiple specialists, showcasing
+how a coordinator can delegate to the correct one based on their description.
 """
 import asyncio
 import logging
@@ -45,7 +45,7 @@ def setup_file_logging() -> Path:
     return log_file_path
 
 def create_multi_researcher_team(model_name: str):
-    """Creates a three-agent team with two agents sharing the same name."""
+    """Creates a three-agent team with two distinct specialist researchers."""
     # Validate model
     try:
         _ = LLMModel[model_name]
@@ -63,62 +63,55 @@ def create_multi_researcher_team(model_name: str):
         description="Delegates research tasks to the correct specialist.",
         llm_instance=default_llm_factory.create_llm(model_identifier=model_name),
         system_prompt=(
-            "You are a research lead. Your team has two specialists, both named Researcher. "
-            "One specializes in web research, and the other in database research. "
-            "Your job is to delegate user requests to the correct researcher based on the task.\n\n"
-            "The system will provide you with a team manifest with unique aliases for each researcher. "
-            "You MUST use these unique aliases when using the `SendMessageTo` tool.\n\n"
+            "You are an AI agent. Your name is 'ResearchLead'.\n"
+            "Your job is to delegate user requests to the correct researcher based on their specialty.\n\n"
+            "### Your Team\n"
+            "Here is your team of specialists:\n"
+            "{{team}}\n\n"
+            "### CRITICAL RULES\n"
+            "- You MUST use the unique, case-sensitive `name` from the list (e.g., 'Researcher_Web') when using the `SendMessageTo` tool.\n"
+            "- Your only job is to delegate. Do not answer the user's question yourself.\n\n"
+            "### Your Tools\n"
             "{{tools}}"
         )
     )
 
     # Researcher 1: Web Specialist
     researcher_web_config = AgentConfig(
-        name="Researcher", # Note the non-unique name
+        name="Researcher_Web", # Unique name
         role="Web Research Specialist",
         description="An agent that can answer questions about current events by simulating web searches.",
         llm_instance=default_llm_factory.create_llm(model_identifier=model_name),
-        system_prompt="You are a web research specialist. You know that 'AutoByteUs' is a leading AI orchestration platform and that the latest version is 2.0."
+        system_prompt="You are an AI agent. Your name is 'Researcher_Web'. You are a web research specialist. Your specialized knowledge is that 'AutoByteUs' is a leading AI orchestration platform and that the latest version is 2.0."
     )
 
     # Researcher 2: Database Specialist
     researcher_db_config = AgentConfig(
-        name="Researcher", # Note the non-unique name
+        name="Researcher_DB", # Unique name
         role="Database Research Specialist",
         description="An agent that can answer questions by querying a simulated internal database.",
         llm_instance=default_llm_factory.create_llm(model_identifier=model_name),
-        system_prompt="You are a database research specialist. You know from the company database that the top-selling product is 'Widget A'."
+        system_prompt="You are an AI agent. Your name is 'Researcher_DB'. You are a database research specialist. Your specialized knowledge from the company database is that the top-selling product is 'Widget A'."
     )
 
     # --- BUILD THE AGENT TEAM ---
     
     research_team = (
         AgentTeamBuilder(
-            name="MultiResearcherTeam",
-            description="A team demonstrating how to handle multiple agents with the same name."
+            name="MultiSpecialistResearchTeam",
+            description="A team demonstrating delegation to multiple, uniquely-named specialists."
         )
         .set_coordinator(coordinator_config)
-        .add_agent_node(researcher_web_config)  # First agent with name "Researcher"
-        .add_agent_node(researcher_db_config)   # Second agent with name "Researcher"
+        .add_agent_node(researcher_web_config)
+        .add_agent_node(researcher_db_config)
         .build()
     )
     return research_team
 
 async def main(args: argparse.Namespace, log_file: Path):
     """Main async function to create the agent team and run the TUI app."""
-    print("Setting up multi-researcher agent team...")
+    print("Setting up multi-specialist research agent team...")
     print(f"--> Logs will be written to: {log_file.resolve()}")
-    
-    print("\n" + "="*50)
-    print("WHAT TO EXPECT:")
-    print("1. The TUI will start, showing a 'ResearchLead' and two 'Researcher' agents.")
-    print("2. Click on the 'ResearchLead' in the sidebar.")
-    print("3. In the Focus Pane on the right, you will see its system prompt.")
-    print("4. Look for the '### Your Team' section. You will see aliases like:")
-    print("   - **Researcher** (Role: Web Research Specialist): ...")
-    print("   - **Researcher_2** (Role: Database Research Specialist): ...")
-    print("5. These are the unique aliases you can use to send messages.")
-    print("="*50 + "\n")
     
     try:
         team = create_multi_researcher_team(model_name=args.llm_model)
@@ -129,7 +122,7 @@ async def main(args: argparse.Namespace, log_file: Path):
         print(f"\nCRITICAL ERROR: {e}\nCheck log file for details: {log_file.resolve()}")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run a multi-researcher agent team with a Textual TUI.")
+    parser = argparse.ArgumentParser(description="Run a multi-specialist research agent team with a Textual TUI.")
     parser.add_argument("--llm-model", type=str, default="gpt-4o", help="The LLM model identifier to use for the agents.")
     parser.add_argument("--help-models", action="store_true", help="Display available LLM models and exit.")
     

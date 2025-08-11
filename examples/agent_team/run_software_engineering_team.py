@@ -1,7 +1,8 @@
-# file: autobyteus/examples/agent_team/run_code_review_team.py
+# file: autobyteus/examples/agent_team/run_software_engineering_team.py
 """
 This example script demonstrates a simple software development agent team
 with a coordinator, an engineer, a code reviewer, a test writer, and a tester.
+It showcases a notification-based communication protocol.
 """
 import asyncio
 import logging
@@ -11,8 +12,9 @@ import sys
 import os
 
 # --- Boilerplate to make the script runnable from the project root ---
-SCRIPT_DIR = Path(__file__).resolve().parent.parent
-PACKAGE_ROOT = SCRIPT_DIR.parent
+SCRIPT_DIR = Path(__file__).resolve().parent
+PACKAGE_ROOT = SCRIPT_DIR.parent.parent
+PROMPTS_DIR = SCRIPT_DIR / "prompts" / "software_engineering"
 if str(PACKAGE_ROOT) not in sys.path:
     sys.path.insert(0, str(PACKAGE_ROOT))
 
@@ -33,6 +35,11 @@ try:
     from autobyteus.tools import file_writer, file_reader, bash_executor
     from autobyteus.agent.workspace import BaseAgentWorkspace, WorkspaceConfig
     from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+    from autobyteus.task_management.tools import (
+        PublishTaskPlan,
+        GetTaskBoardStatus,
+        UpdateTaskStatus,
+    )
 except ImportError as e:
     print(f"Error importing autobyteus components: {e}", file=sys.stderr)
     sys.exit(1)
@@ -74,7 +81,7 @@ class SimpleLocalWorkspace(BaseAgentWorkspace):
 def setup_file_logging() -> Path:
     log_dir = PACKAGE_ROOT / "logs"
     log_dir.mkdir(exist_ok=True)
-    log_file_path = log_dir / "code_review_team_tui_app.log"
+    log_file_path = log_dir / "software_engineering_team_tui_app.log"
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", filename=log_file_path, filemode="w")
     logging.getLogger("asyncio").setLevel(logging.WARNING)
     logging.getLogger("textual").setLevel(logging.WARNING)
@@ -98,6 +105,21 @@ def _validate_model(model_name: str):
             print(f"Additionally, an error occurred while listing models: {e}", file=sys.stderr)
         sys.exit(1)
 
+def load_prompt(filename: str) -> str:
+    """Loads a prompt from the prompts directory."""
+    prompt_path = PROMPTS_DIR / filename
+    try:
+        with open(prompt_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    except FileNotFoundError:
+        logging.error(f"Prompt file not found: {prompt_path}")
+        print(f"CRITICAL ERROR: Prompt file not found at {prompt_path}", file=sys.stderr)
+        raise
+    except Exception as e:
+        logging.error(f"Error reading prompt file {prompt_path}: {e}")
+        print(f"CRITICAL ERROR: Could not read prompt file at {prompt_path}: {e}", file=sys.stderr)
+        raise
+
 def create_code_review_team(
     coordinator_model: str, 
     engineer_model: str, 
@@ -112,59 +134,36 @@ def create_code_review_team(
 
     # Coordinator Agent
     coordinator_config = AgentConfig(
-        name="ProjectManager", role="Coordinator", description="Manages the development process, assigning tasks to the team.",
+        name="Project Manager", role="Coordinator", description="Manages the development process by planning and assigning tasks to the team.",
         llm_instance=default_llm_factory.create_llm(model_identifier=coordinator_model),
-        system_prompt=(
-            "You are the project manager for a software team. Your role is to manage a strict, sequential code development, review, and testing process. Your team consists of a SoftwareEngineer, a CodeReviewer, a TestWriter, and a Tester.\n\n"
-            "### Your Process\n"
-            "You must follow this process precisely:\n"
-            "1.  **Delegate to Engineer:** Receive a request from the user to write code to a specific filename. Instruct the `SoftwareEngineer` to write the code and save it.\n"
-            "2.  **Delegate to Reviewer:** After the engineer confirms completion, instruct the `CodeReviewer` to review the code. You must provide the filename to the reviewer.\n"
-            "3.  **Delegate to Test Writer:** After the review is complete, instruct the `TestWriter` to write pytest tests for the code. Provide the original source filename and tell them to save the tests in a new file, like `test_FILENAME.py`.\n"
-            "4.  **Delegate to Tester:** After the tests are written, instruct the `Tester` to run the tests. You must provide the filename of the test file.\n"
-            "5.  **Report to User:** Once you receive the test results, present the final status (code written, reviewed, and tests passed/failed) to the user.\n\n"
-            "**CRITICAL RULE:** This is a sequential process. You must wait for one agent to finish before contacting the next. You are the central point of communication.\n\n"
-            "{{tools}}"
-        )
+        system_prompt=load_prompt("coordinator.prompt"),
+        tools=[PublishTaskPlan(), GetTaskBoardStatus()],
     )
 
     # Software Engineer Agent
     engineer_config = AgentConfig(
-        name="SoftwareEngineer", role="Developer", description="Writes Python code based on instructions and saves it to a file.",
+        name="Software Engineer", role="Developer", description="Writes Python code based on instructions and saves it to a file.",
         llm_instance=default_llm_factory.create_llm(model_identifier=engineer_model),
-        system_prompt=(
-            "You are a skilled Python software engineer. You receive tasks from your ProjectManager. "
-            "Your job is to write high-quality Python code to fulfill the request. "
-            "After writing the code, you MUST save it to the specified filename using the `FileWriter` tool. "
-            "Confirm completion once the file is saved.\n\n{{tools}}"
-        ),
-        tools=[file_writer],
+        system_prompt=load_prompt("software_engineer.prompt"),
+        tools=[file_writer, UpdateTaskStatus(), GetTaskBoardStatus()],
         workspace=workspace
     )
     
     # Code Reviewer Agent
     reviewer_config = AgentConfig(
-        name="CodeReviewer", role="Senior Developer", description="Reads and reviews Python code from files for quality and correctness.",
+        name="Code Reviewer", role="Senior Developer", description="Reads and reviews Python code from files for quality and correctness.",
         llm_instance=default_llm_factory.create_llm(model_identifier=reviewer_model),
-        system_prompt=(
-            "You are a senior software engineer acting as a code reviewer. You will be given a file path to review. "
-            "You MUST use the `FileReader` tool to read the code from the file. "
-            "After reading the code, provide a constructive review, identifying any potential bugs, style issues, or areas for improvement.\n\n{{tools}}"
-        ),
-        tools=[file_reader],
+        system_prompt=load_prompt("code_reviewer.prompt"),
+        tools=[file_reader, UpdateTaskStatus(), GetTaskBoardStatus()],
         workspace=workspace
     )
 
     # Test Writer Agent
     test_writer_config = AgentConfig(
-        name="TestWriter", role="QA Engineer", description="Writes pytest tests for Python code.",
+        name="Test Writer", role="QA Engineer", description="Writes pytest tests for Python code.",
         llm_instance=default_llm_factory.create_llm(model_identifier=test_writer_model),
-        system_prompt=(
-            "You are a QA engineer specializing in testing. You will be given the path to a Python source file. "
-            "Your task is to read that file, write comprehensive tests for it using the `pytest` framework, and save the tests to a new file. "
-            "The test filename MUST start with `test_`. For example, if you are testing `code.py`, you should save the tests in `test_code.py`.\n\n{{tools}}"
-        ),
-        tools=[file_reader, file_writer],
+        system_prompt=load_prompt("test_writer.prompt"),
+        tools=[file_reader, file_writer, UpdateTaskStatus(), GetTaskBoardStatus()],
         workspace=workspace
     )
 
@@ -172,12 +171,8 @@ def create_code_review_team(
     tester_config = AgentConfig(
         name="Tester", role="QA Automation", description="Executes pytest tests and reports results.",
         llm_instance=default_llm_factory.create_llm(model_identifier=tester_model),
-        system_prompt=(
-            "You are a QA automation specialist. Your job is to run tests. You will be given a test file to execute. "
-            "You MUST use the `BashExecutor` tool to run the command `pytest` on the given test file. "
-            "Report the full output from the command back to the Project Manager.\n\n{{tools}}"
-        ),
-        tools=[bash_executor],
+        system_prompt=load_prompt("tester.prompt"),
+        tools=[bash_executor, UpdateTaskStatus(), GetTaskBoardStatus()],
         workspace=workspace
     )
 

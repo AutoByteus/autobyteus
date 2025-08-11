@@ -54,13 +54,13 @@ class GetTaskBoardStatus(BaseTool):
             return error_msg
         
         try:
-            status_report = TaskBoardConverter.to_status_report(task_board)
+            status_report_schema = TaskBoardConverter.to_schema(task_board)
             
-            if not status_report:
+            if not status_report_schema:
                 return "The task board is currently empty. No plan has been published."
             
             logger.info(f"Agent '{context.agent_id}' successfully retrieved and formatted task board status.")
-            return status_report.model_dump_json(indent=2)
+            return status_report_schema.model_dump_json(indent=2)
             
         except Exception as e:
             error_msg = f"An unexpected error occurred while retrieving or formatting task board status: {e}"

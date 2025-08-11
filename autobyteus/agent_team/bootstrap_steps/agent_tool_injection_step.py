@@ -6,11 +6,6 @@ from autobyteus.agent_team.bootstrap_steps.base_agent_team_bootstrap_step import
 from autobyteus.agent.context import AgentConfig
 from autobyteus.agent.message.send_message_to import SendMessageTo
 from autobyteus.tools.registry import default_tool_registry
-from autobyteus.task_management.tools import (
-    GetTaskBoardStatus,
-    PublishTaskPlan,
-    UpdateTaskStatus,
-)
 
 if TYPE_CHECKING:
     from autobyteus.agent_team.context.agent_team_context import AgentTeamContext
@@ -51,7 +46,7 @@ class AgentToolInjectionStep(BaseAgentTeamBootstrapStep):
                 
                 final_config = node_definition.copy()
 
-                # --- THE FIX ---
+                # --- Shared Context Injection ---
                 # The shared context is injected into the initial_custom_data dictionary,
                 # which is then used by the AgentFactory to create the AgentRuntimeState.
                 if final_config.initial_custom_data is None:
@@ -60,6 +55,9 @@ class AgentToolInjectionStep(BaseAgentTeamBootstrapStep):
                 logger.debug(f"Team '{team_id}': Injected shared team_context into initial_custom_data for agent '{unique_name}'.")
 
                 # --- Tool Injection ---
+                # The user is now responsible for explicitly defining all tools an agent
+                # needs in its AgentConfig. The framework is only responsible for injecting
+                # the fundamental SendMessageTo tool, which is always required for team members.
                 tools_to_add = final_config.tools[:]
 
                 send_message_tool = default_tool_registry.create_tool(SendMessageTo.get_name())
@@ -67,20 +65,12 @@ class AgentToolInjectionStep(BaseAgentTeamBootstrapStep):
                     send_message_tool.set_team_manager(team_manager)
                 tools_to_add.append(send_message_tool)
 
+                # If this is the coordinator, apply the prompt that was prepared in the previous step.
                 if node_config_wrapper == coordinator_node_config:
-                    # Coordinator gets planning and monitoring tools
-                    tools_to_add.append(default_tool_registry.create_tool(PublishTaskPlan.get_name()))
-                    tools_to_add.append(default_tool_registry.create_tool(GetTaskBoardStatus.get_name()))
-                    
-                    # Apply coordinator prompt prepared in a previous step
                     coordinator_prompt = context.state.prepared_coordinator_prompt
                     if coordinator_prompt:
                         final_config.system_prompt = coordinator_prompt
                         logger.info(f"Team '{team_id}': Applied dynamic prompt to coordinator '{unique_name}'.")
-                else:
-                    # Member agents get task execution and artifact management tools
-                    tools_to_add.append(default_tool_registry.create_tool(GetTaskBoardStatus.get_name()))
-                    tools_to_add.append(default_tool_registry.create_tool(UpdateTaskStatus.get_name()))
 
                 # Remove duplicates by converting to a set based on tool name, then back to list
                 final_config.tools = list({tool.get_name(): tool for tool in tools_to_add}.values())

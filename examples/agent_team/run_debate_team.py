@@ -68,12 +68,21 @@ def create_debate_team(moderator_model: str, affirmative_model: str, negative_mo
         name="DebateModerator", role="Coordinator", description="Manages the debate, gives turns, and summarizes.",
         llm_instance=default_llm_factory.create_llm(model_identifier=moderator_model),
         system_prompt=(
-            "You are the impartial moderator of a debate between two teams. Your goal is to facilitate a structured, turn-by-turn debate on a user's topic.\n"
-            "Your team consists of Team_Affirmative and Team_Negative. You will delegate tasks to them using their unique names.\n"
-            "Responsibilities: 1. Announce the topic. 2. Ask Team_Affirmative for an opening statement. 3. Ask Team_Negative for a rebuttal. "
-            "4. Facilitate a structured flow of arguments. 5. Conclude the debate.\n"
-            "CRITICAL RULE: You must enforce a strict turn-based system. Only communicate with ONE team at a time using the `SendMessageTo` tool. After sending a message, you must wait for a response before messaging the other team.\n"
-            "Do not debate yourself. Your role is to moderate.\n\n{{tools}}"
+            "You are an AI agent. Your name is 'DebateModerator'. You are the impartial moderator of a debate between two teams.\n\n"
+            "### Your Teams\n"
+            "You will be moderating between these two teams:\n"
+            "{{team}}\n\n"
+            "### Your Responsibilities\n"
+            "1. Announce the debate topic.\n"
+            "2. Ask 'Team_Affirmative' for its opening statement.\n"
+            "3. Ask 'Team_Negative' for its rebuttal.\n"
+            "4. Facilitate a structured, turn-by-turn flow of arguments.\n"
+            "5. Conclude the debate.\n\n"
+            "### CRITICAL RULES\n"
+            "- You must enforce a strict turn-based system. Only communicate with ONE team at a time.\n"
+            "- You MUST use the team's unique, case-sensitive `name` (e.g., 'Team_Affirmative') when using the `SendMessageTo` tool.\n\n"
+            "### Your Tools\n"
+            "{{tools}}"
         )
     )
 
@@ -82,14 +91,20 @@ def create_debate_team(moderator_model: str, affirmative_model: str, negative_mo
         name="Lead_Affirmative", role="Coordinator", description="Leads the team arguing FOR the motion.",
         llm_instance=default_llm_factory.create_llm(model_identifier=affirmative_model),
         system_prompt=(
-            "You are the lead of the Affirmative team. You receive high-level instructions from the DebateModerator (e.g., 'prepare opening statement').\n"
-            "Your job is to delegate this task to your team member, the Proponent, by giving them a specific instruction.\n\n{{tools}}"
+            "You are an AI agent. Your name is 'Lead_Affirmative'. You lead the Affirmative team.\n"
+            "You receive instructions from the 'DebateModerator'. Your job is to delegate tasks to your team member, 'Proponent'.\n\n"
+            "### Your Team\n"
+            "{{team}}\n\n"
+            "### Rules\n"
+            "- You MUST use the `SendMessageTo` tool to delegate tasks to your team member, using their exact name 'Proponent'.\n\n"
+            "### Your Tools\n"
+            "{{tools}}"
         )
     )
     proponent_config = AgentConfig(
         name="Proponent", role="Debater", description="Argues in favor of the debate topic.",
         llm_instance=default_llm_factory.create_llm(model_identifier=affirmative_model),
-        system_prompt="You are a Proponent. You will receive instructions from your team lead. Your role is to argue STRONGLY and PERSUASIVELY IN FAVOR of the motion."
+        system_prompt="You are an AI agent. Your name is 'Proponent'. You are a debater for the Affirmative team. You receive instructions from your team lead, 'Lead_Affirmative'. Your role is to argue STRONGLY and PERSUASIVELY IN FAVOR of the motion."
     )
 
     # Team Negative Agents
@@ -97,14 +112,20 @@ def create_debate_team(moderator_model: str, affirmative_model: str, negative_mo
         name="Lead_Negative", role="Coordinator", description="Leads the team arguing AGAINST the motion.",
         llm_instance=default_llm_factory.create_llm(model_identifier=negative_model),
         system_prompt=(
-            "You are the lead of the Negative team. You receive high-level instructions from the DebateModerator (e.g., 'prepare your rebuttal').\n"
-            "Your job is to delegate this task to your team member, the Opponent, by giving them a specific instruction.\n\n{{tools}}"
+            "You are an AI agent. Your name is 'Lead_Negative'. You lead the Negative team.\n"
+            "You receive instructions from the 'DebateModerator'. Your job is to delegate tasks to your team member, 'Opponent'.\n\n"
+            "### Your Team\n"
+            "{{team}}\n\n"
+            "### Rules\n"
+            "- You MUST use the `SendMessageTo` tool to delegate tasks to your team member, using their exact name 'Opponent'.\n\n"
+            "### Your Tools\n"
+            "{{tools}}"
         )
     )
     opponent_config = AgentConfig(
         name="Opponent", role="Debater", description="Argues against the debate topic.",
         llm_instance=default_llm_factory.create_llm(model_identifier=negative_model),
-        system_prompt="You are an Opponent. You will receive instructions from your team lead. Your role is to argue STRONGLY and PERSUASIVELY AGAINST the motion."
+        system_prompt="You are an AI agent. Your name is 'Opponent'. You are a debater for the Negative team. You receive instructions from your team lead, 'Lead_Negative'. Your role is to argue STRONGLY and PERSUASIVELY AGAINST the motion."
     )
 
     # --- BUILD SUB-TEAMS ---

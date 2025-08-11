@@ -4,12 +4,14 @@ import logging
 from typing import TYPE_CHECKING, Optional, Dict, Any
 
 from pydantic import ValidationError
+# No longer need GenerateJsonSchema from pydantic.json_schema
+# from pydantic.json_schema import GenerateJsonSchema
 
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.tool_category import ToolCategory
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
-from autobyteus.task_management.schemas import TaskPlanDefinition, TaskDefinition
-from autobyteus.task_management.converters import TaskPlanConverter
+from autobyteus.task_management.schemas import TaskPlanDefinitionSchema
+from autobyteus.task_management.converters import TaskPlanConverter, TaskBoardConverter
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
@@ -22,6 +24,8 @@ class PublishTaskPlan(BaseTool):
 
     CATEGORY = ToolCategory.TASK_MANAGEMENT
 
+    # The failing custom InlineSchemaGenerator has been removed.
+
     @classmethod
     def get_name(cls) -> str:
         return "PublishTaskPlan"
@@ -29,66 +33,39 @@ class PublishTaskPlan(BaseTool):
     @classmethod
     def get_description(cls) -> str:
         return (
-            "Parses a JSON string representing a complete task plan, converts it into a "
+            "Parses a structured object representing a complete task plan, converts it into a "
             "system-ready format, and loads it onto the team's shared task board. "
-            "This action resets the task board with the new plan. "
+            "This action resets the task board with the new plan. Upon success, it returns "
+            "the initial status of the newly loaded task board. "
             "This tool should typically only be used by the team coordinator."
         )
 
     @classmethod
     def get_argument_schema(cls) -> Optional[ParameterSchema]:
-        plan_definition_schema = TaskPlanDefinition.model_json_schema()
-        
-        dummy_plan_definition = TaskPlanDefinition(
-            overall_goal="Develop a web scraper to gather product data from an e-commerce site.",
-            tasks=[
-                TaskDefinition(
-                    task_name="setup_project",
-                    assignee_name="SoftwareEngineer",
-                    description="Set up the project structure and install necessary libraries like Playwright and Pydantic.",
-                    dependencies=[]
-                ),
-                TaskDefinition(
-                    task_name="implement_scraper",
-                    assignee_name="SoftwareEngineer",
-                    description="Implement the main scraper logic to navigate to product pages and extract name, price, and description.",
-                    dependencies=["setup_project"]
-                ),
-                TaskDefinition(
-                    task_name="test_scraper",
-                    assignee_name="QualityAssurance",
-                    description="Write and run tests to verify the scraper handles different page layouts and errors gracefully.",
-                    dependencies=["implement_scraper"]
-                ),
-            ]
-        )
-        
-        # Keep the schema compact to reduce prompt length and escaping.
-        compact_schema = json.dumps(plan_definition_schema)
-        # Make the example pretty-printed with newlines, as requested.
-        pretty_example = dummy_plan_definition.model_dump_json(indent=2)
-
-        detailed_description = (
-            "A JSON string that defines a task plan. For each task, provide a unique 'task_name' and use these names to define dependencies. "
-            "The JSON string must conform to the provided schema and should be well-formatted with newlines as shown in the example.\n"
-            "### Schema (compacted for brevity):\n"
-            f"{compact_schema}\n"
-            "### Example of a valid, well-formatted JSON string:\n"
-            f"'{pretty_example}'"
-        )
-        
         schema = ParameterSchema()
+        
+        # CORRECTED IMPLEMENTATION:
+        # A direct, standard call to model_json_schema(). This generates a valid
+        # JSON schema with $refs, which the framework handles correctly.
+        # This completely avoids the TypeError caused by the unsupported 'ref_strategy' argument.
+        object_json_schema = TaskPlanDefinitionSchema.model_json_schema()
+        
         schema.add_parameter(ParameterDefinition(
-            name="plan_as_json",
-            param_type=ParameterType.STRING,
-            description=detailed_description,
-            required=True
+            name="plan",
+            param_type=ParameterType.OBJECT,
+            description=(
+                "A structured object representing a complete task plan. This object defines the overall goal "
+                "and a list of tasks with their assignees, descriptions, and dependencies. "
+                "Each task must have a unique name within the plan."
+            ),
+            required=True,
+            object_schema=object_json_schema
         ))
         return schema
 
-    async def _execute(self, context: 'AgentContext', plan_as_json: str) -> str:
+    async def _execute(self, context: 'AgentContext', plan: Dict[str, Any]) -> str:
         """
-        Executes the tool by parsing JSON, using a converter to create a TaskPlan,
+        Executes the tool by validating the plan object, using a converter to create a TaskPlan,
         and loading it onto the task board.
         """
         logger.info(f"Agent '{context.agent_id}' is executing PublishTaskPlan.")
@@ -106,14 +83,13 @@ class PublishTaskPlan(BaseTool):
             return error_msg
             
         try:
-            # Step 1: Parse the input string and validate it against the "Definition" schema.
-            plan_data = json.loads(plan_as_json)
-            plan_definition = TaskPlanDefinition(**plan_data)
+            # Step 1: The input is now a dictionary, so we can directly validate it.
+            plan_definition_schema = TaskPlanDefinitionSchema(**plan)
 
             # Step 2: Use the dedicated converter to create the internal TaskPlan object.
-            final_plan = TaskPlanConverter.from_definition(plan_definition)
+            final_plan = TaskPlanConverter.from_schema(plan_definition_schema)
 
-        except (json.JSONDecodeError, ValidationError, ValueError) as e:
+        except (ValidationError, ValueError) as e:
             error_msg = f"Invalid or inconsistent task plan provided: {e}"
             logger.warning(f"Agent '{context.agent_id}' provided an invalid plan for PublishTaskPlan: {error_msg}")
             return f"Error: {error_msg}"
@@ -123,9 +99,14 @@ class PublishTaskPlan(BaseTool):
             return f"Error: {error_msg}"
 
         if task_board.load_task_plan(final_plan):
-            success_msg = f"Successfully loaded new task plan '{final_plan.plan_id}' onto the team's task board."
-            logger.info(f"Agent '{context.agent_id}': {success_msg}")
-            return success_msg
+            logger.info(f"Agent '{context.agent_id}': Task plan published successfully. Returning new board status.")
+            # Convert the new state of the board back to an LLM-friendly schema and return it.
+            status_report_schema = TaskBoardConverter.to_schema(task_board)
+            if status_report_schema:
+                return status_report_schema.model_dump_json(indent=2)
+            else:
+                # This is a fallback case, shouldn't happen right after a successful load.
+                return "Task plan published successfully, but could not generate status report."
         else:
             error_msg = "Failed to load task plan onto the board. This can happen if the board implementation rejects the plan."
             logger.error(f"Agent '{context.agent_id}': {error_msg}")

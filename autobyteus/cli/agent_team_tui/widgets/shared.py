@@ -1,10 +1,10 @@
-# file: autobyteus/autobyteus/cli/agent_team_tui/widgets/shared.py
 """
 Shared constants and data for TUI widgets.
 """
 from typing import Dict
 from autobyteus.agent.phases import AgentOperationalPhase
 from autobyteus.agent_team.phases import AgentTeamOperationalPhase
+from autobyteus.task_management.base_task_board import TaskStatus
 
 AGENT_PHASE_ICONS: Dict[AgentOperationalPhase, str] = {
     AgentOperationalPhase.UNINITIALIZED: "⚪",
@@ -30,6 +30,14 @@ TEAM_PHASE_ICONS: Dict[AgentTeamOperationalPhase, str] = {
     AgentTeamOperationalPhase.SHUTTING_DOWN: "🌙",
     AgentTeamOperationalPhase.SHUTDOWN_COMPLETE: "⚫",
     AgentTeamOperationalPhase.ERROR: "❗",
+}
+
+TASK_STATUS_ICONS: Dict[TaskStatus, str] = {
+    TaskStatus.NOT_STARTED: "⚪",
+    TaskStatus.IN_PROGRESS: "⏳",
+    TaskStatus.COMPLETED: "✅",
+    TaskStatus.FAILED: "❌",
+    TaskStatus.BLOCKED: "🔒",
 }
 
 # Main component icons

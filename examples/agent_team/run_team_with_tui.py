@@ -30,6 +30,11 @@ try:
     from autobyteus.llm.llm_factory import default_llm_factory, LLMFactory
     from autobyteus.agent_team.agent_team_builder import AgentTeamBuilder
     from autobyteus.cli.agent_team_tui.app import AgentTeamApp
+    from autobyteus.task_management.tools import (
+        PublishTaskPlan,
+        GetTaskBoardStatus,
+        UpdateTaskStatus,
+    )
 except ImportError as e:
     print(f"Error importing autobyteus components: {e}", file=sys.stderr)
     sys.exit(1)
@@ -70,16 +75,27 @@ def create_demo_team(model_name: str):
 
     # Coordinator Agent Config - Gets its own LLM instance
     coordinator_config = AgentConfig(
-        name="Coordinator",
-        role="Project Manager",
+        name="ProjectManager",
+        role="Coordinator",
         description="Delegates tasks to the team to fulfill the user's request.",
         llm_instance=default_llm_factory.create_llm(model_identifier=model_name),
         system_prompt=(
-            "You are a project manager. Your job is to understand the user's request and delegate tasks to your team. "
-            "The system will provide you with a team manifest. Use your tools to communicate with your team.\n\n"
-            "Here are your available tools:\n"
+            "You are an AI agent. Your name is 'ProjectManager'. Your role is to take a user request, create a plan, and manage its execution by your team.\n\n"
+            "### Your Team\n"
+            "Here is your team member:\n"
+            "{{team}}\n\n"
+            "### Your Mission Workflow\n"
+            "1.  **Analyze and Plan**: Decompose the user's request into a single task for your 'FactChecker' agent.\n"
+            "2.  **Publish the Plan**: You MUST use the `PublishTaskPlan` tool to submit your plan to the team's shared task board. This is a critical first step.\n"
+            "3.  **Delegate and Inform**: Use the `SendMessageTo` tool to notify your 'FactChecker' agent that they have a new task.\n"
+            "4.  **Wait for Completion**: Await a message from 'FactChecker' that they have completed the task. DO NOT ask for status updates.\n"
+            "5.  **Report to User**: Once you receive the completion message, you can use `GetTaskBoardStatus` to review the results and then report them back to the user.\n\n"
+            "### CRITICAL RULES\n"
+            "- You MUST use the agent's unique, case-sensitive `name` ('FactChecker') when using tools.\n\n"
+            "### Your Tools\n"
             "{{tools}}"
-        )
+        ),
+        tools=[PublishTaskPlan(), GetTaskBoardStatus()],
     )
 
     # Specialist Agent Config (FactChecker) - Gets its own LLM instance
@@ -89,13 +105,19 @@ def create_demo_team(model_name: str):
         description="An agent with a limited, internal knowledge base for answering direct factual questions.",
         llm_instance=default_llm_factory.create_llm(model_identifier=model_name),
         system_prompt=(
-            "You are a fact-checking bot. You have the following knowledge:\n"
+            "You are an AI agent. Your name is 'FactChecker'. You are a fact-checking specialist.\n"
+            "You will be notified by 'ProjectManager' when a task is ready for you. When you receive a message, you must first use `GetTaskBoardStatus` to find the task assigned to you.\n\n"
+            "### Your Knowledge Base\n"
             "- The capital of France is Paris.\n"
-            "- The tallest mountain on Earth is Mount Everest.\n"
-            "If asked something you don't know, say 'I do not have information on that topic.'\n\n"
+            "- The tallest mountain on Earth is Mount Everest.\n\n"
+            "### Rules\n"
+            "- If asked something you don't know, you MUST respond with: 'I do not have information on that topic.'\n"
+            "- After answering, you MUST use the `UpdateTaskStatus` tool to mark your task as 'completed'.\n"
+            "- Finally, you MUST use `SendMessageTo` to notify 'ProjectManager' that you are finished.\n\n"
             "Here is the manifest of tools available to you:\n"
             "{{tools}}"
-        )
+        ),
+        tools=[UpdateTaskStatus(), GetTaskBoardStatus()],
     )
 
     # Build the agent team

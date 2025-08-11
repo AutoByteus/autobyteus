@@ -1,5 +1,5 @@
 # file: autobyteus/autobyteus/tools/usage/formatters/default_json_example_formatter.py
-from typing import Dict, Any, TYPE_CHECKING
+from typing import Dict, Any, TYPE_CHECKING, List, Optional
 
 from autobyteus.tools.parameter_schema import ParameterType, ParameterDefinition
 from .base_formatter import BaseExampleFormatter
@@ -9,8 +9,8 @@ if TYPE_CHECKING:
 
 class DefaultJsonExampleFormatter(BaseExampleFormatter):
     """
-    Formats a tool usage example into a generic JSON format, inspired by
-    the default XML format.
+    Formats a tool usage example into a generic JSON format.
+    It intelligently generates detailed examples for complex object schemas.
     """
 
     def provide(self, tool_definition: 'ToolDefinition') -> Dict:
@@ -20,6 +20,8 @@ class DefaultJsonExampleFormatter(BaseExampleFormatter):
 
         if arg_schema and arg_schema.parameters:
             for param_def in arg_schema.parameters:
+                # Always include required parameters in the example.
+                # Also include optional parameters that have a default value to show common usage.
                 if param_def.required or param_def.default_value is not None:
                     arguments[param_def.name] = self._generate_placeholder_value(param_def)
 
@@ -31,6 +33,12 @@ class DefaultJsonExampleFormatter(BaseExampleFormatter):
         }
 
     def _generate_placeholder_value(self, param_def: ParameterDefinition) -> Any:
+        # If an object parameter has a detailed schema, generate a structured example from it.
+        if param_def.param_type == ParameterType.OBJECT and param_def.object_schema:
+            # We pass the full schema document to allow for resolving $refs
+            return DefaultJsonExampleFormatter._generate_example_from_schema(param_def.object_schema, param_def.object_schema)
+        
+        # Fallback to simple placeholder generation for primitives or objects without schemas.
         if param_def.default_value is not None: return param_def.default_value
         if param_def.param_type == ParameterType.STRING: return f"example_{param_def.name}"
         if param_def.param_type == ParameterType.INTEGER: return 123
@@ -40,3 +48,70 @@ class DefaultJsonExampleFormatter(BaseExampleFormatter):
         if param_def.param_type == ParameterType.OBJECT: return {"key": "value"}
         if param_def.param_type == ParameterType.ARRAY: return ["item1", "item2"]
         return "placeholder"
+
+    @staticmethod
+    def _generate_example_from_schema(sub_schema: Dict[str, Any], full_schema: Dict[str, Any]) -> Any:
+        """
+        Recursively generates an example value from a JSON schema dictionary.
+        This is a static method so it can be reused by other formatters.
+        """
+        if "$ref" in sub_schema:
+            ref_path = sub_schema["$ref"]
+            try:
+                # Resolve the reference, e.g., "#/$defs/MySchema"
+                parts = ref_path.lstrip("#/").split("/")
+                resolved_schema = full_schema
+                for part in parts:
+                    resolved_schema = resolved_schema[part]
+                return DefaultJsonExampleFormatter._generate_example_from_schema(resolved_schema, full_schema)
+            except (KeyError, IndexError):
+                return {"error": f"Could not resolve schema reference: {ref_path}"}
+
+        schema_type = sub_schema.get("type")
+        
+        if "default" in sub_schema:
+            return sub_schema["default"]
+        
+        if "enum" in sub_schema and sub_schema["enum"]:
+            return sub_schema["enum"][0]
+
+        if schema_type == "object":
+            example_obj = {}
+            properties = sub_schema.get("properties", {})
+            required_fields = sub_schema.get("required", [])
+            for prop_name, prop_schema in properties.items():
+                # Include required fields and a subset of optional fields for a concise example.
+                if prop_name in required_fields:
+                    example_obj[prop_name] = DefaultJsonExampleFormatter._generate_example_from_schema(prop_schema, full_schema)
+            return example_obj
+        
+        elif schema_type == "array":
+            items_schema = sub_schema.get("items")
+            if isinstance(items_schema, dict):
+                # Generate one example item for the array to keep it concise
+                return [DefaultJsonExampleFormatter._generate_example_from_schema(items_schema, full_schema)]
+            else:
+                return ["example_item_1"]
+
+        elif schema_type == "string":
+            description = sub_schema.get("description", "")
+            if "e.g." in description.lower():
+                try:
+                    return description.split("e.g.,")[1].split(')')[0].strip().strip("'\"")
+                except IndexError:
+                    pass
+            return "example_string"
+        
+        elif schema_type == "integer":
+            return 1
+            
+        elif schema_type == "number":
+            return 1.1
+            
+        elif schema_type == "boolean":
+            return True
+        
+        elif schema_type == "null":
+            return None
+
+        return "unknown_type"

@@ -1,4 +1,3 @@
-# file: autobyteus/autobyteus/task_management/converters/task_board_converter.py
 """
 Contains converters for translating internal task management objects into
 LLM-friendly Pydantic schemas.
@@ -7,7 +6,7 @@ import logging
 from typing import Optional
 
 from autobyteus.task_management.base_task_board import BaseTaskBoard
-from autobyteus.task_management.schemas import TaskStatusReport, TaskStatusReportItem
+from autobyteus.task_management.schemas import TaskStatusReportSchema, TaskStatusReportItemSchema
 
 logger = logging.getLogger(__name__)
 
@@ -15,15 +14,15 @@ class TaskBoardConverter:
     """A converter to transform TaskBoard state into LLM-friendly schemas."""
 
     @staticmethod
-    def to_status_report(task_board: BaseTaskBoard) -> Optional[TaskStatusReport]:
+    def to_schema(task_board: BaseTaskBoard) -> Optional[TaskStatusReportSchema]:
         """
-        Converts the current state of a TaskBoard into a TaskStatusReport.
+        Converts the current state of a TaskBoard into a TaskStatusReportSchema.
 
         Args:
             task_board: The task board instance to convert.
 
         Returns:
-            A TaskStatusReport object if a plan is loaded, otherwise None.
+            A TaskStatusReportSchema object if a plan is loaded, otherwise None.
         """
         internal_status = task_board.get_status_overview()
         plan = task_board.current_plan
@@ -44,7 +43,7 @@ class TaskBoardConverter:
             # should have been hydrated already.
             dep_names = [id_to_name_map[dep_id] for dep_id in task.dependencies]
             
-            report_item = TaskStatusReportItem(
+            report_item = TaskStatusReportItemSchema(
                 task_name=task.task_name,
                 assignee_name=task.assignee_name,
                 description=task.description,
@@ -54,10 +53,10 @@ class TaskBoardConverter:
             report_items.append(report_item)
 
         # 3. Assemble the final report object
-        status_report = TaskStatusReport(
+        status_report = TaskStatusReportSchema(
             overall_goal=plan.overall_goal,
             tasks=report_items
         )
         
-        logger.debug(f"Successfully converted TaskBoard state to TaskStatusReport for team '{task_board.team_id}'.")
+        logger.debug(f"Successfully converted TaskBoard state to TaskStatusReportSchema for team '{task_board.team_id}'.")
         return status_report

@@ -1,4 +1,4 @@
-# file: autobyteus/tests/unit_tests/tools/task_management/test_manage_artifact.py
+# file: autobyteus/tests/unit_tests/task_management/tools/test_manage_artifact.py
 import pytest
 from unittest.mock import Mock
 
@@ -53,7 +53,7 @@ async def test_execute_create_new_artifact_success(tool_instance: ManageArtifact
     }
     
     # Act
-    result = await tool_instance.execute(mock_agent_context, **artifact_details)
+    result = await tool_instance._execute(mock_agent_context, **artifact_details)
     
     # Assert
     assert "Successfully created new artifact 'My New Code'" in result
@@ -76,10 +76,10 @@ async def test_execute_create_artifact_missing_required_args(tool_instance: Mana
     mock_agent_context.custom_data["team_context"] = mock_team_context
     
     # Act & Assert
-    result1 = await tool_instance.execute(mock_agent_context, description="Missing name and type")
+    result1 = await tool_instance._execute(mock_agent_context, description="Missing name and type")
     assert "Error: 'name' and 'artifact_type' are required" in result1
     
-    result2 = await tool_instance.execute(mock_agent_context, name="Just a name")
+    result2 = await tool_instance._execute(mock_agent_context, name="Just a name")
     assert "Error: 'name' and 'artifact_type' are required" in result2
 
 @pytest.mark.asyncio
@@ -104,7 +104,7 @@ async def test_execute_update_existing_artifact_success(tool_instance: ManageArt
     }
     
     # Act
-    result = await tool_instance.execute(mock_agent_context, **update_details)
+    result = await tool_instance._execute(mock_agent_context, **update_details)
     
     # Assert
     assert f"Successfully updated artifact 'Old Name' (ID: {existing_id})" in result
@@ -122,7 +122,7 @@ async def test_execute_update_non_existent_artifact(tool_instance: ManageArtifac
     mock_agent_context.custom_data["team_context"] = mock_team_context
     
     # Act
-    result = await tool_instance.execute(mock_agent_context, artifact_id="art_fake_456", state=ArtifactState.COMPLETED.value)
+    result = await tool_instance._execute(mock_agent_context, artifact_id="art_fake_456", state=ArtifactState.COMPLETED.value)
     
     # Assert
     assert "Error: Artifact with ID 'art_fake_456' not found" in result

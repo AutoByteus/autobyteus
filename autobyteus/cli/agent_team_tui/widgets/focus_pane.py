@@ -1,4 +1,3 @@
-# file: autobyteus/autobyteus/cli/agent_team_tui/widgets/focus_pane.py
 """
 Defines the main focus pane widget for displaying detailed logs or summaries.
 """
@@ -15,6 +14,8 @@ from textual.containers import VerticalScroll, Horizontal
 
 from autobyteus.agent.phases import AgentOperationalPhase
 from autobyteus.agent_team.phases import AgentTeamOperationalPhase
+from autobyteus.task_management.base_task_board import TaskStatus
+from autobyteus.task_management.task_plan import Task
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent, StreamEventType as AgentStreamEventType
 from autobyteus.agent.streaming.stream_event_payloads import (
     AgentOperationalPhaseTransitionData, AssistantChunkData, AssistantCompleteResponseData,
@@ -25,6 +26,7 @@ from .shared import (
     USER_ICON, ASSISTANT_ICON, TEAM_ICON, AGENT_ICON
 )
 from . import renderables
+from .task_board_panel import TaskBoardPanel
 
 logger = logging.getLogger(__name__)
 
@@ -162,9 +164,10 @@ class FocusPane(Static):
     async def update_content(self, node_data: Dict[str, Any], history: List[Any], 
                              pending_approval: Optional[ToolInvocationApprovalRequestedData], 
                              all_agent_phases: Dict[str, AgentOperationalPhase], 
-                             all_team_phases: Dict[str, AgentTeamOperationalPhase]):
-        """The main method to update the entire pane based on new state.
-        This is called when focus SWITCHES, or when data for a focused team is REFRESHED."""
+                             all_team_phases: Dict[str, AgentTeamOperationalPhase],
+                             task_plan: Optional[List[Task]],
+                             task_statuses: Optional[Dict[str, TaskStatus]]):
+        """The main method to update the entire pane based on new state."""
         self.flush_stream_buffers()
 
         self._focused_node_data = node_data
@@ -175,7 +178,6 @@ class FocusPane(Static):
         log_container = self.query_one("#focus-pane-log-container")
         await log_container.remove_children()
 
-        # Reset streaming state
         self._thinking_widget = None
         self._thinking_text = None
         self._assistant_content_widget = None
@@ -189,11 +191,13 @@ class FocusPane(Static):
             if self._pending_approval_data:
                 await self._show_approval_prompt()
         elif self._focused_node_data.get("type") in ['team', 'subteam']:
-            await self._render_team_dashboard(node_data, all_agent_phases, all_team_phases)
+            await self._render_team_dashboard(node_data, all_agent_phases, all_team_phases, task_plan, task_statuses)
 
     async def _render_team_dashboard(self, node_data: Dict[str, Any], 
                                          all_agent_phases: Dict[str, AgentOperationalPhase],
-                                         all_team_phases: Dict[str, AgentTeamOperationalPhase]):
+                                         all_team_phases: Dict[str, AgentTeamOperationalPhase],
+                                         task_plan: Optional[List[Task]],
+                                         task_statuses: Optional[Dict[str, TaskStatus]]):
         """Renders a static summary dashboard for a team or sub-team."""
         log_container = self.query_one("#focus-pane-log-container")
         
@@ -205,6 +209,8 @@ class FocusPane(Static):
             info_text.append(f"Role: {node_data['role']}\n")
         info_text.append(f"Status: {phase_icon} {phase.value}")
         await log_container.mount(Static(Panel(info_text, title="Team Info", border_style="green", title_align="left")))
+
+        await log_container.mount(TaskBoardPanel(tasks=task_plan, statuses=task_statuses, team_name=node_data['name']))
 
         children_data = node_data.get("children", {})
         if children_data:
@@ -221,9 +227,8 @@ class FocusPane(Static):
             await log_container.mount(Static(Panel(team_text, title="Team Status", border_style="blue", title_align="left")))
 
     async def _close_thinking_block(self, scroll: bool = True):
-        """Finalizes and closes the current thinking block if it's open."""
         if self._thinking_widget and self._thinking_text:
-            self.flush_stream_buffers() # Ensure any buffered reasoning is flushed first
+            self.flush_stream_buffers()
             self._thinking_text.append("\n</Thinking>", style="dim italic cyan")
             self._thinking_widget.update(self._thinking_text)
             if scroll:
@@ -232,29 +237,24 @@ class FocusPane(Static):
             self._thinking_text = None
 
     def flush_stream_buffers(self):
-        """Flushes the content of the stream buffers to the UI."""
         scrolled = False
         if self._reasoning_buffer and self._thinking_widget and self._thinking_text:
             self._thinking_text.append(self._reasoning_buffer)
             self._thinking_widget.update(self._thinking_text)
             self._reasoning_buffer = ""
             scrolled = True
-
         if self._content_buffer and self._assistant_content_widget and self._assistant_content_text:
             self._assistant_content_text.append(self._content_buffer)
             self._assistant_content_widget.update(self._assistant_content_text)
             self._content_buffer = ""
             scrolled = True
-        
         if scrolled:
             self.query_one("#focus-pane-log-container").scroll_end(animate=False)
 
     async def add_agent_event(self, event: AgentStreamEvent):
-        """Adds a single agent event to the log view, handling stream state correctly."""
         log_container = self.query_one("#focus-pane-log-container")
         event_type = event.event_type
 
-        # Handle streaming content events
         if event_type == AgentStreamEventType.ASSISTANT_CHUNK:
             data: AssistantChunkData = event.data
             if data.reasoning:
@@ -265,71 +265,53 @@ class FocusPane(Static):
                     self._thinking_widget = Static(self._thinking_text)
                     await log_container.mount(self._thinking_widget)
                 self._reasoning_buffer += data.reasoning
-
             if data.content:
-                if self._thinking_widget:
-                    await self._close_thinking_block()
+                if self._thinking_widget: await self._close_thinking_block()
                 if self._assistant_content_widget is None:
                     await log_container.mount(Static(""))
-                    self._assistant_content_text = Text()
-                    self._assistant_content_text.append(f"{ASSISTANT_ICON} assistant: ", style="bold green")
+                    self._assistant_content_text = Text(f"{ASSISTANT_ICON} assistant: ", style="bold green")
                     self._assistant_content_widget = Static(self._assistant_content_text)
                     await log_container.mount(self._assistant_content_widget)
                 self._content_buffer += data.content
-            return  # This event is handled, do nothing more.
+            return
 
-        # Handle the explicit end of a stream
         if event_type == AgentStreamEventType.ASSISTANT_COMPLETE_RESPONSE:
             was_streaming_content = self._assistant_content_widget is not None
             self.flush_stream_buffers()
             await self._close_thinking_block()
             self._assistant_content_widget = None
             self._assistant_content_text = None
-
-            # If we weren't streaming, it means this is a non-streamed response. We should render it.
             if not was_streaming_content:
                 renderables_list = renderables.render_assistant_complete_response(event.data)
                 if renderables_list:
                     await log_container.mount(Static(""))
-                    for item in renderables_list:
-                        await log_container.mount(Static(item))
+                    for item in renderables_list: await log_container.mount(Static(item))
                     log_container.scroll_end(animate=False)
-            return  # This event's purpose is to end the stream.
+            return
 
-        # For all other events, first check if they should break an ongoing stream.
         is_stream_breaking_event = event_type in [
             AgentStreamEventType.TOOL_INTERACTION_LOG_ENTRY,
             AgentStreamEventType.TOOL_INVOCATION_AUTO_EXECUTING,
             AgentStreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED,
             AgentStreamEventType.ERROR_EVENT,
         ]
-
         if is_stream_breaking_event:
-            # Finalize any open assistant block before rendering this event.
             self.flush_stream_buffers()
             await self._close_thinking_block()
             self._assistant_content_widget = None
             self._assistant_content_text = None
         
-        # Now, render the event if it has a visual representation.
         renderable = None
-        
-        if event_type == AgentStreamEventType.TOOL_INTERACTION_LOG_ENTRY:
-            renderable = renderables.render_tool_interaction_log(event.data)
-        elif event_type == AgentStreamEventType.TOOL_INVOCATION_AUTO_EXECUTING:
-            renderable = renderables.render_tool_auto_executing(event.data)
+        if event_type == AgentStreamEventType.TOOL_INTERACTION_LOG_ENTRY: renderable = renderables.render_tool_interaction_log(event.data)
+        elif event_type == AgentStreamEventType.TOOL_INVOCATION_AUTO_EXECUTING: renderable = renderables.render_tool_auto_executing(event.data)
         elif event_type == AgentStreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED:
             renderable = renderables.render_tool_approval_request(event.data)
             self._pending_approval_data = event.data
             await self._show_approval_prompt()
-        elif event_type == AgentStreamEventType.ERROR_EVENT:
-            renderable = renderables.render_error(event.data)
-        elif event_type in [AgentStreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION, AgentStreamEventType.AGENT_IDLE]:
-            # These are informational and do not have a renderable in the log pane.
-            pass
-
+        elif event_type == AgentStreamEventType.ERROR_EVENT: renderable = renderables.render_error(event.data)
+        
         if renderable:
-            await log_container.mount(Static("")) # Add spacer
+            await log_container.mount(Static(""))
             await log_container.mount(Static(renderable))
 
         log_container.scroll_end(animate=False)

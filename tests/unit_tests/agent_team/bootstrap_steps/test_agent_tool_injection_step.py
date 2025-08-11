@@ -3,44 +3,54 @@ import pytest
 from unittest.mock import MagicMock
 
 from autobyteus.agent_team.bootstrap_steps.agent_tool_injection_step import AgentToolInjectionStep
-from autobyteus.agent_team.context import AgentTeamContext, AgentTeamConfig
+from autobyteus.agent_team.context import AgentTeamContext, AgentTeamConfig, TeamNodeConfig
 from autobyteus.agent.context import AgentConfig
 from autobyteus.task_management.tools import PublishTaskPlan, UpdateTaskStatus
+from autobyteus.agent.message.send_message_to import SendMessageTo
 
 @pytest.fixture
 def tool_injection_step():
     return AgentToolInjectionStep()
 
+def _rebuild_context_with_new_config(context: AgentTeamContext, new_config: AgentTeamConfig):
+    """Helper to replace the config in a context."""
+    context.config = new_config
+    context._node_config_map = None
+
 @pytest.mark.asyncio
 async def test_execute_prepares_final_configs(
     tool_injection_step: AgentToolInjectionStep,
-    agent_team_context: AgentTeamContext
+    agent_team_context: AgentTeamContext,
+    agent_config_factory
 ):
     """
     Tests that the step correctly processes agent nodes, injects tools,
     and stores the final configs in the runtime state.
     """
     # --- Arrange ---
+    # Create agent definitions with their own specific tools
+    coordinator_def = agent_config_factory("Coordinator")
+    coordinator_def.tools = [PublishTaskPlan()] # Coordinator starts with its own tool
+
+    member_def = agent_config_factory("Member")
+    member_def.tools = [UpdateTaskStatus()] # Member starts with its own tool
     
+    coordinator_node = TeamNodeConfig(node_definition=coordinator_def)
+    member_node = TeamNodeConfig(node_definition=member_def)
+
     # Create a mock sub-team node to ensure it gets skipped
-    sub_team_node = MagicMock()
+    sub_team_node = MagicMock(spec=TeamNodeConfig)
+    sub_team_node.name = "SubTeam"
     sub_team_node.is_sub_team = True
     
-    # THE FIX: Instead of modifying the frozen config, we create a new one
-    # for this specific test case with the structure we need.
-    original_config = agent_team_context.config
-    new_nodes_tuple = original_config.nodes + (sub_team_node,)
-    
-    # Create a new, unfrozen config object for the test's purpose
-    test_specific_config = AgentTeamConfig(
-        name=original_config.name,
-        description=original_config.description,
-        nodes=new_nodes_tuple,
-        coordinator_node=original_config.coordinator_node,
-        role=original_config.role
+    # Rebuild the context with this specific configuration
+    new_team_config = AgentTeamConfig(
+        name="TestTeamWithTools",
+        description="A test team",
+        nodes=(coordinator_node, member_node, sub_team_node),
+        coordinator_node=coordinator_node
     )
-    # Now, we replace the config object on the context itself.
-    agent_team_context.config = test_specific_config
+    _rebuild_context_with_new_config(agent_team_context, new_team_config)
 
     # Set up a prepared prompt for the coordinator
     prepared_prompt = "This is the special coordinator prompt."
@@ -57,33 +67,34 @@ async def test_execute_prepares_final_configs(
     assert len(final_configs) == 2
     
     # --- Verify Coordinator Config ---
-    coordinator_name = agent_team_context.config.coordinator_node.name
-    coord_config = final_configs.get(coordinator_name)
+    coord_config = final_configs.get(coordinator_node.name)
     assert coord_config is not None
     assert isinstance(coord_config, AgentConfig)
     
-    # Check for coordinator-specific tools
+    # Check that original tools are preserved and SendMessageTo is added
     coord_tool_names = {t.get_name() for t in coord_config.tools}
     assert PublishTaskPlan.get_name() in coord_tool_names
-    assert UpdateTaskStatus.get_name() not in coord_tool_names # Should not have member tools
+    assert SendMessageTo.get_name() in coord_tool_names
+    assert len(coord_tool_names) == 2
     
     # Check that the special prompt was applied
     assert coord_config.system_prompt == prepared_prompt
+    
+    # Check that team context was injected
+    assert coord_config.initial_custom_data["team_context"] is agent_team_context
 
     # --- Verify Member Config ---
-    member_node = next(n for n in agent_team_context.config.nodes if n.name != coordinator_name and not n.is_sub_team)
     member_config = final_configs.get(member_node.name)
     assert member_config is not None
     assert isinstance(member_config, AgentConfig)
 
-    # Check for member-specific tools
+    # Check that original tools are preserved and SendMessageTo is added
     member_tool_names = {t.get_name() for t in member_config.tools}
     assert UpdateTaskStatus.get_name() in member_tool_names
-    assert PublishTaskPlan.get_name() not in member_tool_names # Should not have coordinator tools
+    assert SendMessageTo.get_name() in member_tool_names
+    assert len(member_tool_names) == 2
 
-    # --- Verify for both ---
-    # THE FIX: Check the 'initial_custom_data' attribute on the AgentConfig object.
-    assert coord_config.initial_custom_data["team_context"] is agent_team_context
+    # Check that team context was injected
     assert member_config.initial_custom_data["team_context"] is agent_team_context
 
 @pytest.mark.asyncio

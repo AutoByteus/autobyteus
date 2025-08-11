@@ -1,9 +1,8 @@
-# file: autobyteus/autobyteus/task_management/schemas/task_status_report.py
 """
 Defines the Pydantic models for LLM-friendly status reports.
 
 These models are designed to be returned by tools to the LLM, providing a
-clear and consistent structure that mirrors the input schemas (like TaskPlanDefinition)
+clear and consistent structure that mirrors the input schemas (like TaskPlanDefinitionSchema)
 but includes dynamic state information (like task status).
 """
 from typing import List
@@ -11,7 +10,7 @@ from pydantic import BaseModel, Field
 
 from autobyteus.task_management.base_task_board import TaskStatus
 
-class TaskStatusReportItem(BaseModel):
+class TaskStatusReportItemSchema(BaseModel):
     """Represents the status of a single task in an LLM-friendly format."""
     task_name: str = Field(..., description="The unique, descriptive name for this task.")
     assignee_name: str = Field(..., description="The name of the agent or sub-team assigned to this task.")
@@ -19,7 +18,7 @@ class TaskStatusReportItem(BaseModel):
     dependencies: List[str] = Field(..., description="A list of 'task_name' values for tasks that must be completed first.")
     status: TaskStatus = Field(..., description="The current status of this task.")
 
-class TaskStatusReport(BaseModel):
+class TaskStatusReportSchema(BaseModel):
     """Represents a full task board status report in an LLM-friendly format."""
     overall_goal: str = Field(..., description="The high-level objective of the entire plan.")
-    tasks: List[TaskStatusReportItem] = Field(..., description="The list of tasks and their current statuses.")
+    tasks: List[TaskStatusReportItemSchema] = Field(..., description="The list of tasks and their current statuses.")
