@@ -4,11 +4,11 @@ from setuptools import setup, find_packages
 common_dependencies = [
     "aiohttp",
     "anthropic==0.37.1",
-    "autobyteus-llm-client==1.1.1",
+    "autobyteus-llm-client==1.1.2",
     "beautifulsoup4>=4.12.2",
     "boto3",
     "botocore",
-    "brui-core==1.0.8",
+    "brui-core==1.0.9",
     "certifi==2025.4.26",
     "google-api-python-client",
     "google-generativeai",
@@ -28,7 +28,7 @@ common_dependencies = [
 
 setup(
     name="autobyteus",
-    version="1.1.4",
+    version="1.1.5",
     packages=find_packages(exclude=["tests", "tests.*"]),
     include_package_data=True,
     install_requires=[
