@@ -95,10 +95,20 @@ class TUIStateStore:
                 self._task_statuses[team_name_key] = {task.task_id: TaskStatus.NOT_STARTED for task in event.data.plan.tasks}
                 logger.debug(f"TUI State: Updated task plan for '{team_name_key}' with {len(event.data.plan.tasks)} tasks.")
             elif isinstance(event.data, TaskStatusUpdatedEvent):
+                # Update status
                 if team_name_key not in self._task_statuses:
                     self._task_statuses[team_name_key] = {}
                 self._task_statuses[team_name_key][event.data.task_id] = event.data.new_status
                 logger.debug(f"TUI State: Updated status for task '{event.data.task_id}' in team '{team_name_key}' to {event.data.new_status}.")
+                
+                # Update deliverables if they are provided in the event.
+                if event.data.deliverables is not None:
+                    if team_name_key in self._task_plans:
+                        for task in self._task_plans[team_name_key]:
+                            if task.task_id == event.data.task_id:
+                                task.file_deliverables = event.data.deliverables
+                                logger.debug(f"TUI State: Synced deliverables for task '{event.data.task_id}' in team '{team_name_key}'.")
+                                break
             return
 
         if isinstance(event.data, AgentEventRebroadcastPayload):
