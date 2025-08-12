@@ -32,7 +32,7 @@ def test_bootstrapper_initialization_default(caplog):
          patch('autobyteus.agent_team.bootstrap_steps.agent_team_bootstrapper.TeamContextInitializationStep') as mock_ctx_init, \
          patch('autobyteus.agent_team.bootstrap_steps.agent_team_bootstrapper.TaskNotifierInitializationStep') as mock_notifier_init, \
          patch('autobyteus.agent_team.bootstrap_steps.agent_team_bootstrapper.CoordinatorPromptPreparationStep') as mock_prompt_prep, \
-         patch('autobyteus.agent_team.bootstrap_steps.agent_team_bootstrapper.AgentToolInjectionStep') as mock_tool_inject, \
+         patch('autobyteus.agent_team.bootstrap_steps.agent_team_bootstrapper.AgentConfigurationPreparationStep') as mock_config_prep, \
          patch('autobyteus.agent_team.bootstrap_steps.agent_team_bootstrapper.CoordinatorInitializationStep') as mock_coord_init:
         
         bootstrapper = AgentTeamBootstrapper()
@@ -41,7 +41,7 @@ def test_bootstrapper_initialization_default(caplog):
         mock_ctx_init.assert_called_once()
         mock_notifier_init.assert_called_once()
         mock_prompt_prep.assert_called_once()
-        mock_tool_inject.assert_called_once()
+        mock_config_prep.assert_called_once()
         mock_coord_init.assert_called_once()
         
         assert len(bootstrapper.bootstrap_steps) == 6

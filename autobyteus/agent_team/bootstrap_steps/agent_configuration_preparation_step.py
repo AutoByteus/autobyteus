@@ -1,11 +1,10 @@
-# file: autobyteus/autobyteus/agent_team/bootstrap_steps/agent_tool_injection_step.py
+# file: autobyteus/autobyteus/agent_team/bootstrap_steps/agent_configuration_preparation_step.py
 import logging
 from typing import TYPE_CHECKING
 
 from autobyteus.agent_team.bootstrap_steps.base_agent_team_bootstrap_step import BaseAgentTeamBootstrapStep
 from autobyteus.agent.context import AgentConfig
 from autobyteus.agent.message.send_message_to import SendMessageTo
-from autobyteus.tools.registry import default_tool_registry
 
 if TYPE_CHECKING:
     from autobyteus.agent_team.context.agent_team_context import AgentTeamContext
@@ -13,20 +12,19 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-class AgentToolInjectionStep(BaseAgentTeamBootstrapStep):
+class AgentConfigurationPreparationStep(BaseAgentTeamBootstrapStep):
     """
     Bootstrap step to prepare the final, immutable configuration for every
-    agent in the team. It injects team-aware tools and shared context.
-    This step runs eagerly at startup to allow for early validation and
-    predictable behavior.
+    agent in the team. It injects team-specific context and applies the final
+    coordinator prompt. It no longer injects tools.
     """
     async def execute(self, context: 'AgentTeamContext', phase_manager: 'AgentTeamPhaseManager') -> bool:
         team_id = context.team_id
-        logger.info(f"Team '{team_id}': Executing AgentToolInjectionStep to prepare all agent configurations.")
+        logger.info(f"Team '{team_id}': Executing AgentConfigurationPreparationStep to prepare all agent configurations.")
         
         team_manager = context.team_manager
         if not team_manager:
-            logger.error(f"Team '{team_id}': TeamManager not found in context. Cannot inject tools.")
+            logger.error(f"Team '{team_id}': TeamManager not found in context during agent config preparation.")
             return False
 
         try:
@@ -54,17 +52,10 @@ class AgentToolInjectionStep(BaseAgentTeamBootstrapStep):
                 final_config.initial_custom_data["team_context"] = context
                 logger.debug(f"Team '{team_id}': Injected shared team_context into initial_custom_data for agent '{unique_name}'.")
 
-                # --- Tool Injection ---
-                # The user is now responsible for explicitly defining all tools an agent
-                # needs in its AgentConfig. The framework is only responsible for injecting
-                # the fundamental SendMessageTo tool, which is always required for team members.
-                tools_to_add = final_config.tools[:]
-
-                send_message_tool = default_tool_registry.create_tool(SendMessageTo.get_name())
-                if isinstance(send_message_tool, SendMessageTo):
-                    send_message_tool.set_team_manager(team_manager)
-                tools_to_add.append(send_message_tool)
-
+                # --- Tool Injection Logic Removed ---
+                # The user is now fully responsible for defining all tools an agent needs
+                # in its AgentConfig. The framework no longer implicitly injects SendMessageTo.
+                
                 # If this is the coordinator, apply the prompt that was prepared in the previous step.
                 if node_config_wrapper == coordinator_node_config:
                     coordinator_prompt = context.state.prepared_coordinator_prompt
@@ -72,12 +63,9 @@ class AgentToolInjectionStep(BaseAgentTeamBootstrapStep):
                         final_config.system_prompt = coordinator_prompt
                         logger.info(f"Team '{team_id}': Applied dynamic prompt to coordinator '{unique_name}'.")
 
-                # Remove duplicates by converting to a set based on tool name, then back to list
-                final_config.tools = list({tool.get_name(): tool for tool in tools_to_add}.values())
-                
                 # Store the final, ready-to-use config in the team's state
                 context.state.final_agent_configs[unique_name] = final_config
-                logger.info(f"Team '{team_id}': Prepared final config for agent '{unique_name}' with tools: {[t.get_name() for t in final_config.tools]}")
+                logger.info(f"Team '{team_id}': Prepared final config for agent '{unique_name}' with user-defined tools: {[t.get_name() for t in final_config.tools]}")
             
             return True
         except Exception as e:

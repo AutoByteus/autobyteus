@@ -1,4 +1,4 @@
-# file: autobyteus/autobyteus/agent/message/send_message_to.py
+# file: autobyteus/agent/message/send_message_to.py
 import logging
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -9,6 +9,7 @@ from autobyteus.tools.tool_config import ToolConfig
 # This import is for type hinting only and avoids circular dependencies at runtime
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
+    from autobyteus.agent_team.context.agent_team_context import AgentTeamContext
     from autobyteus.agent_team.context.team_manager import TeamManager
     from autobyteus.agent_team.events.agent_team_events import InterAgentMessageRequestEvent
 
@@ -17,25 +18,21 @@ logger = logging.getLogger(__name__)
 class SendMessageTo(BaseTool):
     """
     A tool for sending messages to other agents within the same agent team.
-    This tool requires a TeamManager to be injected at runtime by the
-    agent team framework to enable communication with the parent orchestrator.
+    This tool dynamically retrieves the team communication channel from the
+    agent's context at runtime.
     """
     TOOL_NAME = "SendMessageTo"
     CATEGORY = ToolCategory.AGENT_COMMUNICATION
 
     def __init__(self, config: Optional[ToolConfig] = None):
         """
-        Initializes the SendMessageTo tool. The TeamManager is injected separately
-        after instantiation.
+        Initializes the stateless SendMessageTo tool.
         """
         super().__init__(config=config)
-        self._team_manager: Optional['TeamManager'] = None
-        logger.debug("SendMessageTo tool initialized. TeamManager is not yet injected.")
+        # The TeamManager is no longer stored as an instance variable.
+        logger.debug("SendMessageTo tool initialized (stateless).")
 
-    def set_team_manager(self, team_manager: 'TeamManager'):
-        """Sets the TeamManager instance after the tool has been created."""
-        self._team_manager = team_manager
-        logger.debug(f"TeamManager was set on SendMessageTo instance post-creation.")
+    # The set_team_manager method has been removed.
 
     @classmethod
     def get_name(cls) -> str:
@@ -75,14 +72,23 @@ class SendMessageTo(BaseTool):
                        content: str, 
                        message_type: str) -> str:
         """
-        Creates and dispatches a InterAgentMessageRequestEvent to the parent agent team
-        using the injected team_manager.
+        Creates and dispatches an InterAgentMessageRequestEvent to the parent agent team
+        by retrieving the TeamManager from the agent's context.
         """
         # Local import to break circular dependency at module load time.
         from autobyteus.agent_team.events.agent_team_events import InterAgentMessageRequestEvent
 
-        if self._team_manager is None:
+        # --- NEW: Retrieve TeamManager dynamically from context ---
+        team_context: Optional['AgentTeamContext'] = context.custom_data.get("team_context")
+        if not team_context:
             error_msg = "Critical error: SendMessageTo tool is not configured for team communication. It can only be used within a managed AgentTeam."
+            logger.error(f"Agent '{context.agent_id}': {error_msg}")
+            return f"Error: {error_msg}"
+        
+        team_manager: Optional['TeamManager'] = team_context.team_manager
+        if not team_manager:
+            # This is an internal framework error and should not happen in a correctly configured team.
+            error_msg = "Internal Error: TeamManager not found in the provided team_context."
             logger.error(f"Agent '{context.agent_id}': {error_msg}")
             return f"Error: {error_msg}"
 
@@ -111,8 +117,8 @@ class SendMessageTo(BaseTool):
             message_type=message_type
         )
         
-        # Dispatch the event "up" to the team's event loop via the team manager
-        await self._team_manager.dispatch_inter_agent_message_request(event)
+        # Dispatch the event "up" to the team's event loop via the dynamically retrieved team manager
+        await team_manager.dispatch_inter_agent_message_request(event)
 
         success_msg = f"Message dispatch for recipient '{recipient_name}' has been successfully requested."
         logger.info(f"Tool '{self.get_name()}': {success_msg}")

@@ -7,7 +7,7 @@ from autobyteus.agent_team.bootstrap_steps.agent_team_runtime_queue_initializati
 from autobyteus.agent_team.bootstrap_steps.team_context_initialization_step import TeamContextInitializationStep
 from autobyteus.agent_team.bootstrap_steps.task_notifier_initialization_step import TaskNotifierInitializationStep
 from autobyteus.agent_team.bootstrap_steps.coordinator_prompt_preparation_step import CoordinatorPromptPreparationStep
-from autobyteus.agent_team.bootstrap_steps.agent_tool_injection_step import AgentToolInjectionStep
+from autobyteus.agent_team.bootstrap_steps.agent_configuration_preparation_step import AgentConfigurationPreparationStep
 from autobyteus.agent_team.bootstrap_steps.coordinator_initialization_step import CoordinatorInitializationStep
 from autobyteus.agent_team.events.agent_team_events import AgentTeamReadyEvent
 
@@ -25,7 +25,7 @@ class AgentTeamBootstrapper:
             TeamContextInitializationStep(),
             TaskNotifierInitializationStep(),
             CoordinatorPromptPreparationStep(),
-            AgentToolInjectionStep(),
+            AgentConfigurationPreparationStep(),
             CoordinatorInitializationStep(),
         ]
 

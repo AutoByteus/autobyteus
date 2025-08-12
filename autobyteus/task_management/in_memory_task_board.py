@@ -67,13 +67,18 @@ class InMemoryTaskBoard(BaseTaskBoard):
         log_msg = f"Team '{self.team_id}': Status of task '{task_id}' updated from '{old_status.value if isinstance(old_status, Enum) else old_status}' to '{status.value}' by agent '{agent_name}'."
         logger.info(log_msg)
         
+        # Find the task to get its deliverables for the event payload
+        task = self._task_map.get(task_id)
+        task_deliverables = task.file_deliverables if task else None
+
         # Emit event
         event_payload = TaskStatusUpdatedEvent(
             team_id=self.team_id,
             plan_id=self.current_plan.plan_id if self.current_plan else None,
             task_id=task_id,
             new_status=status,
-            agent_name=agent_name
+            agent_name=agent_name,
+            deliverables=task_deliverables
         )
         self.emit(EventType.TASK_BOARD_STATUS_UPDATED, payload=event_payload)
 

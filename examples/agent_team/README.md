@@ -109,6 +109,13 @@ python examples/agent_team/manual_notification/run_software_engineering_team.py 
     --tester-model qwen/qwen3-coder-30b:lmstudio@192.168.2.126:1234
 ```
 
+python examples/agent_team/event_driven/run_software_engineering_team.py \
+    --coordinator-model google/gemma-3n-e4b:lmstudio@192.168.2.126:1234 \
+    --engineer-model google/gemma-3n-e4b:lmstudio@192.168.2.126:1234 \
+    --reviewer-model google/gemma-3n-e4b:lmstudio@192.168.2.126:1234 \
+    --test-writer-model google/gemma-3n-e4b:lmstudio@192.168.2.126:1234 \
+    --tester-model google/gemma-3n-e4b:lmstudio@192.168.2.126:1234
+
 ### Listing Available Models
 
 To see a list of all supported LLM models for these teams, run either script with `--help-models`:
