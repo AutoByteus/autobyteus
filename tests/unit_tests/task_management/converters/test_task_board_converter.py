@@ -8,6 +8,7 @@ from autobyteus.task_management import (
     TaskBoardConverter,
     TaskStatusReportSchema
 )
+from autobyteus.task_management.deliverable import FileDeliverable, DeliverableStatus
 
 @pytest.fixture
 def task_board_with_plan() -> InMemoryTaskBoard:
@@ -30,6 +31,14 @@ def task_board_with_plan() -> InMemoryTaskBoard:
     
     task_board.update_task_status(task_one.task_id, TaskStatus.COMPLETED, "Agent1")
     task_board.update_task_status(task_three.task_id, TaskStatus.IN_PROGRESS, "Agent1")
+    
+    # Add a deliverable to the completed task to test the converter
+    task_one.file_deliverables.append(FileDeliverable(
+        file_path="final_doc.md",
+        status=DeliverableStatus.NEW,
+        summary="Completed the final documentation.",
+        author_agent_name="Agent1"
+    ))
     
     return task_board
 
@@ -56,6 +65,15 @@ def test_to_schema_with_loaded_plan(task_board_with_plan: InMemoryTaskBoard):
     # Check dependencies are by name
     assert task_two_report.dependencies == ["task_one"]
     assert task_one_report.dependencies == []
+
+    # Check that deliverables are correctly converted
+    assert len(task_one_report.file_deliverables) == 1
+    assert task_three_report.file_deliverables == [] # Task three has no deliverables
+    
+    deliverable = task_one_report.file_deliverables[0]
+    assert isinstance(deliverable, FileDeliverable)
+    assert deliverable.file_path == "final_doc.md"
+    assert deliverable.author_agent_name == "Agent1"
 
 def test_to_schema_with_empty_board():
     """Tests that the converter returns None for a board with no plan."""

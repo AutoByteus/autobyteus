@@ -193,7 +193,7 @@ def create_code_review_team(
 
 async def main(args: argparse.Namespace, log_file: Path):
     """Main async function to create the agent team and run the TUI app."""
-    print("Setting up software development team...")
+    print("Setting up software development team (MANUAL NOTIFICATION MODE)...")
     print(f"--> Logs will be written to: {log_file.resolve()}")
 
     workspace_path = Path(args.output_dir).resolve()
@@ -237,7 +237,7 @@ async def main(args: argparse.Namespace, log_file: Path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Run a software development agent team with a Textual TUI.",
+        description="Run a software development agent team with a Textual TUI (Manual Notification Mode).",
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument("--llm-model", type=str, default="kimi-latest", help="The default LLM model identifier for all agents.")

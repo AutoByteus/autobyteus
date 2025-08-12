@@ -1,3 +1,4 @@
+# file: autobyteus/autobyteus/task_management/converters/task_board_converter.py
 """
 Contains converters for translating internal task management objects into
 LLM-friendly Pydantic schemas.
@@ -48,7 +49,8 @@ class TaskBoardConverter:
                 assignee_name=task.assignee_name,
                 description=task.description,
                 dependencies=dep_names,
-                status=internal_status["task_statuses"].get(task.task_id)
+                status=internal_status["task_statuses"].get(task.task_id),
+                file_deliverables=task.file_deliverables
             )
             report_items.append(report_item)
 

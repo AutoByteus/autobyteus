@@ -1,3 +1,4 @@
+# file: autobyteus/autobyteus/task_management/__init__.py
 """
 This package defines components for task management and state tracking,
 including task plans and live task boards. It is designed to be a general-purpose
@@ -5,11 +6,11 @@ module usable by various components, such as agents or agent teams.
 """
 from .task_plan import TaskPlan, Task
 from .schemas import (TaskPlanDefinitionSchema, TaskDefinitionSchema, TaskStatusReportSchema,
-                      TaskStatusReportItemSchema)
+                      TaskStatusReportItemSchema, FileDeliverableSchema)
 from .base_task_board import BaseTaskBoard, TaskStatus
 from .in_memory_task_board import InMemoryTaskBoard
-from .artifacts import ArtifactManifest, ArtifactState, ArtifactType
-from .tools import GetTaskBoardStatus, PublishTaskPlan, UpdateTaskStatus, ManageArtifact
+from .deliverable import FileDeliverable, DeliverableStatus
+from .tools import GetTaskBoardStatus, PublishTaskPlan, UpdateTaskStatus
 from .converters import TaskBoardConverter, TaskPlanConverter
 from .events import BaseTaskBoardEvent, TaskPlanPublishedEvent, TaskStatusUpdatedEvent
 
@@ -25,17 +26,16 @@ __all__ = [
     "TaskDefinitionSchema",
     "TaskStatusReportSchema",
     "TaskStatusReportItemSchema",
+    "FileDeliverableSchema",
     "BaseTaskBoard",
     "TaskStatus",
     "InMemoryTaskBoard",
     "TaskBoard",  # Exposing the alias
-    "ArtifactManifest",
-    "ArtifactState",
-    "ArtifactType",
+    "FileDeliverable",
+    "DeliverableStatus",
     "GetTaskBoardStatus",
     "PublishTaskPlan",
     "UpdateTaskStatus",
-    "ManageArtifact",
     "TaskBoardConverter",
     "TaskPlanConverter",
     "BaseTaskBoardEvent",

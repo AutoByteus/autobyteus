@@ -7,7 +7,8 @@ from autobyteus.agent.context import AgentContext
 from autobyteus.agent_team.context import AgentTeamContext, AgentTeamRuntimeState
 from autobyteus.task_management.tools import GetTaskBoardStatus
 from autobyteus.task_management import InMemoryTaskBoard
-from autobyteus.task_management.schemas import TaskStatusReportSchema
+from autobyteus.task_management.schemas import TaskStatusReportSchema, TaskStatusReportItemSchema
+from autobyteus.task_management.deliverable import FileDeliverable, DeliverableStatus
 
 TOOL_NAME = "GetTaskBoardStatus"
 
@@ -41,8 +42,18 @@ async def test_execute_success(mock_to_schema: MagicMock, tool_instance: GetTask
     # Arrange
     mock_agent_context.custom_data["team_context"] = mock_team_context_with_board
     
-    # Mock the converter's return value
-    mock_report = TaskStatusReportSchema(overall_goal="mock goal", tasks=[])
+    # Mock the converter's return value with an empty deliverables list
+    mock_report = TaskStatusReportSchema(
+        overall_goal="mock goal", 
+        tasks=[TaskStatusReportItemSchema(
+            task_name="task1", 
+            assignee_name="a1", 
+            description="d1",
+            dependencies=[],
+            status="not_started",
+            file_deliverables=[] # Ensure mock is accurate
+        )]
+    )
     mock_to_schema.return_value = mock_report
     
     # Act
@@ -53,6 +64,44 @@ async def test_execute_success(mock_to_schema: MagicMock, tool_instance: GetTask
     
     result_data = json.loads(result)
     assert result_data["overall_goal"] == "mock goal"
+    assert result_data["tasks"][0]["file_deliverables"] == []
+
+
+@pytest.mark.asyncio
+@patch('autobyteus.task_management.tools.get_task_board_status.TaskBoardConverter.to_schema')
+async def test_execute_success_with_deliverables(mock_to_schema: MagicMock, tool_instance: GetTaskBoardStatus, mock_agent_context: AgentContext, mock_team_context_with_board: AgentTeamContext):
+    """Tests that deliverables are correctly serialized in the tool's JSON output."""
+    # Arrange
+    mock_agent_context.custom_data["team_context"] = mock_team_context_with_board
+    
+    deliverable = FileDeliverable(
+        file_path="report.pdf",
+        status=DeliverableStatus.NEW,
+        summary="Final report",
+        author_agent_name="TestAgent"
+    )
+
+    # Mock the converter's return value with a deliverable
+    mock_report = TaskStatusReportSchema(
+        overall_goal="mock goal with deliverable",
+        tasks=[TaskStatusReportItemSchema(
+            task_name="task1", assignee_name="a1", description="d1",
+            dependencies=[], status="completed", file_deliverables=[deliverable]
+        )]
+    )
+    mock_to_schema.return_value = mock_report
+    
+    # Act
+    result = await tool_instance._execute(mock_agent_context)
+    
+    # Assert
+    result_data = json.loads(result)
+    assert len(result_data["tasks"][0]["file_deliverables"]) == 1
+    deliverable_data = result_data["tasks"][0]["file_deliverables"][0]
+    assert deliverable_data["file_path"] == "report.pdf"
+    assert deliverable_data["status"] == "new"
+    assert deliverable_data["summary"] == "Final report"
+
 
 @pytest.mark.asyncio
 @patch('autobyteus.task_management.tools.get_task_board_status.TaskBoardConverter.to_schema')

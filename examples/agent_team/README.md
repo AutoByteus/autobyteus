@@ -98,6 +98,17 @@ python examples/agent_team/manual_notification/run_software_engineering_team.py 
     --engineer-model gpt-4o
 ```
 
+**Example:** Run a team where each member uses a different LLM. This is useful for testing a "diverse" team composition.
+
+```bash
+python examples/agent_team/manual_notification/run_software_engineering_team.py \
+    --coordinator-model qwen/qwen3-coder-30b:lmstudio@192.168.2.126:1234 \
+    --engineer-model qwen/qwen3-coder-30b:lmstudio@192.168.2.126:1234 \
+    --reviewer-model qwen/qwen3-coder-30b:lmstudio@192.168.2.126:1234 \
+    --test-writer-model qwen/qwen3-coder-30b:lmstudio@192.168.2.126:1234 \
+    --tester-model qwen/qwen3-coder-30b:lmstudio@192.168.2.126:1234
+```
+
 ### Listing Available Models
 
 To see a list of all supported LLM models for these teams, run either script with `--help-models`:

@@ -6,11 +6,9 @@ management within an agent team.
 from .get_task_board_status import GetTaskBoardStatus
 from .publish_task_plan import PublishTaskPlan
 from .update_task_status import UpdateTaskStatus
-from .manage_artifact import ManageArtifact
 
 __all__ = [
     "GetTaskBoardStatus",
     "PublishTaskPlan",
     "UpdateTaskStatus",
-    "ManageArtifact",
 ]

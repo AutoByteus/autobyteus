@@ -8,6 +8,11 @@ import uuid
 from typing import List, Dict, Any
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+# To avoid circular import, we use a string forward reference.
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from autobyteus.task_management.deliverable import FileDeliverable
+
 logger = logging.getLogger(__name__)
 
 def generate_task_id():
@@ -34,9 +39,10 @@ class Task(BaseModel):
         description="A list of 'task_name' values for tasks that must be completed before this one can be started."
     )
     
-    produced_artifact_ids: List[str] = Field(
+    # This is the updated field as per user request.
+    file_deliverables: List["FileDeliverable"] = Field(
         default_factory=list,
-        description="A list of artifact IDs that were produced as a result of completing this task."
+        description="A list of file deliverables that were produced as a result of completing this task."
     )
 
     @model_validator(mode='before')
@@ -45,6 +51,9 @@ class Task(BaseModel):
         """Handles backward compatibility for the 'local_id' field."""
         if isinstance(data, dict) and 'local_id' in data:
             data['task_name'] = data.pop('local_id')
+        # Compatibility for old artifact field
+        if isinstance(data, dict) and 'produced_artifact_ids' in data:
+            del data['produced_artifact_ids']
         return data
 
     def model_post_init(self, __context: Any) -> None:
@@ -95,3 +104,7 @@ class TaskPlan(BaseModel):
     def model_post_init(self, __context: Any) -> None:
         """Called after the model is initialized and validated."""
         logger.debug(f"TaskPlan created: ID='{self.plan_id}', Tasks={len(self.tasks)}")
+
+# This is necessary for Pydantic v2 to correctly handle the recursive model
+from autobyteus.task_management.deliverable import FileDeliverable
+Task.model_rebuild()

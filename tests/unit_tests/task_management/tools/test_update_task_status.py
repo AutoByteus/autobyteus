@@ -4,6 +4,7 @@ from unittest.mock import Mock, MagicMock
 
 from autobyteus.task_management import InMemoryTaskBoard, TaskPlan, Task, TaskStatus
 from autobyteus.task_management.tools import UpdateTaskStatus
+from autobyteus.task_management.deliverable import FileDeliverable, DeliverableStatus
 
 @pytest.fixture
 def task_board() -> InMemoryTaskBoard:
@@ -35,8 +36,8 @@ def agent_context(task_board: InMemoryTaskBoard) -> Mock:
     return mock_context
 
 @pytest.mark.asyncio
-async def test_execute_success(agent_context: Mock, task_board: InMemoryTaskBoard):
-    """Tests successful execution of the UpdateTaskStatus tool."""
+async def test_execute_status_only_success(agent_context: Mock, task_board: InMemoryTaskBoard):
+    """Tests successful execution of UpdateTaskStatus with only a status update."""
     # Arrange
     tool = UpdateTaskStatus()
     task_to_update = "task_a"
@@ -51,6 +52,69 @@ async def test_execute_success(agent_context: Mock, task_board: InMemoryTaskBoar
     # Assert
     assert result == f"Successfully updated status of task '{task_to_update}' to '{new_status}'."
     assert task_board.task_statuses[task_id_to_check] == TaskStatus.IN_PROGRESS
+
+@pytest.mark.asyncio
+async def test_execute_with_deliverables_success(agent_context: Mock, task_board: InMemoryTaskBoard):
+    """Tests successful execution with both status update and deliverables."""
+    # Arrange
+    tool = UpdateTaskStatus()
+    task_to_update = "task_b"
+    
+    deliverables_payload = [
+        {"file_path": "output/report.md", "status": "new", "summary": "Initial report draft."},
+        {"file_path": "output/data.csv", "status": "updated", "summary": "Cleaned the raw data."}
+    ]
+
+    # Act
+    result = await tool._execute(
+        context=agent_context,
+        task_name=task_to_update,
+        status="completed",
+        deliverables=deliverables_payload
+    )
+
+    # Assert
+    assert "Successfully updated status of task 'task_b' to 'completed'" in result
+    assert "and submitted 2 deliverable(s)" in result
+    
+    # Check the task board state directly
+    updated_task = next(t for t in task_board.current_plan.tasks if t.task_name == task_to_update)
+    assert task_board.task_statuses[updated_task.task_id] == TaskStatus.COMPLETED
+    assert len(updated_task.file_deliverables) == 2
+    
+    first_deliverable = updated_task.file_deliverables[0]
+    assert isinstance(first_deliverable, FileDeliverable)
+    assert first_deliverable.file_path == "output/report.md"
+    assert first_deliverable.status == DeliverableStatus.NEW
+    assert first_deliverable.summary == "Initial report draft."
+    assert first_deliverable.author_agent_name == "TestAgent"
+
+@pytest.mark.asyncio
+async def test_execute_with_invalid_deliverable_schema(agent_context: Mock, task_board: InMemoryTaskBoard):
+    """Tests that an invalid deliverable payload returns an error but still updates status."""
+    # Arrange
+    tool = UpdateTaskStatus()
+    task_to_update = "task_a"
+    
+    # Payload is missing the required 'status' field
+    invalid_deliverables = [{"file_path": "output/bad.txt", "summary": "This is invalid."}]
+
+    # Act
+    result = await tool._execute(
+        context=agent_context,
+        task_name=task_to_update,
+        status="completed",
+        deliverables=invalid_deliverables
+    )
+    
+    # Assert
+    assert "Error: Task status was updated, but failed to process deliverables" in result
+    
+    # Check that the status was still updated
+    updated_task = next(t for t in task_board.current_plan.tasks if t.task_name == task_to_update)
+    assert task_board.task_statuses[updated_task.task_id] == TaskStatus.COMPLETED
+    # And that no deliverables were added
+    assert len(updated_task.file_deliverables) == 0
 
 @pytest.mark.asyncio
 async def test_execute_task_not_found(agent_context: Mock):
