@@ -9,7 +9,7 @@ from .schemas import (TaskPlanDefinitionSchema, TaskDefinitionSchema, TaskStatus
                       TaskStatusReportItemSchema, FileDeliverableSchema)
 from .base_task_board import BaseTaskBoard, TaskStatus
 from .in_memory_task_board import InMemoryTaskBoard
-from .deliverable import FileDeliverable, DeliverableStatus
+from .deliverable import FileDeliverable
 from .tools import GetTaskBoardStatus, PublishTaskPlan, UpdateTaskStatus
 from .converters import TaskBoardConverter, TaskPlanConverter
 from .events import BaseTaskBoardEvent, TaskPlanPublishedEvent, TaskStatusUpdatedEvent
@@ -32,7 +32,6 @@ __all__ = [
     "InMemoryTaskBoard",
     "TaskBoard",  # Exposing the alias
     "FileDeliverable",
-    "DeliverableStatus",
     "GetTaskBoardStatus",
     "PublishTaskPlan",
     "UpdateTaskStatus",

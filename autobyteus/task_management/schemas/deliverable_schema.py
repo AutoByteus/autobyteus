@@ -3,7 +3,6 @@
 Defines the Pydantic schema for submitting a file deliverable.
 """
 from pydantic import BaseModel, Field
-from autobyteus.task_management.deliverable import DeliverableStatus
 
 class FileDeliverableSchema(BaseModel):
     """
@@ -11,5 +10,4 @@ class FileDeliverableSchema(BaseModel):
     file deliverable. This is used as an input schema for tools.
     """
     file_path: str = Field(..., description="The relative path to the file being submitted.")
-    status: DeliverableStatus = Field(..., description="The status of the submission ('new' or 'updated').")
-    summary: str = Field(..., description="A summary of the work done on this file.")
+    summary: str = Field(..., description="A summary of the work done on this file, explaining what is new or what was updated.")

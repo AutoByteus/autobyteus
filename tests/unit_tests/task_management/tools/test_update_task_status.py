@@ -4,7 +4,7 @@ from unittest.mock import Mock, MagicMock
 
 from autobyteus.task_management import InMemoryTaskBoard, TaskPlan, Task, TaskStatus
 from autobyteus.task_management.tools import UpdateTaskStatus
-from autobyteus.task_management.deliverable import FileDeliverable, DeliverableStatus
+from autobyteus.task_management.deliverable import FileDeliverable
 
 @pytest.fixture
 def task_board() -> InMemoryTaskBoard:
@@ -61,8 +61,8 @@ async def test_execute_with_deliverables_success(agent_context: Mock, task_board
     task_to_update = "task_b"
     
     deliverables_payload = [
-        {"file_path": "output/report.md", "status": "new", "summary": "Initial report draft."},
-        {"file_path": "output/data.csv", "status": "updated", "summary": "Cleaned the raw data."}
+        {"file_path": "output/report.md", "summary": "Initial report draft."},
+        {"file_path": "output/data.csv", "summary": "Cleaned the raw data."}
     ]
 
     # Act
@@ -85,7 +85,7 @@ async def test_execute_with_deliverables_success(agent_context: Mock, task_board
     first_deliverable = updated_task.file_deliverables[0]
     assert isinstance(first_deliverable, FileDeliverable)
     assert first_deliverable.file_path == "output/report.md"
-    assert first_deliverable.status == DeliverableStatus.NEW
+    assert not hasattr(first_deliverable, 'status')
     assert first_deliverable.summary == "Initial report draft."
     assert first_deliverable.author_agent_name == "TestAgent"
 
@@ -96,8 +96,8 @@ async def test_execute_with_invalid_deliverable_schema(agent_context: Mock, task
     tool = UpdateTaskStatus()
     task_to_update = "task_a"
     
-    # Payload is missing the required 'status' field
-    invalid_deliverables = [{"file_path": "output/bad.txt", "summary": "This is invalid."}]
+    # Payload is missing the required 'summary' field
+    invalid_deliverables = [{"file_path": "output/bad.txt"}]
 
     # Act
     result = await tool._execute(

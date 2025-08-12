@@ -8,7 +8,7 @@ from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.tool_category import ToolCategory
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.task_management.base_task_board import TaskStatus
-from autobyteus.task_management.deliverable import FileDeliverable, DeliverableStatus
+from autobyteus.task_management.deliverable import FileDeliverable
 from autobyteus.task_management.schemas import FileDeliverableSchema
 
 if TYPE_CHECKING:
@@ -52,7 +52,7 @@ class UpdateTaskStatus(BaseTool):
         schema.add_parameter(ParameterDefinition(
             name="deliverables",
             param_type=ParameterType.ARRAY,
-            description="Optional. A list of file deliverables to submit for this task, typically when status is 'completed'.",
+            description="Optional. A list of file deliverables to submit for this task, typically when status is 'completed'. Each deliverable must include a file_path and a summary.",
             required=False,
             array_item_schema=FileDeliverableSchema.model_json_schema()
         ))

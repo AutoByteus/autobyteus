@@ -8,7 +8,7 @@ from autobyteus.agent_team.context import AgentTeamContext, AgentTeamRuntimeStat
 from autobyteus.task_management.tools import GetTaskBoardStatus
 from autobyteus.task_management import InMemoryTaskBoard
 from autobyteus.task_management.schemas import TaskStatusReportSchema, TaskStatusReportItemSchema
-from autobyteus.task_management.deliverable import FileDeliverable, DeliverableStatus
+from autobyteus.task_management.deliverable import FileDeliverable
 
 TOOL_NAME = "GetTaskBoardStatus"
 
@@ -76,7 +76,6 @@ async def test_execute_success_with_deliverables(mock_to_schema: MagicMock, tool
     
     deliverable = FileDeliverable(
         file_path="report.pdf",
-        status=DeliverableStatus.NEW,
         summary="Final report",
         author_agent_name="TestAgent"
     )
@@ -99,7 +98,7 @@ async def test_execute_success_with_deliverables(mock_to_schema: MagicMock, tool
     assert len(result_data["tasks"][0]["file_deliverables"]) == 1
     deliverable_data = result_data["tasks"][0]["file_deliverables"][0]
     assert deliverable_data["file_path"] == "report.pdf"
-    assert deliverable_data["status"] == "new"
+    assert "status" not in deliverable_data
     assert deliverable_data["summary"] == "Final report"
 
 
