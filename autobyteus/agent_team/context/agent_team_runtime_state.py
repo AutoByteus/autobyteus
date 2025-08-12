@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from autobyteus.agent_team.streaming.agent_event_multiplexer import AgentEventMultiplexer
     from autobyteus.task_management.base_task_board import BaseTaskBoard
     from autobyteus.task_management.artifacts.artifact_manifest import ArtifactManifest
+    from autobyteus.agent_team.task_notification.system_event_driven_agent_task_notifier import SystemEventDrivenAgentTaskNotifier
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ class AgentTeamRuntimeState:
 
     # Core services
     team_manager: Optional['TeamManager'] = None
+    task_notifier: Optional['SystemEventDrivenAgentTaskNotifier'] = None
 
     # Runtime components and references
     input_event_queues: Optional['AgentTeamInputEventQueueManager'] = None

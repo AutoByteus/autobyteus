@@ -1,4 +1,4 @@
-# file: autobyteus/examples/agent_team/run_team_with_tui.py
+# file: autobyteus/examples/agent_team/manual_notification/run_team_with_tui.py
 """
 This example script demonstrates how to run an AgentTeam with the
 new Textual-based user interface.
@@ -11,8 +11,8 @@ import sys
 import os
 
 # --- Boilerplate to make the script runnable from the project root ---
-SCRIPT_DIR = Path(__file__).resolve().parent.parent
-PACKAGE_ROOT = SCRIPT_DIR.parent
+SCRIPT_DIR = Path(__file__).resolve().parent
+PACKAGE_ROOT = SCRIPT_DIR.parent.parent.parent
 if str(PACKAGE_ROOT) not in sys.path:
     sys.path.insert(0, str(PACKAGE_ROOT))
 

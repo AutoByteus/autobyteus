@@ -1,4 +1,4 @@
-# file: autobyteus/examples/agent_team/run_software_engineering_team.py
+# file: autobyteus/examples/agent_team/manual_notification/run_software_engineering_team.py
 """
 This example script demonstrates a simple software development agent team
 with a coordinator, an engineer, a code reviewer, a test writer, and a tester.
@@ -13,7 +13,7 @@ import os
 
 # --- Boilerplate to make the script runnable from the project root ---
 SCRIPT_DIR = Path(__file__).resolve().parent
-PACKAGE_ROOT = SCRIPT_DIR.parent.parent
+PACKAGE_ROOT = SCRIPT_DIR.parent.parent.parent
 PROMPTS_DIR = SCRIPT_DIR / "prompts" / "software_engineering"
 if str(PACKAGE_ROOT) not in sys.path:
     sys.path.insert(0, str(PACKAGE_ROOT))

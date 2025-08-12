@@ -1,4 +1,4 @@
-# file: autobyteus/examples/agent_team/run_basic_research_team.py
+# file: autobyteus/examples/agent_team/manual_notification/run_basic_research_team.py
 import asyncio
 import logging
 import argparse
@@ -7,8 +7,8 @@ import sys
 import os
 
 # --- Boilerplate to make the script runnable from the project root ---
-SCRIPT_DIR = Path(__file__).resolve().parent.parent
-PACKAGE_ROOT = SCRIPT_DIR.parent
+SCRIPT_DIR = Path(__file__).resolve().parent
+PACKAGE_ROOT = SCRIPT_DIR.parent.parent.parent
 if str(PACKAGE_ROOT) not in sys.path:
     sys.path.insert(0, str(PACKAGE_ROOT))
 

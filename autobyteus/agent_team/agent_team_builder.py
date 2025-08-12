@@ -7,6 +7,7 @@ from autobyteus.agent_team.context.agent_team_config import AgentTeamConfig
 from autobyteus.agent_team.context.team_node_config import TeamNodeConfig
 from autobyteus.agent.context.agent_config import AgentConfig
 from autobyteus.agent_team.factory.agent_team_factory import AgentTeamFactory
+from autobyteus.agent_team.task_notification.task_notification_mode import TaskNotificationMode
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,7 @@ class AgentTeamBuilder:
         self._nodes: Dict[NodeDefinition, List[NodeDefinition]] = {}
         self._coordinator_config: Optional[AgentConfig] = None
         self._added_node_names: Set[str] = set()
+        self._task_notification_mode: TaskNotificationMode = TaskNotificationMode.AGENT_MANUAL_NOTIFICATION
         logger.info(f"AgentTeamBuilder initialized for team: '{self._name}'.")
 
     def add_agent_node(self, agent_config: AgentConfig, dependencies: Optional[List[NodeDefinition]] = None) -> 'AgentTeamBuilder':
@@ -124,6 +126,22 @@ class AgentTeamBuilder:
         logger.debug(f"Set coordinator for team to '{agent_config.name}'.")
         return self
 
+    def set_task_notification_mode(self, mode: TaskNotificationMode) -> 'AgentTeamBuilder':
+        """
+        Sets the task notification mode for the team.
+
+        Args:
+            mode: The desired TaskNotificationMode (AGENT_MANUAL_NOTIFICATION or SYSTEM_EVENT_DRIVEN).
+
+        Returns:
+            The builder instance for fluent chaining.
+        """
+        if not isinstance(mode, TaskNotificationMode):
+            raise TypeError("mode must be an instance of TaskNotificationMode.")
+        self._task_notification_mode = mode
+        logger.debug(f"Task notification mode set to '{mode.value}'.")
+        return self
+
     def build(self) -> AgentTeam:
         """
         Constructs and returns the final AgentTeam instance using the
@@ -156,7 +174,8 @@ class AgentTeamBuilder:
             description=self._description,
             role=self._role,
             nodes=tuple(final_nodes),
-            coordinator_node=coordinator_node_instance
+            coordinator_node=coordinator_node_instance,
+            task_notification_mode=self._task_notification_mode
         )
         
         logger.info(f"AgentTeamConfig created successfully. Name: '{team_config.name}'. Total nodes: {len(final_nodes)}. Coordinator: '{coordinator_node_instance.name}'.")

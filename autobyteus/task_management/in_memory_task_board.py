@@ -7,7 +7,6 @@ import logging
 from typing import Optional, List, Dict, Any
 from enum import Enum
 
-from autobyteus.events.event_emitter import EventEmitter
 from autobyteus.events.event_types import EventType
 from .task_plan import TaskPlan, Task
 from .base_task_board import BaseTaskBoard, TaskStatus
@@ -15,7 +14,7 @@ from .events import TaskPlanPublishedEvent, TaskStatusUpdatedEvent
 
 logger = logging.getLogger(__name__)
 
-class InMemoryTaskBoard(BaseTaskBoard, EventEmitter):
+class InMemoryTaskBoard(BaseTaskBoard):
     """
     An in-memory, dictionary-based implementation of the TaskBoard that emits
     events on state changes.
@@ -24,8 +23,8 @@ class InMemoryTaskBoard(BaseTaskBoard, EventEmitter):
         """
         Initializes the InMemoryTaskBoard.
         """
-        BaseTaskBoard.__init__(self, team_id)
-        EventEmitter.__init__(self)
+        # BaseTaskBoard now handles EventEmitter initialization
+        super().__init__(team_id=team_id)
         self.current_plan: Optional[TaskPlan] = None
         self.task_statuses: Dict[str, TaskStatus] = {}
         self._task_map: Dict[str, Task] = {}

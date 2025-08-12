@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Dict, Any, List, Optional
 
+from autobyteus.events.event_emitter import EventEmitter
 from .task_plan import Task, TaskPlan
 
 logger = logging.getLogger(__name__)
@@ -23,16 +24,18 @@ class TaskStatus(str, Enum):
         """Returns True if the status is a final state."""
         return self in {TaskStatus.COMPLETED, TaskStatus.FAILED}
 
-class BaseTaskBoard(ABC):
+class BaseTaskBoard(ABC, EventEmitter):
     """
     Abstract base class for a TaskBoard.
 
     This class defines the contract for any component that manages the live state
     of a TaskPlan. Implementations could be in-memory, database-backed, or
-    connected to external services like JIRA.
+    connected to external services like JIRA. It inherits from EventEmitter to
+    broadcast state changes.
     """
 
     def __init__(self, team_id: str):
+        EventEmitter.__init__(self)
         self.team_id = team_id
         logger.debug(f"BaseTaskBoard initialized for team '{self.team_id}'.")
 

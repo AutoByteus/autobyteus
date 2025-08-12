@@ -7,7 +7,6 @@ from autobyteus.agent.factory import AgentFactory
 from autobyteus.agent.utils.wait_for_idle import wait_for_agent_to_be_idle
 from autobyteus.agent_team.utils.wait_for_idle import wait_for_team_to_be_idle
 from autobyteus.agent_team.exceptions import TeamNodeNotFoundException
-from autobyteus.agent.message.send_message_to import SendMessageTo
 
 if TYPE_CHECKING:
     from autobyteus.agent.agent import Agent

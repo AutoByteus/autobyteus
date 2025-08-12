@@ -1,4 +1,4 @@
-# file: autobyteus/examples/agent_team/run_debate_team.py
+# file: autobyteus/examples/agent_team/manual_notification/run_debate_team.py
 """
 This example script demonstrates a hierarchical agent team.
 A parent team (The Debate) manages two sub-teams (Debating Teams).
@@ -11,8 +11,8 @@ import sys
 import os
 
 # --- Boilerplate to make the script runnable from the project root ---
-SCRIPT_DIR = Path(__file__).resolve().parent.parent
-PACKAGE_ROOT = SCRIPT_DIR.parent
+SCRIPT_DIR = Path(__file__).resolve().parent
+PACKAGE_ROOT = SCRIPT_DIR.parent.parent.parent
 if str(PACKAGE_ROOT) not in sys.path:
     sys.path.insert(0, str(PACKAGE_ROOT))
 

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, List, Optional
 from autobyteus.agent_team.bootstrap_steps.base_agent_team_bootstrap_step import BaseAgentTeamBootstrapStep
 from autobyteus.agent_team.bootstrap_steps.agent_team_runtime_queue_initialization_step import AgentTeamRuntimeQueueInitializationStep
 from autobyteus.agent_team.bootstrap_steps.team_context_initialization_step import TeamContextInitializationStep
+from autobyteus.agent_team.bootstrap_steps.task_notifier_initialization_step import TaskNotifierInitializationStep
 from autobyteus.agent_team.bootstrap_steps.coordinator_prompt_preparation_step import CoordinatorPromptPreparationStep
 from autobyteus.agent_team.bootstrap_steps.agent_tool_injection_step import AgentToolInjectionStep
 from autobyteus.agent_team.bootstrap_steps.coordinator_initialization_step import CoordinatorInitializationStep
@@ -22,6 +23,7 @@ class AgentTeamBootstrapper:
         self.bootstrap_steps = steps or [
             AgentTeamRuntimeQueueInitializationStep(),
             TeamContextInitializationStep(),
+            TaskNotifierInitializationStep(),
             CoordinatorPromptPreparationStep(),
             AgentToolInjectionStep(),
             CoordinatorInitializationStep(),
