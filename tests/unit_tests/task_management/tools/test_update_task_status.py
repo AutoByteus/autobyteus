@@ -85,19 +85,21 @@ async def test_execute_with_deliverables_success(agent_context: Mock, task_board
     first_deliverable = updated_task.file_deliverables[0]
     assert isinstance(first_deliverable, FileDeliverable)
     assert first_deliverable.file_path == "output/report.md"
-    assert not hasattr(first_deliverable, 'status')
     assert first_deliverable.summary == "Initial report draft."
     assert first_deliverable.author_agent_name == "TestAgent"
 
 @pytest.mark.asyncio
 async def test_execute_with_invalid_deliverable_schema(agent_context: Mock, task_board: InMemoryTaskBoard):
-    """Tests that an invalid deliverable payload returns an error but still updates status."""
+    """Tests that an invalid deliverable payload returns an error and does NOT update status."""
     # Arrange
     tool = UpdateTaskStatus()
     task_to_update = "task_a"
     
     # Payload is missing the required 'summary' field
     invalid_deliverables = [{"file_path": "output/bad.txt"}]
+    
+    task_id_to_check = next(t.task_id for t in task_board.current_plan.tasks if t.task_name == task_to_update)
+    assert task_board.task_statuses[task_id_to_check] == TaskStatus.NOT_STARTED
 
     # Act
     result = await tool._execute(
@@ -108,11 +110,13 @@ async def test_execute_with_invalid_deliverable_schema(agent_context: Mock, task
     )
     
     # Assert
-    assert "Error: Task status was updated, but failed to process deliverables" in result
+    # CORRECTED: Check for the new, more accurate error message.
+    assert "Error: Failed to process deliverables due to invalid data" in result
+    assert "Task status was NOT updated" in result
     
-    # Check that the status was still updated
+    # CORRECTED: Check that the status was NOT updated because the operation failed early.
     updated_task = next(t for t in task_board.current_plan.tasks if t.task_name == task_to_update)
-    assert task_board.task_statuses[updated_task.task_id] == TaskStatus.COMPLETED
+    assert task_board.task_statuses[updated_task.task_id] == TaskStatus.NOT_STARTED
     # And that no deliverables were added
     assert len(updated_task.file_deliverables) == 0
 

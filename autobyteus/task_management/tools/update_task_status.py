@@ -1,4 +1,3 @@
-# file: autobyteus/autobyteus/task_management/tools/update_task_status.py
 import logging
 from typing import TYPE_CHECKING, Optional, List, Dict, Any
 
@@ -104,14 +103,7 @@ class UpdateTaskStatus(BaseTool):
             logger.warning(f"Agent '{agent_name}' provided invalid status for UpdateTaskStatus: {status}")
             return f"Error: {error_msg}"
         
-        # --- Update Status ---
-        if not task_board.update_task_status(target_task.task_id, status_enum, agent_name):
-            # This path is less likely now with the pre-checks, but good to have.
-            error_msg = f"Failed to update status for task '{task_name}'. An unexpected error occurred on the task board."
-            logger.error(f"Agent '{agent_name}': {error_msg}")
-            return f"Error: {error_msg}"
-        
-        # --- Process Deliverables ---
+        # --- Process Deliverables FIRST --- (CORRECTED ORDER)
         if deliverables:
             try:
                 for d_data in deliverables:
@@ -125,9 +117,16 @@ class UpdateTaskStatus(BaseTool):
                     target_task.file_deliverables.append(full_deliverable)
                 logger.info(f"Agent '{agent_name}' successfully processed and added {len(deliverables)} deliverables to task '{task_name}'.")
             except (ValidationError, TypeError) as e:
-                error_msg = f"Task status was updated, but failed to process deliverables due to invalid data: {e}"
+                error_msg = f"Failed to process deliverables due to invalid data: {e}. Task status was NOT updated."
                 logger.warning(f"Agent '{agent_name}': {error_msg}")
                 return f"Error: {error_msg}"
+
+        # --- Update Status SECOND --- (CORRECTED ORDER)
+        # This will now emit an event with the deliverables already attached to the task.
+        if not task_board.update_task_status(target_task.task_id, status_enum, agent_name):
+            error_msg = f"Failed to update status for task '{task_name}'. An unexpected error occurred on the task board."
+            logger.error(f"Agent '{agent_name}': {error_msg}")
+            return f"Error: {error_msg}"
 
         success_msg = f"Successfully updated status of task '{task_name}' to '{status}'."
         if deliverables:
