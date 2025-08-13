@@ -3,6 +3,7 @@ from typing import Dict, Any, TYPE_CHECKING
 
 from autobyteus.tools.parameter_schema import ParameterType, ParameterDefinition
 from .base_formatter import BaseExampleFormatter
+from .default_json_example_formatter import DefaultJsonExampleFormatter # Import for reuse
 
 if TYPE_CHECKING:
     from autobyteus.tools.registry import ToolDefinition
@@ -23,6 +24,11 @@ class GeminiJsonExampleFormatter(BaseExampleFormatter):
         return {"name": tool_name, "args": arguments}
 
     def _generate_placeholder_value(self, param_def: ParameterDefinition) -> Any:
+        # REUSE a more intelligent generator for complex objects
+        if param_def.param_type == ParameterType.OBJECT and param_def.object_schema:
+            return DefaultJsonExampleFormatter._generate_example_from_schema(param_def.object_schema, param_def.object_schema)
+            
+        # Fallback for primitives
         if param_def.default_value is not None: return param_def.default_value
         if param_def.param_type == ParameterType.STRING: return f"example_{param_def.name}"
         if param_def.param_type == ParameterType.INTEGER: return 123

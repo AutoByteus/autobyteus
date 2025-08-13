@@ -86,10 +86,8 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
                             any_processor_took_action = True
                             logger.info(
                                 f"Agent '{agent_id}': LLMResponseProcessor '{processor_name_for_log}' "
-                                f"handled the response. This LLM response "
-                                f"will not be emitted as a complete response by this handler instance."
+                                f"handled the response."
                             )
-                            break 
                         else:
                             logger.debug(f"Agent '{agent_id}': LLMResponseProcessor '{processor_name_for_log}' did not handle the response.")
 
@@ -102,8 +100,7 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
                                 error_message="The model's response contained a malformed tool call that could not be understood.",
                                 error_details=str(e_parse)
                             )
-                        any_processor_took_action = True # Mark as handled to prevent printing raw response
-                        break
+                        # A parsing failure should not prevent other processors from running.
 
                     except Exception as e: # pragma: no cover
                         logger.error(f"Agent '{agent_id}': Error while using LLMResponseProcessor '{processor_name_for_log}': {e}. This processor is skipped.", exc_info=True)
@@ -118,21 +115,24 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
                 f"Skipping LLMResponseProcessor attempts."
             )
 
-        if not any_processor_took_action:
-            if is_error_response:
-                logger.info(
-                    f"Agent '{agent_id}' emitting a received error message as a complete response: '{complete_response_text[:100]}...'"
+        # Always notify that the LLM's response is complete, regardless of processor actions.
+        # This serves as a critical signal to the frontend that the stream for this turn has ended.
+        if notifier:
+            if any_processor_took_action:
+                log_message = (
+                    f"Agent '{agent_id}': One or more LLMResponseProcessors handled the response. "
+                    f"Now emitting AGENT_DATA_ASSISTANT_COMPLETE_RESPONSE as a completion signal."
                 )
             else:
-                logger.info(
+                log_message = (
                     f"Agent '{agent_id}': No LLMResponseProcessor handled the response. "
-                    f"Emitting the current LLM response as a complete response for this leg."
+                    f"Emitting the full LLM response as a final answer and completion signal."
                 )
-            
-            if notifier:
-                try:
-                    # The complete_response object now contains both content and reasoning
-                    notifier.notify_agent_data_assistant_complete_response(complete_response) 
-                    logger.debug(f"Agent '{agent_id}' emitted AGENT_DATA_ASSISTANT_COMPLETE_RESPONSE event.")
-                except Exception as e_notify: # pragma: no cover
-                    logger.error(f"Agent '{agent_id}': Error emitting AGENT_DATA_ASSISTANT_COMPLETE_RESPONSE: {e_notify}", exc_info=True)
+            logger.info(log_message)
+
+            try:
+                # The complete_response object now contains both content and reasoning
+                notifier.notify_agent_data_assistant_complete_response(complete_response) 
+                logger.debug(f"Agent '{agent_id}' emitted AGENT_DATA_ASSISTANT_COMPLETE_RESPONSE event successfully.")
+            except Exception as e_notify: # pragma: no cover
+                logger.error(f"Agent '{agent_id}': Error emitting AGENT_DATA_ASSISTANT_COMPLETE_RESPONSE: {e_notify}", exc_info=True)

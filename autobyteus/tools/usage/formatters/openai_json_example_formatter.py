@@ -4,6 +4,7 @@ from typing import Dict, Any, TYPE_CHECKING
 
 from autobyteus.tools.parameter_schema import ParameterType, ParameterDefinition
 from .base_formatter import BaseExampleFormatter
+from .default_json_example_formatter import DefaultJsonExampleFormatter # Import for reuse
 
 if TYPE_CHECKING:
     from autobyteus.tools.registry import ToolDefinition
@@ -12,7 +13,6 @@ class OpenAiJsonExampleFormatter(BaseExampleFormatter):
     """
     Formats a tool usage example into a format resembling an entry in the
     OpenAI JSON 'tool_calls' array, intended for prompting a model.
-    The output is wrapped in a 'tool' key for consistency in prompts.
     """
 
     def provide(self, tool_definition: 'ToolDefinition') -> Dict:
@@ -25,8 +25,6 @@ class OpenAiJsonExampleFormatter(BaseExampleFormatter):
                 if param_def.required or param_def.default_value is not None:
                     arguments[param_def.name] = self._generate_placeholder_value(param_def)
 
-        # This format contains the 'function' wrapper with a stringified 'arguments' field.
-        # This aligns with the structure often seen inside an OpenAI API tool_calls object.
         function_call = {
             "function": {
                 "name": tool_name,
@@ -34,10 +32,14 @@ class OpenAiJsonExampleFormatter(BaseExampleFormatter):
             },
         }
 
-        # Wrap in a 'tool' key for consistency in prompt generation.
         return {"tool": function_call}
 
     def _generate_placeholder_value(self, param_def: ParameterDefinition) -> Any:
+        # REUSE a more intelligent generator for complex objects
+        if param_def.param_type == ParameterType.OBJECT and param_def.object_schema:
+            return DefaultJsonExampleFormatter._generate_example_from_schema(param_def.object_schema, param_def.object_schema)
+
+        # Fallback for primitives
         if param_def.default_value is not None: return param_def.default_value
         if param_def.param_type == ParameterType.STRING: return f"example_{param_def.name}"
         if param_def.param_type == ParameterType.INTEGER: return 123

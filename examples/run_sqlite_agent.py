@@ -207,15 +207,18 @@ async def main(args: argparse.Namespace):
         # 5. Configure and create the agent.
         try:
             _ = LLMModel[args.llm_model]
-        except KeyError:
-            all_models = sorted(list(LLMModel), key=lambda m: m.name)
-            available_models_list = [f"  - Name: {m.name:<35} Value: {m.value}" for m in all_models]
-            logger.error(
-                f"LLM Model '{args.llm_model}' is not valid.\n"
-                f"You can use either the model name (e.g., 'GPT_4o_API') or its value (e.g., 'gpt-4o').\n\n"
-                f"Available models:\n" +
-                "\n".join(available_models_list)
-            )
+        except (KeyError, ValueError):
+            logger.error(f"LLM Model '{args.llm_model}' is not valid or ambiguous.", file=sys.stderr)
+            try:
+                LLMFactory.ensure_initialized()
+                print("\nAvailable LLM Models (use the 'Identifier' with --llm-model):")
+                all_models = sorted(list(LLMModel), key=lambda m: m.model_identifier)
+                if not all_models:
+                    print("  No models found.")
+                for model in all_models:
+                    print(f"  - Display Name: {model.name:<30} Identifier: {model.model_identifier}")
+            except Exception as e:
+                print(f"Additionally, an error occurred while listing models: {e}", file=sys.stderr)
             sys.exit(1)
 
         logger.info(f"Creating LLM instance for model: {args.llm_model}")
@@ -238,8 +241,7 @@ async def main(args: argparse.Namespace):
             llm_instance=llm_instance,
             system_prompt=system_prompt,
             tools=tools_for_agent,
-            auto_execute_tools=False,
-            use_xml_tool_format=False
+            auto_execute_tools=False
         )
 
         agent = AgentFactory().create_agent(config=sqlite_agent_config)
@@ -257,7 +259,7 @@ async def main(args: argparse.Namespace):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the SQLiteAgent interactively.")
-    parser.add_argument("--llm-model", type=str, default="kimi-latest", help=f"The LLM model to use. Call --help-models for list.")
+    parser.add_argument("--llm-model", type=str, default="kimi-latest", help=f"The LLM model identifier to use. Call --help-models for list.")
     parser.add_argument("--help-models", action="store_true", help="Display available LLM models and exit.")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging.")
     parser.add_argument("--agent-log-file", type=str, default="./agent_logs_sqlite.txt", 
@@ -268,12 +270,12 @@ if __name__ == "__main__":
     if "--help-models" in sys.argv:
         try:
             LLMFactory.ensure_initialized() 
-            print("Available LLM Models (you can use either name or value with --llm-model):")
-            all_models = sorted(list(LLMModel), key=lambda m: m.name)
+            print("Available LLM Models (use the 'Identifier' with --llm-model):")
+            all_models = sorted(list(LLMModel), key=lambda m: m.model_identifier)
             if not all_models:
                 print("  No models found.")
             for model in all_models:
-                print(f"  - Name: {model.name:<35} Value: {model.value}")
+                print(f"  - Display Name: {model.name:<30} Identifier: {model.model_identifier}")
         except Exception as e:
             print(f"Error listing models: {e}")
         sys.exit(0)

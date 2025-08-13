@@ -11,18 +11,17 @@ import uuid
 logger = logging.getLogger(__name__)
 
 class AutobyteusLLM(BaseLLM):
-    def __init__(self, model: LLMModel = None, llm_config: LLMConfig = None):
-        # Provide defaults if not specified
-        if model is None:
-            # This should be set by the factory/caller, but providing a fallback
-            raise ValueError("AutobyteusLLM requires a model to be specified")
-        if llm_config is None:
-            llm_config = LLMConfig()
-            
+    def __init__(self, model: LLMModel, llm_config: LLMConfig):
+        # The host URL is now passed via the model object.
+        if not model.host_url:
+            raise ValueError("AutobyteusLLM requires a host_url to be set in its LLMModel object.")
+
         super().__init__(model=model, llm_config=llm_config)
-        self.client = AutobyteusClient()
+        
+        # Instantiate the client with the specific host for this model.
+        self.client = AutobyteusClient(server_url=self.model.host_url)
         self.conversation_id = str(uuid.uuid4())
-        logger.info(f"AutobyteusLLM initialized with model: {self.model} and conversation ID: {self.conversation_id}")
+        logger.info(f"AutobyteusLLM initialized for model '{self.model.model_identifier}' with conversation ID: {self.conversation_id}")
 
     async def _send_user_message_to_llm(
         self,
@@ -34,7 +33,7 @@ class AutobyteusLLM(BaseLLM):
         try:
             response = await self.client.send_message(
                 conversation_id=self.conversation_id,
-                model_name=self.model.name,
+                model_name=self.model.name, # Use `name` as it's the original model name for the API
                 user_message=user_message,
                 image_urls=image_urls
             )
@@ -70,7 +69,7 @@ class AutobyteusLLM(BaseLLM):
         try:
             async for chunk in self.client.stream_message(
                 conversation_id=self.conversation_id,
-                model_name=self.model.name,
+                model_name=self.model.name, # Use `name` for the API call
                 user_message=user_message,
                 image_urls=image_urls
             ):

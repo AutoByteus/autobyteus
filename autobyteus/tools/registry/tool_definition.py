@@ -7,11 +7,12 @@ from autobyteus.llm.providers import LLMProvider
 from autobyteus.tools.tool_config import ToolConfig
 from autobyteus.tools.parameter_schema import ParameterSchema
 from autobyteus.tools.tool_origin import ToolOrigin
-from autobyteus.tools.usage.providers import (
-    XmlSchemaProvider, 
-    JsonSchemaProvider, 
-    XmlExampleProvider, 
-    JsonExampleProvider
+# Import default formatters directly to provide convenience methods
+from autobyteus.tools.usage.formatters import (
+    DefaultXmlSchemaFormatter,
+    DefaultJsonSchemaFormatter,
+    DefaultXmlExampleFormatter,
+    DefaultJsonExampleFormatter
 )
 
 if TYPE_CHECKING:
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 class ToolDefinition:
     """
     Represents the definition of a tool, containing its metadata and the means
-    to create an instance. It can generate provider-specific usage information on demand.
+    to create an instance. It can generate provider-agnostic usage information on demand.
     """
     def __init__(self,
                  name: str,
@@ -95,44 +96,38 @@ class ToolDefinition:
     @property
     def metadata(self) -> Dict[str, Any]: return self._metadata
     
-    # --- Schema Generation API ---
+    # --- Convenience Schema/Example Generation API (using default formatters) ---
     def get_usage_xml(self, provider: Optional[LLMProvider] = None) -> str:
         """
-        Generates the standardized XML usage schema string for this tool.
-        The provider argument is included for API consistency and future-proofing.
+        Generates the default XML usage schema string for this tool.
+        The provider argument is ignored, kept for API consistency.
         """
-        provider_instance = XmlSchemaProvider()
-        return provider_instance.provide(self, llm_provider=provider)
+        formatter = DefaultXmlSchemaFormatter()
+        return formatter.provide(self)
 
     def get_usage_json(self, provider: Optional[LLMProvider] = None) -> Dict[str, Any]:
         """
-        Generates the usage schema as a dictionary.
-        
-        Args:
-            provider: If provided, generates a provider-specific JSON format.
-                      If None, generates a default, generic JSON format.
-        
-        Returns:
-            A dictionary representing the tool's usage schema.
+        Generates the default JSON usage schema as a dictionary.
+        The provider argument is ignored, kept for API consistency.
         """
-        provider_instance = JsonSchemaProvider()
-        return provider_instance.provide(self, llm_provider=provider)
+        formatter = DefaultJsonSchemaFormatter()
+        return formatter.provide(self)
 
-    # --- Example Generation API ---
     def get_usage_xml_example(self, provider: Optional[LLMProvider] = None) -> str:
         """
-        Generates a standardized XML usage example string for this tool.
-        The provider argument is included for API consistency and future-proofing.
+        Generates a default XML usage example string for this tool.
+        The provider argument is ignored, kept for API consistency.
         """
-        provider_instance = XmlExampleProvider()
-        return provider_instance.provide(self, llm_provider=provider)
+        formatter = DefaultXmlExampleFormatter()
+        return formatter.provide(self)
 
     def get_usage_json_example(self, provider: Optional[LLMProvider] = None) -> Any:
         """
-        Generates a usage example, either as a dict or a string.
+        Generates a default JSON usage example as a dictionary.
+        The provider argument is ignored, kept for API consistency.
         """
-        provider_instance = JsonExampleProvider()
-        return provider_instance.provide(self, llm_provider=provider)
+        formatter = DefaultJsonExampleFormatter()
+        return formatter.provide(self)
 
     # --- Other methods ---
     @property

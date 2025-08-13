@@ -34,6 +34,7 @@ class EventType(Enum):
     AGENT_DATA_ASSISTANT_COMPLETE_RESPONSE = "agent_data_assistant_complete_response"
     AGENT_DATA_TOOL_LOG = "agent_data_tool_log" 
     AGENT_DATA_TOOL_LOG_STREAM_END = "agent_data_tool_log_stream_end" 
+    AGENT_DATA_SYSTEM_TASK_NOTIFICATION_RECEIVED = "agent_data_system_task_notification_received" # NEW
     
     # --- Agent Requests for External Interaction ---
     AGENT_REQUEST_TOOL_INVOCATION_APPROVAL = "agent_request_tool_invocation_approval" 
@@ -42,8 +43,12 @@ class EventType(Enum):
     # --- Agent Errors (not necessarily phase changes, e.g., error during output generation) ---
     AGENT_ERROR_OUTPUT_GENERATION = "agent_error_output_generation"
 
-    # --- Workflow Events ---
-    WORKFLOW_STREAM_EVENT = "workflow_stream_event" # For unified workflow event stream
+    # --- Agent Team Events ---
+    TEAM_STREAM_EVENT = "team_stream_event" # For unified agent team event stream
+
+    # --- Task Board Events ---
+    TASK_BOARD_PLAN_PUBLISHED = "task_board_plan_published"
+    TASK_BOARD_STATUS_UPDATED = "task_board_status_updated"
 
     def __str__(self): 
         return self.value

@@ -5,6 +5,8 @@ from autobyteus.tools.usage.formatters.anthropic_json_schema_formatter import An
 from autobyteus.tools.registry import ToolDefinition
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.base_tool import BaseTool
+from autobyteus.tools.tool_origin import ToolOrigin
+from autobyteus.tools.tool_category import ToolCategory
 
 @pytest.fixture
 def formatter():
@@ -29,7 +31,9 @@ def complex_tool_def():
         name="AdvancedFileProcessor",
         description="Processes a file with advanced options.",
         argument_schema=schema,
-        tool_class=DummyComplexTool
+        tool_class=DummyComplexTool,
+        origin=ToolOrigin.LOCAL,
+        category=ToolCategory.GENERAL
     )
 
 def test_provide_anthropic_json_format(formatter: AnthropicJsonSchemaFormatter, complex_tool_def: ToolDefinition):

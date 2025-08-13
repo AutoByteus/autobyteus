@@ -13,6 +13,7 @@ class OllamaProviderResolver:
     # A mapping from keywords to providers. The list is ordered to handle
     # potential overlaps, though current keywords are distinct.
     KEYWORD_PROVIDER_MAP = [
+        (['gpt'], LLMProvider.OPENAI),
         (['gemma', 'gemini'], LLMProvider.GEMINI),
         (['llama'], LLMProvider.GROQ),
         (['mistral'], LLMProvider.MISTRAL),

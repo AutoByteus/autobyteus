@@ -55,6 +55,11 @@ class ToolInvocationAutoExecutingData(BaseStreamPayload):
     tool_name: str
     arguments: Dict[str, Any]
 
+# NEW PAYLOAD
+class SystemTaskNotificationData(BaseStreamPayload):
+    sender_id: str
+    content: str
+
 class EmptyData(BaseStreamPayload):
     pass
 
@@ -67,6 +72,7 @@ StreamDataPayload = Union[
     ErrorEventData,
     ToolInvocationApprovalRequestedData,
     ToolInvocationAutoExecutingData,
+    SystemTaskNotificationData, # NEW
     EmptyData
 ]
 
@@ -165,3 +171,9 @@ def create_tool_invocation_auto_executing_data(auto_exec_data_dict: Any) -> Tool
     if isinstance(auto_exec_data_dict, dict):
         return ToolInvocationAutoExecutingData(**auto_exec_data_dict)
     raise ValueError(f"Cannot create ToolInvocationAutoExecutingData from {type(auto_exec_data_dict)}")
+
+# NEW FACTORY FUNCTION
+def create_system_task_notification_data(notification_data_dict: Any) -> SystemTaskNotificationData:
+    if isinstance(notification_data_dict, dict):
+        return SystemTaskNotificationData(**notification_data_dict)
+    raise ValueError(f"Cannot create SystemTaskNotificationData from {type(notification_data_dict)}")

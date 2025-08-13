@@ -14,22 +14,17 @@ import os
 logger = logging.getLogger(__name__)
 
 class OllamaLLM(BaseLLM):
-    DEFAULT_OLLAMA_HOST = 'http://localhost:11434'
-
-    def __init__(self, model: LLMModel = None, llm_config: LLMConfig = None):
-        self.ollama_host = os.getenv('DEFAULT_OLLAMA_HOST', self.DEFAULT_OLLAMA_HOST)
-        logger.info(f"Initializing Ollama with host: {self.ollama_host}")
-        
-        self.client = AsyncClient(host=self.ollama_host)
-        
-        # Provide defaults if not specified
-        if model is None:
-            model = LLMModel.OLLAMA_LLAMA_3_2
-        if llm_config is None:
-            llm_config = LLMConfig()
+    def __init__(self, model: LLMModel, llm_config: LLMConfig):
+        # The host URL is now passed via the model object, decoupling from environment variables here.
+        if not model.host_url:
+            raise ValueError("OllamaLLM requires a host_url to be set in its LLMModel object.")
             
+        logger.info(f"Initializing OllamaLLM for model '{model.name}' with host: {model.host_url}")
+        
+        self.client = AsyncClient(host=model.host_url)
+        
         super().__init__(model=model, llm_config=llm_config)
-        logger.info(f"OllamaLLM initialized with model: {self.model}")
+        logger.info(f"OllamaLLM initialized with model: {self.model.model_identifier}")
 
     async def _send_user_message_to_llm(self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs) -> CompleteResponse:
         self.add_user_message(user_message)

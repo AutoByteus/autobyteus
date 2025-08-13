@@ -14,8 +14,6 @@ class ParameterType(str, Enum):
     FLOAT = "float"
     BOOLEAN = "boolean"
     ENUM = "enum"
-    # FILE_PATH = "file_path" # REMOVED
-    # DIRECTORY_PATH = "directory_path" # REMOVED
     OBJECT = "object"
     ARRAY = "array"
 
@@ -23,11 +21,8 @@ class ParameterType(str, Enum):
         """Maps parameter type to JSON schema type."""
         if self == ParameterType.FLOAT:
             return "number"
-        # REMOVED: FILE_PATH and DIRECTORY_PATH handling, ENUM still maps to string
         if self == ParameterType.ENUM:
             return "string"
-        # For OBJECT and ARRAY, their value is already the correct JSON schema type
-        # STRING, INTEGER, BOOLEAN also map directly to their values.
         if self in [ParameterType.OBJECT, ParameterType.ARRAY, ParameterType.STRING, ParameterType.INTEGER, ParameterType.BOOLEAN]:
             return self.value
         return self.value # Fallback, should be covered by above
@@ -46,8 +41,9 @@ class ParameterDefinition:
     min_value: Optional[Union[int, float]] = None
     max_value: Optional[Union[int, float]] = None
     pattern: Optional[str] = None
-    array_item_schema: Optional[Dict[str, Any]] = None 
-    
+    array_item_schema: Optional[Dict[str, Any]] = None
+    object_schema: Optional[Dict[str, Any]] = None
+
     def __post_init__(self):
         if not self.name or not isinstance(self.name, str):
             raise ValueError("ParameterDefinition name must be a non-empty string")
@@ -63,6 +59,9 @@ class ParameterDefinition:
 
         if self.param_type != ParameterType.ARRAY and self.array_item_schema is not None:
             raise ValueError(f"ParameterDefinition '{self.name}': array_item_schema should only be provided if param_type is ARRAY.")
+
+        if self.param_type != ParameterType.OBJECT and self.object_schema is not None:
+            raise ValueError(f"ParameterDefinition '{self.name}': object_schema should only be provided if param_type is OBJECT.")
 
         if self.required and self.default_value is not None:
             logger.debug(f"ParameterDefinition '{self.name}' is marked as required but has a default value. This is acceptable.")
@@ -103,8 +102,6 @@ class ParameterDefinition:
             if not isinstance(value, str) or value not in (self.enum_values or []):
                 return False
         
-        # REMOVED: Specific validation for FILE_PATH, DIRECTORY_PATH (they are now STRING)
-        
         elif self.param_type == ParameterType.OBJECT:
             if not isinstance(value, dict):
                 return False
@@ -129,9 +126,18 @@ class ParameterDefinition:
         }
         if self.param_type == ParameterType.ARRAY and self.array_item_schema is not None:
             data["array_item_schema"] = self.array_item_schema
+        if self.param_type == ParameterType.OBJECT and self.object_schema is not None:
+            data["object_schema"] = self.object_schema
         return data
 
     def to_json_schema_property_dict(self) -> Dict[str, Any]:
+        if self.param_type == ParameterType.OBJECT and self.object_schema:
+            # If a detailed object schema is provided, use it directly.
+            # We add the description at the top level for clarity.
+            schema = self.object_schema.copy()
+            schema["description"] = self.description
+            return schema
+
         prop_dict: Dict[str, Any] = {
             "type": self.param_type.to_json_schema_type(),
             "description": self.description,
@@ -150,7 +156,6 @@ class ParameterDefinition:
             if self.param_type in [ParameterType.INTEGER, ParameterType.FLOAT]:
                 prop_dict["maximum"] = self.max_value
         
-        # REMOVED: Pattern check specific to FILE_PATH/DIRECTORY_PATH as they are now STRING
         if self.pattern and self.param_type == ParameterType.STRING:
             prop_dict["pattern"] = self.pattern
             
@@ -255,7 +260,8 @@ class ParameterSchema:
                 min_value=param_data.get("min_value"),
                 max_value=param_data.get("max_value"),
                 pattern=param_data.get("pattern"),
-                array_item_schema=param_data.get("array_item_schema") 
+                array_item_schema=param_data.get("array_item_schema"),
+                object_schema=param_data.get("object_schema")
             )
             schema.add_parameter(param)
         

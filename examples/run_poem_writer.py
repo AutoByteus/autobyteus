@@ -36,7 +36,7 @@ try:
     # Import autobyteus components from the current implementation
     from autobyteus.agent.context.agent_config import AgentConfig
     from autobyteus.llm.models import LLMModel
-    from autobyteus.llm.llm_factory import default_llm_factory
+    from autobyteus.llm.llm_factory import default_llm_factory, LLMFactory
     from autobyteus.agent.factory.agent_factory import AgentFactory
     from autobyteus.cli import agent_cli
     from autobyteus.tools.file.file_writer import file_writer
@@ -192,8 +192,17 @@ async def main(args: argparse.Namespace):
         # Validate the LLM model name
         _ = LLMModel[args.llm_model]
     except (ValueError, KeyError):
-        logger.error(f"LLM Model '{args.llm_model}' is not valid.")
-        logger.info(f"Available models: {[m.value for m in LLMModel]}")
+        logger.error(f"LLM Model '{args.llm_model}' is not valid or is ambiguous.", file=sys.stderr)
+        try:
+            LLMFactory.ensure_initialized()
+            print("\nAvailable LLM Models (use the 'Identifier' with --llm-model):")
+            all_models = sorted(list(LLMModel), key=lambda m: m.model_identifier)
+            if not all_models:
+                print("  No models found.")
+            for model in all_models:
+                print(f"  - Display Name: {model.name:<30} Identifier: {model.model_identifier}")
+        except Exception as e:
+            print(f"Additionally, an error occurred while listing models: {e}", file=sys.stderr)
         sys.exit(1)
 
     logger.info(f"Creating LLM instance for model: {args.llm_model}")
@@ -213,8 +222,7 @@ async def main(args: argparse.Namespace):
         system_prompt=system_prompt,
         tools=tools_for_agent,
         workspace=workspace,
-        auto_execute_tools=False,
-        use_xml_tool_format=False
+        auto_execute_tools=False
     )
 
     # Use the AgentFactory to create the agent
@@ -240,7 +248,7 @@ if __name__ == "__main__": # pragma: no cover
     parser.add_argument("--topic", type=str, default=None, help="Optional: The initial topic for the first poem.")
     parser.add_argument("--output-dir", type=str, default="./poem_writer_output", help="Directory to save the poem(s). Defaults to './poem_writer_output'.")
     parser.add_argument("--poem-filename", type=str, default="poem_interactive.txt", help="Filename for the saved poem.")
-    parser.add_argument("--llm-model", type=str, default="GEMINI_2_0_FLASH_API", help=f"The LLM model to use. Call --help-models for list.")
+    parser.add_argument("--llm-model", type=str, default="gpt-4o", help=f"The LLM model identifier to use. Call --help-models for list.")
     parser.add_argument("--help-models", action="store_true", help="Display available LLM models and exit.")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging. This will create detailed agent_logs.txt and a separate queue_logs.txt for noisy logs.")
     parser.add_argument("--no-tool-logs", action="store_true", 
@@ -251,13 +259,15 @@ if __name__ == "__main__": # pragma: no cover
     
     if "--help-models" in sys.argv:
         try:
-            from autobyteus.llm.llm_factory import LLMFactory 
             LLMFactory.ensure_initialized() 
-            print("Available LLM Models:")
-            model_names = [m.name for m in LLMModel] if LLMModel else []
-            for model_name in sorted(model_names): print(f"  - {model_name}")
-        except ImportError as e_llm: print(f"Could not import LLM components to list models: {e_llm}")
-        except Exception as e_llm_init: print(f"Error initializing LLM components to list models: {e_llm_init}")
+            print("Available LLM Models (use the 'Identifier' with --llm-model):")
+            all_models = sorted(list(LLMModel), key=lambda m: m.model_identifier)
+            if not all_models:
+                print("  No models found.")
+            for model in all_models:
+                print(f"  - Display Name: {model.name:<30} Identifier: {model.model_identifier}")
+        except Exception as e:
+            print(f"Error listing models: {e}")
         sys.exit(0)
 
     parsed_args = parser.parse_args()

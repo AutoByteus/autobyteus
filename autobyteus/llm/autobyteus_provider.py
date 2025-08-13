@@ -3,6 +3,10 @@ from autobyteus.llm.models import LLMModel
 from autobyteus.llm.providers import LLMProvider
 from autobyteus.llm.utils.llm_config import LLMConfig
 from typing import Dict, Any, TYPE_CHECKING
+from autobyteus.llm.runtimes import LLMRuntime
+from autobyteus.llm.utils.llm_config import LLMConfig
+from typing import Dict, Any, TYPE_CHECKING, List
+import os
 import logging
 from urllib.parse import urlparse
 from autobyteus_llm_client import AutobyteusClient
@@ -14,63 +18,89 @@ logger = logging.getLogger(__name__)
 
 class AutobyteusModelProvider:
     DEFAULT_SERVER_URL = 'https://localhost:8000'
-    CONNECTION_TIMEOUT = 5.0
+
+    @staticmethod
+    def _get_hosts() -> List[str]:
+        """Gets Autobyteus LLM server hosts from env vars, supporting a comma-separated list."""
+        hosts_str = os.getenv('AUTOBYTEUS_LLM_SERVER_HOSTS')
+        if hosts_str:
+            return [host.strip() for host in hosts_str.split(',')]
+        
+        legacy_host = os.getenv('AUTOBYTEUS_LLM_SERVER_URL')
+        if legacy_host:
+            return [legacy_host]
+            
+        return [AutobyteusModelProvider.DEFAULT_SERVER_URL]
 
     @staticmethod
     def discover_and_register():
-        """Discover and register Autobyteus models synchronously"""
+        """Discover and register Autobyteus models from all configured hosts."""
         try:
-            from autobyteus.llm.llm_factory import LLMFactory  # Local import to avoid circular dependency
+            from autobyteus.llm.llm_factory import LLMFactory
 
-            client = None
-            try:
-                client = AutobyteusClient()
-                response = client.get_available_models_sync()
-            except Exception as e:
-                logger.error(f"Client initialization failed: {str(e)}")
-                return
-            finally:
-                if client:
-                    client.sync_client.close()
+            hosts = AutobyteusModelProvider._get_hosts()
+            total_registered_count = 0
 
-            if not AutobyteusModelProvider._validate_server_response(response):
-                return
-
-            models = response.get('models', [])
-            registered_count = 0
-            
-            for model_info in models:
-                try:
-                    validation_result = AutobyteusModelProvider._validate_model_info(model_info)
-                    if not validation_result["valid"]:
-                        logger.warning(validation_result["message"])
-                        continue
-                        
-                    llm_config = AutobyteusModelProvider._parse_llm_config(model_info["config"])
-                    if not llm_config:
-                        continue
-                        
-                    llm_model = LLMModel(
-                        name=model_info["name"],
-                        value=model_info["value"],
-                        provider=LLMProvider(model_info["provider"]),  # Convert string to enum
-                        llm_class=AutobyteusLLM,
-                        canonical_name=model_info["canonical_name"],  # Add canonical_name
-                        default_config=llm_config
-                    )
-                    
-                    LLMFactory.register_model(llm_model)
-                    registered_count += 1
-                    logger.debug(f"Registered model: {model_info['name']} with canonical name: {model_info['canonical_name']}")
-                    
-                except Exception as e:
-                    logger.error(f"Model registration failed: {str(e)}")
+            for host_url in hosts:
+                if not AutobyteusModelProvider.is_valid_url(host_url):
+                    logger.error(f"Invalid Autobyteus host URL: {host_url}, skipping.")
                     continue
+                
+                logger.info(f"Discovering Autobyteus models from host: {host_url}")
+                client = None
+                try:
+                    # Instantiate client for this specific host
+                    client = AutobyteusClient(server_url=host_url)
+                    response = client.get_available_models_sync()
+                except Exception as e:
+                    logger.warning(f"Could not connect or fetch models from Autobyteus server at {host_url}: {e}")
+                    continue
+                finally:
+                    if client:
+                        client.sync_client.close()
+
+                if not AutobyteusModelProvider._validate_server_response(response):
+                    continue
+
+                models = response.get('models', [])
+                host_registered_count = 0
+                for model_info in models:
+                    try:
+                        validation_result = AutobyteusModelProvider._validate_model_info(model_info)
+                        if not validation_result["valid"]:
+                            logger.warning(validation_result["message"])
+                            continue
                         
-            logger.info(f"Registered {registered_count} Autobyteus models")
+                        llm_config = AutobyteusModelProvider._parse_llm_config(model_info["config"])
+                        if not llm_config:
+                            continue
+                        
+                        llm_model = LLMModel(
+                            name=model_info["name"],
+                            value=model_info["value"],
+                            provider=LLMProvider(model_info["provider"]),
+                            llm_class=AutobyteusLLM,
+                            canonical_name=model_info["canonical_name"],
+                            runtime=LLMRuntime.AUTOBYTEUS,
+                            host_url=host_url,
+                            default_config=llm_config
+                        )
+                        
+                        LLMFactory.register_model(llm_model)
+                        host_registered_count += 1
+                        
+                    except Exception as e:
+                        logger.error(f"Failed to register Autobyteus model '{model_info.get('name')}' from {host_url}: {e}")
+                
+                if host_registered_count > 0:
+                    logger.info(f"Registered {host_registered_count} models from Autobyteus host {host_url}")
+                total_registered_count += host_registered_count
+            
+            if total_registered_count > 0:
+                 logger.info(f"Finished Autobyteus discovery. Total models registered: {total_registered_count}")
 
         except Exception as e:
-            logger.error(f"Discovery failed: {str(e)}", exc_info=True)
+            logger.error(f"An unexpected error occurred during Autobyteus model discovery: {e}", exc_info=True)
 
     @staticmethod
     def _validate_server_response(response: Dict[str, Any]) -> bool:
