@@ -34,6 +34,7 @@ class EventType(Enum):
     AGENT_DATA_ASSISTANT_COMPLETE_RESPONSE = "agent_data_assistant_complete_response"
     AGENT_DATA_TOOL_LOG = "agent_data_tool_log" 
     AGENT_DATA_TOOL_LOG_STREAM_END = "agent_data_tool_log_stream_end" 
+    AGENT_DATA_SYSTEM_TASK_NOTIFICATION_RECEIVED = "agent_data_system_task_notification_received" # NEW
     
     # --- Agent Requests for External Interaction ---
     AGENT_REQUEST_TOOL_INVOCATION_APPROVAL = "agent_request_tool_invocation_approval" 

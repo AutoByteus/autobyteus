@@ -6,9 +6,11 @@ from autobyteus.agent.handlers.base_event_handler import AgentEventHandler
 from autobyteus.agent.events import InterAgentMessageReceivedEvent, LLMUserMessageReadyEvent 
 from autobyteus.agent.message.inter_agent_message import InterAgentMessage
 from autobyteus.llm.user_message import LLMUserMessage
+from autobyteus.agent.sender_type import TASK_NOTIFIER_SENDER_ID # New import
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext 
+    from autobyteus.agent.events.notifiers import AgentExternalEventNotifier
 
 logger = logging.getLogger(__name__)
 
@@ -46,16 +48,37 @@ class InterAgentMessageReceivedEventHandler(AgentEventHandler):
             f"Content: '{inter_agent_msg.content}'"
         )
 
-        content_for_llm = (
-            f"You have received a message from another agent.\n"
-            f"Sender Agent ID: {inter_agent_msg.sender_agent_id}\n"
-            f"Message Type: {inter_agent_msg.message_type.value}\n"
-            f"Recipient Role Name (intended for you): {inter_agent_msg.recipient_role_name}\n"
-            f"--- Message Content ---\n"
-            f"{inter_agent_msg.content}\n"
-            f"--- End of Message Content ---\n"
-            f"Please process this information and respond or act accordingly."
-        )
+        # Check if the message is from the system task notifier
+        if inter_agent_msg.sender_agent_id == TASK_NOTIFIER_SENDER_ID:
+            # Construct a more casual and direct prompt for system tasks.
+            content_for_llm = (
+                f"You have a new task to work on.\n\n"
+                f"--- Task Details ---\n"
+                f"{inter_agent_msg.content}\n"
+                f"--- End of Task Details ---\n\n"
+                f"Please start working on it."
+            )
+            # --- MODIFIED: Notify for TUI display AFTER constructing the full prompt ---
+            if context.phase_manager:
+                notifier: 'AgentExternalEventNotifier' = context.phase_manager.notifier
+                notification_data = {
+                    "sender_id": inter_agent_msg.sender_agent_id,
+                    "content": content_for_llm, # Pass the full prompt to the TUI
+                }
+                notifier.notify_agent_data_system_task_notification_received(notification_data)
+            # --- END MODIFICATION ---
+        else:
+            # Original message format for messages from other agents
+            content_for_llm = (
+                f"You have received a message from another agent.\n"
+                f"Sender Agent ID: {inter_agent_msg.sender_agent_id}\n"
+                f"Message Type: {inter_agent_msg.message_type.value}\n"
+                f"Recipient Role Name (intended for you): {inter_agent_msg.recipient_role_name}\n"
+                f"--- Message Content ---\n"
+                f"{inter_agent_msg.content}\n"
+                f"--- End of Message Content ---\n"
+                f"Please process this information and act accordingly."
+            )
         
         context.state.add_message_to_history({
             "role": "user", 

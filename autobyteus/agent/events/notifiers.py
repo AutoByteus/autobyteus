@@ -112,6 +112,10 @@ class AgentExternalEventNotifier(EventEmitter):
     def notify_agent_tool_invocation_auto_executing(self, auto_exec_data: Dict[str, Any]):
         """Notifies that a tool is being automatically executed."""
         self._emit_event(EventType.AGENT_TOOL_INVOCATION_AUTO_EXECUTING, payload_content=auto_exec_data)
+        
+    def notify_agent_data_system_task_notification_received(self, notification_data: Dict[str, Any]):
+        """Notifies that the agent has received a system-generated task notification."""
+        self._emit_event(EventType.AGENT_DATA_SYSTEM_TASK_NOTIFICATION_RECEIVED, payload_content=notification_data)
 
     def notify_agent_error_output_generation(self, error_source: str, error_message: str, error_details: Optional[str] = None): 
         payload_dict = { 

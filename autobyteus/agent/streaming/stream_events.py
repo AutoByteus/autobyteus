@@ -16,6 +16,7 @@ from .stream_event_payloads import (
     ErrorEventData,
     ToolInvocationApprovalRequestedData,
     ToolInvocationAutoExecutingData,
+    SystemTaskNotificationData, # NEW
     EmptyData
 )
 
@@ -33,6 +34,7 @@ class StreamEventType(str, Enum):
     ERROR_EVENT = "error_event" 
     TOOL_INVOCATION_APPROVAL_REQUESTED = "tool_invocation_approval_requested" 
     TOOL_INVOCATION_AUTO_EXECUTING = "tool_invocation_auto_executing"
+    SYSTEM_TASK_NOTIFICATION = "system_task_notification" # NEW
     AGENT_IDLE = "agent_idle"
 
 
@@ -44,6 +46,7 @@ _STREAM_EVENT_TYPE_TO_PAYLOAD_CLASS: Dict[StreamEventType, Type[BaseModel]] = {
     StreamEventType.ERROR_EVENT: ErrorEventData,
     StreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED: ToolInvocationApprovalRequestedData,
     StreamEventType.TOOL_INVOCATION_AUTO_EXECUTING: ToolInvocationAutoExecutingData,
+    StreamEventType.SYSTEM_TASK_NOTIFICATION: SystemTaskNotificationData, # NEW
     StreamEventType.AGENT_IDLE: AgentOperationalPhaseTransitionData,
 }
 

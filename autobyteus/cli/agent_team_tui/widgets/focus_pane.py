@@ -19,11 +19,12 @@ from autobyteus.task_management.task_plan import Task
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent, StreamEventType as AgentStreamEventType
 from autobyteus.agent.streaming.stream_event_payloads import (
     AgentOperationalPhaseTransitionData, AssistantChunkData, AssistantCompleteResponseData,
-    ErrorEventData, ToolInteractionLogEntryData, ToolInvocationApprovalRequestedData, ToolInvocationAutoExecutingData
+    ErrorEventData, ToolInteractionLogEntryData, ToolInvocationApprovalRequestedData, ToolInvocationAutoExecutingData,
+    SystemTaskNotificationData
 )
 from .shared import (
     AGENT_PHASE_ICONS, TEAM_PHASE_ICONS, SUB_TEAM_ICON, DEFAULT_ICON,
-    USER_ICON, ASSISTANT_ICON, TEAM_ICON, AGENT_ICON
+    USER_ICON, ASSISTANT_ICON, TEAM_ICON, AGENT_ICON, SYSTEM_TASK_ICON
 )
 from . import renderables
 from .task_board_panel import TaskBoardPanel
@@ -294,6 +295,7 @@ class FocusPane(Static):
             AgentStreamEventType.TOOL_INVOCATION_AUTO_EXECUTING,
             AgentStreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED,
             AgentStreamEventType.ERROR_EVENT,
+            AgentStreamEventType.SYSTEM_TASK_NOTIFICATION, # NEW
         ]
         if is_stream_breaking_event:
             self.flush_stream_buffers()
@@ -309,6 +311,7 @@ class FocusPane(Static):
             self._pending_approval_data = event.data
             await self._show_approval_prompt()
         elif event_type == AgentStreamEventType.ERROR_EVENT: renderable = renderables.render_error(event.data)
+        elif event_type == AgentStreamEventType.SYSTEM_TASK_NOTIFICATION: renderable = renderables.render_system_task_notification(event.data) # NEW
         
         if renderable:
             await log_container.mount(Static(""))

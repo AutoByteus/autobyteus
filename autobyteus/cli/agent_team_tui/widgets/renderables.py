@@ -11,9 +11,10 @@ from rich.panel import Panel
 
 from autobyteus.agent.streaming.stream_event_payloads import (
     AgentOperationalPhaseTransitionData, AssistantCompleteResponseData,
-    ErrorEventData, ToolInteractionLogEntryData, ToolInvocationApprovalRequestedData, ToolInvocationAutoExecutingData
+    ErrorEventData, ToolInteractionLogEntryData, ToolInvocationApprovalRequestedData,
+    ToolInvocationAutoExecutingData, SystemTaskNotificationData
 )
-from .shared import ASSISTANT_ICON, TOOL_ICON, PROMPT_ICON, ERROR_ICON, LOG_ICON
+from .shared import ASSISTANT_ICON, TOOL_ICON, PROMPT_ICON, ERROR_ICON, LOG_ICON, SYSTEM_TASK_ICON
 
 def render_assistant_complete_response(data: AssistantCompleteResponseData) -> list[Text | Panel]:
     """Renders a complete, pre-aggregated assistant response."""
@@ -68,3 +69,9 @@ def render_error(data: ErrorEventData) -> Text:
     if data.details: 
         error_text += f"\nDetails: {data.details}"
     return Text(f"{ERROR_ICON} {error_text}", style="bold red")
+
+def render_system_task_notification(data: SystemTaskNotificationData) -> Text:
+    """Renders a system-generated task notification."""
+    text_content = Text(f"{SYSTEM_TASK_ICON} System Task Notification: ", style="bold magenta")
+    text_content.append(data.content, style="magenta")
+    return text_content

@@ -57,3 +57,4 @@ PROMPT_ICON = "❓"
 ERROR_ICON = "💥"
 PHASE_ICON = "🔄"
 LOG_ICON = "📄"
+SYSTEM_TASK_ICON = "📥" # NEW

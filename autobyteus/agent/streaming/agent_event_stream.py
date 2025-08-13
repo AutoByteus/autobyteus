@@ -16,6 +16,7 @@ from autobyteus.agent.streaming.stream_event_payloads import (
     create_error_event_data,
     create_tool_invocation_approval_requested_data,
     create_tool_invocation_auto_executing_data,
+    create_system_task_notification_data, # NEW
     AssistantChunkData,
     AssistantCompleteResponseData,
     ToolInteractionLogEntryData,
@@ -23,6 +24,7 @@ from autobyteus.agent.streaming.stream_event_payloads import (
     ToolInvocationApprovalRequestedData,
     ToolInvocationAutoExecutingData,
     ErrorEventData,
+    SystemTaskNotificationData, # NEW
     EmptyData,
     StreamDataPayload,
 )
@@ -101,6 +103,10 @@ class AgentEventStream(EventEmitter):
             elif event_type == EventType.AGENT_ERROR_OUTPUT_GENERATION:
                 typed_payload_for_stream_event = create_error_event_data(payload)
                 stream_event_type_for_generic_stream = StreamEventType.ERROR_EVENT
+            # NEW MAPPING
+            elif event_type == EventType.AGENT_DATA_SYSTEM_TASK_NOTIFICATION_RECEIVED:
+                typed_payload_for_stream_event = create_system_task_notification_data(payload)
+                stream_event_type_for_generic_stream = StreamEventType.SYSTEM_TASK_NOTIFICATION
             
             elif event_type in [EventType.AGENT_DATA_ASSISTANT_CHUNK_STREAM_END, EventType.AGENT_DATA_TOOL_LOG_STREAM_END]:
                  pass 
