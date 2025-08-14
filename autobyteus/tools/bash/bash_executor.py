@@ -1,6 +1,8 @@
 import asyncio
 import subprocess
 import logging
+import shutil
+import tempfile
 from typing import TYPE_CHECKING, Optional
 
 from autobyteus.tools import tool 
@@ -12,22 +14,50 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 @tool(name="BashExecutor", category=ToolCategory.SYSTEM)
-async def bash_executor(context: Optional['AgentContext'], command: str, cwd: Optional[str] = None) -> str:
+async def bash_executor(context: Optional['AgentContext'], command: str) -> str:
     """
-    Executes bash commands and retrieves their standard output.
+    Executes bash commands using the '/bin/bash' interpreter and retrieves their standard output.
     'command' is the bash command string to be executed.
-    'cwd' is the optional directory to run the command in.
-    Errors during command execution are raised as exceptions.
+    The command is executed in the agent's workspace directory if available.
+    If no workspace is configured, it runs in the system's temporary directory (e.g., /tmp).
+    Errors during command execution are raised as exceptions. This tool requires 'bash' to be installed and in the system's PATH.
     """
+    if not shutil.which("bash"):
+        error_msg = "'bash' executable not found in system PATH. The BashExecutor tool cannot be used."
+        logger.error(error_msg)
+        raise FileNotFoundError(error_msg)
+        
     agent_id_str = context.agent_id if context else "Non-Agent"
-    logger.debug(f"Functional BashExecutor tool executing for '{agent_id_str}': {command} in cwd: {cwd or 'default'}")
+    
+    effective_cwd = None
+    log_cwd_source = ""
+
+    if context and hasattr(context, 'workspace') and context.workspace:
+        try:
+            base_path = context.workspace.get_base_path()
+            if base_path and isinstance(base_path, str):
+                effective_cwd = base_path
+                log_cwd_source = f"agent workspace: {effective_cwd}"
+            else:
+                logger.warning(f"Agent '{agent_id_str}' has a workspace, but it provided an invalid base path ('{base_path}'). "
+                               f"Falling back to system temporary directory.")
+        except Exception as e:
+            logger.warning(f"Could not retrieve workspace for agent '{agent_id_str}': {e}. "
+                           f"Falling back to system temporary directory.")
+
+    if not effective_cwd:
+        effective_cwd = tempfile.gettempdir()
+        log_cwd_source = f"system temporary directory: {effective_cwd}"
+
+    logger.debug(f"Functional BashExecutor tool executing for '{agent_id_str}': {command} in cwd from {log_cwd_source}")
 
     try:
-        process = await asyncio.create_subprocess_shell(
-            command,
+        # Explicitly use 'bash -c' for reliable execution
+        process = await asyncio.create_subprocess_exec(
+            'bash', '-c', command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            cwd=cwd
+            cwd=effective_cwd
         )
         stdout, stderr = await process.communicate()
 
@@ -49,6 +79,10 @@ async def bash_executor(context: Optional['AgentContext'], command: str, cwd: Op
         return output
 
     except subprocess.CalledProcessError:
+        raise
+    except FileNotFoundError:
+        # This can be raised by create_subprocess_exec if 'bash' is not found, despite the initial check.
+        logger.error("'bash' executable not found when attempting to execute command. Please ensure it is installed and in the PATH.")
         raise
     except Exception as e: 
         logger.exception(f"An error occurred while preparing or executing command '{command}': {str(e)}")
