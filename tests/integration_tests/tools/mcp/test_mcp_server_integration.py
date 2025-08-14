@@ -39,7 +39,7 @@ async def test_stdio_managed_server_lists_browsermcp_tools(npx_is_available):
     # Clear any configs from other tests
     config_service.clear_configs()
     
-    config_object = config_service.load_config(browsermcp_config_dict)
+    config_object = config_service.load_config_from_dict(browsermcp_config_dict)
     
     assert isinstance(config_object, StdioMcpServerConfig)
     assert config_object.server_id == "browsermcp"

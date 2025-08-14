@@ -4,7 +4,7 @@ import pytest
 import os
 from unittest.mock import MagicMock
 
-# Refactored imports - McpSchemaMapper is no longer directly used here.
+# Refactored imports
 from autobyteus.tools.mcp import (
     McpConfigService,
     McpToolRegistrar,
@@ -45,10 +45,7 @@ def mcp_test_environment(google_slides_mcp_script_path):
     original_registry_definitions = default_tool_registry.get_all_definitions().copy()
     default_tool_registry._definitions.clear()
 
-    # The config service is now managed by the registrar for targeted discovery
     config_service = McpConfigService()
-    
-    # The registrar is now a self-contained singleton.
     registrar = McpToolRegistrar()
 
     yield registrar, config_service  # Provide registrar and config service to the test
@@ -57,13 +54,13 @@ def mcp_test_environment(google_slides_mcp_script_path):
     default_tool_registry._definitions = original_registry_definitions
 
 @pytest.mark.asyncio
-async def test_mcp_registrar_discovers_and_registers_google_slides_tools(mcp_test_environment, google_slides_mcp_script_path):
-    """Tests that the registrar correctly discovers and registers tools."""
+async def test_load_and_register_server_discovers_tools(mcp_test_environment, google_slides_mcp_script_path):
+    """Tests that the registrar correctly discovers and registers tools from a dict config."""
     registrar, config_service = mcp_test_environment
+    server_id = "google-slides-mcp"
     
-    # Define the config object but do not load it into the service manually
     gslides_config_dict = {
-        "google-slides-mcp": {
+        server_id: {
             "transport_type": "stdio",
             "stdio_params": {
                 "command": "node",
@@ -79,19 +76,12 @@ async def test_mcp_registrar_discovers_and_registers_google_slides_tools(mcp_tes
         }
     }
 
-    # Let the registrar handle adding the config and discovering
-    await registrar.discover_and_register_tools(mcp_config=gslides_config_dict)
+    # Use the new explicit method for loading from a dict
+    await registrar.load_and_register_server(config_dict=gslides_config_dict)
     
-    # Verify the config was added to the service by the registrar
-    assert config_service.get_config("google-slides-mcp") is not None
-
-    # Test the registrar's internal cache
-    assert registrar.is_server_registered("google-slides-mcp") is True
-    tools_from_server = registrar.get_registered_tools_for_server("google-slides-mcp")
-    assert len(tools_from_server) == len(expected_tools_details)
-    
-    all_mcp_tools = registrar.get_all_registered_mcp_tools()
-    assert len(all_mcp_tools) == len(expected_tools_details)
+    # Verify the config was added to the service
+    assert config_service.get_config(server_id) is not None
+    assert registrar.is_server_registered(server_id)
 
     # Verify the main tool registry
     for expected_tool in expected_tools_details:
@@ -109,12 +99,11 @@ async def test_mcp_registrar_discovers_and_registers_google_slides_tools(mcp_tes
             assert param_def.param_type == expected_param_info["type"]
             assert param_def.required == expected_param_info["required"]
             
-            # Add a more specific check for array item schemas
             if "array_item_schema" in expected_param_info:
                 assert param_def.array_item_schema == expected_param_info["array_item_schema"]
 
 @pytest.mark.asyncio
-async def test_mcp_registrar_unregisters_tools_correctly(mcp_test_environment, google_slides_mcp_script_path):
+async def test_unregister_tools_from_server_correctly(mcp_test_environment, google_slides_mcp_script_path):
     """Tests the full register-unregister-verify cycle."""
     registrar, _ = mcp_test_environment
     server_id = "gslides-test-unregister"
@@ -128,8 +117,8 @@ async def test_mcp_registrar_unregisters_tools_correctly(mcp_test_environment, g
         }
     }
     
-    # 1. Register tools
-    await registrar.discover_and_register_tools(mcp_config=gslides_config_dict)
+    # 1. Register tools using the new method
+    await registrar.load_and_register_server(config_dict=gslides_config_dict)
     
     # 2. Verify registration
     assert registrar.is_server_registered(server_id)
@@ -142,7 +131,6 @@ async def test_mcp_registrar_unregisters_tools_correctly(mcp_test_environment, g
     
     # 4. Verify unregistration
     assert not registrar.is_server_registered(server_id)
-    assert len(registrar.get_all_registered_mcp_tools()) == 0
     assert len(default_tool_registry.list_tools()) == 0
     assert default_tool_registry.get_tool_definition("temp_gslides_create_presentation") is None
 
@@ -167,7 +155,7 @@ async def test_mcp_tool_execution_after_registration(mcp_test_environment, googl
         }
     }
     
-    await registrar.discover_and_register_tools(mcp_config=gslides_config_dict)
+    await registrar.load_and_register_server(config_dict=gslides_config_dict)
     
     tool_name = "create_presentation" 
     registered_tool_name = f"gslides_{tool_name}"

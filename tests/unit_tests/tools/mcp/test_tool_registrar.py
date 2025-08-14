@@ -45,8 +45,8 @@ def mock_dependencies(mocker):
     }
 
 @pytest.mark.asyncio
-async def test_discover_and_register_full_scan(mock_dependencies, mocker):
-    """Tests scanning all configured servers, including cleanup of stale tools."""
+async def test_reload_all_mcp_tools(mock_dependencies, mocker):
+    """Tests the full refresh capability of `reload_all_mcp_tools`."""
     registrar = mock_dependencies["registrar"]
     mock_config_service = mock_dependencies["config_service"]
     mock_tool_registry = mock_dependencies["tool_registry"]
@@ -60,11 +60,12 @@ async def test_discover_and_register_full_scan(mock_dependencies, mocker):
     mock_fetch.return_value = [MockMcpTool]
 
     # Prime the registrar with a stale server to test cleanup
-    stale_tool_def = MagicMock(spec=ToolDefinition, name="stale_tool")
+    stale_tool_def = MagicMock(spec=ToolDefinition)
+    stale_tool_def.name = "stale_tool"  # FIX: Correctly set the name attribute
     registrar._registered_tools_by_server["stale_server"] = [stale_tool_def]
     
     # --- Act ---
-    await registrar.discover_and_register_tools()
+    await registrar.reload_all_mcp_tools()
 
     # --- Assert ---
     mock_config_service.get_all_configs.assert_called_once()
@@ -87,8 +88,8 @@ async def test_discover_and_register_full_scan(mock_dependencies, mocker):
     assert len(registrar._registered_tools_by_server["server1"]) == 1
 
 @pytest.mark.asyncio
-async def test_discover_and_register_targeted(mock_dependencies, mocker):
-    """Tests passing a specific config, ensuring old tools for that server are unregistered first."""
+async def test_register_server(mock_dependencies, mocker):
+    """Tests registering a single server with a config object, ensuring old tools for that server are unregistered first."""
     registrar = mock_dependencies["registrar"]
     mock_tool_registry = mock_dependencies["tool_registry"]
     mock_config_service = mock_dependencies["config_service"]
@@ -100,11 +101,12 @@ async def test_discover_and_register_targeted(mock_dependencies, mocker):
     mock_fetch.return_value = [MockMcpTool]
 
     # Prime the registrar with a stale tool for the *same* server
-    stale_tool_def = MagicMock(spec=ToolDefinition, name="old_tool_for_target")
+    stale_tool_def = MagicMock(spec=ToolDefinition)
+    stale_tool_def.name = "old_tool_for_target"  # FIX: Correctly set the name attribute
     registrar._registered_tools_by_server["target_server"] = [stale_tool_def]
     
     # --- Act ---
-    await registrar.discover_and_register_tools(mcp_config=target_config)
+    await registrar.register_server(config_object=target_config)
 
     # --- Assert ---
     mock_fetch.assert_awaited_once_with(target_config)
@@ -113,8 +115,33 @@ async def test_discover_and_register_targeted(mock_dependencies, mocker):
     mock_config_service.add_config.assert_called_once_with(target_config)
 
 @pytest.mark.asyncio
-async def test_discover_and_register_fetch_fails(mock_dependencies, mocker):
-    """Tests that a failure during tool fetching is handled gracefully."""
+async def test_load_and_register_server(mock_dependencies, mocker):
+    """Tests the convenience method for loading a server from a dictionary."""
+    registrar = mock_dependencies["registrar"]
+    mock_config_service = mock_dependencies["config_service"]
+    
+    # --- Arrange ---
+    target_config_dict = {"target_server": {"transport_type": "stdio", "command": "cmd_target"}}
+    # Mock the config service to return a valid object when it's called
+    validated_config = StdioMcpServerConfig(server_id="target_server", command="cmd_target")
+    mock_config_service.load_config_from_dict.return_value = validated_config
+
+    # Mock the actual registration method that will be called internally
+    mock_register_server = mocker.patch.object(registrar, 'register_server', new_callable=AsyncMock)
+
+    # --- Act ---
+    await registrar.load_and_register_server(config_dict=target_config_dict)
+
+    # --- Assert ---
+    # Assert that the dictionary was passed to the config loader
+    mock_config_service.load_config_from_dict.assert_called_once_with(target_config_dict)
+    # Assert that the main registration method was then called with the validated object
+    mock_register_server.assert_awaited_once_with(validated_config)
+
+
+@pytest.mark.asyncio
+async def test_reload_all_mcp_tools_fetch_fails(mock_dependencies, mocker):
+    """Tests that a failure during tool fetching is handled gracefully during a full reload."""
     registrar = mock_dependencies["registrar"]
     mock_config_service = mock_dependencies["config_service"]
     mock_tool_registry = mock_dependencies["tool_registry"]
@@ -127,7 +154,7 @@ async def test_discover_and_register_fetch_fails(mock_dependencies, mocker):
     mock_fetch.side_effect = RuntimeError("Discovery network failed")
 
     # --- Act ---
-    await registrar.discover_and_register_tools()
+    await registrar.reload_all_mcp_tools()
 
     # --- Assert ---
     mock_fetch.assert_awaited_once_with(server_config)

@@ -118,9 +118,10 @@ class McpConfigService(metaclass=SingletonMeta):
                     f"Total unique configs stored: {len(self._configs)}.")
         return config_object
 
-    def load_config(self, config_dict: Dict[str, Any]) -> BaseMcpConfig:
+    def load_config_from_dict(self, config_dict: Dict[str, Any]) -> BaseMcpConfig:
         """
         Parses a single raw configuration dictionary and adds it to the service.
+        This method handles loading a single configuration.
 
         Args:
             config_dict: A dictionary representing a single server config,
@@ -132,76 +133,80 @@ class McpConfigService(metaclass=SingletonMeta):
         config_object = self.parse_mcp_config_dict(config_dict)
         return self.add_config(config_object)
 
-
-    def load_configs(self, source: Union[str, List[Dict[str, Any]], Dict[str, Any]]) -> List[BaseMcpConfig]:
+    def load_configs_from_dict(self, configs_data: Dict[str, Dict[str, Any]]) -> List[BaseMcpConfig]:
         """
-        Loads multiple MCP configurations from a source, parsing and adding them.
+        Loads multiple MCP configurations from a dictionary where keys are server_ids.
         This will overwrite any existing configurations with the same server_id.
 
         Args:
-            source: The data source. Can be:
-                1. A file path (str) to a JSON file.
-                2. A list of MCP server configuration dictionaries.
-                3. A dictionary of configurations, keyed by server_id.
+            configs_data: A dictionary of configurations, keyed by server_id.
         
         Returns:
             A list of the successfully added McpServerConfig objects.
         """
+        if not isinstance(configs_data, dict):
+             raise TypeError("configs_data must be a dictionary of server configurations keyed by server_id.")
+
         loaded_mcp_configs: List[BaseMcpConfig] = []
+        logger.info(f"McpConfigService loading {len(configs_data)} configs from dictionary.")
         
-        if isinstance(source, str):
-            if not os.path.exists(source):
-                logger.error(f"MCP configuration file not found at path: {source}")
-                raise FileNotFoundError(f"MCP configuration file not found: {source}")
+        for server_id, single_config_data in configs_data.items():
+            if not isinstance(single_config_data, dict):
+                    raise ValueError(f"Configuration for server_id '{server_id}' must be a dictionary.")
             try:
-                with open(source, 'r', encoding='utf-8') as f:
-                    json_data = json.load(f)
-                logger.info(f"Successfully loaded JSON data from file: {source}")
-                return self.load_configs(json_data)
-            except json.JSONDecodeError as e:
-                raise ValueError(f"Invalid JSON in MCP configuration file {source}: {e}") from e
-            except Exception as e:
-                raise ValueError(f"Could not read MCP configuration file {source}: {e}") from e
-
-        elif isinstance(source, list):
-            for i, config_item_dict in enumerate(source):
-                if not isinstance(config_item_dict, dict):
-                    raise ValueError(f"Item at index {i} in source list is not a dictionary.")
-                
-                server_id = config_item_dict.get('server_id')
-                if not server_id:
-                     raise ValueError(f"Item at index {i} in source list is missing 'server_id' field.")
-                
-                try:
-                    # A list item is a single config, but doesn't have the server_id as the key,
-                    # so we wrap it to use the parser.
-                    config_obj = McpConfigService.parse_mcp_config_dict({server_id: config_item_dict})
-                    self.add_config(config_obj)
-                    loaded_mcp_configs.append(config_obj)
-                except ValueError as e:
-                    logger.error(f"Invalid MCP configuration for list item at index {i}: {e}")
-                    raise
+                # The parser expects the server_id to be the key, so we reconstruct that.
+                config_obj = McpConfigService.parse_mcp_config_dict({server_id: single_config_data})
+                self.add_config(config_obj)
+                loaded_mcp_configs.append(config_obj)
+            except ValueError as e:
+                logger.error(f"Invalid MCP configuration for server_id '{server_id}': {e}")
+                raise
         
-        elif isinstance(source, dict):
-            logger.info("Loading MCP server configurations from a dictionary of configs (keyed by server_id).")
-            for server_id, config_data in source.items():
-                if not isinstance(config_data, dict):
-                        raise ValueError(f"Configuration for server_id '{server_id}' must be a dictionary.")
-
-                try:
-                    config_obj = McpConfigService.parse_mcp_config_dict({server_id: config_data})
-                    self.add_config(config_obj)
-                    loaded_mcp_configs.append(config_obj)
-                except ValueError as e:
-                    logger.error(f"Invalid MCP configuration for server_id '{server_id}': {e}")
-                    raise
-        else:
-            raise TypeError(f"Unsupported source type for load_configs: {type(source)}. "
-                            "Expected file path, list of dicts, or dict of dicts.")
-
-        logger.info(f"McpConfigService load_configs completed. {len(loaded_mcp_configs)} new configurations processed. "
-                    f"Total unique configs stored: {len(self._configs)}.")
+        logger.info(f"McpConfigService load_configs_from_dict completed. {len(loaded_mcp_configs)} configurations processed.")
         return loaded_mcp_configs
+
+    def load_configs_from_file(self, filepath: str) -> List[BaseMcpConfig]:
+        """
+        Loads MCP configurations from a JSON file. The file should contain a single
+        JSON object where keys are server_ids.
+
+        Args:
+            filepath: The path to the JSON configuration file.
+        
+        Returns:
+            A list of the successfully added McpServerConfig objects.
+        """
+        if not os.path.exists(filepath):
+            logger.error(f"MCP configuration file not found at path: {filepath}")
+            raise FileNotFoundError(f"MCP configuration file not found: {filepath}")
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                json_data = json.load(f)
+            logger.info(f"Successfully loaded JSON data from file: {filepath}")
+            
+            if isinstance(json_data, dict):
+                 return self.load_configs_from_dict(json_data)
+            else:
+                # To maintain some flexibility, we can check for the list format.
+                # But the primary documented format should be the dict.
+                logger.warning("Loading MCP configs from a list in a JSON file is supported but deprecated. "
+                               "The recommended format is a dictionary keyed by server_id.")
+                configs_as_dict = {}
+                if isinstance(json_data, list):
+                    for item in json_data:
+                        if isinstance(item, dict) and 'server_id' in item:
+                            server_id = item['server_id']
+                            configs_as_dict[server_id] = item
+                        else:
+                            raise ValueError("When loading from a list, each item must be a dict with a 'server_id'.")
+                    return self.load_configs_from_dict(configs_as_dict)
+
+                raise TypeError(f"Unsupported JSON structure in {filepath}. Expected a dictionary of configurations.")
+
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON in MCP configuration file {filepath}: {e}") from e
+        except Exception as e:
+            raise IOError(f"Could not read or process MCP configuration file {filepath}: {e}") from e
 
     def get_config(self, server_id: str) -> Optional[BaseMcpConfig]:
         """Retrieves an MCP server configuration by its unique server ID."""

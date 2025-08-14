@@ -79,67 +79,118 @@ class McpToolRegistrar(metaclass=SingletonMeta):
             tool_class=None
         )
 
-    async def discover_and_register_tools(self, mcp_config: Optional[Union[BaseMcpConfig, Dict[str, Any]]] = None) -> List[ToolDefinition]:
+    async def _discover_and_register_from_config(self, server_config: BaseMcpConfig, schema_mapper: McpSchemaMapper) -> List[ToolDefinition]:
         """
-        Discovers tools from MCP servers and registers them.
+        Performs the core discovery and registration logic for a single server configuration.
+        This method does NOT handle un-registration of existing tools.
         """
-        configs_to_process: List[BaseMcpConfig]
-        
-        if mcp_config:
-            validated_config: BaseMcpConfig
-            if isinstance(mcp_config, dict):
-                try:
-                    validated_config = self._config_service.load_config(mcp_config)
-                except ValueError as e:
-                    logger.error(f"Failed to parse provided MCP config dictionary: {e}")
-                    raise
-            elif isinstance(mcp_config, BaseMcpConfig):
-                validated_config = self._config_service.add_config(mcp_config)
-            else:
-                raise TypeError(f"mcp_config must be a BaseMcpConfig object or a dictionary, not {type(mcp_config)}.")
-            
-            logger.info(f"Starting targeted MCP tool discovery for server: {validated_config.server_id}")
-            self.unregister_tools_from_server(validated_config.server_id)
-            configs_to_process = [validated_config]
-        else:
-            logger.info("Starting full MCP tool discovery. Unregistering all existing MCP tools first.")
-            all_server_ids = list(self._registered_tools_by_server.keys())
-            for server_id in all_server_ids:
-                self.unregister_tools_from_server(server_id)
-            self._registered_tools_by_server.clear()
-            configs_to_process = self._config_service.get_all_configs()
+        registered_tool_definitions: List[ToolDefinition] = []
+        if not server_config.enabled:
+            logger.info(f"MCP server '{server_config.server_id}' is disabled. Skipping.")
+            return registered_tool_definitions
 
+        logger.info(f"Discovering tools from MCP server: '{server_config.server_id}'")
+        
+        try:
+            remote_tools = await self._fetch_tools_from_server(server_config)
+            logger.info(f"Discovered {len(remote_tools)} tools from server '{server_config.server_id}'.")
+
+            for remote_tool in remote_tools:
+                try:
+                    tool_def = self._create_tool_definition_from_remote(remote_tool, server_config, schema_mapper)
+                    self._tool_registry.register_tool(tool_def)
+                    self._registered_tools_by_server.setdefault(server_config.server_id, []).append(tool_def)
+                    registered_tool_definitions.append(tool_def)
+                except Exception as e_tool:
+                    logger.error(f"Failed to process or register remote tool '{remote_tool.name}': {e_tool}", exc_info=True)
+        
+        except Exception as e_server:
+            logger.error(f"Failed to discover tools from MCP server '{server_config.server_id}': {e_server}", exc_info=True)
+            # Re-raise to signal failure to the caller
+            raise
+        
+        return registered_tool_definitions
+
+    async def register_server(self, config_object: BaseMcpConfig) -> List[ToolDefinition]:
+        """
+        Discovers and registers tools from a single MCP server using a validated
+        config object. This will overwrite any existing tools from that server.
+
+        Args:
+            config_object: A pre-instantiated and validated BaseMcpConfig object.
+
+        Returns:
+            A list of the successfully registered ToolDefinition objects from this server.
+        """
+        if not isinstance(config_object, BaseMcpConfig):
+            raise TypeError(f"config_object must be a BaseMcpConfig object, not {type(config_object)}.")
+
+        # Add/update the config in the service
+        self._config_service.add_config(config_object)
+
+        logger.info(f"Starting targeted MCP tool registration for server: {config_object.server_id}")
+        
+        # Unregister existing tools for this specific server before re-registering
+        self.unregister_tools_from_server(config_object.server_id)
+        
+        schema_mapper = McpSchemaMapper()
+        
+        return await self._discover_and_register_from_config(config_object, schema_mapper)
+
+    async def load_and_register_server(self, config_dict: Dict[str, Any]) -> List[ToolDefinition]:
+        """
+        Loads a server configuration from a dictionary, then discovers and registers its tools.
+        This is a convenience method that wraps the parsing and registration process.
+
+        Args:
+            config_dict: The raw dictionary configuration for a single MCP server.
+
+        Returns:
+            A list of the successfully registered ToolDefinition objects from this server.
+        """
+        logger.debug(f"Attempting to load and register server from dictionary: {config_dict.get(next(iter(config_dict), 'unknown'))}")
+        try:
+            validated_config = self._config_service.load_config_from_dict(config_dict)
+        except ValueError as e:
+            logger.error(f"Failed to parse provided MCP config dictionary: {e}")
+            raise
+        
+        return await self.register_server(validated_config)
+
+    async def reload_all_mcp_tools(self) -> List[ToolDefinition]:
+        """
+        Performs a full refresh of tools from ALL MCP servers currently configured
+        in the McpConfigService. This first unregisters all previously registered
+        MCP tools, then re-discovers and re-registers them.
+
+        Returns:
+            A list of all successfully registered ToolDefinition objects.
+        """
+        logger.info("Reloading all MCP tools. Unregistering existing MCP tools first.")
+        
+        # Unregister all previously known MCP tools
+        all_server_ids = list(self._registered_tools_by_server.keys())
+        for server_id in all_server_ids:
+            self.unregister_tools_from_server(server_id)
+        
+        configs_to_process = self._config_service.get_all_configs()
         if not configs_to_process:
-            logger.info("No MCP server configurations to process. Skipping discovery.")
+            logger.info("No MCP server configurations to process. Skipping reload.")
             return []
 
         schema_mapper = McpSchemaMapper()
-        registered_tool_definitions: List[ToolDefinition] = []
-        for server_config in configs_to_process:
-            if not server_config.enabled:
-                logger.info(f"MCP server '{server_config.server_id}' is disabled. Skipping.")
-                continue
-
-            logger.info(f"Discovering tools from MCP server: '{server_config.server_id}'")
-            
-            try:
-                remote_tools = await self._fetch_tools_from_server(server_config)
-                logger.info(f"Discovered {len(remote_tools)} tools from server '{server_config.server_id}'.")
-
-                for remote_tool in remote_tools:
-                    try:
-                        tool_def = self._create_tool_definition_from_remote(remote_tool, server_config, schema_mapper)
-                        self._tool_registry.register_tool(tool_def)
-                        self._registered_tools_by_server.setdefault(server_config.server_id, []).append(tool_def)
-                        registered_tool_definitions.append(tool_def)
-                    except Exception as e_tool:
-                        logger.error(f"Failed to process or register remote tool '{remote_tool.name}': {e_tool}", exc_info=True)
-            
-            except Exception as e_server:
-                logger.error(f"Failed to discover tools from MCP server '{server_config.server_id}': {e_server}", exc_info=True)
+        all_registered_definitions: List[ToolDefinition] = []
         
-        logger.info(f"MCP tool discovery and registration process completed. Total tools registered: {len(registered_tool_definitions)}.")
-        return registered_tool_definitions
+        for server_config in configs_to_process:
+            try:
+                newly_registered = await self._discover_and_register_from_config(server_config, schema_mapper)
+                all_registered_definitions.extend(newly_registered)
+            except Exception as e:
+                # Log the error but continue to the next server
+                logger.error(f"Failed to complete discovery for server '{server_config.server_id}', it will be skipped. Error: {e}", exc_info=False)
+
+        logger.info(f"Finished reloading all MCP tools. Total tools registered: {len(all_registered_definitions)}.")
+        return all_registered_definitions
 
     async def list_remote_tools(self, mcp_config: Union[BaseMcpConfig, Dict[str, Any]]) -> List[ToolDefinition]:
         validated_config: BaseMcpConfig
