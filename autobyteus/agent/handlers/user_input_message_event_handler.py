@@ -11,6 +11,7 @@ from autobyteus.llm.user_message import LLMUserMessage
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext 
+    from autobyteus.agent.events.notifiers import AgentExternalEventNotifier
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ class UserInputMessageEventHandler(AgentEventHandler):
     AgentUserInputMessageProcessors (provided as instances) to the AgentInputUserMessage,
     then converting the processed message into an LLMUserMessage, and finally
     enqueuing an LLMUserMessageReadyEvent for further processing by the LLM.
+    It also checks for metadata to emit special notifications for system-generated tasks.
     """
 
     def __init__(self):
@@ -33,6 +35,19 @@ class UserInputMessageEventHandler(AgentEventHandler):
             return
 
         original_agent_input_user_msg: AgentInputUserMessage = event.agent_input_user_message 
+        
+        # --- NEW LOGIC: Check metadata for system-generated tasks and notify TUI ---
+        if original_agent_input_user_msg.metadata.get('source') == 'system_task_notifier':
+            if context.phase_manager:
+                notifier: 'AgentExternalEventNotifier' = context.phase_manager.notifier
+                notification_data = {
+                    "sender_id": "system.task_notifier",
+                    "content": original_agent_input_user_msg.content,
+                }
+                notifier.notify_agent_data_system_task_notification_received(notification_data)
+                logger.info(f"Agent '{context.agent_id}' emitted system task notification for TUI.")
+        # --- END NEW LOGIC ---
+        
         processed_agent_input_user_msg: AgentInputUserMessage = original_agent_input_user_msg 
         
         logger.info(f"Agent '{context.agent_id}' handling UserMessageReceivedEvent: '{original_agent_input_user_msg.content}'") 

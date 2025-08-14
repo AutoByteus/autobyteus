@@ -4,10 +4,9 @@ import logging
 from typing import Set, Any, TYPE_CHECKING, List, Union
 
 from autobyteus.events.event_types import EventType
-from autobyteus.agent_team.events import InterAgentMessageRequestEvent
-from autobyteus.agent.message import InterAgentMessageType
+from autobyteus.agent_team.events import ProcessUserMessageEvent
+from autobyteus.agent.message import AgentInputUserMessage
 from autobyteus.task_management.events import TaskPlanPublishedEvent, TaskStatusUpdatedEvent
-from autobyteus.agent.sender_type import TASK_NOTIFIER_SENDER_ID
 from autobyteus.task_management.base_task_board import TaskStatus
 from autobyteus.task_management.task_plan import Task
 
@@ -112,7 +111,9 @@ class SystemEventDrivenAgentTaskNotifier:
     
     async def _dispatch_notification_for_task(self, task: Task):
         """
-        Constructs and sends a context-rich notification for a single runnable task.
+        Constructs and sends a context-rich notification for a single runnable task
+        by treating it as a user message to trigger the full processing pipeline.
+        It tags the message with metadata to indicate its system origin.
         """
         try:
             team_id = self._team_manager.team_id
@@ -145,14 +146,18 @@ class SystemEventDrivenAgentTaskNotifier:
             
             content = "\n\n".join(message_parts)
             
-            event = InterAgentMessageRequestEvent(
-                sender_agent_id=TASK_NOTIFIER_SENDER_ID,
-                recipient_name=task.assignee_name,
+            # Create the user message with metadata indicating its origin.
+            user_message = AgentInputUserMessage(
                 content=content,
-                message_type=InterAgentMessageType.TASK_ASSIGNMENT.value
+                metadata={'source': 'system_task_notifier'}
+            )
+            event = ProcessUserMessageEvent(
+                user_message=user_message,
+                target_agent_name=task.assignee_name
             )
 
-            await self._team_manager.dispatch_inter_agent_message_request(event)
+            # Use the existing method for dispatching user messages.
+            await self._team_manager.dispatch_user_message_to_agent(event)
             self._dispatched_task_ids.add(task.task_id)
 
         except Exception as e:

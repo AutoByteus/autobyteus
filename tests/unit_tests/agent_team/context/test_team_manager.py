@@ -1,4 +1,3 @@
-# file: autobyteus/tests/unit_tests/agent_team/context/test_team_manager.py
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 
@@ -7,6 +6,7 @@ from autobyteus.agent.factory import AgentFactory
 from autobyteus.agent.context import AgentConfig
 from autobyteus.agent_team.streaming.agent_event_multiplexer import AgentEventMultiplexer
 from autobyteus.agent_team.exceptions import TeamNodeNotFoundException
+from autobyteus.agent_team.context.agent_team_config import AgentTeamConfig # Added for sub-team config
 
 @pytest.fixture
 def mock_runtime():
@@ -43,6 +43,7 @@ async def test_ensure_node_is_ready_uses_premade_config(MockAgentFactory, mock_w
     mock_agent_instance = MagicMock()
     mock_agent_instance.is_running = False
     mock_agent_instance.agent_id = "agent_123"
+    mock_agent_instance.start = MagicMock() # Mock the start method
     mock_agent_factory_instance.create_agent.return_value = mock_agent_instance
     
     node_name = "test_agent"
@@ -63,7 +64,7 @@ async def test_ensure_node_is_ready_uses_premade_config(MockAgentFactory, mock_w
     assert agent is mock_agent_instance
     
     # 1. Retrieval
-    mock_runtime.context.get_node_config_by_name.assert_called_with(node_name)
+    mock_runtime.context.get_node_config_by_name.assert_called_once_with(node_name)
     # Check that it used the premade config
     mock_agent_factory_instance.create_agent.assert_called_once_with(config=premade_config)
 
@@ -73,10 +74,65 @@ async def test_ensure_node_is_ready_uses_premade_config(MockAgentFactory, mock_w
 
     # 3. Bridging
     mock_multiplexer.start_bridging_agent_events.assert_called_once_with(mock_agent_instance, node_name)
+    mock_multiplexer.start_bridging_team_events.assert_not_called() # Ensure this isn't called for an agent
     
     # 4. On-demand start
     mock_agent_instance.start.assert_called_once()
     mock_wait_idle.assert_awaited_once_with(mock_agent_instance, timeout=60.0)
+
+@pytest.mark.asyncio
+@patch('autobyteus.agent_team.context.team_manager.wait_for_team_to_be_idle', new_callable=AsyncMock)
+@patch('autobyteus.agent_team.context.team_manager.AgentTeamFactory')
+async def test_ensure_node_is_ready_creates_and_starts_sub_team(MockAgentTeamFactory, mock_wait_idle, team_manager, mock_runtime, mock_multiplexer, team_node_factory):
+    """
+    Tests that ensure_node_is_ready correctly creates and starts a sub-team
+    when the TeamNodeConfig indicates it's a sub-team.
+    """
+    # --- Setup ---
+    mock_team_factory_instance = MockAgentTeamFactory.return_value
+    mock_sub_team_instance = MagicMock()
+    mock_sub_team_instance.is_running = False
+    mock_sub_team_instance.start = MagicMock() # Mock the start method
+    mock_team_factory_instance.create_team.return_value = mock_sub_team_instance
+    
+    node_name = "test_sub_team"
+    
+    # Create a mock AgentTeamConfig for the sub-team
+    sub_team_config = AgentTeamConfig(
+        name=node_name,
+        description="A sub-team config",
+        nodes=(), # Empty for simplicity in this mock
+        coordinator_node=MagicMock() # Mock coordinator
+    )
+
+    # Mock the node config wrapper that indicates it's a sub-team
+    node_config_wrapper = team_node_factory(node_name)
+    node_config_wrapper.is_sub_team = True
+    node_config_wrapper.node_definition = sub_team_config # Ensure the definition is correct type
+    mock_runtime.context.get_node_config_by_name.return_value = node_config_wrapper
+    
+    # --- Execute ---
+    sub_team = await team_manager.ensure_node_is_ready(node_name)
+
+    # --- Assert ---
+    assert sub_team is mock_sub_team_instance
+    
+    # 1. Retrieval
+    mock_runtime.context.get_node_config_by_name.assert_called_once_with(node_name)
+    # Check that it used the AgentTeamFactory with the sub-team config
+    mock_team_factory_instance.create_team.assert_called_once_with(config=sub_team_config)
+    
+    # 2. Caching and Mapping (no agent_id mapping for teams)
+    assert team_manager._nodes_cache[node_name] is mock_sub_team_instance
+    assert team_manager._agent_id_to_name_map == {} # Should not have mappings for sub-teams
+
+    # 3. Bridging
+    mock_multiplexer.start_bridging_team_events.assert_called_once_with(mock_sub_team_instance, node_name)
+    mock_multiplexer.start_bridging_agent_events.assert_not_called() # Ensure this isn't called for a sub-team
+    
+    # 4. On-demand start
+    mock_sub_team_instance.start.assert_called_once()
+    mock_wait_idle.assert_awaited_once_with(mock_sub_team_instance, timeout=120.0)
 
 @pytest.mark.asyncio
 async def test_ensure_node_is_ready_returns_cached_and_running_node(team_manager, mock_agent):

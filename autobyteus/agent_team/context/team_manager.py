@@ -11,7 +11,7 @@ from autobyteus.agent_team.exceptions import TeamNodeNotFoundException
 if TYPE_CHECKING:
     from autobyteus.agent.agent import Agent
     from autobyteus.agent_team.agent_team import AgentTeam
-    from autobyteus.agent_team.events.agent_team_events import InterAgentMessageRequestEvent
+    from autobyteus.agent_team.events.agent_team_events import InterAgentMessageRequestEvent, ProcessUserMessageEvent
     from autobyteus.agent_team.runtime.agent_team_runtime import AgentTeamRuntime
     from autobyteus.agent_team.streaming.agent_event_multiplexer import AgentEventMultiplexer
     from autobyteus.agent_team.context.agent_team_config import AgentTeamConfig
@@ -37,6 +37,10 @@ class TeamManager:
         logger.info(f"TeamManager created for team '{self.team_id}'.")
 
     async def dispatch_inter_agent_message_request(self, event: 'InterAgentMessageRequestEvent'):
+        await self._runtime.submit_event(event)
+
+    async def dispatch_user_message_to_agent(self, event: 'ProcessUserMessageEvent'):
+        """Submits a user message event (potentially system-generated) to the team's runtime."""
         await self._runtime.submit_event(event)
 
     async def ensure_node_is_ready(self, name_or_agent_id: str) -> ManagedNode:

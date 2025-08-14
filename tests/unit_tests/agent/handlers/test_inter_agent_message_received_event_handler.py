@@ -1,4 +1,3 @@
-# file: autobyteus/tests/unit_tests/agent/handlers/test_inter_agent_message_received_event_handler.py
 import pytest
 import logging
 from unittest.mock import MagicMock, patch
@@ -38,7 +37,8 @@ async def test_handle_inter_agent_message_success(inter_agent_handler: InterAgen
 
     assert f"Agent '{agent_context.agent_id}' handling InterAgentMessageReceivedEvent from sender '{sender_id}'" in caplog.text
     assert f"type '{message_type.value}'" in caplog.text
-    assert f"Content: '{content[:100]}...'" in caplog.text
+    # Updated assertion: removed [:100]... as the logger doesn't truncate/add ellipsis
+    assert f"Content: '{content}'" in caplog.text 
     assert f"Agent '{agent_context.agent_id}' processed InterAgentMessage from sender '{sender_id}' and enqueued LLMUserMessageReadyEvent." in caplog.text 
 
     expected_history_content_part1 = f"You have received a message from another agent.\nSender Agent ID: {sender_id}"

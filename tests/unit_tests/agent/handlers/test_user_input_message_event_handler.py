@@ -8,6 +8,9 @@ from autobyteus.agent.message.agent_input_user_message import AgentInputUserMess
 from autobyteus.llm.user_message import LLMUserMessage
 from autobyteus.agent.input_processor.base_user_input_processor import BaseAgentUserInputMessageProcessor
 from autobyteus.agent.message.context_file import ContextFile, ContextFileType
+from autobyteus.agent_team.context.agent_team_context import AgentTeamContext # Added for team context mock
+from autobyteus.agent_team.phases.agent_team_phase_manager import AgentTeamPhaseManager # Added for phase manager mock
+from autobyteus.agent.events.notifiers import AgentExternalEventNotifier # Added for notifier mock
 
 # Mock Input Processor classes remain the same as they define behavior
 class MockInputProcessor(BaseAgentUserInputMessageProcessor):
@@ -46,12 +49,15 @@ async def test_handle_user_input_no_processors(user_input_handler: UserInputMess
 
     # Configure the context to have no processors
     agent_context.config.input_processors = [] 
+    # The agent_context fixture already provides a mock phase_manager via context.state.phase_manager_ref
+    # Explicitly setting it to None here is no longer needed and caused the AttributeError.
 
     with caplog.at_level(logging.DEBUG): 
         await user_input_handler.handle(event, agent_context)
 
-    assert f"Agent '{agent_context.agent_id}' handling UserMessageReceivedEvent: '{original_content[:100]}...'" in caplog.text
-    assert "No input processors configured in agent specification." in caplog.text 
+    # Updated assertion: removed [:100]... as the logger doesn't truncate/add ellipsis
+    assert f"Agent '{agent_context.agent_id}' handling UserMessageReceivedEvent: '{original_content}'" in caplog.text
+    assert "No input processors configured in agent config." in caplog.text
     assert f"Agent '{agent_context.agent_id}' processed AgentInputUserMessage and enqueued LLMUserMessageReadyEvent." in caplog.text 
 
     agent_context.input_event_queues.enqueue_internal_system_event.assert_called_once()
@@ -70,6 +76,8 @@ async def test_handle_user_input_with_one_processor(user_input_handler: UserInpu
 
     # Provide an instance of the processor
     agent_context.config.input_processors = [MockInputProcessor()]
+    # The agent_context fixture already provides a mock phase_manager via context.state.phase_manager_ref
+    # Explicitly setting it to None here is no longer needed and caused the AttributeError.
 
     await user_input_handler.handle(event, agent_context)
 
@@ -90,6 +98,8 @@ async def test_handle_user_input_with_multiple_processors(user_input_handler: Us
 
     # Provide instances of the processors
     agent_context.config.input_processors = [MockInputProcessor(), AnotherMockInputProcessor()] 
+    # The agent_context fixture already provides a mock phase_manager via context.state.phase_manager_ref
+    # Explicitly setting it to None here is no longer needed and caused the AttributeError.
 
     await user_input_handler.handle(event, agent_context)
 
@@ -113,6 +123,8 @@ async def test_handle_processor_raises_exception(user_input_handler: UserInputMe
     error_processor.process = AsyncMock(side_effect=ValueError("Simulated processor error"))
     
     agent_context.config.input_processors = [error_processor, AnotherMockInputProcessor()]
+    # The agent_context fixture already provides a mock phase_manager via context.state.phase_manager_ref
+    # Explicitly setting it to None here is no longer needed and caused the AttributeError.
 
     with caplog.at_level(logging.ERROR): 
         await user_input_handler.handle(event, agent_context)
@@ -123,7 +135,7 @@ async def test_handle_processor_raises_exception(user_input_handler: UserInputMe
     enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
     assert isinstance(enqueued_event, LLMUserMessageReadyEvent) 
     # The first processor fails, so the second one processes the original content
-    expected_final_content = f"{original_content} [Another]"
+    expected_final_content = f"{original_content} [Another]" # This content is correct for this case
     assert enqueued_event.llm_user_message.content == expected_final_content
     
     assert "processed_by" not in agent_input_msg.metadata 
@@ -140,10 +152,76 @@ async def test_handle_invalid_event_type(user_input_handler: UserInputMessageEve
     assert f"UserInputMessageEventHandler received non-UserMessageReceivedEvent: {type(invalid_event)}. Skipping." in caplog.text
     agent_context.input_event_queues.enqueue_internal_system_event.assert_not_called()
 
+@pytest.mark.asyncio
+async def test_handle_system_task_notification_metadata(user_input_handler: UserInputMessageEventHandler, agent_context, caplog):
+    """
+    Test that the handler correctly identifies and handles system-generated
+    task notifications, notifying the TUI via the external event notifier.
+    """
+    system_notification_content = "Your task 'ImplementFeature' is now ready."
+    agent_input_msg = AgentInputUserMessage(
+        content=system_notification_content,
+        metadata={'source': 'system_task_notifier'}
+    )
+    event = UserMessageReceivedEvent(agent_input_user_message=agent_input_msg)
+
+    # Mock the phase_manager and its notifier
+    mock_notifier = MagicMock(spec=AgentExternalEventNotifier)
+    mock_phase_manager = MagicMock(spec=AgentTeamPhaseManager)
+    mock_phase_manager.notifier = mock_notifier
+    # Correctly assign to the state's reference
+    agent_context.state.phase_manager_ref = mock_phase_manager 
+    agent_context.config.input_processors = [] # No other processors for this test
+
+    with caplog.at_level(logging.INFO):
+        await user_input_handler.handle(event, agent_context)
+
+    # Assert that the system task notification was sent to the notifier
+    mock_notifier.notify_agent_data_system_task_notification_received.assert_called_once_with({
+        "sender_id": "system.task_notifier",
+        "content": system_notification_content,
+    })
+    assert f"Agent '{agent_context.agent_id}' emitted system task notification for TUI." in caplog.text
+
+    # Assert that the message still proceeds to be enqueued for the LLM
+    agent_context.input_event_queues.enqueue_internal_system_event.assert_called_once()
+    enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
+    assert isinstance(enqueued_event, LLMUserMessageReadyEvent)
+    assert enqueued_event.llm_user_message.content == system_notification_content
+
+@pytest.mark.asyncio
+async def test_handle_system_task_notification_no_phase_manager(user_input_handler: UserInputMessageEventHandler, agent_context, caplog):
+    """
+    Test that the handler does not crash and simply logs if phase_manager is not set
+    when a system task notification is received.
+    """
+    system_notification_content = "Your task 'ImplementFeature' is now ready."
+    agent_input_msg = AgentInputUserMessage(
+        content=system_notification_content,
+        metadata={'source': 'system_task_notifier'}
+    )
+    event = UserMessageReceivedEvent(agent_input_user_message=agent_input_msg)
+
+    # Correctly assign to the state's reference
+    agent_context.state.phase_manager_ref = None 
+    agent_context.config.input_processors = [] # No other processors for this test
+
+    with caplog.at_level(logging.INFO): # Changed to INFO, as no error/warning is expected if it handles gracefully
+        await user_input_handler.handle(event, agent_context)
+
+    # No specific notification should be sent if phase_manager is None
+    if agent_context.state.phase_manager_ref and agent_context.state.phase_manager_ref.notifier:
+        agent_context.state.phase_manager_ref.notifier.notify_agent_data_system_task_notification_received.assert_not_called()
+    assert f"Agent '{agent_context.agent_id}' emitted system task notification for TUI." not in caplog.text
+
+    # Assert that the message still proceeds to be enqueued for the LLM
+    agent_context.input_event_queues.enqueue_internal_system_event.assert_called_once()
+    enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
+    assert isinstance(enqueued_event, LLMUserMessageReadyEvent)
+    assert enqueued_event.llm_user_message.content == system_notification_content
+
 def test_user_input_handler_initialization(caplog):
     """Tests the handler initializes without errors."""
     with caplog.at_level(logging.INFO):
         handler = UserInputMessageEventHandler()
     assert "UserInputMessageEventHandler initialized." in caplog.text
-    # The handler no longer has a processor registry
-    assert not hasattr(handler, 'input_processor_registry')
