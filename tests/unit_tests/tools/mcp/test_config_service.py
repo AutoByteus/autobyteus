@@ -16,7 +16,7 @@ from autobyteus.tools.mcp import (
 # Test Data: Using 'server_id' as key, and nested 'stdio_params', 'streamable_http_params' etc.
 # The McpConfigService is now expected to un-nest these.
 
-USER_EXAMPLE_1_FLAT_DICT_AS_INPUT = {
+USER_EXAMPLE_1_DICT_OF_DICTS = {
     "google-slides-mcp": { # This key is the server_id
         "transport_type": "stdio",
         "enabled": True,
@@ -68,11 +68,11 @@ def mcp_config_service() -> McpConfigService:
     service.clear_configs()
     return service
 
-def test_load_config_singular(mcp_config_service: McpConfigService):
-    """Tests the new singular load_config method."""
+def test_load_config_from_dict(mcp_config_service: McpConfigService):
+    """Tests loading a single config from a dictionary."""
     config_dict_to_load = {"stdio_server_1": {"transport_type": "stdio", "command": "python"}}
     
-    loaded_config = mcp_config_service.load_config(config_dict_to_load)
+    loaded_config = mcp_config_service.load_config_from_dict(config_dict_to_load)
     assert isinstance(loaded_config, StdioMcpServerConfig)
     assert loaded_config.server_id == "stdio_server_1"
     
@@ -81,9 +81,13 @@ def test_load_config_singular(mcp_config_service: McpConfigService):
     assert stored_config.command == "python"
     assert len(mcp_config_service.get_all_configs()) == 1
 
-def test_load_configs_plural_from_list(mcp_config_service: McpConfigService):
-    configs_data = [VALID_STDIO_CONFIG_LIST_ITEM, VALID_HTTP_CONFIG_LIST_ITEM]
-    loaded = mcp_config_service.load_configs(configs_data)
+def test_load_configs_from_dict(mcp_config_service: McpConfigService):
+    """Tests loading multiple configs from a dictionary of dictionaries."""
+    configs_data = {
+        "stdio_server_1": VALID_STDIO_CONFIG_LIST_ITEM,
+        "http_server_1": VALID_HTTP_CONFIG_LIST_ITEM,
+    }
+    loaded = mcp_config_service.load_configs_from_dict(configs_data)
     assert len(loaded) == 2
     assert len(mcp_config_service.get_all_configs()) == 2
     
@@ -95,21 +99,13 @@ def test_load_configs_plural_from_list(mcp_config_service: McpConfigService):
     assert isinstance(config2, StreamableHttpMcpServerConfig)
     assert config2.url == "http://localhost:9000/stream"
 
-def test_load_configs_plural_from_dict_of_dicts(mcp_config_service: McpConfigService):
-    configs_data = USER_EXAMPLE_1_FLAT_DICT_AS_INPUT
-    loaded = mcp_config_service.load_configs(configs_data)
-    assert len(loaded) == 1
-    config = mcp_config_service.get_config("google-slides-mcp")
-    assert isinstance(config, StdioMcpServerConfig)
-    assert config.command == "node"
-
-
-def test_load_configs_from_file(mcp_config_service: McpConfigService, tmp_path):
+def test_load_configs_from_file_with_list(mcp_config_service: McpConfigService, tmp_path):
+    """Tests loading from a JSON file containing a list of configs."""
     file_content = [VALID_STDIO_CONFIG_LIST_ITEM, VALID_HTTP_CONFIG_LIST_ITEM]
     config_file = tmp_path / "mcp_config_list.json"
     config_file.write_text(json.dumps(file_content))
 
-    loaded = mcp_config_service.load_configs(str(config_file))
+    loaded = mcp_config_service.load_configs_from_file(str(config_file))
     assert len(loaded) == 2
     
     stdio_conf = mcp_config_service.get_config("stdio_server_1")
@@ -120,19 +116,32 @@ def test_load_configs_from_file(mcp_config_service: McpConfigService, tmp_path):
     assert isinstance(http_conf, StreamableHttpMcpServerConfig)
     assert http_conf.url == "http://localhost:9000/stream"
 
-@pytest.mark.parametrize("invalid_data, error_message_match", [
-    ([{"transport_type": "stdio"}], "missing 'server_id' field"),
-    ({"myid": {"transport_type": "invalid_type"}}, "Invalid 'transport_type' string 'invalid_type'"),
-    ({"myid": {"transport_type": "stdio", "stdio_params": {"command": 123}}}, "incompatible parameters for STDIO config"),
-    ({"myid": {"transport_type": "streamable_http", "streamable_http_params": {}}}, "incompatible parameters for STREAMABLE_HTTP config"),
-])
-def test_load_configs_invalid_data_raises_value_error(mcp_config_service: McpConfigService, invalid_data, error_message_match):
-    with pytest.raises(ValueError, match=error_message_match):
-        mcp_config_service.load_configs(invalid_data)
+def test_load_configs_from_file_with_dict(mcp_config_service: McpConfigService, tmp_path):
+    """Tests loading from a JSON file containing a dictionary of configs."""
+    file_content = USER_EXAMPLE_1_DICT_OF_DICTS
+    config_file = tmp_path / "mcp_config_dict.json"
+    config_file.write_text(json.dumps(file_content))
+    
+    loaded = mcp_config_service.load_configs_from_file(str(config_file))
+    assert len(loaded) == 1
+    config = mcp_config_service.get_config("google-slides-mcp")
+    assert isinstance(config, StdioMcpServerConfig)
+    assert config.command == "node"
 
-def test_load_configs_unsupported_source_type(mcp_config_service: McpConfigService):
-    with pytest.raises(TypeError, match="Unsupported source type"):
-        mcp_config_service.load_configs(123) # type: ignore
+@pytest.mark.parametrize("invalid_data, error_message_match, method_name", [
+    ([{"transport_type": "stdio"}], "each item must be a dict with a 'server_id'", "load_configs_from_file"),
+    ({"myid": {"transport_type": "invalid_type"}}, "Invalid 'transport_type' string 'invalid_type'", "load_configs_from_dict"),
+    ({"myid": {"transport_type": "stdio", "stdio_params": {"command": 123}}}, "incompatible parameters for STDIO config", "load_configs_from_dict"),
+    ({"myid": {"transport_type": "streamable_http", "streamable_http_params": {}}}, "incompatible parameters for STREAMABLE_HTTP config", "load_configs_from_dict"),
+])
+def test_load_configs_invalid_data_raises_value_error(mcp_config_service: McpConfigService, invalid_data, error_message_match, method_name, tmp_path):
+    with pytest.raises(ValueError, match=error_message_match):
+        if method_name == "load_configs_from_file":
+            config_file = tmp_path / "invalid.json"
+            config_file.write_text(json.dumps(invalid_data))
+            mcp_config_service.load_configs_from_file(str(config_file))
+        else:
+             mcp_config_service.load_configs_from_dict(invalid_data) # type: ignore
 
 def test_add_config(mcp_config_service: McpConfigService):
     stdio_obj = StdioMcpServerConfig(
@@ -159,7 +168,7 @@ def test_add_config_overwrites(mcp_config_service: McpConfigService, caplog):
 def test_remove_config(mcp_config_service: McpConfigService):
     """Tests the new remove_config method."""
     config_dict = {"server_to_remove": {"transport_type": "stdio", "command": "mycmd"}}
-    mcp_config_service.load_config(config_dict)
+    mcp_config_service.load_config_from_dict(config_dict)
     
     # Verify it's there
     assert mcp_config_service.get_config("server_to_remove") is not None
@@ -174,7 +183,7 @@ def test_remove_config(mcp_config_service: McpConfigService):
     assert result_nonexistent is False
 
 def test_clear_configs(mcp_config_service: McpConfigService):
-    mcp_config_service.load_config({"server1": {"transport_type": "stdio", "command": "c"}})
+    mcp_config_service.load_config_from_dict({"server1": {"transport_type": "stdio", "command": "c"}})
     assert len(mcp_config_service.get_all_configs()) == 1
     mcp_config_service.clear_configs()
     assert len(mcp_config_service.get_all_configs()) == 0
