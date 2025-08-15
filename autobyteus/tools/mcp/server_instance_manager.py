@@ -1,12 +1,14 @@
 # file: autobyteus/autobyteus/tools/mcp/server_instance_manager.py
 import logging
+import copy
 from typing import Dict, List, AsyncIterator
 from contextlib import asynccontextmanager
 
 from autobyteus.utils.singleton import SingletonMeta
+from autobyteus.agent.context import AgentContextRegistry
 from .config_service import McpConfigService
 from .server import BaseManagedMcpServer, StdioManagedMcpServer, HttpManagedMcpServer
-from .types import McpTransportType, McpServerInstanceKey, BaseMcpConfig
+from .types import McpTransportType, McpServerInstanceKey, BaseMcpConfig, StdioMcpServerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +19,7 @@ class McpServerInstanceManager(metaclass=SingletonMeta):
     """
     def __init__(self):
         self._config_service = McpConfigService()
+        self._context_registry = AgentContextRegistry()
         self._active_servers: Dict[McpServerInstanceKey, BaseManagedMcpServer] = {}
         logger.info("McpServerInstanceManager initialized.")
     
@@ -40,11 +43,40 @@ class McpServerInstanceManager(metaclass=SingletonMeta):
             return self._active_servers[instance_key]
 
         logger.info(f"Creating new persistent server instance for {instance_key}.")
-        config = self._config_service.get_config(server_id)
-        if not config:
+        
+        base_config = self._config_service.get_config(server_id)
+        if not base_config:
             raise ValueError(f"No configuration found for server_id '{server_id}'.")
 
-        server_instance = self._create_server_instance(config)
+        final_config = base_config
+        # --- DYNAMIC WORKSPACE CONFIGURATION (DEFENSE IN DEPTH) ---
+        if isinstance(base_config, StdioMcpServerConfig):
+            agent_context = self._context_registry.get_context(agent_id)
+            if agent_context and agent_context.workspace:
+                workspace_path = agent_context.workspace.get_base_path()
+                if workspace_path:
+                    logger.info(f"Agent '{agent_id}' has a workspace. Dynamically configuring MCP server '{server_id}' for path: {workspace_path}")
+                    # Create a copy of the config to avoid modifying the global one
+                    config_copy = copy.deepcopy(base_config)
+                    
+                    # Layer 1: Set the subprocess CWD. This is the primary mechanism.
+                    config_copy.cwd = workspace_path
+                    logger.debug(f"Set subprocess cwd='{workspace_path}' for MCP server '{server_id}'.")
+
+                    # Layer 2: Inject ENV variable as a fallback for tools like 'uv' that change directory internally.
+                    if config_copy.env is None:
+                        config_copy.env = {}
+                    config_copy.env['AUTOBYTEUS_AGENT_WORKSPACE'] = workspace_path
+                    logger.debug(f"Injected AUTOBYTEUS_AGENT_WORKSPACE='{workspace_path}' for MCP server '{server_id}'.")
+
+                    final_config = config_copy
+                else:
+                    logger.warning(f"Agent '{agent_id}' workspace for server '{server_id}' did not provide a base path. Using default configuration.")
+            else:
+                logger.debug(f"No workspace found for agent '{agent_id}'. Using default configuration for MCP server '{server_id}'.")
+        # --- END DYNAMIC WORKSPACE CONFIGURATION ---
+
+        server_instance = self._create_server_instance(final_config)
         self._active_servers[instance_key] = server_instance
         return server_instance
 

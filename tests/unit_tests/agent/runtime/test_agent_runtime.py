@@ -6,7 +6,7 @@ import concurrent.futures
 from unittest.mock import MagicMock, AsyncMock, patch, ANY
 
 from autobyteus.agent.runtime.agent_runtime import AgentRuntime
-from autobyteus.agent.context import AgentContext
+from autobyteus.agent.context import AgentContext, AgentContextRegistry
 from autobyteus.agent.handlers.event_handler_registry import EventHandlerRegistry
 from autobyteus.agent.phases import AgentOperationalPhase, AgentPhaseManager
 from autobyteus.agent.events.notifiers import AgentExternalEventNotifier
@@ -34,7 +34,15 @@ def mock_agent_worker_instance():
     return worker_instance
 
 @pytest.fixture
-def agent_runtime_with_mocks(mock_agent_context_for_runtime, mock_event_handler_registry_for_runtime, mock_agent_worker_instance):
+def mock_agent_context_registry():
+    """Provides a patched AgentContextRegistry."""
+    with patch('autobyteus.agent.runtime.agent_runtime.AgentContextRegistry') as PatchedRegistry:
+        mock_instance = MagicMock(spec=AgentContextRegistry)
+        PatchedRegistry.return_value = mock_instance
+        yield mock_instance
+
+@pytest.fixture
+def agent_runtime_with_mocks(mock_agent_context_for_runtime, mock_event_handler_registry_for_runtime, mock_agent_worker_instance, mock_agent_context_registry):
     with patch('autobyteus.agent.runtime.agent_runtime.AgentWorker', return_value=mock_agent_worker_instance) as PatchedAgentWorkerClass:
         runtime = AgentRuntime(
             context=mock_agent_context_for_runtime,
@@ -42,6 +50,7 @@ def agent_runtime_with_mocks(mock_agent_context_for_runtime, mock_event_handler_
         )
         runtime._PatchedAgentWorkerClass = PatchedAgentWorkerClass 
         runtime._mock_worker_instance = mock_agent_worker_instance
+        runtime._mock_context_registry = mock_agent_context_registry
         yield runtime
 
 @pytest.mark.asyncio
@@ -65,6 +74,9 @@ class TestAgentRuntime:
         assert runtime.phase_manager.context == mock_agent_context_for_runtime
         assert runtime.phase_manager.notifier == runtime.external_event_notifier
         assert mock_agent_context_for_runtime.state.phase_manager_ref == runtime.phase_manager
+
+        # Verify context registration on init
+        runtime._mock_context_registry.register_context.assert_called_once_with(mock_agent_context_for_runtime)
 
         # The phase manager sets this on its own __init__
         assert mock_agent_context_for_runtime.current_phase == AgentOperationalPhase.UNINITIALIZED
@@ -102,19 +114,23 @@ class TestAgentRuntime:
 
         runtime.phase_manager.notify_shutdown_initiated.assert_awaited_once()
         mock_worker_instance.stop.assert_awaited_once_with(timeout=0.1)
-        context.llm_instance.cleanup.assert_awaited_once()
+        # LLM cleanup is now handled by a shutdown step inside the worker, not directly by runtime.
+        context.llm_instance.cleanup.assert_not_called()
+        # Verify context is unregistered
+        runtime._mock_context_registry.unregister_context.assert_called_once_with(context.agent_id)
         runtime.phase_manager.notify_final_shutdown_complete.assert_awaited_once()
 
     async def test_stop_when_worker_not_alive(self, agent_runtime_with_mocks: AgentRuntime):
         runtime = agent_runtime_with_mocks
         mock_worker_instance = runtime._mock_worker_instance
+        context = agent_runtime_with_mocks.context
         
         mock_worker_instance.is_alive.return_value = False 
         mock_worker_instance._is_active = False 
 
         runtime.phase_manager.notify_shutdown_initiated.reset_mock()
         mock_worker_instance.stop.reset_mock()
-        runtime.context.llm_instance.cleanup.reset_mock()
+        context.llm_instance.cleanup.reset_mock()
         runtime.phase_manager.notify_final_shutdown_complete.reset_mock()
         
         await runtime.stop(timeout=0.1)
@@ -122,7 +138,9 @@ class TestAgentRuntime:
         # Should return early
         runtime.phase_manager.notify_shutdown_initiated.assert_not_awaited() 
         mock_worker_instance.stop.assert_not_awaited()
-        runtime.context.llm_instance.cleanup.assert_not_awaited()
+        context.llm_instance.cleanup.assert_not_called()
+        # Should NOT unregister context, as it's assumed to be already unregistered if worker isn't active.
+        runtime._mock_context_registry.unregister_context.assert_not_called()
         # But should still notify that it's complete
         runtime.phase_manager.notify_final_shutdown_complete.assert_awaited_once()
 
@@ -174,16 +192,3 @@ class TestAgentRuntime:
 
         mock_worker_instance.is_alive.return_value = False
         assert not runtime.is_running
-
-    async def test_stop_no_llm_instance_does_not_fail(self, agent_runtime_with_mocks: AgentRuntime):
-        runtime = agent_runtime_with_mocks
-        context = agent_runtime_with_mocks.context
-        context.llm_instance = None # Remove the LLM instance
-
-        mock_worker_instance = runtime._mock_worker_instance
-        mock_worker_instance.is_alive.return_value = True 
-
-        # This should run without raising an AttributeError
-        await runtime.stop(timeout=0.1)
-        
-        mock_worker_instance.stop.assert_awaited_once_with(timeout=0.1)

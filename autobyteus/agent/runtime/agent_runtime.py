@@ -5,7 +5,7 @@ import traceback
 import concurrent.futures 
 from typing import Optional, Any, Callable, Awaitable, TYPE_CHECKING 
 
-from autobyteus.agent.context import AgentContext 
+from autobyteus.agent.context import AgentContext, AgentContextRegistry
 from autobyteus.agent.phases import AgentOperationalPhase, AgentPhaseManager 
 from autobyteus.agent.events.notifiers import AgentExternalEventNotifier 
 from autobyteus.agent.events import BaseEvent
@@ -39,8 +39,12 @@ class AgentRuntime:
             event_handler_registry=self.event_handler_registry,
         )
         self._worker.add_done_callback(self._handle_worker_completion)
+        
+        # Register the context with the global registry
+        self._context_registry = AgentContextRegistry()
+        self._context_registry.register_context(self.context)
 
-        logger.info(f"AgentRuntime initialized for agent_id '{self.context.agent_id}'.")
+        logger.info(f"AgentRuntime initialized for agent_id '{self.context.agent_id}'. Context registered.")
 
     def get_worker_loop(self) -> Optional[asyncio.AbstractEventLoop]:
         return self._worker.get_worker_loop()
@@ -122,6 +126,10 @@ class AgentRuntime:
         
         # LLM instance cleanup is now handled by the AgentWorker before its loop closes.
         
+        # Unregister the context from the global registry
+        self._context_registry.unregister_context(agent_id)
+        logger.info(f"AgentRuntime for '{agent_id}': Context unregistered.")
+
         await self.phase_manager.notify_final_shutdown_complete() 
         logger.info(f"AgentRuntime for '{agent_id}' stop() method completed.")
 

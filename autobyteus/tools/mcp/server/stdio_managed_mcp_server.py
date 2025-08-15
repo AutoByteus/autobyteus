@@ -1,5 +1,5 @@
-# file: autobyteus/autobyteus/tools/mcp/server/stdio_managed_mcp_server.py
 import logging
+import asyncio
 from typing import cast
 
 from mcp import ClientSession, StdioServerParameters
@@ -9,6 +9,8 @@ from .base_managed_mcp_server import BaseManagedMcpServer
 from ..types import StdioMcpServerConfig
 
 logger = logging.getLogger(__name__)
+
+INITIALIZE_TIMEOUT = 10  # seconds
 
 class StdioManagedMcpServer(BaseManagedMcpServer):
     """Manages the lifecycle of a stdio-based MCP server."""
@@ -29,5 +31,15 @@ class StdioManagedMcpServer(BaseManagedMcpServer):
         logger.debug(f"Establishing stdio connection for server '{self.server_id}' with command: {config.command}")
         read_stream, write_stream = await self._exit_stack.enter_async_context(stdio_client(stdio_params))
         session = await self._exit_stack.enter_async_context(ClientSession(read_stream, write_stream))
-        logger.debug(f"ClientSession established for stdio server '{self.server_id}'.")
+        
+        # --- FIX: Initialize the session after creation with a timeout ---
+        try:
+            logger.debug(f"Initializing ClientSession for stdio server '{self.server_id}' with a {INITIALIZE_TIMEOUT}s timeout.")
+            await asyncio.wait_for(session.initialize(), timeout=INITIALIZE_TIMEOUT)
+        except asyncio.TimeoutError:
+            logger.error(f"Timeout occurred while initializing session for server '{self.server_id}'. The server did not respond in time.")
+            # Re-raise as a standard exception to be handled by the BaseManagedMcpServer's connect method.
+            raise ConnectionError(f"Server '{self.server_id}' failed to initialize within the timeout period.")
+        
+        logger.debug(f"ClientSession established and initialized for stdio server '{self.server_id}'.")
         return session

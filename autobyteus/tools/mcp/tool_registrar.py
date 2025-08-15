@@ -161,7 +161,8 @@ class McpToolRegistrar(metaclass=SingletonMeta):
         """
         Performs a full refresh of tools from ALL MCP servers currently configured
         in the McpConfigService. This first unregisters all previously registered
-        MCP tools, then re-discovers and re-registers them.
+        MCP tools, then re-discovers and re-registers them. This process is resilient
+        to failures from individual servers.
 
         Returns:
             A list of all successfully registered ToolDefinition objects.
@@ -186,7 +187,8 @@ class McpToolRegistrar(metaclass=SingletonMeta):
                 newly_registered = await self._discover_and_register_from_config(server_config, schema_mapper)
                 all_registered_definitions.extend(newly_registered)
             except Exception as e:
-                # Log the error but continue to the next server
+                # Log the error but continue to the next server. This makes the process resilient.
+                # exc_info is False because the inner method already logged the full stack trace.
                 logger.error(f"Failed to complete discovery for server '{server_config.server_id}', it will be skipped. Error: {e}", exc_info=False)
 
         logger.info(f"Finished reloading all MCP tools. Total tools registered: {len(all_registered_definitions)}.")
