@@ -169,7 +169,9 @@ async def test_integration_ffmpeg_process_video_and_returns_logs_on_success(real
     assert input_video.is_file() and input_video.stat().st_size > 0
 
     # Step 2: Run the ffmpeg command to cut the video.
-    cut_cmd = "ffmpeg -i input.mp4 -t 2 -c copy -y output.mp4"
+    # By removing '-c copy', we force a re-encode, which is slower but sample-accurate.
+    # This ensures the test is reliable and not subject to keyframe timing issues.
+    cut_cmd = "ffmpeg -i input.mp4 -t 2 -y output.mp4"
     cut_result = await bash_executor.execute(context=real_workspace_context, command=cut_cmd)
     
     # Assert the primary point: the tool's output now contains the logs.
