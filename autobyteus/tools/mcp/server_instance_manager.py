@@ -49,32 +49,26 @@ class McpServerInstanceManager(metaclass=SingletonMeta):
             raise ValueError(f"No configuration found for server_id '{server_id}'.")
 
         final_config = base_config
-        # --- DYNAMIC WORKSPACE CONFIGURATION (DEFENSE IN DEPTH) ---
+        # --- DYNAMIC WORKSPACE ENV VARIABLE INJECTION ---
         if isinstance(base_config, StdioMcpServerConfig):
             agent_context = self._context_registry.get_context(agent_id)
             if agent_context and agent_context.workspace:
                 workspace_path = agent_context.workspace.get_base_path()
                 if workspace_path:
-                    logger.info(f"Agent '{agent_id}' has a workspace. Dynamically configuring MCP server '{server_id}' for path: {workspace_path}")
+                    logger.info(f"Agent '{agent_id}' has a workspace. Injecting AUTOBYTEUS_AGENT_WORKSPACE='{workspace_path}' for MCP server '{server_id}'.")
                     # Create a copy of the config to avoid modifying the global one
                     config_copy = copy.deepcopy(base_config)
-                    
-                    # Layer 1: Set the subprocess CWD. This is the primary mechanism.
-                    config_copy.cwd = workspace_path
-                    logger.debug(f"Set subprocess cwd='{workspace_path}' for MCP server '{server_id}'.")
-
-                    # Layer 2: Inject ENV variable as a fallback for tools like 'uv' that change directory internally.
+                    # Ensure env dict exists
                     if config_copy.env is None:
                         config_copy.env = {}
+                    # Add our environment variable
                     config_copy.env['AUTOBYTEUS_AGENT_WORKSPACE'] = workspace_path
-                    logger.debug(f"Injected AUTOBYTEUS_AGENT_WORKSPACE='{workspace_path}' for MCP server '{server_id}'.")
-
                     final_config = config_copy
                 else:
-                    logger.warning(f"Agent '{agent_id}' workspace for server '{server_id}' did not provide a base path. Using default configuration.")
+                    logger.warning(f"Agent '{agent_id}' workspace for server '{server_id}' did not provide a base path. No workspace environment variable will be set.")
             else:
-                logger.debug(f"No workspace found for agent '{agent_id}'. Using default configuration for MCP server '{server_id}'.")
-        # --- END DYNAMIC WORKSPACE CONFIGURATION ---
+                logger.debug(f"No workspace found for agent '{agent_id}'. No workspace environment variable will be set for MCP server '{server_id}'.")
+        # --- END DYNAMIC WORKSPACE ENV VARIABLE INJECTION ---
 
         server_instance = self._create_server_instance(final_config)
         self._active_servers[instance_key] = server_instance

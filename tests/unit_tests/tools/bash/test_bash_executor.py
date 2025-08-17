@@ -52,7 +52,7 @@ def test_bash_executor_definition_is_registered():
     definition = default_tool_registry.get_tool_definition(TOOL_NAME)
     assert definition is not None
     assert definition.name == TOOL_NAME
-    assert "Executes bash commands" in definition.description
+    assert "On success, it returns a formatted string" in definition.description
     assert definition.argument_schema is not None
     
     arg_names = [p.name for p in definition.argument_schema.parameters]
@@ -96,7 +96,10 @@ async def test_unit_uses_temp_dir_as_fallback(mock_shutil, mock_subprocess, mock
     mock_subprocess.return_value = mock_process
 
     # FIX: Call the .execute() method on the tool instance
-    await bash_executor.execute(context=mock_context_no_workspace, command="ls")
+    result = await bash_executor.execute(context=mock_context_no_workspace, command="ls")
+    
+    # For stdout-only commands, the output is returned directly
+    assert result == "done"
 
     mock_subprocess.assert_called_once()
     call_kwargs = mock_subprocess.call_args[1]
@@ -111,7 +114,6 @@ async def test_integration_pwd_command_returns_real_workspace_path(real_workspac
     """Integration test: Verifies CWD is set correctly by running 'pwd'."""
     workspace_path = real_workspace_context.workspace.get_base_path()
     
-    # FIX: Call the .execute() method on the tool instance
     result = await bash_executor.execute(context=real_workspace_context, command="pwd")
     
     # os.path.samefile correctly compares paths, handling symlinks etc.
@@ -133,19 +135,69 @@ async def test_integration_write_and_run_node_script(real_workspace_context):
     # Use a relative path in the command; the tool will run it inside the workspace
     write_command = f"echo \"{js_content}\" > hello.js"
     
-    # FIX: Call the .execute() method on the tool instance
     write_result = await bash_executor.execute(context=real_workspace_context, command=write_command)
     
-    # Assert that the write command succeeded (it produces no stdout) and the file exists
-    assert write_result == ""
+    # Assert that the write command (with no output) returns the success message
+    assert write_result == "Command executed successfully with no output."
     assert js_file_path.is_file()
     assert js_file_path.read_text().strip() == js_content
     
     # Step 2: Run the "hello.js" file using the tool
     run_command = "node hello.js"
     
-    # FIX: Call the .execute() method on the tool instance
     run_result = await bash_executor.execute(context=real_workspace_context, command=run_command)
     
-    # Assert the output is correct
+    # Assert the stdout-only output is correct
     assert run_result == "Hello from file"
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="ffmpeg executable not found in PATH")
+async def test_integration_ffmpeg_process_video_and_returns_logs_on_success(real_workspace_context):
+    """
+    Integration test: Verifies that a tool like ffmpeg, which logs progress to stderr
+    on success, has its diagnostic output captured and returned in the result.
+    """
+    workspace_path = Path(real_workspace_context.workspace.get_base_path())
+    input_video = workspace_path / "input.mp4"
+    output_video = workspace_path / "output.mp4"
+
+    # Step 1: Generate a short dummy video file.
+    generate_cmd = "ffmpeg -f lavfi -i testsrc=size=160x120:rate=10:duration=5 -c:v libx264 -g 10 -pix_fmt yuv420p -y -loglevel error input.mp4"
+    generate_result = await bash_executor.execute(context=real_workspace_context, command=generate_cmd)
+    
+    assert generate_result == "Command executed successfully with no output."
+    assert input_video.is_file() and input_video.stat().st_size > 0
+
+    # Step 2: Run the ffmpeg command to cut the video.
+    cut_cmd = "ffmpeg -i input.mp4 -t 2 -c copy -y output.mp4"
+    cut_result = await bash_executor.execute(context=real_workspace_context, command=cut_cmd)
+    
+    # Assert the primary point: the tool's output now contains the logs.
+    assert cut_result.startswith("LOGS:")
+    assert "ffmpeg version" in cut_result
+    assert "frame=" in cut_result
+    assert output_video.is_file() and output_video.stat().st_size > 0
+
+    # Step 3: Verify the output video's duration is correct using ffprobe.
+    if shutil.which("ffprobe"):
+        probe_cmd = "ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 output.mp4"
+        duration_result = await bash_executor.execute(context=real_workspace_context, command=probe_cmd)
+        
+        # The duration should be approximately 2.0 seconds.
+        assert float(duration_result) == pytest.approx(2.0, abs=0.2)
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="ffmpeg executable not found in PATH")
+async def test_integration_ffmpeg_with_invalid_arg_raises_error(real_workspace_context):
+    """
+    Integration test: Verifies that when ffmpeg fails, it returns a non-zero exit code,
+    and BashExecutor correctly raises a CalledProcessError. This test is unaffected
+    by the return value change for successful commands.
+    """
+    invalid_cmd = "ffmpeg -i non_existent_input.mp4 -y output.mp4"
+    
+    with pytest.raises(subprocess.CalledProcessError) as exc_info:
+        await bash_executor.execute(context=real_workspace_context, command=invalid_cmd)
+        
+    assert "non_existent_input.mp4: No such file or directory" in exc_info.value.stderr
+    assert exc_info.value.returncode != 0

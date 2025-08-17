@@ -16,11 +16,13 @@ logger = logging.getLogger(__name__)
 @tool(name="BashExecutor", category=ToolCategory.SYSTEM)
 async def bash_executor(context: Optional['AgentContext'], command: str) -> str:
     """
-    Executes bash commands using the '/bin/bash' interpreter and retrieves their standard output.
+    Executes bash commands using the '/bin/bash' interpreter.
+    On success, it returns a formatted string containing the command's standard output (stdout) and/or diagnostic logs.
+    On failure, it raises an exception.
+    - If a command has only stdout, its content is returned directly.
+    - If a command has diagnostic output (from stderr), it will be included and labeled as 'LOGS' in the output.
     'command' is the bash command string to be executed.
     The command is executed in the agent's workspace directory if available.
-    If no workspace is configured, it runs in the system's temporary directory (e.g., /tmp).
-    Errors during command execution are raised as exceptions. This tool requires 'bash' to be installed and in the system's PATH.
     """
     if not shutil.which("bash"):
         error_msg = "'bash' executable not found in system PATH. The BashExecutor tool cannot be used."
@@ -60,9 +62,12 @@ async def bash_executor(context: Optional['AgentContext'], command: str) -> str:
             cwd=effective_cwd
         )
         stdout, stderr = await process.communicate()
+        
+        stdout_output = stdout.decode().strip() if stdout else ""
+        stderr_output = stderr.decode().strip() if stderr else ""
 
         if process.returncode != 0:
-            error_message = stderr.decode().strip() if stderr else "Unknown error"
+            error_message = stderr_output if stderr_output else "Unknown error"
             if not error_message and process.returncode != 0:
                 error_message = f"Command failed with exit code {process.returncode} and no stderr output."
             
@@ -70,13 +75,19 @@ async def bash_executor(context: Optional['AgentContext'], command: str) -> str:
             raise subprocess.CalledProcessError(
                 returncode=process.returncode,
                 cmd=command,
-                output=stdout.decode().strip() if stdout else "",
+                output=stdout_output,
                 stderr=error_message
             )
-
-        output = stdout.decode().strip() if stdout else ""
-        logger.debug(f"Command '{command}' output: {output}")
-        return output
+        
+        # Adaptive return for successful commands to provide maximum context to the agent.
+        if stdout_output and stderr_output:
+            return f"STDOUT:\n{stdout_output}\n\nLOGS:\n{stderr_output}"
+        elif stdout_output:
+            return stdout_output  # Keep it simple for commands with only stdout
+        elif stderr_output:
+            return f"LOGS:\n{stderr_output}"
+        else:
+            return "Command executed successfully with no output."
 
     except subprocess.CalledProcessError:
         raise
