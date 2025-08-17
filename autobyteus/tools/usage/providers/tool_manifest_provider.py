@@ -21,7 +21,8 @@ class ToolManifestProvider:
     """
     SCHEMA_HEADER = "## Tool Definition:"
     EXAMPLE_HEADER = "## Example Usage:"
-    JSON_EXAMPLE_HEADER = "To use this tool, you MUST output a JSON object in the following format:"
+    # UPDATED: Changed the header to be more descriptive as requested.
+    JSON_EXAMPLE_HEADER = "Example: To use this tool, you could provide the following JSON object as a tool call:"
 
     def __init__(self):
         self._formatting_registry = ToolFormattingRegistry()
@@ -59,8 +60,8 @@ class ToolManifestProvider:
                     if is_xml_format:
                         tool_blocks.append(f"{self.SCHEMA_HEADER}\n{schema}\n\n{self.EXAMPLE_HEADER}\n{example}")
                     else:  # JSON format
-                        schema_wrapped = {"tool": schema}
-                        schema_str = json.dumps(schema_wrapped, indent=2)
+                        # UPDATED: Removed the redundant {"tool": schema} wrapper.
+                        schema_str = json.dumps(schema, indent=2)
                         example_str = json.dumps(example, indent=2)
                         tool_blocks.append(f"{self.SCHEMA_HEADER}\n{schema_str}\n\n{self.JSON_EXAMPLE_HEADER}\n{example_str}")
                 else:
@@ -68,9 +69,7 @@ class ToolManifestProvider:
 
             except Exception as e:
                 logger.error(f"Failed to generate manifest block for tool '{td.name}': {e}", exc_info=True)
-
-        if is_xml_format:
-            return "\n\n---\n\n".join(tool_blocks)
-        else:
-            # For JSON, the model expects a list of tool definitions.
-            return "[\n" + ",\n".join(tool_blocks) + "\n]"
+        
+        # UPDATED: Unify the return for all formats to provide a consistent structure
+        # without the incorrect '[]' wrapper for JSON.
+        return "\n\n---\n\n".join(tool_blocks)

@@ -54,7 +54,7 @@ def test_provide_uses_registry_and_formats_json(provider: ToolManifestProvider, 
     mock_schema_formatter = MagicMock(spec=BaseSchemaFormatter) # Not an XML formatter
     mock_schema_formatter.provide.return_value = {"name": "TestTool", "parameters": {}}
     mock_example_formatter = MagicMock()
-    mock_example_formatter.provide.return_value = {"tool": {"function": "TestTool", "parameters": {}}}
+    mock_example_formatter.provide.return_value = {"example": "usage"}
     
     mock_pair = ToolFormatterPair(
         schema_formatter=mock_schema_formatter,
@@ -68,14 +68,19 @@ def test_provide_uses_registry_and_formats_json(provider: ToolManifestProvider, 
     # Assert
     mock_registry.get_formatter_pair.assert_called_once_with(LLMProvider.OPENAI)
     assert "## Tool Definition:" in manifest
-    assert '{\n  "tool": {\n    "name": "TestTool",\n    "parameters": {}\n  }\n}' in manifest
-    assert "## Example Usage:" not in manifest
-    assert "To use this tool, you MUST output a JSON object" in manifest
-    assert '{\n  "tool": {\n    "function": "TestTool",\n    "parameters": {}\n  }\n}' in manifest
-    assert manifest.startswith("[\n")
-    assert manifest.endswith("\n]")
+    # Check for direct JSON dump of schema, without the extra 'tool' wrapper
+    assert '{\n  "name": "TestTool",\n  "parameters": {}\n}' in manifest
+    # Check for the new, more descriptive example header
+    assert "Example: To use this tool, you could provide the following JSON object as a tool call:" in manifest
+    # Check for the JSON dump of the example
+    assert '{\n  "example": "usage"\n}' in manifest
+    # Check that the manifest is NOT wrapped in brackets
+    assert not manifest.startswith("[")
+    assert not manifest.endswith("]")
+    # Check that there is no separator for a single tool
+    assert "\n\n---\n\n" not in manifest
 
-def test_provide_joins_multiple_tools(provider: ToolManifestProvider, mock_registry: MagicMock):
+def test_provide_joins_multiple_xml_tools(provider: ToolManifestProvider, mock_registry: MagicMock):
     # Arrange
     mock_tool_1 = MagicMock(spec=ToolDefinition)
     mock_tool_2 = MagicMock(spec=ToolDefinition)
@@ -95,3 +100,40 @@ def test_provide_joins_multiple_tools(provider: ToolManifestProvider, mock_regis
     assert "<tool name='Tool1' />" in manifest
     assert "<tool name='Tool2' />" in manifest
     assert "\n\n---\n\n" in manifest
+
+def test_provide_joins_multiple_json_tools(provider: ToolManifestProvider, mock_registry: MagicMock):
+    # Arrange
+    mock_tool_1 = MagicMock(spec=ToolDefinition, name="Tool1")
+    mock_tool_2 = MagicMock(spec=ToolDefinition, name="Tool2")
+    
+    mock_schema_formatter = MagicMock(spec=BaseSchemaFormatter)
+    mock_schema_formatter.provide.side_effect = [
+        {"name": "Tool1", "params": {}},
+        {"name": "Tool2", "params": {}}
+    ]
+    mock_example_formatter = MagicMock()
+    mock_example_formatter.provide.side_effect = [
+        {"example": "one"},
+        {"example": "two"}
+    ]
+    
+    mock_pair = ToolFormatterPair(
+        schema_formatter=mock_schema_formatter,
+        example_formatter=mock_example_formatter
+    )
+    mock_registry.get_formatter_pair.return_value = mock_pair
+
+    # Act
+    manifest = provider.provide([mock_tool_1, mock_tool_2], provider=LLMProvider.OPENAI)
+
+    # Assert
+    # Check for content from both tools
+    assert '"name": "Tool1"' in manifest
+    assert '"example": "one"' in manifest
+    assert '"name": "Tool2"' in manifest
+    assert '"example": "two"' in manifest
+    # Check for the correct separator
+    assert "\n\n---\n\n" in manifest
+    # Check that the manifest is NOT wrapped in brackets
+    assert not manifest.startswith("[")
+    assert not manifest.endswith("]")
