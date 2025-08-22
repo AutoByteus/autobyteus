@@ -6,6 +6,7 @@ from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.token_usage_tracker import TokenUsageTracker
 from autobyteus.llm.utils.messages import Message, MessageRole
 from autobyteus.llm.utils.response_types import CompleteResponse
+from autobyteus.llm.user_message import LLMUserMessage
 
 if TYPE_CHECKING:
     from autobyteus.llm.base_llm import BaseLLM
@@ -29,12 +30,12 @@ class TokenUsageTrackingExtension(LLMExtension):
         return self._latest_usage
 
     async def before_invoke(
-        self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs
+        self, user_message: LLMUserMessage, **kwargs
     ) -> None:
         pass
 
     async def after_invoke(
-        self, user_message: str, image_urls: Optional[List[str]] = None, response: CompleteResponse = None, **kwargs
+        self, user_message: LLMUserMessage, response: CompleteResponse = None, **kwargs
     ) -> None:
         """
         Get the latest usage from tracker and optionally override token counts with provider's usage if available

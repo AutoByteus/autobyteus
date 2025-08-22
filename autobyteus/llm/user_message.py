@@ -7,53 +7,65 @@ logger = logging.getLogger(__name__)
 class LLMUserMessage:
     """
     Represents a user message formatted specifically for input to an LLM.
-    It includes content and optionally image URLs.
-    This structure is typically used when constructing prompts for multimodal LLMs
-    or when sending a "user" role message in a conversation.
+    It includes content and optionally URLs for various media types.
+    This structure is typically used when constructing prompts for multimodal LLMs.
     """
     def __init__(self,
                  content: str,
-                 image_urls: Optional[List[str]] = None):
+                 image_urls: Optional[List[str]] = None,
+                 audio_urls: Optional[List[str]] = None,
+                 video_urls: Optional[List[str]] = None):
         """
         Initializes an LLMUserMessage.
 
         Args:
             content: The textual content of the user's message.
-            image_urls: An optional list of URLs or local paths to images
-                        to be included with the message for the LLM.
+            image_urls: An optional list of URLs or local paths to images.
+            audio_urls: An optional list of URLs or local paths to audio files.
+            video_urls: An optional list of URLs or local paths to video files.
         """
-        if not isinstance(content, str):
-            # Allow empty string for content, as images might be the only input.
-            # But content must still be a string type.
-            pass # Validation can be more strict if empty content is disallowed with no images
-        
-        if image_urls is None:
-            image_urls = [] # Default to empty list for easier processing
-
-        if not (isinstance(image_urls, list) and all(isinstance(url, str) for url in image_urls)):
-            raise TypeError("LLMUserMessage 'image_urls' must be a list of strings.")
-        
-        if not content and not image_urls:
-            raise ValueError("LLMUserMessage must have either content or image_urls or both.")
-
         self.content: str = content
-        self.image_urls: List[str] = image_urls
+        self.image_urls: List[str] = image_urls or []
+        self.audio_urls: List[str] = audio_urls or []
+        self.video_urls: List[str] = video_urls or []
 
-        logger.debug(f"LLMUserMessage created. Content: '{content[:50]}...', Image URLs: {image_urls}")
+        # --- Validation ---
+        if not isinstance(self.content, str):
+            raise TypeError("LLMUserMessage 'content' must be a string.")
+        if not (isinstance(self.image_urls, list) and all(isinstance(url, str) for url in self.image_urls)):
+            raise TypeError("LLMUserMessage 'image_urls' must be a list of strings.")
+        if not (isinstance(self.audio_urls, list) and all(isinstance(url, str) for url in self.audio_urls)):
+            raise TypeError("LLMUserMessage 'audio_urls' must be a list of strings.")
+        if not (isinstance(self.video_urls, list) and all(isinstance(url, str) for url in self.video_urls)):
+            raise TypeError("LLMUserMessage 'video_urls' must be a list of strings.")
+
+        if not self.content and not self.image_urls and not self.audio_urls and not self.video_urls:
+            raise ValueError("LLMUserMessage must have either content or at least one media URL.")
+
+        logger.debug(f"LLMUserMessage created. Content: '{self.content[:50]}...', "
+                     f"Images: {len(self.image_urls)}, Audio: {len(self.audio_urls)}, Video: {len(self.video_urls)}")
 
     def __repr__(self) -> str:
-        image_urls_repr = f", image_urls={self.image_urls}" if self.image_urls else ""
-        return f"LLMUserMessage(content='{self.content[:100]}...'{image_urls_repr})"
+        parts = [f"content='{self.content[:100]}...'"]
+        if self.image_urls:
+            parts.append(f"image_urls={self.image_urls}")
+        if self.audio_urls:
+            parts.append(f"audio_urls={self.audio_urls}")
+        if self.video_urls:
+            parts.append(f"video_urls={self.video_urls}")
+        return f"LLMUserMessage({', '.join(parts)})"
 
     def to_dict(self) -> Dict[str, Any]:
         """
-        Serializes the LLMUserMessage to a dictionary. This method might be less used
-        now that BaseLLM._add_user_message handles the conversion to the Message format.
-        Kept for potential direct use or testing.
+        Serializes the LLMUserMessage to a dictionary.
         """
         data = {"content": self.content}
         if self.image_urls:
             data["image_urls"] = self.image_urls
+        if self.audio_urls:
+            data["audio_urls"] = self.audio_urls
+        if self.video_urls:
+            data["video_urls"] = self.video_urls
         return data
 
     @classmethod
@@ -61,13 +73,9 @@ class LLMUserMessage:
         """
         Deserializes an LLMUserMessage from a dictionary.
         """
-        content = data.get("content", "") # Default to empty string if not present
-        image_urls = data.get("image_urls") # Expects a list or None
-
-        # Basic validation, more can be added if needed
-        if not isinstance(content, str):
-             raise ValueError("LLMUserMessage 'content' in dictionary must be a string.")
-        if image_urls is not None and not (isinstance(image_urls, list) and all(isinstance(url, str) for url in image_urls)):
-            raise ValueError("LLMUserMessage 'image_urls' in dictionary must be a list of strings if provided.")
-
-        return cls(content=content, image_urls=image_urls)
+        return cls(
+            content=data.get("content", ""),
+            image_urls=data.get("image_urls"),
+            audio_urls=data.get("audio_urls"),
+            video_urls=data.get("video_urls")
+        )

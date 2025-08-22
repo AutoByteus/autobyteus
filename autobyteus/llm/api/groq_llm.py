@@ -7,6 +7,7 @@ from autobyteus.llm.utils.llm_config import LLMConfig
 from autobyteus.llm.utils.messages import MessageRole, Message
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
+from autobyteus.llm.user_message import LLMUserMessage
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,7 @@ class GroqLLM(BaseLLM):
         except Exception as e:
             raise ValueError(f"Failed to initialize Groq client: {str(e)}")
     
-    async def _send_user_message_to_llm(self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs) -> CompleteResponse:
+    async def _send_user_message_to_llm(self, user_message: LLMUserMessage, **kwargs) -> CompleteResponse:
         self.add_user_message(user_message)
         try:
             # Placeholder for sending message to Groq API
@@ -58,7 +59,7 @@ class GroqLLM(BaseLLM):
             raise ValueError(f"Error in Groq API call: {str(e)}")
     
     async def _stream_user_message_to_llm(
-        self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs
+        self, user_message: LLMUserMessage, **kwargs
     ) -> AsyncGenerator[ChunkResponse, None]:
         self.add_user_message(user_message)
         complete_response = ""
@@ -90,4 +91,4 @@ class GroqLLM(BaseLLM):
             raise ValueError(f"Error in Groq API streaming: {str(e)}")
     
     async def cleanup(self):
-        super().cleanup()
+        await super().cleanup()

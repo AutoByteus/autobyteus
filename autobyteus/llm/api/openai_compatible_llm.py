@@ -1,7 +1,7 @@
 import logging
 import os
 from abc import ABC
-from typing import Optional, List, AsyncGenerator
+from typing import Optional, List, AsyncGenerator, Dict, Any
 from openai import OpenAI
 from openai.types.completion_usage import CompletionUsage
 from openai.types.chat import ChatCompletionChunk
@@ -9,11 +9,42 @@ from openai.types.chat import ChatCompletionChunk
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.utils.llm_config import LLMConfig
-from autobyteus.llm.utils.image_payload_formatter import process_image
+from autobyteus.llm.utils.media_payload_formatter import process_image
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
+from autobyteus.llm.user_message import LLMUserMessage
+from autobyteus.llm.utils.messages import Message
 
 logger = logging.getLogger(__name__)
+
+def _format_openai_history(messages: List[Message]) -> List[Dict[str, Any]]:
+    """A local function to format history for the OpenAI SDK."""
+    formatted_messages = []
+    for msg in messages:
+        # For multimodal messages, build the content list of parts
+        if msg.image_urls or msg.audio_urls or msg.video_urls:
+            content_parts: List[Dict[str, Any]] = []
+            if msg.content:
+                content_parts.append({"type": "text", "text": msg.content})
+
+            for url in msg.image_urls:
+                try:
+                    content_parts.append(process_image(url))
+                except ValueError as e:
+                    logger.error(f"Error processing image {url}: {e}")
+            
+            # Placeholder for future audio/video processing
+            if msg.audio_urls:
+                logger.warning("OpenAI compatible layer does not yet support audio; skipping.")
+            if msg.video_urls:
+                logger.warning("OpenAI compatible layer does not yet support video; skipping.")
+
+            formatted_messages.append({"role": msg.role.value, "content": content_parts})
+        else:
+            # For text-only messages, use the simple string format
+            formatted_messages.append({"role": msg.role.value, "content": msg.content})
+    return formatted_messages
+
 
 class OpenAICompatibleLLM(BaseLLM, ABC):
     def __init__(
@@ -24,18 +55,6 @@ class OpenAICompatibleLLM(BaseLLM, ABC):
         base_url: str,
         api_key_default: Optional[str] = None
     ):
-        """
-        Initializes an OpenAI-compatible LLM.
-
-        Args:
-            model (LLMModel): The model to use.
-            llm_config (LLMConfig): Configuration for the LLM.
-            api_key_env_var (str): The name of the environment variable for the API key.
-            base_url (str): The base URL for the API.
-            api_key_default (Optional[str], optional): A default API key to use if the
-                                                       environment variable is not set.
-                                                       Defaults to None.
-        """
         api_key = os.getenv(api_key_env_var)
         if not api_key:
             if api_key_default:
@@ -49,13 +68,11 @@ class OpenAICompatibleLLM(BaseLLM, ABC):
         logger.info(f"Initialized OpenAI compatible client with base_url: {base_url}")
         
         super().__init__(model=model, llm_config=llm_config)
-        self.max_tokens = 8000 # A default, can be overridden by subclass or config
+        self.max_tokens = 8000
 
     def _create_token_usage(self, usage_data: Optional[CompletionUsage]) -> Optional[TokenUsage]:
-        """Convert usage data to TokenUsage format."""
         if not usage_data:
             return None
-        
         return TokenUsage(
             prompt_tokens=usage_data.prompt_tokens,
             completion_tokens=usage_data.completion_tokens,
@@ -63,53 +80,35 @@ class OpenAICompatibleLLM(BaseLLM, ABC):
         )
 
     async def _send_user_message_to_llm(
-        self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs
+        self, user_message: LLMUserMessage, **kwargs
     ) -> CompleteResponse:
-        """
-        Sends a non-streaming request to an OpenAI-compatible API.
-        Supports optional reasoning content if provided in the response.
-        """
-        content = []
-
-        if user_message:
-            content.append({"type": "text", "text": user_message})
-
-        if image_urls:
-            for image_url in image_urls:
-                try:
-                    image_content = process_image(image_url)
-                    content.append(image_content)
-                    logger.info(f"Processed image: {image_url}")
-                except ValueError as e:
-                    logger.error(f"Error processing image {image_url}: {str(e)}")
-                    continue
-
-        self.add_user_message(content)
-        logger.debug(f"Prepared message content: {content}")
-
+        self.add_user_message(user_message)
+        
         try:
+            formatted_messages = _format_openai_history(self.messages)
             logger.info(f"Sending request to {self.model.provider.value} API")
+            
             response = self.client.chat.completions.create(
                 model=self.model.value,
-                messages=[msg.to_dict() for msg in self.messages],
+                messages=formatted_messages,
                 max_tokens=self.max_tokens,
             )
             full_message = response.choices[0].message
 
-            # Extract reasoning_content if present
+            # --- PRESERVED ORIGINAL LOGIC ---
             reasoning = None
             if hasattr(full_message, "reasoning_content") and full_message.reasoning_content:
                 reasoning = full_message.reasoning_content
             elif "reasoning_content" in full_message and full_message["reasoning_content"]:
                 reasoning = full_message["reasoning_content"]
 
-            # Extract main content
             main_content = ""
             if hasattr(full_message, "content") and full_message.content:
                 main_content = full_message.content
             elif "content" in full_message and full_message["content"]:
                 main_content = full_message["content"]
-            
+            # --- END PRESERVED LOGIC ---
+
             self.add_assistant_message(main_content, reasoning_content=reasoning)
 
             token_usage = self._create_token_usage(response.usage)
@@ -125,39 +124,20 @@ class OpenAICompatibleLLM(BaseLLM, ABC):
             raise ValueError(f"Error in {self.model.provider.value} API request: {str(e)}")
 
     async def _stream_user_message_to_llm(
-        self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs
+        self, user_message: LLMUserMessage, **kwargs
     ) -> AsyncGenerator[ChunkResponse, None]:
-        """
-        Streams the response from an OpenAI-compatible API.
-        Yields reasoning and content in separate chunks.
-        """
-        content = []
+        self.add_user_message(user_message)
 
-        if user_message:
-            content.append({"type": "text", "text": user_message})
-
-        if image_urls:
-            for image_url in image_urls:
-                try:
-                    image_content = process_image(image_url)
-                    content.append(image_content)
-                    logger.info(f"Processed image for streaming: {image_url}")
-                except ValueError as e:
-                    logger.error(f"Error processing image for streaming {image_url}: {str(e)}")
-                    continue
-
-        self.add_user_message(content)
-        logger.debug(f"Prepared streaming message content: {content}")
-
-        # Initialize variables to track reasoning and main content
         accumulated_reasoning = ""
         accumulated_content = ""
 
         try:
+            formatted_messages = _format_openai_history(self.messages)
             logger.info(f"Starting streaming request to {self.model.provider.value} API")
+            
             stream = self.client.chat.completions.create(
                 model=self.model.value,
-                messages=[msg.to_dict() for msg in self.messages],
+                messages=formatted_messages,
                 max_tokens=self.max_tokens,
                 stream=True,
                 stream_options={"include_usage": True}
@@ -170,25 +150,23 @@ class OpenAICompatibleLLM(BaseLLM, ABC):
                 
                 delta = chunk.choices[0].delta
 
-                # Process reasoning tokens (if supported by model)
-                reasoning_chunk = getattr(delta, "reasoning_content", None)
+                # --- PRESERVED ORIGINAL LOGIC (adapted for streaming) ---
+                reasoning_chunk = None
+                if hasattr(delta, "reasoning_content") and delta.reasoning_content:
+                    reasoning_chunk = delta.reasoning_content
+                elif isinstance(delta, dict) and "reasoning_content" in delta and delta["reasoning_content"]:
+                    reasoning_chunk = delta["reasoning_content"]
+                
                 if reasoning_chunk:
                     accumulated_reasoning += reasoning_chunk
-                    yield ChunkResponse(
-                        content="",
-                        reasoning=reasoning_chunk
-                    )
+                    yield ChunkResponse(content="", reasoning=reasoning_chunk)
+                # --- END PRESERVED LOGIC ---
 
-                # Process main content tokens
                 main_token = delta.content
                 if main_token:
                     accumulated_content += main_token
-                    yield ChunkResponse(
-                        content=main_token,
-                        reasoning=None
-                    )
+                    yield ChunkResponse(content=main_token, reasoning=None)
 
-                # Yield token usage if available in the final chunk
                 if hasattr(chunk, "usage") and chunk.usage is not None:
                     token_usage = self._create_token_usage(chunk.usage)
                     yield ChunkResponse(
@@ -198,7 +176,6 @@ class OpenAICompatibleLLM(BaseLLM, ABC):
                         usage=token_usage
                     )
             
-            # After streaming, add the fully accumulated assistant message to history
             self.add_assistant_message(accumulated_content, reasoning_content=accumulated_reasoning)
             logger.info(f"Completed streaming response from {self.model.provider.value} API")
 

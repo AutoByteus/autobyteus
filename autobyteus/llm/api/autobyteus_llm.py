@@ -4,6 +4,7 @@ from autobyteus.llm.models import LLMModel
 from autobyteus.llm.utils.llm_config import LLMConfig
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
+from autobyteus.llm.user_message import LLMUserMessage
 from autobyteus_llm_client.client import AutobyteusClient
 import logging
 import uuid
@@ -12,30 +13,29 @@ logger = logging.getLogger(__name__)
 
 class AutobyteusLLM(BaseLLM):
     def __init__(self, model: LLMModel, llm_config: LLMConfig):
-        # The host URL is now passed via the model object.
         if not model.host_url:
             raise ValueError("AutobyteusLLM requires a host_url to be set in its LLMModel object.")
 
         super().__init__(model=model, llm_config=llm_config)
         
-        # Instantiate the client with the specific host for this model.
         self.client = AutobyteusClient(server_url=self.model.host_url)
         self.conversation_id = str(uuid.uuid4())
         logger.info(f"AutobyteusLLM initialized for model '{self.model.model_identifier}' with conversation ID: {self.conversation_id}")
 
     async def _send_user_message_to_llm(
         self,
-        user_message: str,
-        image_urls: Optional[List[str]] = None,
+        user_message: LLMUserMessage,
         **kwargs
     ) -> CompleteResponse:
         self.add_user_message(user_message)
         try:
             response = await self.client.send_message(
                 conversation_id=self.conversation_id,
-                model_name=self.model.name, # Use `name` as it's the original model name for the API
-                user_message=user_message,
-                image_urls=image_urls
+                model_name=self.model.name,
+                user_message=user_message.content,
+                image_urls=user_message.image_urls,
+                audio_urls=user_message.audio_urls,
+                video_urls=user_message.video_urls
             )
             
             assistant_message = response['response']
@@ -59,8 +59,7 @@ class AutobyteusLLM(BaseLLM):
 
     async def _stream_user_message_to_llm(
         self,
-        user_message: str,
-        image_urls: Optional[List[str]] = None,
+        user_message: LLMUserMessage,
         **kwargs
     ) -> AsyncGenerator[ChunkResponse, None]:
         self.add_user_message(user_message)
@@ -69,9 +68,11 @@ class AutobyteusLLM(BaseLLM):
         try:
             async for chunk in self.client.stream_message(
                 conversation_id=self.conversation_id,
-                model_name=self.model.name, # Use `name` for the API call
-                user_message=user_message,
-                image_urls=image_urls
+                model_name=self.model.name,
+                user_message=user_message.content,
+                image_urls=user_message.image_urls,
+                audio_urls=user_message.audio_urls,
+                video_urls=user_message.video_urls
             ):
                 if 'error' in chunk:
                     raise RuntimeError(chunk['error'])
@@ -80,7 +81,6 @@ class AutobyteusLLM(BaseLLM):
                 complete_response += content
                 is_complete = chunk.get('is_complete', False)
                 
-                # If this is the final chunk, include token usage
                 if is_complete:
                     token_usage = None
                     if chunk.get('token_usage'):
@@ -116,7 +116,6 @@ class AutobyteusLLM(BaseLLM):
             await self.client.close()
 
     async def _handle_error_cleanup(self):
-        """Handle cleanup operations after errors"""
         try:
             await self.cleanup()
         except Exception as cleanup_error:

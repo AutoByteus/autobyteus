@@ -23,7 +23,7 @@ def lmstudio_llm(set_lmstudio_env):
     LLMFactory.reinitialize()
     
     # Get the list of discovered models for the LMSTUDIO provider
-    lmstudio_models = LLMFactory.get_models_by_provider(LLMProvider.LMSTUDIO)
+    lmstudio_models = LLMFactory.list_models_by_provider(LLMProvider.LMSTUDIO)
     
     if not lmstudio_models:
         pytest.skip(
@@ -32,7 +32,7 @@ def lmstudio_llm(set_lmstudio_env):
         )
     
     # Use the first discovered model for testing
-    model_identifier = lmstudio_models[0]
+    model_identifier = lmstudio_models[0].model_identifier
     
     try:
         return LLMFactory.create_llm(model_identifier=model_identifier)
@@ -51,9 +51,8 @@ async def test_lmstudio_llm_response(lmstudio_llm):
         assert isinstance(response.content, str)
         assert "pong" in response.content.lower()
         
-        # Verify message history
-        assert len(lmstudio_llm.messages) == 3  # System + User + Assistant
-        assert lmstudio_llm.messages[1].content[0]["text"] == user_message.content
+        assert len(lmstudio_llm.messages) == 3
+        assert lmstudio_llm.messages[1].content == user_message.content
         assert lmstudio_llm.messages[2].content == response.content
 
     except APIConnectionError:
@@ -79,9 +78,8 @@ async def test_lmstudio_llm_streaming(lmstudio_llm):
     
         assert len(complete_response) > 10
         
-        # Verify message history
-        assert len(lmstudio_llm.messages) == 3  # System + User + Assistant
-        assert lmstudio_llm.messages[1].content[0]["text"] == user_message.content
+        assert len(lmstudio_llm.messages) == 3
+        assert lmstudio_llm.messages[1].content == user_message.content
         assert lmstudio_llm.messages[2].content == complete_response
 
     except APIConnectionError:

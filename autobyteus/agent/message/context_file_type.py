@@ -1,5 +1,6 @@
 from enum import Enum
 import os
+from urllib.parse import urlparse
 
 class ContextFileType(str, Enum):
     """
@@ -23,19 +24,25 @@ class ContextFileType(str, Enum):
     UNKNOWN = "unknown"    # Fallback for unrecognized types
 
     @classmethod
-    def from_path(cls, file_path: str) -> 'ContextFileType':
+    def from_path(cls, uri: str) -> 'ContextFileType':
         """
-        Infers the ContextFileType from a file path based on its extension.
+        Infers the ContextFileType from a file path or URL based on its extension.
         """
-        if not file_path or not isinstance(file_path, str):
+        if not uri or not isinstance(uri, str):
             return cls.UNKNOWN
-        
-        _, extension = os.path.splitext(file_path.lower())
-        
+
+        try:
+            # Parse the URI to handle both file paths and URLs gracefully
+            parsed_path = urlparse(uri).path
+            _, extension = os.path.splitext(parsed_path.lower())
+        except Exception:
+            # Fallback for malformed URIs
+            _, extension = os.path.splitext(uri.lower())
+
         if extension == ".txt":
             return cls.TEXT
         elif extension == ".md":
-            return cls.MARKDOWN 
+            return cls.MARKDOWN
         elif extension == ".pdf":
             return cls.PDF
         elif extension == ".docx":
@@ -61,7 +68,7 @@ class ContextFileType(str, Enum):
         elif extension in [".mp4", ".mov", ".avi", ".mkv", ".webm"]:
             return cls.VIDEO
         elif extension in [".png", ".jpg", ".jpeg", ".gif", ".webp"]:
-            return cls.IMAGE 
+            return cls.IMAGE
         else:
             return cls.UNKNOWN
 

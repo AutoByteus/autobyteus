@@ -9,10 +9,10 @@ from autobyteus.llm.utils.llm_config import LLMConfig
 from autobyteus.llm.utils.messages import MessageRole, Message
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
+from autobyteus.llm.user_message import LLMUserMessage
 
 class BedrockLLM(BaseLLM):
     def __init__(self, model: LLMModel = None, llm_config: LLMConfig = None):
-        # Provide defaults if not specified
         if model is None:
             model = LLMModel.BEDROCK_CLAUDE_3_5_SONNET_API
         if llm_config is None:
@@ -43,14 +43,17 @@ class BedrockLLM(BaseLLM):
         except Exception as e:
             raise ValueError(f"Failed to initialize Bedrock client: {str(e)}")
     
-    async def _send_user_message_to_llm(self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs) -> CompleteResponse:
+    async def _send_user_message_to_llm(self, user_message: LLMUserMessage, **kwargs) -> CompleteResponse:
         self.add_user_message(user_message)
+        
+        # NOTE: This implementation does not yet support multimodal inputs for Bedrock.
+        # It will only send the text content.
         
         request_body = json.dumps({
             "anthropic_version": "bedrock-2023-05-31",
             "max_tokens": 1000,
             "temperature": 0,
-            "messages": [msg.to_dict() for msg in self.messages],
+            "messages": [msg.to_dict() for msg in self.messages if msg.role != MessageRole.SYSTEM],
             "system": self.system_message if self.system_message else ""
         })
 
@@ -79,6 +82,11 @@ class BedrockLLM(BaseLLM):
             raise ValueError(f"Bedrock API error: {error_code} - {error_message}")
         except Exception as e:
             raise ValueError(f"Error in Bedrock API call: {str(e)}")
-    
+
+    async def _stream_user_message_to_llm(self, user_message: LLMUserMessage, **kwargs) -> AsyncGenerator[ChunkResponse, None]:
+        # Placeholder for future implementation
+        response = await self._send_user_message_to_llm(user_message, **kwargs)
+        yield ChunkResponse(content=response.content, is_complete=True, usage=response.usage)
+
     async def cleanup(self):
-        super().cleanup()
+        await super().cleanup()

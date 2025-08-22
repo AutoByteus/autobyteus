@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import Optional, List
 from autobyteus.llm.utils.token_usage import TokenUsage
 
 @dataclass
@@ -7,6 +7,9 @@ class CompleteResponse:
     content: str
     reasoning: Optional[str] = None
     usage: Optional[TokenUsage] = None
+    image_urls: List[str] = field(default_factory=list)
+    audio_urls: List[str] = field(default_factory=list)
+    video_urls: List[str] = field(default_factory=list)
 
     @classmethod
     def from_content(cls, content: str) -> 'CompleteResponse':

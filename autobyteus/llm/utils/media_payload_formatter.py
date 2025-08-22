@@ -1,4 +1,3 @@
-
 import base64
 import mimetypes
 from typing import Dict, Union
@@ -39,12 +38,12 @@ def create_data_uri(mime_type: str, base64_data: str) -> Dict:
     }
 
 
-def process_image(image_input: Union[str, bytes]) -> Dict:
+def process_image(image_url: Union[str, bytes]) -> Dict:
     """
     Process image input into format required by LLM APIs.
 
     Args:
-        image_input: Can be:
+        image_url: Can be:
             - A file path (str)
             - A URL (str)
             - Base64 encoded image (str)
@@ -53,32 +52,32 @@ def process_image(image_input: Union[str, bytes]) -> Dict:
     Returns:
         Dict with image type and properly structured image_url object.
     """
-    if isinstance(image_input, bytes):
-        base64_image = base64.b64encode(image_input).decode("utf-8")
+    if isinstance(image_url, bytes):
+        base64_image = base64.b64encode(image_url).decode("utf-8")
         return create_data_uri("image/jpeg", base64_image)
 
-    elif isinstance(image_input, str):
-        if is_valid_image_path(image_input):
-            mime_type = get_mime_type(image_input)
-            with open(image_input, "rb") as img_file:
+    elif isinstance(image_url, str):
+        if is_valid_image_path(image_url):
+            mime_type = get_mime_type(image_url)
+            with open(image_url, "rb") as img_file:
                 base64_image = base64.b64encode(img_file.read()).decode("utf-8")
                 return create_data_uri(mime_type, base64_image)
 
-        elif is_base64(image_input):
-            return create_data_uri("image/jpeg", image_input)
+        elif is_base64(image_url):
+            return create_data_uri("image/jpeg", image_url)
 
-        elif image_input.startswith(("http://", "https://")):
+        elif image_url.startswith(("http://", "https://")):
             return {
                 "type": "image_url",
                 "image_url": {
-                    "url": image_input
+                    "url": image_url
                 }
             }
-        elif image_input.startswith("data:image"):
+        elif image_url.startswith("data:image"):
             return {
                 "type": "image_url",
                 "image_url": {
-                    "url": image_input
+                    "url": image_url
                 }
             }
 

@@ -8,12 +8,12 @@ from autobyteus.llm.utils.llm_config import LLMConfig
 from autobyteus.llm.utils.messages import MessageRole, Message
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
+from autobyteus.llm.user_message import LLMUserMessage
 
 logger = logging.getLogger(__name__)
 
 class ClaudeLLM(BaseLLM):
     def __init__(self, model: LLMModel = None, llm_config: LLMConfig = None):
-        # Provide defaults if not specified
         if model is None:
             model = LLMModel.CLAUDE_3_5_SONNET_API
         if llm_config is None:
@@ -37,21 +37,21 @@ class ClaudeLLM(BaseLLM):
             raise ValueError(f"Failed to initialize Anthropic client: {str(e)}")
     
     def _get_non_system_messages(self) -> List[Dict]:
-        """
-        Returns all messages excluding system messages for Anthropic API compatibility.
-        """
+        # NOTE: This will need to be updated to handle multimodal messages for Claude
         return [msg.to_dict() for msg in self.messages if msg.role != MessageRole.SYSTEM]
     
     def _create_token_usage(self, input_tokens: int, output_tokens: int) -> TokenUsage:
-        """Convert Anthropic usage data to TokenUsage format."""
         return TokenUsage(
             prompt_tokens=input_tokens,
             completion_tokens=output_tokens,
             total_tokens=input_tokens + output_tokens
         )
     
-    async def _send_user_message_to_llm(self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs) -> CompleteResponse:
+    async def _send_user_message_to_llm(self, user_message: LLMUserMessage, **kwargs) -> CompleteResponse:
         self.add_user_message(user_message)
+
+        # NOTE: This implementation does not yet support multimodal inputs for Claude.
+        # It will only send the text content.
 
         try:
             response = self.client.messages.create(
@@ -81,11 +81,14 @@ class ClaudeLLM(BaseLLM):
             raise ValueError(f"Error in Claude API call: {str(e)}")
     
     async def _stream_user_message_to_llm(
-        self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs
+        self, user_message: LLMUserMessage, **kwargs
     ) -> AsyncGenerator[ChunkResponse, None]:
         self.add_user_message(user_message)
         complete_response = ""
         final_message = None
+
+        # NOTE: This implementation does not yet support multimodal inputs for Claude.
+        # It will only send the text content.
 
         try:
             with self.client.messages.stream(
@@ -96,30 +99,13 @@ class ClaudeLLM(BaseLLM):
                 messages=self._get_non_system_messages(),
             ) as stream:
                 for event in stream:
-                    logger.debug(f"Event Received: {event.type}")
-                    
-                    if event.type == "message_start":
-                        logger.debug(f"Message Start: {event.message}")
-                    
-                    elif event.type == "content_block_start":
-                        logger.debug(f"Content Block Start at index {event.index}: {event.content_block}")
-                    
-                    elif event.type == "content_block_delta" and event.delta.type == "text_delta":
-                        logger.debug(f"Text Delta: {event.delta.text}")
+                    if event.type == "content_block_delta" and event.delta.type == "text_delta":
                         complete_response += event.delta.text
                         yield ChunkResponse(
                             content=event.delta.text,
                             is_complete=False
                         )
                     
-                    elif event.type == "message_delta":
-                        logger.debug(f"Message Delta: Stop Reason - {event.delta.stop_reason}, "
-                                   f"Stop Sequence - {event.delta.stop_sequence}")
-                    
-                    elif event.type == "content_block_stop":
-                        logger.debug(f"Content Block Stop at index {event.index}: {event.content_block}")
-
-                # Get final message for token usage
                 final_message = stream.get_final_message()
                 if final_message:
                     token_usage = self._create_token_usage(
@@ -140,4 +126,4 @@ class ClaudeLLM(BaseLLM):
             raise ValueError(f"Error in Claude API streaming: {str(e)}")
     
     async def cleanup(self):
-        super().cleanup()
+        await super().cleanup()

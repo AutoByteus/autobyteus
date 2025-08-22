@@ -33,7 +33,8 @@ class ToolInvocation:
         """
         # Create a canonical representation of the arguments
         # sort_keys=True ensures that the order of keys doesn't change the hash
-        canonical_args = json.dumps(arguments, sort_keys=True, separators=(',', ':'))
+        # ensure_ascii=False is critical for cross-language compatibility with JS
+        canonical_args = json.dumps(arguments, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
         
         # Create a string to hash
         hash_string = f"{name}:{canonical_args}"

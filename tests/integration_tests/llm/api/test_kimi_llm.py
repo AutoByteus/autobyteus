@@ -22,7 +22,7 @@ def kimi_llm(set_kimi_env):
 @pytest.mark.asyncio
 async def test_kimi_llm_response(kimi_llm):
     """Test a non-streaming response from the KimiLLM."""
-    user_message = "Hello, Kimi LLM! Please respond with 'pong'."
+    user_message = LLMUserMessage(content="Hello, Kimi LLM! Please respond with 'pong'.")
     response = await kimi_llm._send_user_message_to_llm(user_message)
     assert isinstance(response, CompleteResponse)
     assert isinstance(response.content, str)
@@ -33,7 +33,7 @@ async def test_kimi_llm_response(kimi_llm):
 @pytest.mark.asyncio
 async def test_kimi_llm_streaming(kimi_llm): 
     """Test that streaming returns tokens incrementally and builds a complete response."""
-    user_message = "Please write a short two-sentence greeting."
+    user_message = LLMUserMessage(content="Please write a short two-sentence greeting.")
     received_tokens = []
     complete_response = ""
     
@@ -52,7 +52,7 @@ async def test_kimi_llm_streaming(kimi_llm):
     assert len(received_tokens) > 1
     assert len(complete_response) > 10
     assert isinstance(complete_response, str)
-    assert len(kimi_llm.messages) == 3  # System message + User message + Assistant message
+    assert len(kimi_llm.messages) == 3
 
     await kimi_llm.cleanup()
 
@@ -67,9 +67,8 @@ async def test_send_user_message(kimi_llm):
     assert isinstance(response_obj.content, str)
     assert "guido van rossum" in response_obj.content.lower()
 
-    # Verify message history was updated correctly
     assert len(kimi_llm.messages) == 3
-    assert kimi_llm.messages[1].content[0]["text"] == user_message_text
+    assert kimi_llm.messages[1].content == user_message_text
     assert kimi_llm.messages[2].content == response_obj.content
 
 @pytest.mark.asyncio
@@ -90,9 +89,8 @@ async def test_stream_user_message(kimi_llm):
     assert "django" in complete_response.lower()
     assert "flask" in complete_response.lower()
     
-    # Verify message history was updated correctly
     assert len(kimi_llm.messages) == 3
-    assert kimi_llm.messages[1].content[0]["text"] == user_message_text
+    assert kimi_llm.messages[1].content == user_message_text
     assert kimi_llm.messages[2].content == complete_response
 
     await kimi_llm.cleanup()

@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, TYPE_CHECKING
 from autobyteus.llm.utils.messages import Message
 from autobyteus.llm.utils.response_types import CompleteResponse
+from autobyteus.llm.user_message import LLMUserMessage
 
 if TYPE_CHECKING:
     from autobyteus.llm.base_llm import BaseLLM
@@ -12,7 +13,7 @@ class LLMExtension(ABC):
 
     @abstractmethod
     async def before_invoke(
-        self, user_message: str, image_urls: Optional[List[str]] = None, **kwargs
+        self, user_message: LLMUserMessage, **kwargs
     ) -> None:
         """
         Called before invoking the LLM with a user message.
@@ -21,16 +22,15 @@ class LLMExtension(ABC):
 
     @abstractmethod
     async def after_invoke(
-        self, user_message: str, image_urls: Optional[List[str]] = None, response: CompleteResponse = None, **kwargs
+        self, user_message: LLMUserMessage, response: CompleteResponse = None, **kwargs
     ) -> None:
         """
         Called after receiving the response from the LLM.
         
         Args:
-            user_message: Original user message
-            image_urls: Optional image URLs used in request
-            response: Complete response including content and usage information
-            kwargs: Additional arguments
+            user_message: The original user message object.
+            response: Complete response including content and usage information.
+            kwargs: Additional arguments.
         """
         pass
 
