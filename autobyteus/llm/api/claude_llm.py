@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class ClaudeLLM(BaseLLM):
     def __init__(self, model: LLMModel = None, llm_config: LLMConfig = None):
         if model is None:
-            model = LLMModel.CLAUDE_3_5_SONNET_API
+            model = LLMModel['claude-4-sonnet']
         if llm_config is None:
             llm_config = LLMConfig()
             

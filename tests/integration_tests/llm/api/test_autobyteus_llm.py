@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 @pytest.mark.asyncio
 async def test_basic_autobyteus_integration():
     """Basic integration test with live Autobyteus service"""
-    llm = AutobyteusLLM(model=LLMModel.GPT_4o_RPA)
+    llm = AutobyteusLLM(model=LLMModel['value'])
     
     try:
         # Test simple message flow with corrected API usage
@@ -35,7 +35,7 @@ async def test_basic_autobyteus_integration():
 @pytest.mark.asyncio
 async def test_streaming_integration():
     """Test streaming response from live service with corrected API"""
-    llm = AutobyteusLLM(model=LLMModel.GPT_4o_RPA)
+    llm = AutobyteusLLM(model=LLMModel['value'])
     
     try:
         # Update to stream_user_message with LLMUserMessage
@@ -64,7 +64,7 @@ async def test_streaming_integration():
 @pytest.mark.asyncio
 async def test_error_handling():
     """Test error response from service with API corrections"""
-    llm = AutobyteusLLM(model=LLMModel.GPT_4o_RPA)
+    llm = AutobyteusLLM(model=LLMModel['value'])
     
     try:
         with pytest.raises(Exception) as exc_info:

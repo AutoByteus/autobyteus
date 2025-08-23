@@ -17,6 +17,7 @@ class ToolCategory(str, Enum):
     TASK_MANAGEMENT = "Task Management" # NEW CATEGORY ADDED
     GENERAL = "General"
     MCP = "MCP"
+    MULTIMEDIA = "Multimedia"
 
     def __str__(self) -> str:
         return self.value

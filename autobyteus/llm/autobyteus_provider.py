@@ -49,7 +49,7 @@ class AutobyteusModelProvider:
                 try:
                     # Instantiate client for this specific host
                     client = AutobyteusClient(server_url=host_url)
-                    response = client.get_available_models_sync()
+                    response = client.get_available_llm_models_sync()
                 except Exception as e:
                     logger.warning(f"Could not connect or fetch models from Autobyteus server at {host_url}: {e}")
                     continue

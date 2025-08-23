@@ -25,7 +25,7 @@ def get_token_counter(model: LLMModel, llm: 'BaseLLM') -> BaseTokenCounter:
     if model.provider == LLMProvider.OPENAI:
         return OpenAITokenCounter(model, llm)
     elif model.provider == LLMProvider.ANTHROPIC:
-        return ClaudeTokenCounter(model, llm)
+        return OpenAITokenCounter(model, llm)
     elif model.provider == LLMProvider.MISTRAL:
         return MistralTokenCounter(model, llm)
     elif model.provider == LLMProvider.DEEPSEEK:

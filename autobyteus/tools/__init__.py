@@ -25,6 +25,7 @@ from .file.file_writer import file_writer
 # General Class-based tools
 from .image_downloader import ImageDownloader
 from .timer import Timer
+from .multimedia.image_tools import GenerateImageTool, EditImageTool
 
 # Standalone Browser tools
 from .browser.standalone.google_search_ui import GoogleSearch
@@ -62,6 +63,8 @@ __all__ = [
     # Re-exported general class-based tools
     "ImageDownloader",
     "Timer",
+    "GenerateImageTool",
+    "EditImageTool",
 
     # Re-exported Standalone Browser tools
     "GoogleSearch",

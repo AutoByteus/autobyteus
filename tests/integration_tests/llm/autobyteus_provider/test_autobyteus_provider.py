@@ -12,8 +12,8 @@ def check_autobyteus_env():
     Fixture to skip all tests in this module if the Autobyteus server is not configured.
     This runs automatically for each test.
     """
-    if not os.getenv("AUTOBYTEUS_LLM_SERVER_HOSTS") or not os.getenv("AUTOBYTEUS_API_KEY") or os.getenv("CI"):
-        pytest.skip("Requires AUTOBYTEUS_LLM_SERVER_HOSTS and AUTOBYTEUS_API_KEY, and is skipped in CI.")
+    #if not os.getenv("AUTOBYTEUS_LLM_SERVER_HOSTS") or not os.getenv("AUTOBYTEUS_API_KEY") or os.getenv("CI"):
+    #    pytest.skip("Requires AUTOBYTEUS_LLM_SERVER_HOSTS and AUTOBYTEUS_API_KEY, and is skipped in CI.")
 
 
 @pytest.fixture(autouse=True)

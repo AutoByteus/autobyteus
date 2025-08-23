@@ -17,7 +17,7 @@ def claude_llm(set_claude_env):
     anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
     if not anthropic_api_key or anthropic_api_key == "YOUR_ANTHROPIC_API_KEY":
         pytest.skip("Anthropic API key not set. Skipping ClaudeLLM tests.")
-    return ClaudeLLM(model=LLMModel.CLAUDE_3_5_SONNET_API, llm_config=LLMConfig())
+    return ClaudeLLM(model=LLMModel['claude-4-sonnet'], llm_config=LLMConfig())
 
 @pytest.mark.asyncio
 async def test_claude_llm_response(claude_llm):

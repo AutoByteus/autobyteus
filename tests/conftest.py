@@ -1,5 +1,6 @@
 import os
 import pytest
+import logging
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -11,7 +12,7 @@ def load_test_env():
     if not env_test_path.exists():
         raise FileNotFoundError(f"Test environment file not found: {env_test_path}")
     
-    load_dotenv(env_test_path)
+    load_dotenv(env_test_path, override=True)
 
 @pytest.fixture(scope="session", autouse=True)
 def set_test_environment():
@@ -24,3 +25,15 @@ def set_test_environment():
     
     os.environ.clear()
     os.environ.update(original_env)
+
+@pytest.fixture(scope="session", autouse=True)
+def configure_logging_for_tests():
+    """
+    Session-wide fixture to configure logging levels for tests.
+    This suppresses noisy INFO and DEBUG logs from specific libraries.
+    """
+    # Set the logging level for 'watchdog' to WARNING to hide verbose file event logs
+    logging.getLogger('watchdog').setLevel(logging.WARNING)
+    
+    # You can also control your application's log level during tests
+    logging.getLogger('autobyteus_server').setLevel(logging.WARNING)
