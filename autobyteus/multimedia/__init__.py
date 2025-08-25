@@ -1,18 +1,31 @@
-from .multimedia_client_factory import multimedia_client_factory, MultimediaClientFactory
-from .models import MultimediaModel
 from .providers import MultimediaProvider
 from .runtimes import MultimediaRuntime
-from .base_multimedia_client import BaseMultimediaClient
-from .utils.response_types import ImageGenerationResponse
-from .utils.multimedia_config import MultimediaConfig
+from .utils import *
+from .image import *
+from .audio import *
+
 
 __all__ = [
-    "multimedia_client_factory",
-    "MultimediaClientFactory",
-    "MultimediaModel",
+    # Factories
+    "image_client_factory",
+    "ImageClientFactory",
+    "audio_client_factory",
+    "AudioClientFactory",
+
+    # Models
+    "ImageModel",
+    "AudioModel",
+    
+    # Base Clients
+    "BaseImageClient",
+    "BaseAudioClient",
+
+    # Enums
     "MultimediaProvider",
     "MultimediaRuntime",
-    "BaseMultimediaClient",
+
+    # Response Types and Config
     "ImageGenerationResponse",
+    "SpeechGenerationResponse",
     "MultimediaConfig",
 ]

@@ -37,6 +37,7 @@ class AgentConfig:
                  system_prompt: Optional[str] = None,
                  tools: Optional[List['BaseTool']] = None,
                  auto_execute_tools: bool = True,
+                 use_xml_tool_format: bool = False,
                  input_processors: Optional[List['BaseAgentUserInputMessageProcessor']] = None,
                  llm_response_processors: Optional[List['BaseLLMResponseProcessor']] = None,
                  system_prompt_processors: Optional[List['BaseSystemPromptProcessor']] = None,
@@ -57,6 +58,8 @@ class AgentConfig:
                            llm_instance's config will be used as the base.
             tools: An optional list of pre-initialized tool instances (subclasses of BaseTool).
             auto_execute_tools: If True, the agent will execute tools without approval.
+            use_xml_tool_format: If True, forces the agent to use XML format for tool
+                                 definitions and parsing, overriding provider defaults.
             input_processors: A list of input processor instances.
             llm_response_processors: A list of LLM response processor instances.
             system_prompt_processors: A list of system prompt processor instances.
@@ -74,6 +77,7 @@ class AgentConfig:
         self.tools = tools or []
         self.workspace = workspace
         self.auto_execute_tools = auto_execute_tools
+        self.use_xml_tool_format = use_xml_tool_format
         self.input_processors = input_processors or []
         self.llm_response_processors = llm_response_processors if llm_response_processors is not None else list(self.DEFAULT_LLM_RESPONSE_PROCESSORS)
         self.system_prompt_processors = system_prompt_processors if system_prompt_processors is not None else list(self.DEFAULT_SYSTEM_PROMPT_PROCESSORS)
@@ -81,7 +85,7 @@ class AgentConfig:
         self.phase_hooks = phase_hooks or []
         self.initial_custom_data = initial_custom_data
 
-        logger.debug(f"AgentConfig created for name '{self.name}', role '{self.role}'.")
+        logger.debug(f"AgentConfig created for name '{self.name}', role '{self.role}'. XML tool format override: {self.use_xml_tool_format}")
 
     def copy(self) -> 'AgentConfig':
         """
@@ -98,6 +102,7 @@ class AgentConfig:
             system_prompt=self.system_prompt,
             tools=self.tools.copy(),  # Shallow copy the list, but reference the original tool instances
             auto_execute_tools=self.auto_execute_tools,
+            use_xml_tool_format=self.use_xml_tool_format,
             input_processors=self.input_processors.copy(), # Shallow copy the list
             llm_response_processors=self.llm_response_processors.copy(), # Shallow copy the list
             system_prompt_processors=self.system_prompt_processors.copy(), # Shallow copy the list

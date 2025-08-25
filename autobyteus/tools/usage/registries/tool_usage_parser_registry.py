@@ -34,18 +34,25 @@ class ToolUsageParserRegistry(metaclass=SingletonMeta):
         }
         # A default parser for any provider not explicitly listed (defaults to JSON)
         self._default_parser = DefaultJsonToolUsageParser()
+        # A specific parser for the XML override
+        self._xml_override_parser = DefaultXmlToolUsageParser()
         logger.info("ToolUsageParserRegistry initialized with direct provider-to-parser mappings.")
 
-    def get_parser(self, provider: Optional[LLMProvider]) -> BaseToolUsageParser:
+    def get_parser(self, provider: Optional[LLMProvider], use_xml_tool_format: bool = False) -> BaseToolUsageParser:
         """
-        Retrieves the appropriate tool usage parser for a given provider.
+        Retrieves the appropriate tool usage parser for a given provider, honoring the XML override.
 
         Args:
             provider: The LLMProvider enum member.
+            use_xml_tool_format: If True, forces the use of the XML parser.
 
         Returns:
             The corresponding BaseToolUsageParser instance.
         """
+        if use_xml_tool_format:
+            logger.debug("XML tool format is forced by configuration. Returning XML parser.")
+            return self._xml_override_parser
+
         if provider and provider in self._parsers:
             parser = self._parsers[provider]
             logger.debug(f"Found specific tool usage parser for provider {provider.name}: {parser.get_name()}")

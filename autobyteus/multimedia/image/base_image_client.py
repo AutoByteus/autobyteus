@@ -4,15 +4,15 @@ from typing import Optional, Dict, Any, List, TYPE_CHECKING
 from autobyteus.multimedia.utils.response_types import ImageGenerationResponse
 
 if TYPE_CHECKING:
-    from autobyteus.multimedia.models import MultimediaModel
+    from autobyteus.multimedia.image.image_model import ImageModel
     from autobyteus.multimedia.utils.multimedia_config import MultimediaConfig
 
 
-class BaseMultimediaClient(ABC):
+class BaseImageClient(ABC):
     """
-    Abstract base class for multimedia clients that connect to models (e.g., for image, audio).
+    Abstract base class for image clients that connect to models for image generation and editing.
     """
-    def __init__(self, model: "MultimediaModel", config: "MultimediaConfig"):
+    def __init__(self, model: "ImageModel", config: "MultimediaConfig"):
         self.model = model
         self.config = config
 

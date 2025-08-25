@@ -4,27 +4,21 @@ import logging
 from pathlib import Path
 from dotenv import load_dotenv
 
-def load_test_env():
-    """Load test environment variables from .env.test file"""
-    project_root = Path(__file__).parent.parent
-    env_test_path = project_root / '.env.test'
-    
-    if not env_test_path.exists():
-        raise FileNotFoundError(f"Test environment file not found: {env_test_path}")
-    
-    load_dotenv(env_test_path, override=True)
+# --- Eagerly load test environment on import ---
+# This logic is executed as soon as pytest imports this conftest.py file during
+# its collection phase. This guarantees that environment variables are available
+# before any application code (like tool metaclasses) is imported and executed.
+# This solves the initialization order problem for the test suite.
+project_root = Path(__file__).parent.parent
+env_test_path = project_root / '.env.test'
 
-@pytest.fixture(scope="session", autouse=True)
-def set_test_environment():
-    """Session-wide fixture to set and restore test environment variables"""
-    original_env = os.environ.copy()
-    
-    load_test_env()
-    
-    yield
-    
-    os.environ.clear()
-    os.environ.update(original_env)
+if not env_test_path.exists():
+    # This is a critical failure. The test suite cannot run without its configuration.
+    raise FileNotFoundError(f"CRITICAL: Test environment file not found at '{env_test_path}'. Tests cannot proceed.")
+
+# Load the environment variables from .env.test, overriding any existing system variables.
+load_dotenv(env_test_path, override=True)
+logging.info(f"Successfully loaded test environment from {env_test_path}")
 
 @pytest.fixture(scope="session", autouse=True)
 def configure_logging_for_tests():

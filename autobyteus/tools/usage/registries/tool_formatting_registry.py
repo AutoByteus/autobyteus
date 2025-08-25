@@ -36,19 +36,26 @@ class ToolFormattingRegistry(metaclass=SingletonMeta):
         }
         # A default pair for any provider not explicitly listed (defaults to JSON)
         self._default_pair = ToolFormatterPair(DefaultJsonSchemaFormatter(), DefaultJsonExampleFormatter())
+        # A specific pair for the XML override
+        self._xml_override_pair = ToolFormatterPair(DefaultXmlSchemaFormatter(), DefaultXmlExampleFormatter())
         
         logger.info("ToolFormattingRegistry initialized with direct provider-to-formatter mappings.")
 
-    def get_formatter_pair(self, provider: Optional[LLMProvider]) -> ToolFormatterPair:
+    def get_formatter_pair(self, provider: Optional[LLMProvider], use_xml_tool_format: bool = False) -> ToolFormatterPair:
         """
-        Retrieves the appropriate formatting pair for a given provider.
+        Retrieves the appropriate formatting pair for a given provider, honoring the XML override.
 
         Args:
             provider: The LLMProvider enum member.
+            use_xml_tool_format: If True, forces the use of XML formatters.
 
         Returns:
             The corresponding ToolFormatterPair instance.
         """
+        if use_xml_tool_format:
+            logger.debug("XML tool format is forced by configuration. Returning XML formatter pair.")
+            return self._xml_override_pair
+
         if provider and provider in self._pairs:
             pair = self._pairs[provider]
             logger.debug(f"Found specific formatter pair for provider {provider.name}: {pair}")

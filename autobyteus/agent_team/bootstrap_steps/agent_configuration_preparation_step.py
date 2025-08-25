@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 class AgentConfigurationPreparationStep(BaseAgentTeamBootstrapStep):
     """
     Bootstrap step to prepare the final, immutable configuration for every
-    agent in the team. It injects team-specific context and applies the final
-    coordinator prompt. It no longer injects tools.
+    agent in the team. It injects team-specific context, applies team-level
+    settings like tool format overrides, and prepares the final coordinator prompt.
     """
     async def execute(self, context: 'AgentTeamContext', phase_manager: 'AgentTeamPhaseManager') -> bool:
         team_id = context.team_id
@@ -43,6 +43,13 @@ class AgentConfigurationPreparationStep(BaseAgentTeamBootstrapStep):
                     continue
                 
                 final_config = node_definition.copy()
+
+                # --- Team-level Setting Propagation ---
+                # If the team config specifies a tool format, it overrides any agent-level setting.
+                if context.config.use_xml_tool_format is not None:
+                    final_config.use_xml_tool_format = context.config.use_xml_tool_format
+                    logger.debug(f"Team '{team_id}': Applied team-level use_xml_tool_format={final_config.use_xml_tool_format} to agent '{unique_name}'.")
+
 
                 # --- Shared Context Injection ---
                 # The shared context is injected into the initial_custom_data dictionary,

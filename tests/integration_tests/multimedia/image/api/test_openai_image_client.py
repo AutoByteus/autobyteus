@@ -1,21 +1,19 @@
 import pytest
 import os
 import logging
-from PIL import Image, ImageDraw
 
-from autobyteus.multimedia import multimedia_client_factory, MultimediaModel, MultimediaConfig, ImageGenerationResponse, MultimediaProvider
-from autobyteus.multimedia.api.openai_multimedia_client import OpenAIMultimediaClient
+from autobyteus.multimedia.image import image_client_factory, ImageGenerationResponse
 
 @pytest.fixture(scope="module")
 def set_openai_env():
     """Skips tests if the OpenAI API key is not set."""
     if not os.getenv("OPENAI_API_KEY"):
-        pytest.skip("OPENAI_API_KEY environment variable not set. Skipping OpenAI multimedia tests.")
+        pytest.skip("OPENAI_API_KEY environment variable not set. Skipping OpenAI image tests.")
 
 @pytest.fixture
 def gpt_image_1_client(set_openai_env):
     """Provides a gpt-image-1 client from the factory."""
-    return multimedia_client_factory.create_multimedia_client("gpt-image-1")
+    return image_client_factory.create_image_client("gpt-image-1")
 
 @pytest.mark.asyncio
 async def test_openai_generate_image(gpt_image_1_client):

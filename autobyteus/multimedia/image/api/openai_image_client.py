@@ -2,21 +2,21 @@ import logging
 import os
 from typing import Optional, List, Dict, Any, TYPE_CHECKING
 from openai import OpenAI
-from autobyteus.multimedia.base_multimedia_client import BaseMultimediaClient
+from autobyteus.multimedia.image.base_image_client import BaseImageClient
 from autobyteus.multimedia.utils.response_types import ImageGenerationResponse
 
 if TYPE_CHECKING:
-    from autobyteus.multimedia.models import MultimediaModel
+    from autobyteus.multimedia.image.image_model import ImageModel
     from autobyteus.multimedia.utils.multimedia_config import MultimediaConfig
 
 logger = logging.getLogger(__name__)
 
-class OpenAIMultimediaClient(BaseMultimediaClient):
+class OpenAIImageClient(BaseImageClient):
     """
-    A multimedia client that uses OpenAI's DALL-E models.
+    An image client that uses OpenAI's DALL-E models.
     """
 
-    def __init__(self, model: "MultimediaModel", config: "MultimediaConfig"):
+    def __init__(self, model: "ImageModel", config: "MultimediaConfig"):
         super().__init__(model, config)
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
@@ -24,7 +24,7 @@ class OpenAIMultimediaClient(BaseMultimediaClient):
             raise ValueError("OPENAI_API_KEY environment variable is not set.")
 
         self.client = OpenAI(api_key=api_key, base_url="https://api.openai.com/v1")
-        logger.info(f"OpenAIMultimediaClient initialized for model '{self.model.name}'.")
+        logger.info(f"OpenAIImageClient initialized for model '{self.model.name}'.")
 
     async def generate_image(
         self,
@@ -139,4 +139,4 @@ class OpenAIMultimediaClient(BaseMultimediaClient):
 
     async def cleanup(self):
         # The OpenAI client does not require explicit cleanup of a session.
-        logger.debug("OpenAIMultimediaClient cleanup called.")
+        logger.debug("OpenAIImageClient cleanup called.")

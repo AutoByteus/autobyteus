@@ -1,19 +1,16 @@
 import os
-import aiohttp
 import logging
 from typing import Optional, List
-import asyncio
 
 from autobyteus.tools.base_tool import BaseTool
-from autobyteus.tools.tool_config import ToolConfig
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.tool_category import ToolCategory
-from autobyteus.multimedia import multimedia_client_factory, MultimediaModel, MultimediaClientFactory
+from autobyteus.multimedia.image import image_client_factory, ImageModel, ImageClientFactory
 
 logger = logging.getLogger(__name__)
 
 
-def _get_configured_model_identifier() -> str:
+def _get_configured_image_model_identifier() -> str:
     """
     Retrieves the default image model from environment variables.
     Raises:
@@ -28,19 +25,18 @@ def _get_configured_model_identifier() -> str:
     return model_identifier
 
 
-def _build_dynamic_schema(base_params: List[ParameterDefinition]) -> ParameterSchema:
+def _build_dynamic_image_schema(base_params: List[ParameterDefinition]) -> ParameterSchema:
     """
-    Builds the tool schema dynamically based on the configured model.
+    Builds the tool schema dynamically based on the configured image model.
     """
     try:
-        model_identifier = _get_configured_model_identifier()
-        MultimediaClientFactory.ensure_initialized()
-        model = MultimediaModel[model_identifier]
+        model_identifier = _get_configured_image_model_identifier()
+        ImageClientFactory.ensure_initialized()
+        model = ImageModel[model_identifier]
     except (ValueError, KeyError) as e:
-        logger.error(f"Cannot generate tool schema. Please check your environment and model registry. Error: {e}")
-        raise RuntimeError(f"Failed to configure multimedia tool. Error: {e}")
+        logger.error(f"Cannot generate image tool schema. Check environment and model registry. Error: {e}")
+        raise RuntimeError(f"Failed to configure image tool. Error: {e}")
 
-    # Build nested schema for generation_config from the model's parameter schema
     config_schema = ParameterSchema()
     if model.parameter_schema:
         for name, meta in model.parameter_schema.items():
@@ -60,18 +56,18 @@ def _build_dynamic_schema(base_params: List[ParameterDefinition]) -> ParameterSc
                 enum_values=allowed_values
             ))
 
-    # Build the main tool schema
     schema = ParameterSchema()
     for param in base_params:
         schema.add_parameter(param)
     
-    schema.add_parameter(ParameterDefinition(
-        name="generation_config",
-        param_type=ParameterType.OBJECT,
-        description=f"Model-specific generation parameters for the configured '{model_identifier}' model.",
-        required=True,
-        object_schema=config_schema.to_json_schema_dict()
-    ))
+    if config_schema.parameters:
+        schema.add_parameter(ParameterDefinition(
+            name="generation_config",
+            param_type=ParameterType.OBJECT,
+            description=f"Model-specific generation parameters for the configured '{model_identifier}' model.",
+            required=False,
+            object_schema=config_schema.to_json_schema_dict()
+        ))
     return schema
 
 
@@ -102,15 +98,15 @@ class GenerateImageTool(BaseTool):
                 required=True
             )
         ]
-        return _build_dynamic_schema(base_params)
+        return _build_dynamic_image_schema(base_params)
 
-    async def _execute(self, context, prompt: str, generation_config: dict) -> str:
-        model_identifier = _get_configured_model_identifier()
+    async def _execute(self, context, prompt: str, generation_config: Optional[dict] = None) -> str:
+        model_identifier = _get_configured_image_model_identifier()
         logger.info(f"GenerateImageTool executing with configured model '{model_identifier}'.")
         client = None
         try:
-            client = multimedia_client_factory.create_multimedia_client(model_identifier=model_identifier)
-            response = await client.generate_image(prompt, generation_config=generation_config)
+            client = image_client_factory.create_image_client(model_identifier=model_identifier)
+            response = await client.generate_image(prompt=prompt, generation_config=generation_config)
             
             if not response.image_urls:
                 raise ValueError("Image generation failed to return any image URLs.")
@@ -161,10 +157,10 @@ class EditImageTool(BaseTool):
                 required=False
             )
         ]
-        return _build_dynamic_schema(base_params)
+        return _build_dynamic_image_schema(base_params)
 
-    async def _execute(self, context, prompt: str, input_image_urls: str, generation_config: dict, mask_image_url: Optional[str] = None) -> str:
-        model_identifier = _get_configured_model_identifier()
+    async def _execute(self, context, prompt: str, input_image_urls: str, generation_config: Optional[dict] = None, mask_image_url: Optional[str] = None) -> str:
+        model_identifier = _get_configured_image_model_identifier()
         logger.info(f"EditImageTool executing with configured model '{model_identifier}'.")
         client = None
         try:
@@ -172,7 +168,7 @@ class EditImageTool(BaseTool):
             if not urls_list:
                 raise ValueError("The 'input_image_urls' parameter cannot be empty.")
 
-            client = multimedia_client_factory.create_multimedia_client(model_identifier=model_identifier)
+            client = image_client_factory.create_image_client(model_identifier=model_identifier)
             response = await client.edit_image(
                 prompt=prompt,
                 input_image_urls=urls_list,

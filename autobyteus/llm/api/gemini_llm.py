@@ -1,6 +1,7 @@
 import logging
-from typing import Dict, Optional, List, AsyncGenerator
-import google.generativeai as genai
+from typing import Dict, Optional, List, AsyncGenerator, Any
+from google import genai
+from google.genai import types as genai_types
 import os
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
@@ -12,13 +13,21 @@ from autobyteus.llm.user_message import LLMUserMessage
 
 logger = logging.getLogger(__name__)
 
+def _format_gemini_history(messages: List[Message]) -> List[Dict[str, Any]]:
+    """Formats internal message history for the Gemini API."""
+    history = []
+    # System message is handled separately in the new API
+    for msg in messages:
+        if msg.role in [MessageRole.USER, MessageRole.ASSISTANT]:
+            # NOTE: This history conversion will need to be updated for multimodal messages
+            role = 'model' if msg.role == MessageRole.ASSISTANT else 'user'
+            # The `parts` must be a list of dictionaries (Part objects), not a list of strings.
+            history.append({"role": role, "parts": [{"text": msg.content}]})
+    return history
+
 class GeminiLLM(BaseLLM):
     def __init__(self, model: LLMModel = None, llm_config: LLMConfig = None):
-        self.generation_config = {
-            "temperature": 0,
-            "top_p": 0.95,
-            "top_k": 64,
-            "max_output_tokens": 8192,
+        self.generation_config_dict = {
             "response_mime_type": "text/plain",
         }
         
@@ -29,53 +38,53 @@ class GeminiLLM(BaseLLM):
             
         super().__init__(model=model, llm_config=llm_config)
         self.client = self.initialize()
-        self.chat_session = None
+        self.async_client = self.client.aio
 
     @classmethod
-    def initialize(cls):
+    def initialize(cls) -> genai.client.Client:
         api_key = os.environ.get("GEMINI_API_KEY")
         if not api_key:
             logger.error("GEMINI_API_KEY environment variable is not set.")
             raise ValueError("GEMINI_API_KEY environment variable is not set.")
         try:
-            genai.configure(api_key=api_key)
-            return genai
+            return genai.Client()
         except Exception as e:
             logger.error(f"Failed to initialize Gemini client: {str(e)}")
             raise ValueError(f"Failed to initialize Gemini client: {str(e)}")
 
-    def _ensure_chat_session(self):
-        if not self.chat_session:
-            model = self.client.GenerativeModel(
-                model_name=self.model.value,
-                generation_config=self.generation_config,
-                system_instruction=self.system_message if self.system_message else None
-            )
-            history = []
-            for msg in self.messages:
-                # NOTE: This history conversion will need to be updated for multimodal
-                if msg.role == MessageRole.USER or msg.role == MessageRole.ASSISTANT:
-                    role = 'model' if msg.role == MessageRole.ASSISTANT else 'user'
-                    history.append({"role": role, "parts": [msg.content]})
-            # Gemini's chat history does not include system messages.
-            # It's set on the model directly.
-            self.chat_session = model.start_chat(history=history)
+    def _get_generation_config(self) -> genai_types.GenerateContentConfig:
+        """Builds the generation config, handling special cases like 'thinking'."""
+        config = self.generation_config_dict.copy()
+
+        thinking_config = None
+        if "flash" in self.model.value:
+            thinking_config = genai_types.ThinkingConfig(thinking_budget=0)
+        
+        # System instruction is now part of the config
+        system_instruction = self.system_message if self.system_message else None
+        
+        return genai_types.GenerateContentConfig(
+            **config,
+            thinking_config=thinking_config,
+            system_instruction=system_instruction
+        )
 
     async def _send_user_message_to_llm(self, user_message: LLMUserMessage, **kwargs) -> CompleteResponse:
         self.add_user_message(user_message)
         
-        # NOTE: This implementation does not yet support multimodal inputs for Gemini.
-        # It will only send the text content.
-
         try:
-            self._ensure_chat_session()
-            response = await self.chat_session.send_message_async(user_message.content)
+            history = _format_gemini_history(self.messages)
+            generation_config = self._get_generation_config()
+
+            response = await self.async_client.models.generate_content(
+                model=f"models/{self.model.value}",
+                contents=history,
+                config=generation_config,
+            )
+            
             assistant_message = response.text
             self.add_assistant_message(assistant_message)
             
-            # The Gemini API via google-generativeai library does not seem to expose
-            # token usage stats directly in the response object for simple chat.
-            # We will rely on our TokenUsageTrackingExtension for estimation.
             token_usage = TokenUsage(
                 prompt_tokens=0,
                 completion_tokens=0,
@@ -94,14 +103,14 @@ class GeminiLLM(BaseLLM):
         self.add_user_message(user_message)
         complete_response = ""
         
-        # NOTE: This implementation does not yet support multimodal inputs for Gemini.
-        # It will only send the text content.
-
         try:
-            self._ensure_chat_session()
-            response_stream = await self.chat_session.send_message_async(
-                user_message.content,
-                stream=True
+            history = _format_gemini_history(self.messages)
+            generation_config = self._get_generation_config()
+
+            response_stream = await self.async_client.models.generate_content_stream(
+                model=f"models/{self.model.value}",
+                contents=history,
+                config=generation_config,
             )
 
             async for chunk in response_stream:
@@ -114,8 +123,6 @@ class GeminiLLM(BaseLLM):
 
             self.add_assistant_message(complete_response)
 
-            # NOTE: The Gemini API does not provide token usage for streaming calls.
-            # We will rely on our TokenUsageTrackingExtension for estimation.
             token_usage = TokenUsage(
                 prompt_tokens=0,
                 completion_tokens=0,
@@ -132,5 +139,4 @@ class GeminiLLM(BaseLLM):
             raise ValueError(f"Error in Gemini API streaming call: {str(e)}")
 
     async def cleanup(self):
-        self.chat_session = None
         await super().cleanup()

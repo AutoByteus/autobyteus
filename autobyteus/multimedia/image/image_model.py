@@ -8,44 +8,44 @@ from autobyteus.multimedia.runtimes import MultimediaRuntime
 from autobyteus.multimedia.utils.multimedia_config import MultimediaConfig
 
 if TYPE_CHECKING:
-    from autobyteus.multimedia.base_multimedia_client import BaseMultimediaClient
+    from autobyteus.multimedia.image.base_image_client import BaseImageClient
 
 logger = logging.getLogger(__name__)
 
-class MultimediaModelMeta(type):
+class ImageModelMeta(type):
     """
-    Metaclass for MultimediaModel to allow discovery and access like an Enum.
+    Metaclass for ImageModel to allow discovery and access like an Enum.
     """
-    def __iter__(cls) -> Iterator[MultimediaModel]:
-        from autobyteus.multimedia.multimedia_client_factory import MultimediaClientFactory
-        MultimediaClientFactory.ensure_initialized()
-        for model in MultimediaClientFactory._models_by_identifier.values():
+    def __iter__(cls) -> Iterator[ImageModel]:
+        from autobyteus.multimedia.image.image_client_factory import ImageClientFactory
+        ImageClientFactory.ensure_initialized()
+        for model in ImageClientFactory._models_by_identifier.values():
             yield model
 
-    def __getitem__(cls, name_or_identifier: str) -> MultimediaModel:
-        from autobyteus.multimedia.multimedia_client_factory import MultimediaClientFactory
-        MultimediaClientFactory.ensure_initialized()
-        model = MultimediaClientFactory._models_by_identifier.get(name_or_identifier)
+    def __getitem__(cls, name_or_identifier: str) -> ImageModel:
+        from autobyteus.multimedia.image.image_client_factory import ImageClientFactory
+        ImageClientFactory.ensure_initialized()
+        model = ImageClientFactory._models_by_identifier.get(name_or_identifier)
         if model:
             return model
-        raise KeyError(f"Multimedia model '{name_or_identifier}' not found.")
+        raise KeyError(f"Image model '{name_or_identifier}' not found.")
 
     def __len__(cls) -> int:
-        from autobyteus.multimedia.multimedia_client_factory import MultimediaClientFactory
-        MultimediaClientFactory.ensure_initialized()
-        return len(MultimediaClientFactory._models_by_identifier)
+        from autobyteus.multimedia.image.image_client_factory import ImageClientFactory
+        ImageClientFactory.ensure_initialized()
+        return len(ImageClientFactory._models_by_identifier)
 
 
-class MultimediaModel(metaclass=MultimediaModelMeta):
+class ImageModel(metaclass=ImageModelMeta):
     """
-    Represents a single multimedia model's metadata.
+    Represents a single image model's metadata.
     """
     def __init__(
         self,
         name: str,
         value: str,
         provider: MultimediaProvider,
-        client_class: Type["BaseMultimediaClient"],
+        client_class: Type["BaseImageClient"],
         parameter_schema: Optional[Dict[str, Any]] = None,
         runtime: MultimediaRuntime = MultimediaRuntime.API,
         host_url: Optional[str] = None
@@ -77,7 +77,7 @@ class MultimediaModel(metaclass=MultimediaModelMeta):
                 return f"{self.name}@{self.host_url}" # Fallback
         return self.name
 
-    def create_client(self, config_override: Optional[MultimediaConfig] = None) -> "BaseMultimediaClient":
+    def create_client(self, config_override: Optional[MultimediaConfig] = None) -> "BaseImageClient":
         """
         Instantiates the client class for this model.
         """
@@ -91,6 +91,6 @@ class MultimediaModel(metaclass=MultimediaModelMeta):
 
     def __repr__(self):
         return (
-            f"MultimediaModel(identifier='{self.model_identifier}', "
+            f"ImageModel(identifier='{self.model_identifier}', "
             f"provider='{self.provider.name}', runtime='{self.runtime.value}')"
         )

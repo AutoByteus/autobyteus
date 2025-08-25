@@ -1,60 +1,42 @@
 import logging
-import os
 import base64
+import os
 from typing import Optional, List, Dict, Any, TYPE_CHECKING
-import google.generativeai as genai
+from google import genai
 from PIL import Image
 import requests
-from io import BytesIO
-import mimetypes
 
-
-from autobyteus.multimedia.base_multimedia_client import BaseMultimediaClient
+from autobyteus.multimedia.image.base_image_client import BaseImageClient
 from autobyteus.multimedia.utils.response_types import ImageGenerationResponse
+from autobyteus.multimedia.utils.api_utils import load_image_from_url
 
 if TYPE_CHECKING:
-    from autobyteus.multimedia.models import MultimediaModel
+    from autobyteus.multimedia.image.image_model import ImageModel
     from autobyteus.multimedia.utils.multimedia_config import MultimediaConfig
 
 logger = logging.getLogger(__name__)
 
-
-def _load_image_from_url(url: str) -> Image.Image:
-    """Loads an image from a URL (http, https, or file path)."""
-    try:
-        if url.startswith(('http://', 'https://')):
-            response = requests.get(url, stream=True)
-            response.raise_for_status()
-            return Image.open(response.raw)
-        else:
-            # Assume it's a local file path
-            return Image.open(url)
-    except Exception as e:
-        logger.error(f"Failed to load image from URL/path '{url}': {e}")
-        raise
-
-
-class GeminiMultimediaClient(BaseMultimediaClient):
+class GeminiImageClient(BaseImageClient):
     """
-    A multimedia client that uses Google's Gemini models (which can invoke Imagen)
-    via the `google-generativeai` library.
+    An image client that uses Google's Gemini models for image generation tasks.
 
     **Setup Requirements:**
     1.  **Authentication:** Set the `GEMINI_API_KEY` environment variable with your API key.
     """
 
-    def __init__(self, model: "MultimediaModel", config: "MultimediaConfig"):
+    def __init__(self, model: "ImageModel", config: "MultimediaConfig"):
         super().__init__(model, config)
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             raise ValueError("Please set the GEMINI_API_KEY environment variable.")
-
+        
         try:
-            genai.configure(api_key=api_key)
-            logger.info(f"GeminiMultimediaClient initialized for model '{self.model.name}'.")
+            self.client = genai.Client()
+            self.async_client = self.client.aio
+            logger.info(f"GeminiImageClient initialized for model '{self.model.name}'.")
         except Exception as e:
-            logger.error(f"Failed to configure Gemini client: {e}")
-            raise RuntimeError(f"Failed to configure Gemini client: {e}")
+            logger.error(f"Failed to initialize Gemini client for images: {e}")
+            raise RuntimeError(f"Failed to initialize Gemini client for images: {e}")
 
     async def generate_image(
         self,
@@ -65,22 +47,22 @@ class GeminiMultimediaClient(BaseMultimediaClient):
         """
         Generates an image using a Google Gemini model. Can be text-to-image or image-to-image.
         """
-        model_name = self.model.value
-        
         try:
-            logger.info(f"Generating image with Google Gemini model '{model_name}'...")
-            model = genai.GenerativeModel(model_name)
+            logger.info(f"Generating image with Google Gemini model '{self.model.value}'...")
 
             content = [prompt]
             if input_image_urls:
                 logger.info(f"Loading {len(input_image_urls)} input image(s) for generation.")
                 for url in input_image_urls:
                     try:
-                        content.append(_load_image_from_url(url))
+                        content.append(load_image_from_url(url))
                     except Exception as e:
                         logger.error(f"Skipping image at '{url}' due to loading error: {e}")
 
-            response = await model.generate_content_async(content)
+            response = await self.async_client.models.generate_content(
+                model=f"models/{self.model.value}",
+                contents=content
+            )
 
             image_urls = []
             for part in response.parts:
@@ -123,8 +105,8 @@ class GeminiMultimediaClient(BaseMultimediaClient):
         """
         Image editing is not currently supported via this Gemini implementation.
         """
-        logger.error("Image editing is not supported by the GeminiMultimediaClient at this time.")
-        raise NotImplementedError("The GeminiMultimediaClient does not support the edit_image method.")
+        logger.error("Image editing is not supported by the GeminiImageClient at this time.")
+        raise NotImplementedError("The GeminiImageClient does not support the edit_image method.")
 
     async def cleanup(self):
-        logger.debug("GeminiMultimediaClient cleanup called.")
+        logger.debug("GeminiImageClient cleanup called.")

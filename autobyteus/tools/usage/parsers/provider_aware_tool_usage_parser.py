@@ -44,8 +44,11 @@ class ProviderAwareToolUsageParser:
         else:
             logger.warning(f"Agent '{context.agent_id}': LLM instance or model not available. Cannot determine provider for tool response parsing.")
         
-        # Get the correct parser directly from the new central registry.
-        parser = self._parser_registry.get_parser(llm_provider)
+        # Retrieve the override flag from the agent's configuration.
+        use_xml_tool_format = context.config.use_xml_tool_format
+
+        # Get the correct parser from the registry, passing the override flag.
+        parser = self._parser_registry.get_parser(llm_provider, use_xml_tool_format=use_xml_tool_format)
         
         logger.debug(f"ProviderAwareToolUsageParser selected delegate parser '{parser.get_name()}' for LLM provider '{llm_provider.name if llm_provider else 'Unknown'}'.")
 

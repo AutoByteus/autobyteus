@@ -47,6 +47,9 @@ class ToolManifestInjectorProcessor(BaseSystemPromptProcessor):
         llm_provider = None
         if context.llm_instance and context.llm_instance.model:
             llm_provider = context.llm_instance.model.provider
+        
+        # Retrieve the override flag from the agent's configuration.
+        use_xml_tool_format = context.config.use_xml_tool_format
 
         # Generate the manifest string for the 'tools' variable.
         tools_manifest: str
@@ -59,10 +62,11 @@ class ToolManifestInjectorProcessor(BaseSystemPromptProcessor):
             ]
 
             try:
-                # Delegate manifest generation to the provider, which now handles all format logic.
+                # Delegate manifest generation to the provider, passing the override flag.
                 tools_manifest = self._manifest_provider.provide(
                     tool_definitions=tool_definitions,
-                    provider=llm_provider
+                    provider=llm_provider,
+                    use_xml_tool_format=use_xml_tool_format
                 )
             except Exception as e:
                 logger.exception(f"An unexpected error occurred during tool manifest generation for agent '{agent_id}': {e}")
