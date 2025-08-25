@@ -10,27 +10,24 @@ from autobyteus.multimedia.image import image_client_factory, ImageModel, ImageC
 logger = logging.getLogger(__name__)
 
 
-def _get_configured_image_model_identifier() -> str:
+def _get_configured_model_identifier(env_var: str, default_model: Optional[str] = None) -> str:
     """
-    Retrieves the default image model from environment variables.
-    Raises:
-        ValueError: If the environment variable is not set.
+    Retrieves a model identifier from an environment variable, with a fallback to a default.
     """
-    model_identifier = os.getenv("DEFAULT_IMAGE_GENERATION_MODEL")
+    model_identifier = os.getenv(env_var)
     if not model_identifier:
-        raise ValueError(
-            "The 'DEFAULT_IMAGE_GENERATION_MODEL' environment variable is not set. "
-            "Please configure it with the identifier of the desired image generation model (e.g., 'gpt-image-1')."
-        )
+        if default_model:
+            return default_model
+        raise ValueError(f"The '{env_var}' environment variable is not set. Please configure it.")
     return model_identifier
 
 
-def _build_dynamic_image_schema(base_params: List[ParameterDefinition]) -> ParameterSchema:
+def _build_dynamic_image_schema(base_params: List[ParameterDefinition], model_env_var: str, default_model: str) -> ParameterSchema:
     """
     Builds the tool schema dynamically based on the configured image model.
     """
     try:
-        model_identifier = _get_configured_image_model_identifier()
+        model_identifier = _get_configured_model_identifier(model_env_var, default_model)
         ImageClientFactory.ensure_initialized()
         model = ImageModel[model_identifier]
     except (ValueError, KeyError) as e:
@@ -76,6 +73,8 @@ class GenerateImageTool(BaseTool):
     An agent tool for generating images from a text prompt using a pre-configured model.
     """
     CATEGORY = ToolCategory.MULTIMEDIA
+    MODEL_ENV_VAR = "DEFAULT_IMAGE_GENERATION_MODEL"
+    DEFAULT_MODEL = "gpt-image-1"
 
     @classmethod
     def get_name(cls) -> str:
@@ -98,10 +97,10 @@ class GenerateImageTool(BaseTool):
                 required=True
             )
         ]
-        return _build_dynamic_image_schema(base_params)
+        return _build_dynamic_image_schema(base_params, cls.MODEL_ENV_VAR, cls.DEFAULT_MODEL)
 
     async def _execute(self, context, prompt: str, generation_config: Optional[dict] = None) -> str:
-        model_identifier = _get_configured_image_model_identifier()
+        model_identifier = _get_configured_model_identifier(self.MODEL_ENV_VAR, self.DEFAULT_MODEL)
         logger.info(f"GenerateImageTool executing with configured model '{model_identifier}'.")
         client = None
         try:
@@ -122,6 +121,8 @@ class EditImageTool(BaseTool):
     An agent tool for editing an existing image using a text prompt and a pre-configured model.
     """
     CATEGORY = ToolCategory.MULTIMEDIA
+    MODEL_ENV_VAR = "DEFAULT_IMAGE_GENERATION_MODEL"
+    DEFAULT_MODEL = "gpt-image-1"
 
     @classmethod
     def get_name(cls) -> str:
@@ -157,10 +158,10 @@ class EditImageTool(BaseTool):
                 required=False
             )
         ]
-        return _build_dynamic_image_schema(base_params)
+        return _build_dynamic_image_schema(base_params, cls.MODEL_ENV_VAR, cls.DEFAULT_MODEL)
 
     async def _execute(self, context, prompt: str, input_image_urls: str, generation_config: Optional[dict] = None, mask_image_url: Optional[str] = None) -> str:
-        model_identifier = _get_configured_image_model_identifier()
+        model_identifier = _get_configured_model_identifier(self.MODEL_ENV_VAR, self.DEFAULT_MODEL)
         logger.info(f"EditImageTool executing with configured model '{model_identifier}'.")
         client = None
         try:

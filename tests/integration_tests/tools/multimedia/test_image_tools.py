@@ -1,6 +1,6 @@
 import pytest
 import os
-from autobyteus.tools.multimedia.image_tools import GenerateImageTool, _get_configured_image_model_identifier
+from autobyteus.tools.multimedia.image_tools import GenerateImageTool, _get_configured_model_identifier
 from autobyteus.tools.parameter_schema import ParameterType
 
 TEST_MODEL_IDENTIFIER = "gpt-image-1"
@@ -25,13 +25,17 @@ def set_imagen4_model_env(monkeypatch):
 
 def test_get_configured_model_identifier_success(set_default_model_env):
     """Tests that the helper function correctly reads the environment variable."""
-    assert _get_configured_image_model_identifier() == TEST_MODEL_IDENTIFIER
+    assert _get_configured_model_identifier("DEFAULT_IMAGE_GENERATION_MODEL", "fallback") == TEST_MODEL_IDENTIFIER
+
+def test_get_configured_model_identifier_fallback():
+    """Tests that the helper function correctly uses the fallback."""
+    assert _get_configured_model_identifier("NON_EXISTENT_VAR", "fallback_model") == "fallback_model"
 
 def test_get_configured_model_identifier_failure(monkeypatch):
-    """Tests that a ValueError is raised if the environment variable is not set."""
+    """Tests that a ValueError is raised if the environment variable is not set and no fallback is provided."""
     monkeypatch.delenv("DEFAULT_IMAGE_GENERATION_MODEL", raising=False)
     with pytest.raises(ValueError, match="environment variable is not set"):
-        _get_configured_image_model_identifier()
+        _get_configured_model_identifier("DEFAULT_IMAGE_GENERATION_MODEL")
 
 def test_generate_image_tool_dynamic_schema(set_default_model_env):
     """Tests that the tool's schema is generated dynamically and correctly."""

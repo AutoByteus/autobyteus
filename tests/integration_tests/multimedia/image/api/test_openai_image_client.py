@@ -2,7 +2,7 @@ import pytest
 import os
 import logging
 
-from autobyteus.multimedia.image import image_client_factory, ImageGenerationResponse
+from autobyteus.multimedia import image_client_factory, ImageGenerationResponse
 
 @pytest.fixture(scope="module")
 def set_openai_env():

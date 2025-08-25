@@ -45,10 +45,10 @@ class ImageClientFactory(metaclass=SingletonMeta):
             provider=MultimediaProvider.OPENAI,
             client_class=OpenAIImageClient,
             parameter_schema={
-                "n": {"type": "integer", "default": 1, "allowed_values": [1]},
-                "size": {"type": "string", "default": "1024x1024", "allowed_values": ["1024x1024", "1792x1024", "1024x1792"]},
-                "quality": {"type": "string", "default": "hd", "allowed_values": ["standard", "hd"]},
-                "style": {"type": "string", "default": "vivid", "allowed_values": ["vivid", "natural"]}
+                "n": {"type": "integer", "default": 1, "allowed_values": [1], "description": "The number of images to generate."},
+                "size": {"type": "string", "default": "1024x1024", "allowed_values": ["1024x1024", "1792x1024", "1024x1792"], "description": "The size of the generated images."},
+                "quality": {"type": "string", "default": "hd", "allowed_values": ["standard", "hd"], "description": "The quality of the image that will be generated."},
+                "style": {"type": "string", "default": "vivid", "allowed_values": ["vivid", "natural"], "description": "The style of the generated images."}
             }
         )
 
@@ -58,8 +58,8 @@ class ImageClientFactory(metaclass=SingletonMeta):
             provider=MultimediaProvider.OPENAI,
             client_class=OpenAIImageClient,
             parameter_schema={
-                "n": {"type": "integer", "default": 1},
-                "size": {"type": "string", "default": "1024x1024", "allowed_values": ["256x256", "512x512", "1024x1024"]}
+                "n": {"type": "integer", "default": 1, "description": "The number of images to generate."},
+                "size": {"type": "string", "default": "1024x1024", "allowed_values": ["256x256", "512x512", "1024x1024"], "description": "The size of the generated images."}
             }
         )
 
