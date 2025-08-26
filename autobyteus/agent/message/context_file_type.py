@@ -72,5 +72,19 @@ class ContextFileType(str, Enum):
         else:
             return cls.UNKNOWN
 
+    @classmethod
+    def get_readable_text_types(cls) -> list['ContextFileType']:
+        """Returns a list of file types that can be read as plain text for context."""
+        return [
+            cls.TEXT,
+            cls.MARKDOWN,
+            cls.JSON,
+            cls.XML,
+            cls.HTML,
+            cls.PYTHON,
+            cls.JAVASCRIPT,
+            cls.CSV,
+        ]
+
     def __str__(self) -> str:
         return self.value
