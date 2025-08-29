@@ -4,7 +4,7 @@ from autobyteus.tools.multimedia.image_tools import GenerateImageTool, _get_conf
 from autobyteus.tools.parameter_schema import ParameterType
 
 TEST_MODEL_IDENTIFIER = "gpt-image-1"
-TEST_IMAGEN_MODEL = "imagen-4-rpa@localhost" # Using local API model to avoid runtime dependency
+TEST_IMAGEN_MODEL = "imagen-4-@localhost" # Using local API model to avoid runtime dependency
 
 @pytest.fixture(scope="module", autouse=True)
 def check_api_keys():

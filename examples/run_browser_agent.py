@@ -226,7 +226,7 @@ async def main(args: argparse.Namespace):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the BrowserAgent interactively.")
-    parser.add_argument("--llm-model", type=str, default="gemini-2.0-flash-rpa", help=f"The LLM model identifier to use. Call --help-models for list.")
+    parser.add_argument("--llm-model", type=str, default="gemini-2.0-flash-", help=f"The LLM model identifier to use. Call --help-models for list.")
     parser.add_argument("--help-models", action="store_true", help="Display available LLM models and exit.")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging.")
     parser.add_argument("--agent-log-file", type=str, default="./agent_logs_browser.txt", 

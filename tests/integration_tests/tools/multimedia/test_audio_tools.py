@@ -9,7 +9,7 @@ from autobyteus.tools.parameter_schema import ParameterType
 
 logger = logging.getLogger(__name__)
 
-TEST_TTS_MODEL = "gemini-2.5-flash-tts-rpa@localhost"
+TEST_TTS_MODEL = "gemini-2.5-flash-tts@localhost"
 
 @pytest.fixture(scope="module", autouse=True)
 def check_api_keys():

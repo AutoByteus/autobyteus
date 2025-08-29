@@ -20,6 +20,9 @@ class AssistantChunkData(BaseStreamPayload):
     reasoning: Optional[str] = None
     is_complete: bool
     usage: Optional[TokenUsage] = None 
+    image_urls: Optional[List[str]] = None
+    audio_urls: Optional[List[str]] = None
+    video_urls: Optional[List[str]] = None
 
 
 class AssistantCompleteResponseData(BaseStreamPayload):
@@ -102,14 +105,20 @@ def create_assistant_chunk_data(chunk_obj: Any) -> AssistantChunkData:
             content=str(getattr(chunk_obj, 'content', '')),
             reasoning=getattr(chunk_obj, 'reasoning', None),
             is_complete=bool(getattr(chunk_obj, 'is_complete', False)),
-            usage=parsed_usage
+            usage=parsed_usage,
+            image_urls=getattr(chunk_obj, 'image_urls', None),
+            audio_urls=getattr(chunk_obj, 'audio_urls', None),
+            video_urls=getattr(chunk_obj, 'video_urls', None)
         )
     elif isinstance(chunk_obj, dict): 
          return AssistantChunkData(
             content=str(chunk_obj.get('content', '')),
             reasoning=chunk_obj.get('reasoning', None),
             is_complete=bool(chunk_obj.get('is_complete', False)),
-            usage=parsed_usage
+            usage=parsed_usage,
+            image_urls=chunk_obj.get('image_urls', None),
+            audio_urls=chunk_obj.get('audio_urls', None),
+            video_urls=chunk_obj.get('video_urls', None)
         )
     raise ValueError(f"Cannot create AssistantChunkData from {type(chunk_obj)}")
 

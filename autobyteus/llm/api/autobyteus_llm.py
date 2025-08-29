@@ -41,7 +41,7 @@ class AutobyteusLLM(BaseLLM):
             assistant_message = response['response']
             self.add_assistant_message(assistant_message)
             
-            token_usage_data = response.get('token_usage', {})
+            token_usage_data = response.get('token_usage') or {}
             token_usage = TokenUsage(
                 prompt_tokens=token_usage_data.get('prompt_tokens', 0),
                 completion_tokens=token_usage_data.get('completion_tokens', 0),
@@ -78,27 +78,28 @@ class AutobyteusLLM(BaseLLM):
                     raise RuntimeError(chunk['error'])
                 
                 content = chunk.get('content', '')
-                complete_response += content
+                if content:
+                    complete_response += content
+
                 is_complete = chunk.get('is_complete', False)
-                
+                token_usage = None
                 if is_complete:
-                    token_usage = None
-                    if chunk.get('token_usage'):
-                        token_usage = TokenUsage(
-                            prompt_tokens=chunk['token_usage'].get('prompt_tokens', 0),
-                            completion_tokens=chunk['token_usage'].get('completion_tokens', 0),
-                            total_tokens=chunk['token_usage'].get('total_tokens', 0)
-                        )
-                    yield ChunkResponse(
-                        content=content,
-                        is_complete=True,
-                        usage=token_usage
+                    token_usage_data = chunk.get('token_usage') or {}
+                    token_usage = TokenUsage(
+                        prompt_tokens=token_usage_data.get('prompt_tokens', 0),
+                        completion_tokens=token_usage_data.get('completion_tokens', 0),
+                        total_tokens=token_usage_data.get('total_tokens', 0)
                     )
-                else:
-                    yield ChunkResponse(
-                        content=content,
-                        is_complete=False
-                    )
+
+                yield ChunkResponse(
+                    content=content,
+                    reasoning=chunk.get('reasoning'),
+                    is_complete=is_complete,
+                    image_urls=chunk.get('image_urls', []),
+                    audio_urls=chunk.get('audio_urls', []),
+                    video_urls=chunk.get('video_urls', []),
+                    usage=token_usage
+                )
             
             self.add_assistant_message(complete_response)
         except Exception as e:

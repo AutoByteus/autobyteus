@@ -21,3 +21,6 @@ class ChunkResponse:
     reasoning: Optional[str] = None
     is_complete: bool = False  # Indicates if this is the final chunk
     usage: Optional[TokenUsage] = None  # Token usage stats, typically available in final chunk
+    image_urls: List[str] = field(default_factory=list)
+    audio_urls: List[str] = field(default_factory=list)
+    video_urls: List[str] = field(default_factory=list)
