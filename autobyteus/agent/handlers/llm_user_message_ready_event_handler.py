@@ -1,7 +1,7 @@
 # file: autobyteus/autobyteus/agent/handlers/llm_user_message_ready_event_handler.py
 import logging
 import traceback
-from typing import TYPE_CHECKING, cast, Optional
+from typing import TYPE_CHECKING, cast, Optional, List
 
 from autobyteus.agent.handlers.base_event_handler import AgentEventHandler
 from autobyteus.agent.events import LLMUserMessageReadyEvent, LLMCompleteResponseReceivedEvent 
@@ -53,6 +53,9 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
         complete_response_text = ""
         complete_reasoning_text = ""
         token_usage: Optional[TokenUsage] = None
+        complete_image_urls: List[str] = []
+        complete_audio_urls: List[str] = []
+        complete_video_urls: List[str] = []
         
         notifier: Optional['AgentExternalEventNotifier'] = None
         if context.phase_manager:
@@ -72,9 +75,19 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
                 if chunk_response.reasoning:
                     complete_reasoning_text += chunk_response.reasoning
 
-                if chunk_response.is_complete and chunk_response.usage:
-                    token_usage = chunk_response.usage
-                    logger.debug(f"Agent '{agent_id}' received final chunk with token usage: {token_usage}")
+                if chunk_response.is_complete:
+                    if chunk_response.usage:
+                        token_usage = chunk_response.usage
+                        logger.debug(f"Agent '{agent_id}' received final chunk with token usage: {token_usage}")
+                    if chunk_response.image_urls:
+                        complete_image_urls.extend(chunk_response.image_urls)
+                        logger.debug(f"Agent '{agent_id}' received final chunk with {len(chunk_response.image_urls)} image URLs.")
+                    if chunk_response.audio_urls:
+                        complete_audio_urls.extend(chunk_response.audio_urls)
+                        logger.debug(f"Agent '{agent_id}' received final chunk with {len(chunk_response.audio_urls)} audio URLs.")
+                    if chunk_response.video_urls:
+                        complete_video_urls.extend(chunk_response.video_urls)
+                        logger.debug(f"Agent '{agent_id}' received final chunk with {len(chunk_response.video_urls)} video URLs.")
 
                 if notifier:
                     try:
@@ -121,20 +134,30 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
             logger.info(f"Agent '{agent_id}' enqueued LLMCompleteResponseReceivedEvent with error details from LLMUserMessageReadyEventHandler.")
             return 
 
-        # Add message to history with reasoning
+        # Add message to history with reasoning and multimodal data
         history_entry = {"role": "assistant", "content": complete_response_text}
         if complete_reasoning_text:
             history_entry["reasoning"] = complete_reasoning_text
+        if complete_image_urls:
+            history_entry["image_urls"] = complete_image_urls
+        if complete_audio_urls:
+            history_entry["audio_urls"] = complete_audio_urls
+        if complete_video_urls:
+            history_entry["video_urls"] = complete_video_urls
         context.state.add_message_to_history(history_entry)
         
-        # Create complete response with reasoning
+        # Create complete response with reasoning and multimodal data
         complete_response_obj = CompleteResponse(
             content=complete_response_text,
             reasoning=complete_reasoning_text,
-            usage=token_usage
+            usage=token_usage,
+            image_urls=complete_image_urls,
+            audio_urls=complete_audio_urls,
+            video_urls=complete_video_urls
         )
         llm_complete_event = LLMCompleteResponseReceivedEvent(
             complete_response=complete_response_obj
         )
         await context.input_event_queues.enqueue_internal_system_event(llm_complete_event)
         logger.info(f"Agent '{agent_id}' enqueued LLMCompleteResponseReceivedEvent from LLMUserMessageReadyEventHandler.")
+

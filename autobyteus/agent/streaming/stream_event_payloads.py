@@ -29,6 +29,9 @@ class AssistantCompleteResponseData(BaseStreamPayload):
     content: str
     reasoning: Optional[str] = None
     usage: Optional[TokenUsage] = None 
+    image_urls: Optional[List[str]] = None
+    audio_urls: Optional[List[str]] = None
+    video_urls: Optional[List[str]] = None
 
 class ToolInteractionLogEntryData(BaseStreamPayload):
     log_entry: str
@@ -145,13 +148,19 @@ def create_assistant_complete_response_data(complete_resp_obj: Any) -> Assistant
         return AssistantCompleteResponseData(
             content=str(getattr(complete_resp_obj, 'content', '')),
             reasoning=getattr(complete_resp_obj, 'reasoning', None),
-            usage=parsed_usage
+            usage=parsed_usage,
+            image_urls=getattr(complete_resp_obj, 'image_urls', None),
+            audio_urls=getattr(complete_resp_obj, 'audio_urls', None),
+            video_urls=getattr(complete_resp_obj, 'video_urls', None)
         )
     elif isinstance(complete_resp_obj, dict): 
         return AssistantCompleteResponseData(
             content=str(complete_resp_obj.get('content', '')),
             reasoning=complete_resp_obj.get('reasoning', None),
-            usage=parsed_usage
+            usage=parsed_usage,
+            image_urls=complete_resp_obj.get('image_urls', None),
+            audio_urls=complete_resp_obj.get('audio_urls', None),
+            video_urls=complete_resp_obj.get('video_urls', None)
         )
     raise ValueError(f"Cannot create AssistantCompleteResponseData from {type(complete_resp_obj)}")
 
@@ -186,3 +195,4 @@ def create_system_task_notification_data(notification_data_dict: Any) -> SystemT
     if isinstance(notification_data_dict, dict):
         return SystemTaskNotificationData(**notification_data_dict)
     raise ValueError(f"Cannot create SystemTaskNotificationData from {type(notification_data_dict)}")
+
