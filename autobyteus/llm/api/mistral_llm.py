@@ -2,6 +2,7 @@ from typing import Dict, Optional, List, Any, AsyncGenerator, Union
 import os
 import logging
 import httpx
+import asyncio
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
 from mistralai import Mistral
@@ -10,11 +11,11 @@ from autobyteus.llm.utils.llm_config import LLMConfig
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 from autobyteus.llm.user_message import LLMUserMessage
-from autobyteus.llm.utils.media_payload_formatter import process_image
+from autobyteus.llm.utils.media_payload_formatter import image_source_to_base64, get_mime_type, is_valid_image_path
 
 logger = logging.getLogger(__name__)
 
-def _format_mistral_messages(messages: List[Message]) -> List[Dict[str, Any]]:
+async def _format_mistral_messages(messages: List[Message]) -> List[Dict[str, Any]]:
     """Formats a list of internal Message objects into a list of dictionaries for the Mistral API."""
     mistral_messages = []
     for msg in messages:
@@ -29,12 +30,23 @@ def _format_mistral_messages(messages: List[Message]) -> List[Dict[str, Any]]:
             if msg.content:
                 content_parts.append({"type": "text", "text": msg.content})
 
-            for url in msg.image_urls:
-                try:
-                    image_part_data = process_image(url)
-                    content_parts.append(image_part_data)
-                except ValueError as e:
-                    logger.error(f"Error processing image {url} for Mistral: {e}")
+            image_tasks = [image_source_to_base64(url) for url in msg.image_urls]
+            try:
+                base64_images = await asyncio.gather(*image_tasks)
+                for i, b64_image in enumerate(base64_images):
+                    original_url = msg.image_urls[i]
+                    mime_type = get_mime_type(original_url) if is_valid_image_path(original_url) else "image/jpeg"
+                    data_uri = f"data:{mime_type};base64,{b64_image}"
+                    
+                    # Mistral's format for image parts
+                    content_parts.append({
+                        "type": "image_url",
+                        "image_url": {
+                            "url": data_uri
+                        }
+                    })
+            except Exception as e:
+                logger.error(f"Error processing images for Mistral: {e}")
             
             if msg.audio_urls:
                 logger.warning("MistralLLM does not yet support audio; skipping.")
@@ -87,7 +99,7 @@ class MistralLLM(BaseLLM):
         self.add_user_message(user_message)
         
         try:
-            mistral_messages = _format_mistral_messages(self.messages)
+            mistral_messages = await _format_mistral_messages(self.messages)
             
             chat_response = await self.client.chat.complete_async(
                 model=self.model.value,
@@ -120,7 +132,7 @@ class MistralLLM(BaseLLM):
         final_usage = None
         
         try:
-            mistral_messages = _format_mistral_messages(self.messages)
+            mistral_messages = await _format_mistral_messages(self.messages)
 
             stream = self.client.chat.stream_async(
                 model=self.model.value,

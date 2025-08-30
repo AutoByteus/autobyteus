@@ -2,11 +2,15 @@ import pytest
 import asyncio
 import os
 from autobyteus.llm.llm_factory import LLMFactory
-from autobyteus.llm.providers import LLMProvider
+from autobyteus.llm.runtimes import LLMRuntime
 from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.user_message import LLMUserMessage
 from openai import APIConnectionError
+
+# Path to the test asset
+TEST_IMAGE_PATH = "autobyteus/tests/assets/sample_image.png"
+USER_PROVIDED_IMAGE_URL = "https://127.0.0.1:51739/media/images/b132adbb-80e4-4faf-bd36-44d965d2e095.jpg"
 
 @pytest.fixture
 def set_lmstudio_env(monkeypatch):
@@ -16,14 +20,14 @@ def set_lmstudio_env(monkeypatch):
 @pytest.fixture
 def lmstudio_llm(set_lmstudio_env):
     """
-    Fixture to provide an LMStudioLLM instance.
-    Skips tests if no LM Studio models are discovered.
+    Fixture to provide an LMStudioLLM instance for a vision model.
+    Skips tests if a suitable model is not found.
     """
     # Re-initialize to ensure discovery of local models
     LLMFactory.reinitialize()
     
-    # Get the list of discovered models for the LMSTUDIO provider
-    lmstudio_models = LLMFactory.list_models_by_provider(LLMProvider.LMSTUDIO)
+    # CORRECT: List models by the LMStudio RUNTIME
+    lmstudio_models = LLMFactory.list_models_by_runtime(LLMRuntime.LMSTUDIO)
     
     if not lmstudio_models:
         pytest.skip(
@@ -31,8 +35,16 @@ def lmstudio_llm(set_lmstudio_env):
             "Ensure LM Studio is running with the server started and at least one model loaded."
         )
     
-    # Use the first discovered model for testing
-    model_identifier = lmstudio_models[0].model_identifier
+    # List of known keywords for multimodal models, including the user-specified one
+    vision_keywords = ["gemma-3n-e4b", "llava", "gemma"]
+
+    # Find the first available model that matches one of the vision keywords
+    vision_model = next((m for m in lmstudio_models if any(known in m.model_identifier for known in vision_keywords)), None)
+
+    if not vision_model:
+        pytest.skip(f"No known vision model (e.g., {', '.join(vision_keywords)}) found in LM Studio. Skipping multimodal tests.")
+    
+    model_identifier = vision_model.model_identifier
     
     try:
         return LLMFactory.create_llm(model_identifier=model_identifier)
@@ -57,6 +69,36 @@ async def test_lmstudio_llm_response(lmstudio_llm):
 
     except APIConnectionError:
         pytest.skip("Could not connect to LM Studio server. Skipping test.")
+    finally:
+        await lmstudio_llm.cleanup()
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("image_source", [
+    TEST_IMAGE_PATH,
+    pytest.param(USER_PROVIDED_IMAGE_URL, marks=pytest.mark.xfail(
+        reason="This test requires a specific local server running at the specified URL with a trusted SSL cert."
+    ))
+])
+async def test_lmstudio_llm_multimodal_response(lmstudio_llm, image_source):
+    """Test a multimodal (text + image) response from an LM Studio model."""
+    if image_source == TEST_IMAGE_PATH and not os.path.exists(TEST_IMAGE_PATH):
+        pytest.skip(f"Test image not found at {TEST_IMAGE_PATH}")
+        
+    user_message = LLMUserMessage(
+        content="What is in this image? Describe it in one word.",
+        image_urls=[image_source]
+    )
+    
+    try:
+        response = await lmstudio_llm.send_user_message(user_message)
+        assert isinstance(response, CompleteResponse)
+        assert isinstance(response.content, str)
+        assert len(response.content) > 0
+
+    except APIConnectionError:
+        pytest.skip("Could not connect to LM Studio server. Skipping test.")
+    except Exception as e:
+        pytest.fail(f"LM Studio multimodal test failed unexpectedly. Error: {e}")
     finally:
         await lmstudio_llm.cleanup()
 

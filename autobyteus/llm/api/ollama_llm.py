@@ -1,16 +1,17 @@
-from typing import Dict, Optional, List, AsyncGenerator
+from typing import Dict, Optional, List, AsyncGenerator, Any
 from ollama import AsyncClient, ChatResponse, ResponseError
+from ollama import Image  # FIX: Import the Image type from the ollama library
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.llm_config import LLMConfig
-from autobyteus.llm.utils.messages import MessageRole, Message
+from autobyteus.llm.utils.messages import Message
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 from autobyteus.llm.user_message import LLMUserMessage
+from autobyteus.llm.utils.media_payload_formatter import image_source_to_base64
 import logging
 import asyncio
 import httpx
-import os
 
 logger = logging.getLogger(__name__)
 
@@ -26,16 +27,38 @@ class OllamaLLM(BaseLLM):
         super().__init__(model=model, llm_config=llm_config)
         logger.info(f"OllamaLLM initialized with model: {self.model.model_identifier}")
 
+    async def _format_ollama_messages(self) -> List[Dict[str, Any]]:
+        """
+        Formats the conversation history for the Ollama API, including multimodal content.
+        """
+        formatted_messages = []
+        for msg in self.messages:
+            msg_dict = {
+                "role": msg.role.value,
+                "content": msg.content or ""
+            }
+            if msg.image_urls:
+                try:
+                    # Concurrently process all images using the centralized utility
+                    image_tasks = [image_source_to_base64(url) for url in msg.image_urls]
+                    prepared_base64_images = await asyncio.gather(*image_tasks)
+                    if prepared_base64_images:
+                        # FIX: Wrap each base64 string in the official ollama.Image object
+                        msg_dict["images"] = [Image(value=b64_string) for b64_string in prepared_base64_images]
+                except Exception as e:
+                    logger.error(f"Error processing images for Ollama, skipping them. Error: {e}")
+
+            formatted_messages.append(msg_dict)
+        return formatted_messages
+
     async def _send_user_message_to_llm(self, user_message: LLMUserMessage, **kwargs) -> CompleteResponse:
         self.add_user_message(user_message)
-        
-        # NOTE: This implementation does not yet support multimodal inputs for Ollama.
-        # It will only send the text content.
 
         try:
+            formatted_messages = await self._format_ollama_messages()
             response: ChatResponse = await self.client.chat(
                 model=self.model.value,
-                messages=[msg.to_dict() for msg in self.messages]
+                messages=formatted_messages
             )
             assistant_message = response['message']['content']
             
@@ -81,9 +104,10 @@ class OllamaLLM(BaseLLM):
         final_response = None
         
         try:
+            formatted_messages = await self._format_ollama_messages()
             async for part in await self.client.chat(
                 model=self.model.value,
-                messages=[msg.to_dict() for msg in self.messages],
+                messages=formatted_messages,
                 stream=True
             ):
                 token = part['message']['content']

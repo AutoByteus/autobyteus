@@ -5,11 +5,12 @@ from typing import Optional, List, AsyncGenerator, Dict, Any
 from openai import OpenAI
 from openai.types.completion_usage import CompletionUsage
 from openai.types.chat import ChatCompletionChunk
+import asyncio
 
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.utils.llm_config import LLMConfig
-from autobyteus.llm.utils.media_payload_formatter import process_image
+from autobyteus.llm.utils.media_payload_formatter import image_source_to_base64, create_data_uri, get_mime_type, is_valid_image_path
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 from autobyteus.llm.user_message import LLMUserMessage
@@ -17,8 +18,8 @@ from autobyteus.llm.utils.messages import Message
 
 logger = logging.getLogger(__name__)
 
-def _format_openai_history(messages: List[Message]) -> List[Dict[str, Any]]:
-    """A local function to format history for the OpenAI SDK."""
+async def _format_openai_history(messages: List[Message]) -> List[Dict[str, Any]]:
+    """A local async function to format history for the OpenAI SDK, handling image processing."""
     formatted_messages = []
     for msg in messages:
         # For multimodal messages, build the content list of parts
@@ -27,12 +28,22 @@ def _format_openai_history(messages: List[Message]) -> List[Dict[str, Any]]:
             if msg.content:
                 content_parts.append({"type": "text", "text": msg.content})
 
-            for url in msg.image_urls:
-                try:
-                    content_parts.append(process_image(url))
-                except ValueError as e:
-                    logger.error(f"Error processing image {url}: {e}")
+            image_tasks = []
+            if msg.image_urls:
+                for url in msg.image_urls:
+                    # Create an async task for each image to process them concurrently
+                    image_tasks.append(image_source_to_base64(url))
             
+            try:
+                base64_images = await asyncio.gather(*image_tasks)
+                for i, b64_image in enumerate(base64_images):
+                    original_url = msg.image_urls[i]
+                    # Determine mime type from original path if possible, otherwise default
+                    mime_type = get_mime_type(original_url) if is_valid_image_path(original_url) else "image/jpeg"
+                    content_parts.append(create_data_uri(mime_type, b64_image))
+            except Exception as e:
+                logger.error(f"Error processing one or more images: {e}")
+
             # Placeholder for future audio/video processing
             if msg.audio_urls:
                 logger.warning("OpenAI compatible layer does not yet support audio; skipping.")
@@ -85,7 +96,7 @@ class OpenAICompatibleLLM(BaseLLM, ABC):
         self.add_user_message(user_message)
         
         try:
-            formatted_messages = _format_openai_history(self.messages)
+            formatted_messages = await _format_openai_history(self.messages)
             logger.info(f"Sending request to {self.model.provider.value} API")
             
             response = self.client.chat.completions.create(
@@ -132,7 +143,7 @@ class OpenAICompatibleLLM(BaseLLM, ABC):
         accumulated_content = ""
 
         try:
-            formatted_messages = _format_openai_history(self.messages)
+            formatted_messages = await _format_openai_history(self.messages)
             logger.info(f"Starting streaming request to {self.model.provider.value} API")
             
             stream = self.client.chat.completions.create(

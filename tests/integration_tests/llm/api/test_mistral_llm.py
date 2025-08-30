@@ -8,6 +8,9 @@ from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.user_message import LLMUserMessage
 from autobyteus.llm.utils.llm_config import LLMConfig
 
+# Path to the test asset
+TEST_IMAGE_PATH = "autobyteus/tests/assets/sample_image.png"
+
 @pytest.fixture
 def set_mistral_env(monkeypatch):
     monkeypatch.setenv("MISTRAL_API_KEY", os.getenv("MISTRAL_API_KEY", "YOUR_MISTRAL_API_KEY"))
@@ -23,6 +26,20 @@ def mistral_llm(set_mistral_env):
 async def test_mistral_llm_response(mistral_llm):
     user_message = LLMUserMessage(content="Hello, Mistral LLM!")
     response = await mistral_llm._send_user_message_to_llm(user_message)
+    assert isinstance(response, CompleteResponse)
+    assert isinstance(response.content, str)
+    assert len(response.content) > 0
+
+@pytest.mark.asyncio
+async def test_mistral_llm_multimodal_response(mistral_llm):
+    if not os.path.exists(TEST_IMAGE_PATH):
+        pytest.skip(f"Test image not found at {TEST_IMAGE_PATH}")
+        
+    user_message = LLMUserMessage(
+        content="Describe this image in one word.",
+        image_urls=[TEST_IMAGE_PATH]
+    )
+    response = await mistral_llm.send_user_message(user_message)
     assert isinstance(response, CompleteResponse)
     assert isinstance(response.content, str)
     assert len(response.content) > 0

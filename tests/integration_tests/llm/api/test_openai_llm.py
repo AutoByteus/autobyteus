@@ -8,6 +8,9 @@ from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.user_message import LLMUserMessage
 from autobyteus.llm.utils.llm_config import LLMConfig
 
+# Path to the test asset
+TEST_IMAGE_PATH = "autobyteus/tests/assets/sample_image.png"
+
 @pytest.fixture
 def set_openai_env(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY", "YOUR_OPENAI_API_KEY"))
@@ -26,6 +29,23 @@ async def test_openai_llm_response(openai_llm):
     assert isinstance(response, CompleteResponse)
     assert isinstance(response.content, str)
     assert len(response.content) > 0
+
+@pytest.mark.asyncio
+async def test_openai_llm_multimodal_response(openai_llm):
+    if not os.path.exists(TEST_IMAGE_PATH):
+        pytest.skip(f"Test image not found at {TEST_IMAGE_PATH}")
+        
+    user_message = LLMUserMessage(
+        content="What is in this image? Respond with a single word.",
+        image_urls=[TEST_IMAGE_PATH]
+    )
+    response = await openai_llm.send_user_message(user_message)
+    assert isinstance(response, CompleteResponse)
+    assert isinstance(response.content, str)
+    assert len(response.content) > 0
+    # A 1x1 transparent pixel could be described as "nothing", "transparent", "pixel", etc.
+    # We just check for a plausible text response.
+    assert len(response.content.split()) < 5 # Expect a short answer
 
 @pytest.mark.asyncio
 async def test_openai_llm_streaming(openai_llm): 
