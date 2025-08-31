@@ -55,6 +55,7 @@ class LLMConfig:
     frequency_penalty: Optional[float] = None
     presence_penalty: Optional[float] = None
     stop_sequences: Optional[List] = None
+    uses_max_completion_tokens: bool = False
     extra_params: Dict[str, Any] = field(default_factory=dict)
     pricing_config: TokenPricingConfig = field(default_factory=TokenPricingConfig)
 
@@ -102,17 +103,28 @@ class LLMConfig:
         data_copy = data.copy()
         pricing_config_data = data_copy.pop('pricing_config', {})
         
+        # Create a new dictionary for known fields to avoid passing them in twice
+        known_fields = {
+            'rate_limit', 'token_limit', 'system_message', 'temperature', 
+            'max_tokens', 'top_p', 'frequency_penalty', 'presence_penalty', 
+            'stop_sequences', 'uses_max_completion_tokens', 'extra_params', 
+            'pricing_config'
+        }
+        
+        init_kwargs = {k: v for k, v in data_copy.items() if k in known_fields}
+        
         config = cls(
-            rate_limit=data_copy.get('rate_limit'),
-            token_limit=data_copy.get('token_limit'),
-            system_message=data_copy.get('system_message', "You are a helpful assistant."),
-            temperature=data_copy.get('temperature', 0.7),
-            max_tokens=data_copy.get('max_tokens'),
-            top_p=data_copy.get('top_p'),
-            frequency_penalty=data_copy.get('frequency_penalty'),
-            presence_penalty=data_copy.get('presence_penalty'),
-            stop_sequences=data_copy.get('stop_sequences'),
-            extra_params=data_copy.get('extra_params', {}),
+            rate_limit=init_kwargs.get('rate_limit'),
+            token_limit=init_kwargs.get('token_limit'),
+            system_message=init_kwargs.get('system_message', "You are a helpful assistant."),
+            temperature=init_kwargs.get('temperature', 0.7),
+            max_tokens=init_kwargs.get('max_tokens'),
+            top_p=init_kwargs.get('top_p'),
+            frequency_penalty=init_kwargs.get('frequency_penalty'),
+            presence_penalty=init_kwargs.get('presence_penalty'),
+            stop_sequences=init_kwargs.get('stop_sequences'),
+            uses_max_completion_tokens=init_kwargs.get('uses_max_completion_tokens', False),
+            extra_params=init_kwargs.get('extra_params', {}),
             pricing_config=pricing_config_data 
         )
         return config
@@ -162,26 +174,30 @@ class LLMConfig:
         for f_info in fields(override_config):
             override_value = getattr(override_config, f_info.name)
             
+            # Special handling for booleans where we want to merge if it's not the default
+            # For `uses_max_completion_tokens`, the default is False, so `if override_value:` is fine
+            is_boolean_field = f_info.type == bool
+            
+            # Standard check for None, but also merge if it's a non-default boolean
             if override_value is not None:
-                if f_info.name == 'pricing_config':
-                    # Ensure self.pricing_config is an object (should be by __post_init__)
+                # For uses_max_completion_tokens, `False` is a valid override value, but `None` is not
+                if is_boolean_field and override_value is False and getattr(self, f_info.name) is True:
+                     setattr(self, f_info.name, override_value)
+                elif f_info.name == 'pricing_config':
                     if not isinstance(self.pricing_config, TokenPricingConfig):
-                        self.pricing_config = TokenPricingConfig() # Should not be needed
+                        self.pricing_config = TokenPricingConfig()
                     
-                    # override_value here is override_config.pricing_config, which is TokenPricingConfig
                     if isinstance(override_value, TokenPricingConfig):
                          self.pricing_config.merge_with(override_value)
-                    elif isinstance(override_value, dict): # Should not happen if override_config is LLMConfig
+                    elif isinstance(override_value, dict):
                         self.pricing_config.merge_with(TokenPricingConfig.from_dict(override_value))
                     else:
                         logger.warning(f"Skipping merge for pricing_config due to unexpected override type: {type(override_value)}")
                 elif f_info.name == 'extra_params':
-                    # For extra_params (dict), merge dictionaries
                     if isinstance(override_value, dict) and isinstance(self.extra_params, dict):
                         self.extra_params.update(override_value)
                     else:
-                        setattr(self, f_info.name, override_value) # Fallback to direct set if types mismatch
+                        setattr(self, f_info.name, override_value)
                 else:
                     setattr(self, f_info.name, override_value)
         logger.debug(f"LLMConfig merged. Current state after merge: rate_limit={self.rate_limit}, temp={self.temperature}, system_message='{self.system_message}'")
-

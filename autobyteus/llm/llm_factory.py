@@ -69,6 +69,7 @@ class LLMFactory(metaclass=SingletonMeta):
                 llm_class=OpenAILLM,
                 canonical_name="gpt-5",
                 default_config=LLMConfig(
+                    uses_max_completion_tokens=True,
                     pricing_config=TokenPricingConfig(1.25, 10.00)
                 )
             ),
@@ -79,6 +80,7 @@ class LLMFactory(metaclass=SingletonMeta):
                 llm_class=OpenAILLM,
                 canonical_name="gpt-5-mini",
                 default_config=LLMConfig(
+                    uses_max_completion_tokens=True,
                     pricing_config=TokenPricingConfig(0.25, 2.00)
                 )
             ),
@@ -89,6 +91,7 @@ class LLMFactory(metaclass=SingletonMeta):
                 llm_class=OpenAILLM,
                 canonical_name="gpt-5-nano",
                 default_config=LLMConfig(
+                    uses_max_completion_tokens=True,
                     pricing_config=TokenPricingConfig(0.05, 0.40)
                 )
             ),
@@ -99,6 +102,7 @@ class LLMFactory(metaclass=SingletonMeta):
                 llm_class=OpenAILLM,
                 canonical_name="gpt-5-chat-latest",
                 default_config=LLMConfig(
+                    uses_max_completion_tokens=True,
                     pricing_config=TokenPricingConfig(1.25, 10.00)
                 )
             ),
@@ -109,6 +113,7 @@ class LLMFactory(metaclass=SingletonMeta):
                 llm_class=OpenAILLM,
                 canonical_name="gpt-4.1",
                 default_config=LLMConfig(
+                    uses_max_completion_tokens=True,
                     pricing_config=TokenPricingConfig(2.00, 8.00)
                 )
             ),
@@ -119,6 +124,7 @@ class LLMFactory(metaclass=SingletonMeta):
                 llm_class=OpenAILLM,
                 canonical_name="gpt-4.1-mini",
                 default_config=LLMConfig(
+                    uses_max_completion_tokens=True,
                     pricing_config=TokenPricingConfig(0.40, 1.60)
                 )
             ),
@@ -129,6 +135,7 @@ class LLMFactory(metaclass=SingletonMeta):
                 llm_class=OpenAILLM,
                 canonical_name="gpt-4.1-nano",
                 default_config=LLMConfig(
+                    uses_max_completion_tokens=True,
                     pricing_config=TokenPricingConfig(0.10, 0.40)
                 )
             ),
@@ -139,6 +146,7 @@ class LLMFactory(metaclass=SingletonMeta):
                 llm_class=OpenAILLM,
                 canonical_name="o3",
                 default_config=LLMConfig(
+                    uses_max_completion_tokens=True,
                     pricing_config=TokenPricingConfig(15.00, 60.00)
                 )
             ),
@@ -149,6 +157,7 @@ class LLMFactory(metaclass=SingletonMeta):
                 llm_class=OpenAILLM,
                 canonical_name="o4-mini",
                 default_config=LLMConfig(
+                    uses_max_completion_tokens=True,
                     pricing_config=TokenPricingConfig(1.0, 4.00)
                 )
             ),

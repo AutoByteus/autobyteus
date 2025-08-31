@@ -99,11 +99,17 @@ class OpenAICompatibleLLM(BaseLLM, ABC):
             formatted_messages = await _format_openai_history(self.messages)
             logger.info(f"Sending request to {self.model.provider.value} API")
             
-            response = self.client.chat.completions.create(
-                model=self.model.value,
-                messages=formatted_messages,
-                max_tokens=self.max_tokens,
-            )
+            params: Dict[str, Any] = {
+                "model": self.model.value,
+                "messages": formatted_messages,
+            }
+
+            if self.config.uses_max_completion_tokens:
+                params["max_completion_tokens"] = self.max_tokens
+            else:
+                params["max_tokens"] = self.max_tokens
+
+            response = self.client.chat.completions.create(**params)
             full_message = response.choices[0].message
 
             # --- PRESERVED ORIGINAL LOGIC ---
@@ -146,13 +152,19 @@ class OpenAICompatibleLLM(BaseLLM, ABC):
             formatted_messages = await _format_openai_history(self.messages)
             logger.info(f"Starting streaming request to {self.model.provider.value} API")
             
-            stream = self.client.chat.completions.create(
-                model=self.model.value,
-                messages=formatted_messages,
-                max_tokens=self.max_tokens,
-                stream=True,
-                stream_options={"include_usage": True}
-            )
+            params: Dict[str, Any] = {
+                "model": self.model.value,
+                "messages": formatted_messages,
+                "stream": True,
+                "stream_options": {"include_usage": True},
+            }
+
+            if self.config.uses_max_completion_tokens:
+                params["max_completion_tokens"] = self.max_tokens
+            else:
+                params["max_tokens"] = self.max_tokens
+
+            stream = self.client.chat.completions.create(**params)
 
             for chunk in stream:
                 chunk: ChatCompletionChunk
