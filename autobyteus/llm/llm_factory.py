@@ -14,6 +14,7 @@ from autobyteus.llm.api.bedrock_llm import BedrockLLM
 from autobyteus.llm.api.mistral_llm import MistralLLM
 from autobyteus.llm.api.openai_llm import OpenAILLM
 from autobyteus.llm.api.deepseek_llm import DeepSeekLLM
+from autobyteus.llm.api.gemini_llm import GeminiLLM
 from autobyteus.llm.api.grok_llm import GrokLLM
 from autobyteus.llm.api.kimi_llm import KimiLLM
 from autobyteus.llm.ollama_provider import OllamaModelProvider
@@ -266,96 +267,33 @@ class LLMFactory(metaclass=SingletonMeta):
                 name="gemini-2.5-pro",
                 value="gemini-2.5-pro",
                 provider=LLMProvider.GEMINI,
-                llm_class=OpenAILLM,
+                llm_class=GeminiLLM,
                 canonical_name="gemini-2.5-pro",
                 default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(2.50, 10.00)
+                    pricing_config=TokenPricingConfig(2.50, 15.00)
                 )
             ),
             LLMModel(
                 name="gemini-2.5-flash",
                 value="gemini-2.5-flash",
                 provider=LLMProvider.GEMINI,
-                llm_class=OpenAILLM,
+                llm_class=GeminiLLM,
                 canonical_name="gemini-2.5-flash",
                 default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(0.15, 0.60)
+                    pricing_config=TokenPricingConfig(0.30, 2.50)
                 )
             ),
             LLMModel(
-                name="gemini-2.0-flash",
-                value="gemini-2.0-flash",
+                name="gemini-2.5-flash-lite",
+                value="gemini-2.5-flash-lite",
                 provider=LLMProvider.GEMINI,
-                llm_class=OpenAILLM,
-                canonical_name="gemini-2.0-flash",
+                llm_class=GeminiLLM,
+                canonical_name="gemini-2.5-flash-lite",
                 default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(0.1, 0.40)
-                )
-            ),
-            LLMModel(
-                name="gemini-2.0-flash-lite",
-                value="gemini-2.0-flash-lite",
-                provider=LLMProvider.GEMINI,
-                llm_class=OpenAILLM,
-                canonical_name="gemini-2.0-flash-lite",
-                default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(0.075, 0.30)
-                )
-            ),
-            # GROK Provider Models
-            LLMModel(
-                name="grok-2-1212",
-                value="grok-2-1212",
-                provider=LLMProvider.GROK,
-                llm_class=GrokLLM,
-                canonical_name="grok-2",
-                default_config=LLMConfig(
-                    rate_limit=60,
-                    token_limit=8000,
-                    pricing_config=TokenPricingConfig(2.0, 6.0)
+                    pricing_config=TokenPricingConfig(0.10, 0.40)
                 )
             ),
             # KIMI Provider Models
-            LLMModel(
-                name="kimi-latest",
-                value="kimi-latest",
-                provider=LLMProvider.KIMI,
-                llm_class=KimiLLM,
-                canonical_name="kimi-latest",
-                default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(1.38, 4.14)
-                )
-            ),
-            LLMModel(
-                name="moonshot-v1-8k",
-                value="moonshot-v1-8k",
-                provider=LLMProvider.KIMI,
-                llm_class=KimiLLM,
-                canonical_name="moonshot-v1-8k",
-                default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(0.28, 1.38)
-                )
-            ),
-            LLMModel(
-                name="moonshot-v1-32k",
-                value="moonshot-v1-32k",
-                provider=LLMProvider.KIMI,
-                llm_class=KimiLLM,
-                canonical_name="moonshot-v1-32k",
-                default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(0.69, 2.76)
-                )
-            ),
-            LLMModel(
-                name="moonshot-v1-128k",
-                value="moonshot-v1-128k",
-                provider=LLMProvider.KIMI,
-                llm_class=KimiLLM,
-                canonical_name="moonshot-v1-128k",
-                default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(1.38, 4.14)
-                )
-            ),
             LLMModel(
                 name="kimi-k2-0711-preview",
                 value="kimi-k2-0711-preview",
@@ -364,6 +302,36 @@ class LLMFactory(metaclass=SingletonMeta):
                 canonical_name="kimi-k2-0711-preview",
                 default_config=LLMConfig(
                     pricing_config=TokenPricingConfig(0.55, 2.21)
+                )
+            ),
+            LLMModel(
+                name="kimi-k2-0905-preview",
+                value="kimi-k2-0905-preview",
+                provider=LLMProvider.KIMI,
+                llm_class=KimiLLM,
+                canonical_name="kimi-k2-0905-preview",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(0.55, 2.21)
+                )
+            ),
+            LLMModel(
+                name="kimi-k2-turbo-preview",
+                value="kimi-k2-turbo-preview",
+                provider=LLMProvider.KIMI,
+                llm_class=KimiLLM,
+                canonical_name="kimi-k2-turbo-preview",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(2.76, 2.76)
+                )
+            ),
+            LLMModel(
+                name="kimi-latest",
+                value="kimi-latest",
+                provider=LLMProvider.KIMI,
+                llm_class=KimiLLM,
+                canonical_name="kimi-latest",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(1.38, 4.14)
                 )
             ),
             LLMModel(

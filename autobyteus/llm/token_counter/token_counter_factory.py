@@ -34,6 +34,8 @@ def get_token_counter(model: LLMModel, llm: 'BaseLLM') -> BaseTokenCounter:
         return DeepSeekTokenCounter(model, llm)
     elif model.provider == LLMProvider.KIMI:
         return KimiTokenCounter(model, llm)
+    elif model.provider == LLMProvider.QWEN:
+        return OpenAITokenCounter(model, llm)
     elif model.provider == LLMProvider.OLLAMA:
         return OpenAITokenCounter(model, llm)
     elif model.provider == LLMProvider.LMSTUDIO:

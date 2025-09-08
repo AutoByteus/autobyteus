@@ -9,20 +9,15 @@ from autobyteus.tools.parameter_schema import ParameterType
 
 logger = logging.getLogger(__name__)
 
-TEST_TTS_MODEL = "gemini-2.5-flash-tts@localhost"
-
 @pytest.fixture(scope="module", autouse=True)
 def check_api_keys():
     if not os.getenv("GEMINI_API_KEY"):
         pytest.skip("GEMINI_API_KEY not set.")
 
-@pytest.fixture
-def set_default_speech_gen_model_env(monkeypatch):
-    monkeypatch.setenv("DEFAULT_SPEECH_GENERATION_MODEL", TEST_TTS_MODEL)
-
-def test_get_configured_model_identifier_success(set_default_speech_gen_model_env):
+def test_get_configured_model_identifier_success():
     """Tests that the helper function correctly reads the environment variable."""
-    assert _get_configured_model_identifier("DEFAULT_SPEECH_GENERATION_MODEL", "fallback") == TEST_TTS_MODEL
+    expected_model = os.getenv("DEFAULT_SPEECH_GENERATION_MODEL")
+    assert _get_configured_model_identifier("DEFAULT_SPEECH_GENERATION_MODEL", "fallback") == expected_model
 
 def test_get_configured_model_identifier_fallback():
     """Tests that the helper function correctly uses the fallback."""
@@ -33,7 +28,7 @@ def test_get_configured_model_identifier_failure():
     with pytest.raises(ValueError, match="environment variable is not set"):
         _get_configured_model_identifier("NON_EXISTENT_VAR")
 
-def test_generate_speech_tool_dynamic_schema(set_default_speech_gen_model_env):
+def test_generate_speech_tool_dynamic_schema():
     """Tests that the speech tool's schema is generated dynamically and correctly."""
     tool = GenerateSpeechTool(config={})
     schema = tool.get_argument_schema()
@@ -53,7 +48,7 @@ def test_generate_speech_tool_dynamic_schema(set_default_speech_gen_model_env):
     assert properties["voice_name"]["type"] == "string"
 
 @pytest.mark.asyncio
-async def test_generate_speech_tool_execute(set_default_speech_gen_model_env):
+async def test_generate_speech_tool_execute():
     """Tests a successful execution of the GenerateSpeechTool."""
     tool = GenerateSpeechTool(config={})
     prompt = "This is a test of the speech generation tool."

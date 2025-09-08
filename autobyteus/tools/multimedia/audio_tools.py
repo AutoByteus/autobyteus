@@ -99,7 +99,7 @@ class GenerateSpeechTool(BaseTool):
         ]
         return _build_dynamic_audio_schema(base_params, cls.MODEL_ENV_VAR, cls.DEFAULT_MODEL)
 
-    async def _execute(self, context, prompt: str, generation_config: Optional[dict] = None) -> str:
+    async def _execute(self, context, prompt: str, generation_config: Optional[dict] = None) -> List[str]:
         model_identifier = _get_configured_model_identifier(self.MODEL_ENV_VAR, self.DEFAULT_MODEL)
         logger.info(f"GenerateSpeechTool executing with configured model '{model_identifier}'.")
         client = None
@@ -110,7 +110,7 @@ class GenerateSpeechTool(BaseTool):
             if not response.audio_urls:
                 raise ValueError("Speech generation failed to return any audio file paths.")
             
-            return f"Speech generation successful. Audio file(s) saved at: {response.audio_urls}"
+            return response.audio_urls
         finally:
             if client:
                 await client.cleanup()

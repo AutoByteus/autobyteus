@@ -99,7 +99,7 @@ class GenerateImageTool(BaseTool):
         ]
         return _build_dynamic_image_schema(base_params, cls.MODEL_ENV_VAR, cls.DEFAULT_MODEL)
 
-    async def _execute(self, context, prompt: str, generation_config: Optional[dict] = None) -> str:
+    async def _execute(self, context, prompt: str, generation_config: Optional[dict] = None) -> List[str]:
         model_identifier = _get_configured_model_identifier(self.MODEL_ENV_VAR, self.DEFAULT_MODEL)
         logger.info(f"GenerateImageTool executing with configured model '{model_identifier}'.")
         client = None
@@ -110,7 +110,7 @@ class GenerateImageTool(BaseTool):
             if not response.image_urls:
                 raise ValueError("Image generation failed to return any image URLs.")
             
-            return f"Image generation successful. URLs: {response.image_urls}"
+            return response.image_urls
         finally:
             if client:
                 await client.cleanup()
@@ -160,7 +160,7 @@ class EditImageTool(BaseTool):
         ]
         return _build_dynamic_image_schema(base_params, cls.MODEL_ENV_VAR, cls.DEFAULT_MODEL)
 
-    async def _execute(self, context, prompt: str, input_image_urls: str, generation_config: Optional[dict] = None, mask_image_url: Optional[str] = None) -> str:
+    async def _execute(self, context, prompt: str, input_image_urls: str, generation_config: Optional[dict] = None, mask_image_url: Optional[str] = None) -> List[str]:
         model_identifier = _get_configured_model_identifier(self.MODEL_ENV_VAR, self.DEFAULT_MODEL)
         logger.info(f"EditImageTool executing with configured model '{model_identifier}'.")
         client = None
@@ -180,7 +180,7 @@ class EditImageTool(BaseTool):
             if not response.image_urls:
                 raise ValueError("Image editing failed to return any image URLs.")
 
-            return f"Image editing successful. URLs: {response.image_urls}"
+            return response.image_urls
         finally:
             if client:
                 await client.cleanup()

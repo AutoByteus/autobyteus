@@ -18,6 +18,7 @@ class OllamaProviderResolver:
         (['llama'], LLMProvider.GROQ),
         (['mistral'], LLMProvider.MISTRAL),
         (['deepseek'], LLMProvider.DEEPSEEK),
+        (['qwen'], LLMProvider.QWEN),
     ]
 
     @staticmethod

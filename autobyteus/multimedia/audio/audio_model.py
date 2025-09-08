@@ -28,7 +28,8 @@ class AudioModelMeta(type):
         model = AudioClientFactory._models_by_identifier.get(name_or_identifier)
         if model:
             return model
-        raise KeyError(f"Audio model '{name_or_identifier}' not found.")
+        available_models = list(AudioClientFactory._models_by_identifier.keys())
+        raise KeyError(f"Audio model '{name_or_identifier}' not found. Available models: {available_models}")
 
     def __len__(cls) -> int:
         from autobyteus.multimedia.audio.audio_client_factory import AudioClientFactory

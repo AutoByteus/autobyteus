@@ -13,4 +13,5 @@ class LLMProvider(Enum):
     GROK = "GROK"
     AUTOBYTEUS = "AUTOBYTEUS"
     KIMI = "KIMI"
+    QWEN = "QWEN"
     LMSTUDIO = "LMSTUDIO"
