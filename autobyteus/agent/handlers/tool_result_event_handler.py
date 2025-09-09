@@ -105,8 +105,7 @@ class ToolResultEventHandler(AgentEventHandler):
 
             content_for_llm = (
                 f"The tool '{processed_event.tool_name}' (invocation ID: {tool_invocation_id}) has executed.\n"
-                f"Result:\n{result_str_for_llm}\n" 
-                f"Based on this result, what is the next step or final answer?"
+                f"Result:\n{result_str_for_llm}" 
             )
             log_msg_success_processed = f"[TOOL_RESULT_SUCCESS_PROCESSED] Agent_ID: {agent_id}, Tool: {processed_event.tool_name}, Invocation_ID: {tool_invocation_id}, Result: {str(processed_event.result)}"
             if notifier:
