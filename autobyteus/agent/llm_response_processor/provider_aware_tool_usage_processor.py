@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, List
 
 from .base_processor import BaseLLMResponseProcessor
 from autobyteus.agent.events import PendingToolInvocationEvent
-from autobyteus.agent.tool_invocation import ToolInvocation
+from autobyteus.agent.tool_invocation import ToolInvocation, ToolInvocationTurn
 from autobyteus.tools.usage.parsers import ProviderAwareToolUsageParser
 from autobyteus.tools.usage.parsers.exceptions import ToolUsageParseException
 
@@ -72,6 +72,12 @@ class ProviderAwareToolUsageProcessor(BaseLLMResponseProcessor):
             processed_invocations.append(invocation)
 
         # --- END NEW LOGIC ---
+        
+        # --- NEW: Initialize the multi-tool turn state ---
+        if len(processed_invocations) > 0:
+            logger.info(f"Agent '{context.agent_id}': Initializing multi-tool call turn with {len(processed_invocations)} invocations.")
+            context.state.active_multi_tool_call_turn = ToolInvocationTurn(invocations=processed_invocations)
+        # --- END NEW ---
 
         logger.info(f"Agent '{context.agent_id}': Parsed {len(processed_invocations)} tool invocations. Enqueuing events with unique IDs.")
         for invocation in processed_invocations:

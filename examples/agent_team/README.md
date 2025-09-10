@@ -89,6 +89,7 @@ You can assign different LLM models to each agent to simulate a team with differ
 -   `--test-writer-model`: Sets the model for the `Test Writer`.
 -   `--tester-model`: Sets the model for the `Tester`.
 -   `--output-dir`: Specifies the shared workspace directory for the agents. Defaults to `./code_review_output`.
+-   `--use-xml-tool-format`: Forces all agents in the team to use XML for tool definitions and parsing, overriding any provider defaults (e.g., for Anthropic models).
 
 **Example:** Run the team with `gpt-4o` as the engineer and `kimi-latest` for all other roles.
 
@@ -106,7 +107,8 @@ python examples/agent_team/event_driven/run_software_engineering_team.py \
     --engineer-model qwen/qwen3-coder-30b:lmstudio@192.168.2.126:1234 \
     --reviewer-model qwen/qwen3-coder-30b:lmstudio@192.168.2.126:1234 \
     --test-writer-model qwen/qwen3-coder-30b:lmstudio@192.168.2.126:1234 \
-    --tester-model qwen/qwen3-coder-30b:lmstudio@192.168.2.126:1234
+    --tester-model qwen/qwen3-coder-30b:lmstudio@192.168.2.126:1234 \
+    --use-xml-tool-format
 ```
 
 python examples/agent_team/event_driven/run_software_engineering_team.py \

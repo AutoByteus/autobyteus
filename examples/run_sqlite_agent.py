@@ -189,7 +189,7 @@ async def main(args: argparse.Namespace):
     try:
         # 3. Discover and register tools by passing the config dictionary directly.
         logger.info(f"Performing targeted discovery for remote SQLite tools from server: '{server_id}'...")
-        await registrar.discover_and_register_tools(mcp_config=sqlite_mcp_config_dict)
+        await registrar.load_and_register_server(config_dict=sqlite_mcp_config_dict)
         logger.info("Remote tool registration complete.")
 
         # 4. Create tool instances from the registry for our agent.

@@ -126,7 +126,8 @@ def create_code_review_team(
     reviewer_model: str, 
     test_writer_model: str,
     tester_model: str,
-    workspace: BaseAgentWorkspace
+    workspace: BaseAgentWorkspace,
+    use_xml_tool_format: bool
 ):
     """Creates the code review agent team."""
     
@@ -179,15 +180,20 @@ def create_code_review_team(
 
     # --- BUILD THE AGENT TEAM ---
     
-    code_review_team = (
+    builder = (
         AgentTeamBuilder(name="SoftwareDevTeam", description="A team for writing, reviewing, and testing code.")
         .set_coordinator(coordinator_config)
         .add_agent_node(engineer_config)
         .add_agent_node(reviewer_config)
         .add_agent_node(test_writer_config)
         .add_agent_node(tester_config)
-        .build()
     )
+
+    if use_xml_tool_format:
+        builder.set_use_xml_tool_format(True)
+        print("--> Forcing XML tool format for all agents in the team.")
+
+    code_review_team = builder.build()
 
     return code_review_team
 
@@ -227,7 +233,8 @@ async def main(args: argparse.Namespace, log_file: Path):
             reviewer_model=reviewer_model,
             test_writer_model=test_writer_model,
             tester_model=tester_model,
-            workspace=workspace
+            workspace=workspace,
+            use_xml_tool_format=args.use_xml_tool_format
         )
         app = AgentTeamApp(team=team)
         await app.run_async()
@@ -247,6 +254,7 @@ if __name__ == "__main__":
     parser.add_argument("--test-writer-model", type=str, help="Specific LLM model for the TestWriter. Defaults to --llm-model.")
     parser.add_argument("--tester-model", type=str, help="Specific LLM model for the Tester. Defaults to --llm-model.")
     parser.add_argument("--output-dir", type=str, default="./code_review_output", help="Directory for the shared workspace.")
+    parser.add_argument("--use-xml-tool-format", action="store_true", help="Force the use of XML format for tool definitions and parsing.")
     parser.add_argument("--help-models", action="store_true", help="Display available LLM models and exit.")
     
     if "--help-models" in sys.argv:

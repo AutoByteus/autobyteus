@@ -63,7 +63,7 @@ def _build_dynamic_image_schema(base_params: List[ParameterDefinition], model_en
             param_type=ParameterType.OBJECT,
             description=f"Model-specific generation parameters for the configured '{model_identifier}' model.",
             required=False,
-            object_schema=config_schema.to_json_schema_dict()
+            object_schema=config_schema
         ))
     return schema
 

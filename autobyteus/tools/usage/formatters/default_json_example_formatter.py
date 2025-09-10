@@ -1,7 +1,7 @@
 # file: autobyteus/autobyteus/tools/usage/formatters/default_json_example_formatter.py
-from typing import Dict, Any, TYPE_CHECKING, List, Optional
+from typing import Dict, Any, TYPE_CHECKING, List, Optional, Union
 
-from autobyteus.tools.parameter_schema import ParameterType, ParameterDefinition
+from autobyteus.tools.parameter_schema import ParameterType, ParameterDefinition, ParameterSchema
 from .base_formatter import BaseExampleFormatter
 
 if TYPE_CHECKING:
@@ -35,9 +35,16 @@ class DefaultJsonExampleFormatter(BaseExampleFormatter):
     def _generate_placeholder_value(self, param_def: ParameterDefinition) -> Any:
         # If an object parameter has a detailed schema, generate a structured example from it.
         if param_def.param_type == ParameterType.OBJECT and param_def.object_schema:
-            # We pass the full schema document to allow for resolving $refs
             return DefaultJsonExampleFormatter._generate_example_from_schema(param_def.object_schema, param_def.object_schema)
         
+        # --- FIX: Handle arrays with a detailed item schema ---
+        if param_def.param_type == ParameterType.ARRAY and param_def.array_item_schema:
+            # Generate one example item for the array to keep it concise.
+            # We pass the item schema as both sub_schema and full_schema for potential self-references within.
+            example_item = DefaultJsonExampleFormatter._generate_example_from_schema(param_def.array_item_schema, param_def.array_item_schema)
+            return [example_item]
+        # --- END FIX ---
+
         # Fallback to simple placeholder generation for primitives or objects without schemas.
         if param_def.default_value is not None: return param_def.default_value
         if param_def.param_type == ParameterType.STRING: return f"example_{param_def.name}"
@@ -46,15 +53,22 @@ class DefaultJsonExampleFormatter(BaseExampleFormatter):
         if param_def.param_type == ParameterType.BOOLEAN: return True
         if param_def.param_type == ParameterType.ENUM: return param_def.enum_values[0] if param_def.enum_values else "enum_val"
         if param_def.param_type == ParameterType.OBJECT: return {"key": "value"}
-        if param_def.param_type == ParameterType.ARRAY: return ["item1", "item2"]
+        if param_def.param_type == ParameterType.ARRAY: return ["item1", "item2"] # This now only applies to generic arrays
         return "placeholder"
 
     @staticmethod
-    def _generate_example_from_schema(sub_schema: Dict[str, Any], full_schema: Dict[str, Any]) -> Any:
+    def _generate_example_from_schema(sub_schema: Union[Dict[str, Any], 'ParameterSchema'], full_schema: Union[Dict[str, Any], 'ParameterSchema']) -> Any:
         """
         Recursively generates an example value from a JSON schema dictionary.
         This is a static method so it can be reused by other formatters.
         """
+        # --- FIX: Handle ParameterSchema objects by converting them to dicts ---
+        if isinstance(sub_schema, ParameterSchema):
+            sub_schema = sub_schema.to_json_schema_dict()
+        if isinstance(full_schema, ParameterSchema):
+            full_schema = full_schema.to_json_schema_dict()
+        # --- END FIX ---
+
         if "$ref" in sub_schema:
             ref_path = sub_schema["$ref"]
             try:

@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.tool_category import ToolCategory
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.tools.pydantic_schema_converter import pydantic_to_parameter_schema
 from autobyteus.task_management.base_task_board import TaskStatus
 from autobyteus.task_management.deliverable import FileDeliverable
 from autobyteus.task_management.schemas import FileDeliverableSchema
@@ -53,14 +54,11 @@ class UpdateTaskStatus(BaseTool):
             param_type=ParameterType.ARRAY,
             description="Optional. A list of file deliverables to submit for this task, typically when status is 'completed'. Each deliverable must include a file_path and a summary.",
             required=False,
-            array_item_schema=FileDeliverableSchema.model_json_schema()
+            array_item_schema=pydantic_to_parameter_schema(FileDeliverableSchema)
         ))
         return schema
 
     async def _execute(self, context: 'AgentContext', task_name: str, status: str, deliverables: Optional[List[Dict[str, Any]]] = None) -> str:
-        """
-        Executes the tool to update a task's status and optionally submit deliverables.
-        """
         agent_name = context.config.name
         log_msg = f"Agent '{agent_name}' is executing UpdateTaskStatus for task '{task_name}' to status '{status}'"
         if deliverables:
@@ -84,12 +82,7 @@ class UpdateTaskStatus(BaseTool):
             logger.warning(f"Agent '{agent_name}' tried to update task status, but no plan is loaded.")
             return error_msg
 
-        # Find the task by name
-        target_task = None
-        for task in task_board.current_plan.tasks:
-            if task.task_name == task_name:
-                target_task = task
-                break
+        target_task = next((t for t in task_board.current_plan.tasks if t.task_name == task_name), None)
 
         if not target_task:
             error_msg = f"Failed to update status for task '{task_name}'. The task name does not exist on the current plan."
@@ -103,17 +96,11 @@ class UpdateTaskStatus(BaseTool):
             logger.warning(f"Agent '{agent_name}' provided invalid status for UpdateTaskStatus: {status}")
             return f"Error: {error_msg}"
         
-        # --- Process Deliverables FIRST --- (CORRECTED ORDER)
         if deliverables:
             try:
                 for d_data in deliverables:
-                    # Validate and create the internal deliverable object
                     deliverable_schema = FileDeliverableSchema(**d_data)
-                    full_deliverable = FileDeliverable(
-                        **deliverable_schema.model_dump(),
-                        author_agent_name=agent_name
-                    )
-                    # Append to the task object
+                    full_deliverable = FileDeliverable(**deliverable_schema.model_dump(), author_agent_name=agent_name)
                     target_task.file_deliverables.append(full_deliverable)
                 logger.info(f"Agent '{agent_name}' successfully processed and added {len(deliverables)} deliverables to task '{task_name}'.")
             except (ValidationError, TypeError) as e:
@@ -121,8 +108,6 @@ class UpdateTaskStatus(BaseTool):
                 logger.warning(f"Agent '{agent_name}': {error_msg}")
                 return f"Error: {error_msg}"
 
-        # --- Update Status SECOND --- (CORRECTED ORDER)
-        # This will now emit an event with the deliverables already attached to the task.
         if not task_board.update_task_status(target_task.task_id, status_enum, agent_name):
             error_msg = f"Failed to update status for task '{task_name}'. An unexpected error occurred on the task board."
             logger.error(f"Agent '{agent_name}': {error_msg}")

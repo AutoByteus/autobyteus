@@ -16,13 +16,35 @@ class ToolManifestProvider:
     """
     Generates a complete tool manifest string, which includes the schema
     and an example for each provided tool. This is suitable for injection
+
     into a system prompt. It uses the central ToolFormattingRegistry to get
     the correct formatters for the specified provider.
     """
-    SCHEMA_HEADER = "## Tool Definition:"
-    EXAMPLE_HEADER = "## Example Usage:"
-    # UPDATED: Changed the header to be more descriptive as requested.
+    # --- XML Specific Headers and Guidelines ---
+    XML_SCHEMA_HEADER = "## Tool Definition:"
+    XML_EXAMPLE_HEADER = "## Tool Usage Examples and Guidelines:"
+    XML_GENERAL_GUIDELINES = (
+        "To use this tool, you must construct an XML block exactly like the examples below. "
+        "Ensure all tags are correctly named and nested. Pay close attention to how arguments, "
+        "especially complex ones like lists and objects, are formatted."
+    )
+    XML_ARRAY_GUIDELINES = (
+        "Formatting Lists/Arrays: For any argument that is a list (an array), you MUST wrap each "
+        "individual value in its own `<item>` tag. Do not use comma-separated strings or JSON-style `[...]` arrays within a single tag.\n\n"
+        "Correct:\n"
+        '<arg name="dependencies">\n'
+        '    <item>task_1</item>\n'
+        '    <item>task_2</item>\n'
+        '</arg>\n\n'
+        "Incorrect:\n"
+        '<arg name="dependencies">[task_1, task_2]</arg>\n'
+        '<arg name="dependencies">task_1, task_2</arg>'
+    )
+    
+    # --- JSON Specific Headers ---
+    JSON_SCHEMA_HEADER = "## Tool Definition:"
     JSON_EXAMPLE_HEADER = "Example: To use this tool, you could provide the following JSON object as a tool call:"
+
 
     def __init__(self):
         self._formatting_registry = ToolFormattingRegistry()
@@ -45,12 +67,10 @@ class ToolManifestProvider:
         """
         tool_blocks = []
 
-        # Get the correct formatting pair from the registry, passing the override flag.
         formatter_pair = self._formatting_registry.get_formatter_pair(provider, use_xml_tool_format=use_xml_tool_format)
         schema_formatter = formatter_pair.schema_formatter
         example_formatter = formatter_pair.example_formatter
 
-        # Determine if the chosen formatter is XML-based. This determines the final assembly format.
         is_xml_format = isinstance(schema_formatter, DefaultXmlSchemaFormatter)
 
         for td in tool_definitions:
@@ -60,18 +80,22 @@ class ToolManifestProvider:
 
                 if schema and example:
                     if is_xml_format:
-                        tool_blocks.append(f"{self.SCHEMA_HEADER}\n{schema}\n\n{self.EXAMPLE_HEADER}\n{example}")
-                    else:  # JSON format
-                        # UPDATED: Removed the redundant {"tool": schema} wrapper.
+                        tool_blocks.append(f"{self.XML_SCHEMA_HEADER}\n{schema}\n\n{self.XML_EXAMPLE_HEADER}\n{example}")
+                    else:
                         schema_str = json.dumps(schema, indent=2)
                         example_str = json.dumps(example, indent=2)
-                        tool_blocks.append(f"{self.SCHEMA_HEADER}\n{schema_str}\n\n{self.JSON_EXAMPLE_HEADER}\n{example_str}")
+                        tool_blocks.append(f"{self.JSON_SCHEMA_HEADER}\n{schema_str}\n\n{self.JSON_EXAMPLE_HEADER}\n{example_str}")
                 else:
                     logger.warning(f"Could not generate schema or example for tool '{td.name}' using format {'XML' if is_xml_format else 'JSON'}.")
 
             except Exception as e:
                 logger.error(f"Failed to generate manifest block for tool '{td.name}': {e}", exc_info=True)
         
-        # UPDATED: Unify the return for all formats to provide a consistent structure
-        # without the incorrect '[]' wrapper for JSON.
-        return "\n\n---\n\n".join(tool_blocks)
+        # Assemble the final manifest string
+        manifest_content = "\n\n---\n\n".join(tool_blocks)
+
+        if is_xml_format and manifest_content:
+            # Prepend the general guidelines for XML format
+            return f"{self.XML_GENERAL_GUIDELINES}\n\n{self.XML_ARRAY_GUIDELINES}\n\n---\n\n{manifest_content}"
+        
+        return manifest_content

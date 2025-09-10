@@ -2,7 +2,11 @@
 import uuid
 import hashlib
 import json
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List, TYPE_CHECKING
+from dataclasses import dataclass, field
+
+if TYPE_CHECKING:
+    from autobyteus.agent.events import ToolResultEvent
 
 class ToolInvocation:
     def __init__(self, name: Optional[str] = None, arguments: Optional[Dict[str, Any]] = None, id: Optional[str] = None):
@@ -55,3 +59,17 @@ class ToolInvocation:
     def __repr__(self) -> str:
         return (f"ToolInvocation(id='{self.id}', name='{self.name}', "
                 f"arguments={self.arguments})")
+
+
+@dataclass
+class ToolInvocationTurn:
+    """
+    A data class to encapsulate the state of a multi-tool invocation turn.
+    Its existence in the agent's state signifies that a multi-tool turn is active.
+    """
+    invocations: List[ToolInvocation]
+    results: List['ToolResultEvent'] = field(default_factory=list)
+
+    def is_complete(self) -> bool:
+        """Checks if all expected tool results have been collected."""
+        return len(self.results) >= len(self.invocations)

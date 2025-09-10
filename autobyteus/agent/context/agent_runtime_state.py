@@ -16,6 +16,7 @@ from autobyteus.agent.tool_invocation import ToolInvocation
 if TYPE_CHECKING:
     from autobyteus.agent.phases import AgentPhaseManager 
     from autobyteus.tools.base_tool import BaseTool 
+    from autobyteus.agent.tool_invocation import ToolInvocationTurn
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,9 @@ class AgentRuntimeState:
         self.conversation_history: List[Dict[str, Any]] = conversation_history or []
         self.pending_tool_approvals: Dict[str, ToolInvocation] = {}
         self.custom_data: Dict[str, Any] = custom_data or {}
+        
+        # NEW: State for multi-tool call invocation turns, with a very explicit name.
+        self.active_multi_tool_call_turn: Optional['ToolInvocationTurn'] = None
         
         self.processed_system_prompt: Optional[str] = None
         # self.final_llm_config_for_creation removed
@@ -83,7 +87,9 @@ class AgentRuntimeState:
         tools_status = f"{len(self.tool_instances)} Initialized" if self.tool_instances is not None else "Not Initialized"
         input_queues_status = "Initialized" if self.input_event_queues else "Not Initialized"
         # REMOVED output_queues_status from repr
+        active_turn_status = "Active" if self.active_multi_tool_call_turn else "Inactive"
         return (f"AgentRuntimeState(agent_id='{self.agent_id}', current_phase='{phase_repr}', "
                 f"llm_status='{llm_status}', tools_status='{tools_status}', "
                 f"input_queues_status='{input_queues_status}', "
-                f"pending_approvals={len(self.pending_tool_approvals)}, history_len={len(self.conversation_history)})")
+                f"pending_approvals={len(self.pending_tool_approvals)}, history_len={len(self.conversation_history)}, "
+                f"multi_tool_call_turn='{active_turn_status}')")

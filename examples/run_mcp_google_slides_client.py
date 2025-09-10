@@ -177,7 +177,7 @@ async def main():
     try:
         # 3. Discover and register tools by passing the config dictionary directly.
         logger.info(f"Performing targeted discovery for remote tools from server '{server_id}'...")
-        await registrar.discover_and_register_tools(mcp_config=google_slides_mcp_config_dict)
+        await registrar.load_and_register_server(config_dict=google_slides_mcp_config_dict)
         # Use the ToolRegistry to get tools by their source server ID.
         registered_tool_defs = tool_registry.get_tools_by_mcp_server(server_id)
         logger.info(f"Tool registration complete. Discovered tools: {[t.name for t in registered_tool_defs]}")

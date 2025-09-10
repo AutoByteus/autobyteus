@@ -20,14 +20,25 @@ if not env_test_path.exists():
 load_dotenv(env_test_path, override=True)
 logging.info(f"Successfully loaded test environment from {env_test_path}")
 
-@pytest.fixture(scope="session", autouse=True)
-def configure_logging_for_tests():
-    """
-    Session-wide fixture to configure logging levels for tests.
-    This suppresses noisy INFO and DEBUG logs from specific libraries.
-    """
-    # Set the logging level for 'watchdog' to WARNING to hide verbose file event logs
-    logging.getLogger('watchdog').setLevel(logging.WARNING)
-    
-    # You can also control your application's log level during tests
-    logging.getLogger('autobyteus_server').setLevel(logging.WARNING)
+def pytest_configure(config):
+    # Create a custom logger
+    logger = logging.getLogger('autobyteus')
+    logger.setLevel(logging.DEBUG)
+
+    # Create console handler and set level to debug
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+
+    # Create formatter
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    # Add formatter to ch
+    ch.setFormatter(formatter)
+
+    # Add ch to logger
+    logger.addHandler(ch)
+
+@pytest.fixture(scope='session', autouse=True)
+def configure_logging():
+    # This fixture will be automatically used by all tests
+    pass

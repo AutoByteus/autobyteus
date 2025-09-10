@@ -4,12 +4,11 @@ import logging
 from typing import TYPE_CHECKING, Optional, Dict, Any
 
 from pydantic import ValidationError
-# No longer need GenerateJsonSchema from pydantic.json_schema
-# from pydantic.json_schema import GenerateJsonSchema
 
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.tool_category import ToolCategory
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.tools.pydantic_schema_converter import pydantic_to_parameter_schema
 from autobyteus.task_management.schemas import TaskPlanDefinitionSchema
 from autobyteus.task_management.converters import TaskPlanConverter, TaskBoardConverter
 
@@ -23,8 +22,6 @@ class PublishTaskPlan(BaseTool):
     """A tool for the coordinator to parse and load a generated plan into the TaskBoard."""
 
     CATEGORY = ToolCategory.TASK_MANAGEMENT
-
-    # The failing custom InlineSchemaGenerator has been removed.
 
     @classmethod
     def get_name(cls) -> str:
@@ -44,11 +41,8 @@ class PublishTaskPlan(BaseTool):
     def get_argument_schema(cls) -> Optional[ParameterSchema]:
         schema = ParameterSchema()
         
-        # CORRECTED IMPLEMENTATION:
-        # A direct, standard call to model_json_schema(). This generates a valid
-        # JSON schema with $refs, which the framework handles correctly.
-        # This completely avoids the TypeError caused by the unsupported 'ref_strategy' argument.
-        object_json_schema = TaskPlanDefinitionSchema.model_json_schema()
+        # Convert the Pydantic model to our native ParameterSchema for the nested object
+        plan_object_schema = pydantic_to_parameter_schema(TaskPlanDefinitionSchema)
         
         schema.add_parameter(ParameterDefinition(
             name="plan",
@@ -59,7 +53,7 @@ class PublishTaskPlan(BaseTool):
                 "Each task must have a unique name within the plan."
             ),
             required=True,
-            object_schema=object_json_schema
+            object_schema=plan_object_schema
         ))
         return schema
 
@@ -83,12 +77,8 @@ class PublishTaskPlan(BaseTool):
             return error_msg
             
         try:
-            # Step 1: The input is now a dictionary, so we can directly validate it.
             plan_definition_schema = TaskPlanDefinitionSchema(**plan)
-
-            # Step 2: Use the dedicated converter to create the internal TaskPlan object.
             final_plan = TaskPlanConverter.from_schema(plan_definition_schema)
-
         except (ValidationError, ValueError) as e:
             error_msg = f"Invalid or inconsistent task plan provided: {e}"
             logger.warning(f"Agent '{context.agent_id}' provided an invalid plan for PublishTaskPlan: {error_msg}")
@@ -100,12 +90,10 @@ class PublishTaskPlan(BaseTool):
 
         if task_board.load_task_plan(final_plan):
             logger.info(f"Agent '{context.agent_id}': Task plan published successfully. Returning new board status.")
-            # Convert the new state of the board back to an LLM-friendly schema and return it.
             status_report_schema = TaskBoardConverter.to_schema(task_board)
             if status_report_schema:
                 return status_report_schema.model_dump_json(indent=2)
             else:
-                # This is a fallback case, shouldn't happen right after a successful load.
                 return "Task plan published successfully, but could not generate status report."
         else:
             error_msg = "Failed to load task plan onto the board. This can happen if the board implementation rejects the plan."

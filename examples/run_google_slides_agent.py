@@ -181,7 +181,7 @@ async def main(args: argparse.Namespace):
         # 3. Discover and register tools by passing the config dictionary directly.
         # The registrar will handle parsing, validation, and storage.
         logger.info(f"Performing targeted discovery for remote Google Slides tools from server: '{server_id}'...")
-        await registrar.discover_and_register_tools(mcp_config=google_slides_mcp_config_dict)
+        await registrar.load_and_register_server(config_dict=google_slides_mcp_config_dict)
         logger.info("Remote tool registration complete.")
 
         # 4. Create tool instances from the registry for our agent.
@@ -251,7 +251,7 @@ async def main(args: argparse.Namespace):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the GoogleSlidesAgent interactively.")
-    parser.add_argument("--llm-model", type=str, default="gpt-4o", help=f"The LLM model identifier to use. Call --help-models for list.")
+    parser.add_argument("--llm-model", type=str, default="kimi-latest", help=f"The LLM model identifier to use. Call --help-models for list.")
     parser.add_argument("--help-models", action="store_true", help="Display available LLM models and exit.")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging.")
     parser.add_argument("--agent-log-file", type=str, default="./agent_logs_gslides.txt", 
