@@ -2,11 +2,14 @@
 import uuid
 import hashlib
 import json
+import logging
 from typing import Optional, Dict, Any, List, TYPE_CHECKING
 from dataclasses import dataclass, field
 
 if TYPE_CHECKING:
     from autobyteus.agent.events import ToolResultEvent
+
+logger = logging.getLogger(__name__)
 
 class ToolInvocation:
     def __init__(self, name: Optional[str] = None, arguments: Optional[Dict[str, Any]] = None, id: Optional[str] = None):
@@ -42,6 +45,9 @@ class ToolInvocation:
         
         # Create a string to hash
         hash_string = f"{name}:{canonical_args}"
+        
+        # --- ADDED LOGGING ---
+        logger.debug(f"Generating tool invocation ID from hash_string: '{hash_string}'")
         
         # Use SHA256 for a robust hash
         sha256_hash = hashlib.sha256(hash_string.encode('utf-8')).hexdigest()

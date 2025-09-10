@@ -2,6 +2,7 @@
 import pytest
 from autobyteus.tools.usage.parsers.default_xml_tool_usage_parser import DefaultXmlToolUsageParser
 from autobyteus.llm.utils.response_types import CompleteResponse
+from autobyteus.agent.tool_invocation import ToolInvocation
 
 @pytest.fixture
 def parser():
@@ -154,3 +155,214 @@ def test_parse_arg_with_unescaped_xml_chars_in_content(parser: DefaultXmlToolUsa
     assert invocation.name == "CodeRunner"
     # The content should be preserved exactly as the original string
     assert invocation.arguments == {"code": code_content}
+
+# --- NEW TESTS ADDED FOR PRODUCTION CASE ---
+
+def test_parses_complex_nested_list_case_from_production(parser: DefaultXmlToolUsageParser):
+    """
+    Tests parsing of a real-world complex XML structure and logs the
+    generated tool invocation ID for verification. The corrected parser
+    should now ignore whitespace between complex elements.
+    """
+    xml_content = """<tool name="PublishTaskPlan"> <arguments> <arg name="plan"> <arg name="overall_goal">Develop a complete Snake game in Python from scratch</arg> <arg name="tasks"> <item> <arg name="task_name">implement_game_logic</arg> <arg name="assignee_name">Software Engineer</arg> <arg name="description">Implement the core game logic for Snake including snake movement, food generation, collision detection, and score tracking</arg> </item> <item> <arg name="task_name">code_review</arg> <arg name="assignee_name">Code Reviewer</arg> <arg name="description">Conduct a thorough code review of the implemented Snake game logic, checking for best practices, efficiency, and correctness</arg> <arg name="dependencies"> <item>implement_game_logic</item> </arg> </item> <item> <arg name="task_name">write_unit_tests</arg> <arg name="assignee_name">Test Writer</arg> <arg name="description">Write comprehensive unit tests for all game components including movement, collision detection, and scoring logic</arg> <arg name="dependencies"> <item>implement_game_logic</item> </arg> </item> <item> <arg name="task_name">run_tests</arg> <arg name="assignee_name">Tester</arg> <arg name="description">Execute all unit tests and perform manual testing of the Snake game to ensure it functions correctly and meets requirements</arg> <arg name="dependencies"> <item>code_review</item> <item>write_unit_tests</item> </arg> </item> </arg> </arg> </arguments></tool>"""
+    mock_response = CompleteResponse(content=xml_content)
+
+    invocations = parser.parse(mock_response)
+
+    assert len(invocations) == 1
+    invocation = invocations[0]
+    assert isinstance(invocation, ToolInvocation)
+    assert invocation.name == "PublishTaskPlan"
+    
+    # As requested, log the generated ID for manual verification
+    print(f"[Backend Test] Generated ID for Production XML Case: {invocation.id}")
+
+    # Assertions to ensure the structure is correct AND free of 'value' keys
+    expected_args = {
+        "plan": {
+            "overall_goal": "Develop a complete Snake game in Python from scratch",
+            "tasks": [
+                {
+                    "task_name": "implement_game_logic",
+                    "assignee_name": "Software Engineer",
+                    "description": "Implement the core game logic for Snake including snake movement, food generation, collision detection, and score tracking"
+                },
+                {
+                    "task_name": "code_review",
+                    "assignee_name": "Code Reviewer",
+                    "description": "Conduct a thorough code review of the implemented Snake game logic, checking for best practices, efficiency, and correctness",
+                    "dependencies": ["implement_game_logic"]
+                },
+                {
+                    "task_name": "write_unit_tests",
+                    "assignee_name": "Test Writer",
+                    "description": "Write comprehensive unit tests for all game components including movement, collision detection, and scoring logic",
+                    "dependencies": ["implement_game_logic"]
+                },
+                {
+                    "task_name": "run_tests",
+                    "assignee_name": "Tester",
+                    "description": "Execute all unit tests and perform manual testing of the Snake game to ensure it functions correctly and meets requirements",
+                    "dependencies": ["code_review", "write_unit_tests"]
+                }
+            ]
+        }
+    }
+    assert invocation.arguments == expected_args
+
+def test_empty_tag_becomes_empty_string(parser: DefaultXmlToolUsageParser):
+    """
+    Tests that an empty argument tag is parsed as an empty string, not an empty object.
+    """
+    xml_content = '<tool name="test"><arguments><arg name="foo"></arg><arg name="bar">baz</arg></arguments></tool>'
+    mock_response = CompleteResponse(content=xml_content)
+    invocations = parser.parse(mock_response)
+    
+    assert len(invocations) == 1
+    args = invocations[0].arguments
+    assert "foo" in args
+    assert args["foo"] == ""
+    assert args["bar"] == "baz"
+
+def test_simple_string_content_is_not_wrapped_in_dict(parser: DefaultXmlToolUsageParser):
+    """
+    A minimal unit test to ensure a simple string value is parsed as a string,
+    not a dictionary, confirming the core bug fix.
+    """
+    xml_string = '<tool name="TestTool"><arguments><arg name="message">Hello World</arg></arguments></tool>'
+    response = CompleteResponse(content=xml_string)
+    invocations = parser.parse(response)
+
+    assert len(invocations) == 1
+    args = invocations[0].arguments
+    assert "message" in args
+    assert isinstance(args["message"], str)
+    assert args["message"] == "Hello World"
+
+def test_large_code_block_as_string_content_is_parsed_as_string(parser: DefaultXmlToolUsageParser):
+    """
+    Tests that a multi-line code block with complex syntax and special XML
+    characters is correctly parsed as a single string primitive.
+    """
+    # This code block includes a variety of syntax elements to test robustness.
+    code_content = """import sys
+from unittest.mock import patch
+import pytest
+
+# Add project root to path for imports, e.g. `sys.path.insert(0, '.')`
+# This ensures that modules like 'snake_game' can be found.
+
+# Assuming 'snake_game' with 'Snake' class exists.
+from snake_game import Snake
+
+@pytest.mark.parametrize("test_input,expected", [("3+5", 8), ("2*4", 8)])
+class TestComplexCode:
+    \"\"\"A test suite to demonstrate complex syntax parsing inside an XML arg.\"\"\"
+    def test_conditions_and_operators(self, test_input, expected):
+        \"\"\"
+        Tests various conditions with special XML chars like <, >, &, and "quotes".
+        The parser must treat this whole block as a single string.
+        \"\"\"
+        snake = Snake()
+        game_over = False
+        
+        # Test for growth & other conditions
+        if snake.score > 10 and snake.length < 20:
+            print(f"Snake size is < 20. Score is > 10. A 'good' state.")
+        
+        # Using bitwise AND operator
+        if (snake.score & 1) == 0:
+            # Score is even
+            pass
+            
+        # Modulo operator for wrapping
+        pos_x = (snake.head_x + 1) % 40
+        
+        if pos_x == 0:
+            game_over = True
+        
+        assert game_over is False # Check boolean identity
+
+        # This should not be interpreted as an XML tag: <some_tag>
+        fake_xml_string = "<note>This is not XML.</note>"
+        assert game.game_over is True if __name__ == "__main__": pytest.main([__file__, "-v"])
+"""
+    
+    xml_string = f"""<tool name="FileWriter"><arguments><arg name="path">test.py</arg><arg name="content">{code_content}</arg></arguments></tool>"""
+
+    response = CompleteResponse(content=xml_string)
+    invocations = parser.parse(response)
+    
+    assert len(invocations) == 1
+    invocation = invocations[0]
+    assert invocation.name == "FileWriter"
+    assert "content" in invocation.arguments
+    
+    # The crucial assertion: content must be a string
+    assert isinstance(invocation.arguments["content"], str)
+    assert invocation.arguments["content"] == code_content
+
+def test_parse_dict_with_single_value_key_is_not_collapsed(parser: DefaultXmlToolUsageParser):
+    """
+    This test exposes a bug where the parser incorrectly collapses a dictionary
+    that contains a single key named 'value' into a primitive string. This
+    happens because the parser's internal representation for a string conflicts
+    with a legitimate data structure.
+    """
+    xml_string = """
+    <tool name="ConfigUpdater">
+        <arguments>
+            <arg name="settings">
+                <arg name="value">A specific setting value</arg>
+            </arg>
+            <arg name="priority">high</arg>
+        </arguments>
+    </tool>
+    """
+    response = CompleteResponse(content=xml_string)
+    invocations = parser.parse(response)
+
+    assert len(invocations) == 1
+    invocation = invocations[0]
+    assert invocation.name == "ConfigUpdater"
+
+    expected_args = {
+        "settings": {
+            "value": "A specific setting value"
+        },
+        "priority": "high"
+    }
+
+    # With the bug, `invocation.arguments` would be:
+    # {"settings": "A specific setting value", "priority": "high"}
+    # This assertion will fail, correctly identifying the bug.
+    assert invocation.arguments == expected_args
+
+
+
+def test_large_code_block_as_string_content(parser: DefaultXmlToolUsageParser):
+    """
+    Tests that a large block of code, containing characters that could be
+    mistaken for XML tags (<, >), is correctly parsed as a single string.
+    This replicates a production failure.
+    """
+    code_content = """\"\"\"Test that snake wraps around screen edges\"\"\" snake = Snake() # Set snake at edge snake.positions = [(0, 0)] snake.direction = (-1, 0) # Moving left from edge # Update - should wrap to right side snake.update() # Should be at right edge (GRID_WIDTH - 1, 0) head = snake.get_head_position() assert head[0] == 39 # GRID_WIDTH - 1 = 800/20 - 1 = 39 def test_food_positioning(): \"\"\"Test food positioning logic\"\"\" food = Food() # Food position should be within grid bounds assert 0 <= food.position[0] < 40 # GRID_WIDTH = 800/20 = 40 assert 0 <= food.position[1] < 30 # GRID_HEIGHT = 600/20 = 30 def test_game_score_system(): \"\"\"Test that game score system works correctly\"\"\" game = SnakeGame() # Initially no points assert game.snake.score == 0 # After eating food, score should increase by 10 game.snake.grow() assert game.snake.score == 10 game.snake.grow() assert game.snake.score == 20 def test_game_over_condition(): \"\"\"Test that game over condition is detected correctly\"\"\" game = SnakeGame() # Initially not game over assert game.game_over is False # Force game over by causing collision with self game.snake.positions = [(5, 5), (6, 5), (7, 5)] game.snake.direction = (1, 0) # Moving right # This should set game_over to True game.update() assert game.game_over is True if __name__ == "__main__": pytest.main([__file__, "-v"])"""
+    
+    # We must be careful with indentation and newlines to match the original. The f-string helps preserve the content exactly.
+    xml_string = f"""<tool name="FileWriter"><arguments><arg name="path">test_snake_game.py</arg><arg name="content">{code_content}</arg></arguments></tool>"""
+
+    response = CompleteResponse(content=xml_string)
+    invocations = parser.parse(response)
+    
+    assert len(invocations) == 1
+    invocation = invocations[0]
+    assert invocation.name == "FileWriter"
+    assert "path" in invocation.arguments
+    assert "content" in invocation.arguments
+    assert invocation.arguments["path"] == "test_snake_game.py"
+    
+    # This is the crucial assertion that will fail with the buggy parser.
+    # It ensures the content is a simple string, not a dictionary.
+    assert isinstance(invocation.arguments["content"], str)
+    assert invocation.arguments["content"] == code_content
+    print(f"[Backend Test] Generated ID for Production XML Case: {invocation.id}")
