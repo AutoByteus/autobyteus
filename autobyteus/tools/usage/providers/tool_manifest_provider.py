@@ -76,15 +76,16 @@ class ToolManifestProvider:
         for td in tool_definitions:
             try:
                 schema = schema_formatter.provide(td)
-                example = example_formatter.provide(td)
+                example = example_formatter.provide(td) # This is now a pre-formatted string for both XML and JSON
 
                 if schema and example:
                     if is_xml_format:
                         tool_blocks.append(f"{self.XML_SCHEMA_HEADER}\n{schema}\n\n{self.XML_EXAMPLE_HEADER}\n{example}")
                     else:
+                        # For JSON, the schema is a dict, but the example is now a pre-formatted string.
                         schema_str = json.dumps(schema, indent=2)
-                        example_str = json.dumps(example, indent=2)
-                        tool_blocks.append(f"{self.JSON_SCHEMA_HEADER}\n{schema_str}\n\n{self.JSON_EXAMPLE_HEADER}\n{example_str}")
+                        # FIX: Do NOT call json.dumps() on the 'example' variable, as it is already a string.
+                        tool_blocks.append(f"{self.JSON_SCHEMA_HEADER}\n{schema_str}\n\n{self.JSON_EXAMPLE_HEADER}\n{example}")
                 else:
                     logger.warning(f"Could not generate schema or example for tool '{td.name}' using format {'XML' if is_xml_format else 'JSON'}.")
 

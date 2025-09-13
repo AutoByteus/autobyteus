@@ -1,9 +1,9 @@
-# file: autobyteus/tests/unit_tests/tools/usage/formatters/test_gemini_json_example_formatter.py
+# file: autobyteus/tests/unit_tests/tools/usage/formatters/test_google_json_example_formatter.py
 import pytest
 import json
 import re
 
-from autobyteus.tools.usage.formatters.gemini_json_example_formatter import GeminiJsonExampleFormatter
+from autobyteus.tools.usage.formatters.google_json_example_formatter import GoogleJsonExampleFormatter
 from autobyteus.tools.registry import ToolDefinition
 from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.tool_origin import ToolOrigin
@@ -18,7 +18,7 @@ def extract_json_from_block(block_text: str):
 
 @pytest.fixture
 def formatter():
-    return GeminiJsonExampleFormatter()
+    return GoogleJsonExampleFormatter()
 
 @pytest.fixture
 def simple_tool_def():
@@ -51,7 +51,7 @@ def complex_tool_def():
         category=ToolCategory.GENERAL
     )
 
-def test_simple_tool_provides_single_example(formatter: GeminiJsonExampleFormatter, simple_tool_def: ToolDefinition):
+def test_simple_tool_provides_single_example(formatter: GoogleJsonExampleFormatter, simple_tool_def: ToolDefinition):
     """Tests that a tool with only required args produces a single example string."""
     output = formatter.provide(simple_tool_def)
     
@@ -63,7 +63,7 @@ def test_simple_tool_provides_single_example(formatter: GeminiJsonExampleFormatt
     assert parsed_json["name"] == "SimpleTool"
     assert parsed_json["args"] == {"input_path": "example_string"}
 
-def test_complex_tool_provides_multiple_examples(formatter: GeminiJsonExampleFormatter, complex_tool_def: ToolDefinition):
+def test_complex_tool_provides_multiple_examples(formatter: GoogleJsonExampleFormatter, complex_tool_def: ToolDefinition):
     """Tests that a tool with optional args produces a string with two examples."""
     output = formatter.provide(complex_tool_def)
 

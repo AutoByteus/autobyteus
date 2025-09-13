@@ -97,6 +97,10 @@ You can assign different LLM models to each agent to simulate a team with differ
 python examples/agent_team/manual_notification/run_software_engineering_team.py \
     --llm-model kimi-latest \
     --engineer-model gpt-4o
+
+python examples/agent_team/event_driven/run_software_engineering_team.py \
+    --llm-model kimi-latest \
+    --engineer-model gpt-4o
 ```
 
 **Example:** Run a team where each member uses a different LLM. This is useful for testing a "diverse" team composition.
