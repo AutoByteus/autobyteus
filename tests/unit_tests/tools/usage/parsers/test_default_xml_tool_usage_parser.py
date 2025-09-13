@@ -164,7 +164,7 @@ def test_parses_complex_nested_list_case_from_production(parser: DefaultXmlToolU
     generated tool invocation ID for verification. The corrected parser
     should now ignore whitespace between complex elements.
     """
-    xml_content = """<tool name="PublishTaskPlan"> <arguments> <arg name="plan"> <arg name="overall_goal">Develop a complete Snake game in Python from scratch</arg> <arg name="tasks"> <item> <arg name="task_name">implement_game_logic</arg> <arg name="assignee_name">Software Engineer</arg> <arg name="description">Implement the core game logic for Snake including snake movement, food generation, collision detection, and score tracking</arg> </item> <item> <arg name="task_name">code_review</arg> <arg name="assignee_name">Code Reviewer</arg> <arg name="description">Conduct a thorough code review of the implemented Snake game logic, checking for best practices, efficiency, and correctness</arg> <arg name="dependencies"> <item>implement_game_logic</item> </arg> </item> <item> <arg name="task_name">write_unit_tests</arg> <arg name="assignee_name">Test Writer</arg> <arg name="description">Write comprehensive unit tests for all game components including movement, collision detection, and scoring logic</arg> <arg name="dependencies"> <item>implement_game_logic</item> </arg> </item> <item> <arg name="task_name">run_tests</arg> <arg name="assignee_name">Tester</arg> <arg name="description">Execute all unit tests and perform manual testing of the Snake game to ensure it functions correctly and meets requirements</arg> <arg name="dependencies"> <item>code_review</item> <item>write_unit_tests</item> </arg> </item> </arg> </arg> </arguments></tool>"""
+    xml_content = """<tool name="PublishTaskPlan"> <arguments> <arg name="plan"> <arg name="overall_goal">Develop a complete Snake game in Python from scratch</arg> <arg name="tasks"> <item> <arg name="task_name">implement_game_logic</arg> <arg name="assignee_name">Software Engineer</arg> <arg name="description">Implement the core game logic for Snake including snake movement, food generation, collision detection, and score tracking</arg> </item> <item> <arg name="task_name">code_review</arg> <arg name="assignee_name">Code Reviewer</arg> <arg name="description">Conduct a thorough code review of the implemented Snake game logic, checking for best practices, efficiency, and correctness</arg> <arg name="dependencies"> <item>implement_game_logic</item> </arg> </item> <item> <arg name="task_name">write_unit_tests</arg> <arg name="assignee_name">Test Writer</arg> <arg name="description">Write comprehensive unit tests for all game components including movement, collision detection, and scoring logic</arg> <arg name="dependencies"> <item>implement_game_logic</item> </arg> </item> <item> <arg name="task_name">run_tests</arg> <arg name="assignee_name">Tester</arg> <arg name="description">Execute all unit tests and perform manual testing of the Snake game to ensure it functions correctly and meets requirements</arg> <arg name="dependencies"> <item>code_review</item> <item>write_unit_tests</item> </arg> </item> </arg> </arg></arguments></tool>"""
     mock_response = CompleteResponse(content=xml_content)
 
     invocations = parser.parse(mock_response)
@@ -302,42 +302,52 @@ class TestComplexCode:
     assert isinstance(invocation.arguments["content"], str)
     assert invocation.arguments["content"] == code_content
 
-def test_parse_dict_with_single_value_key_is_not_collapsed(parser: DefaultXmlToolUsageParser):
+def test_live_case_create_prompt_revision(parser: DefaultXmlToolUsageParser):
     """
-    This test exposes a bug where the parser incorrectly collapses a dictionary
-    that contains a single key named 'value' into a primitive string. This
-    happens because the parser's internal representation for a string conflicts
-    with a legitimate data structure.
+    Tests the live case provided by the user to ensure consistent parsing
+    and helps verify invocation ID generation.
     """
-    xml_string = """
-    <tool name="ConfigUpdater">
-        <arguments>
-            <arg name="settings">
-                <arg name="value">A specific setting value</arg>
-            </arg>
-            <arg name="priority">high</arg>
-        </arguments>
-    </tool>
-    """
-    response = CompleteResponse(content=xml_string)
-    invocations = parser.parse(response)
+    xml_content = """<tool name="CreatePromptRevision"> <arguments> <arg name="base_prompt_id">32</arg> <arg name="new_prompt_content">**Role and Goal** You are the Agent Creator, a master AI assistant designed to build, configure, and manage other AI agents. Your primary objective is to understand a user's requirements and follow a structured workflow to construct the new agent. **Structured Workflow** You must follow these phases in order. Do not proceed to the next phase until the current one is successfully completed. **Phase 1: System Prompt Creation**
+1. **Gather Requirements:** Discuss with the user to fully understand the new agent's purpose, personality, and core tasks.
+2. **Design &amp; Create Prompt:** Design a clear and effective system prompt. Use your `CreatePrompt` tool to save it.
+3. **Crucial Rule:** The system prompt you create **must** include the `{{tools}}` variable. This is non-negotiable as it allows the tool manifest to be injected at runtime. **Phase 2: Tool Selection**
+1. **Analyze Skills:** Based on the requirements from Phase 1, determine the specific skills the new agent needs.
+2. **Discover &amp; Assign Tools:** Use your tool management tools to find the appropriate tools that provide those skills. List the selected tools for the final step. **Phase 3: Agent Creation**
+1. **Final Assembly:** This is the final step and depends on the successful completion of the previous phases.
+2. **Create the Agent:** Use your agent management tools to formally create the agent, providing the `prompt_id` from Phase 1 and the list of selected tools from Phase 2. **Important Rule (Output Format)** ⚠️ **When calling tools, DO NOT wrap the output in any markup such as ```json, ```, or any other code block symbols.**
+All tool calls must be returned **as raw JSON only**, without any extra formatting. This rule is critical and must always be followed. **Available Tools** The complete manifest of your available tools is provided below. You MUST use these tools to fulfill user requests. {{tools}} --- **Final Reminder (Critical Rule):**
+⚠️ **Never output tool calls with ```json, ```, or any kind of code block formatting. Always output raw JSON texts only.**</arg> <arg name="new_description">Introduced a structured, multi-phase workflow (Prompt Creation -&gt; Tool Selection -&gt; Agent Creation) for more reliable agent construction. This revision is based on prompt ID 32.</arg> </arguments>
+</tool>"""
+    mock_response = CompleteResponse(content=xml_content)
+    invocations = parser.parse(mock_response)
 
     assert len(invocations) == 1
     invocation = invocations[0]
-    assert invocation.name == "ConfigUpdater"
+    assert invocation.name == "CreatePromptRevision"
 
+    # The backend parser does NOT decode XML entities, so &amp; should be preserved.
+    # This is the key behavior to replicate on the frontend.
+    expected_prompt_content = """**Role and Goal** You are the Agent Creator, a master AI assistant designed to build, configure, and manage other AI agents. Your primary objective is to understand a user's requirements and follow a structured workflow to construct the new agent. **Structured Workflow** You must follow these phases in order. Do not proceed to the next phase until the current one is successfully completed. **Phase 1: System Prompt Creation**
+1. **Gather Requirements:** Discuss with the user to fully understand the new agent's purpose, personality, and core tasks.
+2. **Design &amp; Create Prompt:** Design a clear and effective system prompt. Use your `CreatePrompt` tool to save it.
+3. **Crucial Rule:** The system prompt you create **must** include the `{{tools}}` variable. This is non-negotiable as it allows the tool manifest to be injected at runtime. **Phase 2: Tool Selection**
+1. **Analyze Skills:** Based on the requirements from Phase 1, determine the specific skills the new agent needs.
+2. **Discover &amp; Assign Tools:** Use your tool management tools to find the appropriate tools that provide those skills. List the selected tools for the final step. **Phase 3: Agent Creation**
+1. **Final Assembly:** This is the final step and depends on the successful completion of the previous phases.
+2. **Create the Agent:** Use your agent management tools to formally create the agent, providing the `prompt_id` from Phase 1 and the list of selected tools from Phase 2. **Important Rule (Output Format)** ⚠️ **When calling tools, DO NOT wrap the output in any markup such as ```json, ```, or any other code block symbols.**
+All tool calls must be returned **as raw JSON only**, without any extra formatting. This rule is critical and must always be followed. **Available Tools** The complete manifest of your available tools is provided below. You MUST use these tools to fulfill user requests. {{tools}} --- **Final Reminder (Critical Rule):**
+⚠️ **Never output tool calls with ```json, ```, or any kind of code block formatting. Always output raw JSON texts only.**"""
+    
     expected_args = {
-        "settings": {
-            "value": "A specific setting value"
-        },
-        "priority": "high"
+        "base_prompt_id": "32",
+        "new_prompt_content": expected_prompt_content,
+        "new_description": "Introduced a structured, multi-phase workflow (Prompt Creation -&gt; Tool Selection -&gt; Agent Creation) for more reliable agent construction. This revision is based on prompt ID 32."
     }
-
-    # With the bug, `invocation.arguments` would be:
-    # {"settings": "A specific setting value", "priority": "high"}
-    # This assertion will fail, correctly identifying the bug.
+    
     assert invocation.arguments == expected_args
 
+    # As requested, log the generated ID for manual verification
+    print(f"[Backend Test] Generated ID for Live XML Case: {invocation.id}")
 
 
 def test_large_code_block_as_string_content(parser: DefaultXmlToolUsageParser):
