@@ -1,134 +1,164 @@
 import pytest
 import logging
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from autobyteus.agent.handlers.tool_result_event_handler import ToolResultEventHandler
-from autobyteus.agent.events.agent_events import ToolResultEvent, LLMUserMessageReadyEvent, GenericEvent
+from autobyteus.agent.events.agent_events import ToolResultEvent, LLMUserMessageReadyEvent, GenericEvent, PendingToolInvocationEvent
 from autobyteus.llm.user_message import LLMUserMessage
+from autobyteus.agent.tool_invocation import ToolInvocation, ToolInvocationTurn
 
 @pytest.fixture
 def tool_result_handler():
+    """Fixture for a ToolResultEventHandler instance."""
     return ToolResultEventHandler()
 
+@pytest.fixture
+def mock_notifier(agent_context):
+    """Fixture to ensure the notifier is a mock."""
+    notifier = AsyncMock()
+    agent_context.phase_manager.notifier = notifier
+    return notifier
+
+# === Single Tool Call Tests ===
+
 @pytest.mark.asyncio
-async def test_handle_tool_result_success(tool_result_handler: ToolResultEventHandler, agent_context, caplog):
-    """Test successful handling of a ToolResultEvent (no error)."""
+async def test_handle_single_tool_result_success(tool_result_handler: ToolResultEventHandler, agent_context, mock_notifier, caplog):
+    """Test successful handling of a single ToolResultEvent when no multi-tool turn is active."""
     tool_name = "calculator"
     tool_result_data = {"sum": 15}
     tool_invocation_id = "calc-123"
     event = ToolResultEvent(tool_name=tool_name, result=tool_result_data, tool_invocation_id=tool_invocation_id)
 
-    # Ensure notifier is mocked on phase_manager
-    if not hasattr(agent_context.phase_manager, 'notifier') or not isinstance(agent_context.phase_manager.notifier, AsyncMock):
-        agent_context.phase_manager.notifier = AsyncMock()
+    # Pre-condition: no active turn
+    agent_context.state.active_multi_tool_call_turn = None
 
     with caplog.at_level(logging.INFO):
         await tool_result_handler.handle(event, agent_context)
 
-    assert f"Agent '{agent_context.agent_id}' handling ToolResultEvent from tool: '{tool_name}' (Invocation ID: {tool_invocation_id})" in caplog.text
+    assert f"Agent '{agent_context.agent_id}' handling single ToolResultEvent from tool: '{tool_name}'." in caplog.text
     
-    log_msg_success_processed = f"[TOOL_RESULT_SUCCESS_PROCESSED] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Result (first 200 chars of stringified): {str(tool_result_data)[:200]}"
-    agent_context.phase_manager.notifier.notify_agent_data_tool_log.assert_called_once_with(log_msg_success_processed)
+    # Assert notifier was called with the correct dictionary payload
+    expected_log_msg = f"[TOOL_RESULT_SUCCESS_PROCESSED] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Result: {str(tool_result_data)}"
+    mock_notifier.notify_agent_data_tool_log.assert_called_once_with({
+        "log_entry": expected_log_msg,
+        "tool_invocation_id": tool_invocation_id,
+        "tool_name": tool_name,
+    })
 
+    # Assert that the correct event was enqueued for the LLM
     agent_context.input_event_queues.enqueue_internal_system_event.assert_called_once()
     enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
-    assert isinstance(enqueued_event, LLMUserMessageReadyEvent) 
-    assert isinstance(enqueued_event.llm_user_message, LLMUserMessage)
+    assert isinstance(enqueued_event, LLMUserMessageReadyEvent)
     
-    expected_llm_content_part1 = f"The tool '{tool_name}' (invocation ID: {tool_invocation_id}) has executed."
-    expected_llm_content_part2 = f"Result:\n{json.dumps(tool_result_data, indent=2)}" 
-    assert expected_llm_content_part1 in enqueued_event.llm_user_message.content
-    assert expected_llm_content_part2 in enqueued_event.llm_user_message.content
-
+    # Assert the content of the message sent to the LLM
+    llm_content = enqueued_event.llm_user_message.content
+    assert f"Tool: {tool_name} (ID: {tool_invocation_id})" in llm_content
+    assert "Status: Success" in llm_content
+    assert f"Result:\n{json.dumps(tool_result_data, indent=2)}" in llm_content
 
 @pytest.mark.asyncio
-async def test_handle_tool_result_with_error(tool_result_handler: ToolResultEventHandler, agent_context, caplog):
-    """Test handling of a ToolResultEvent that contains an error."""
+async def test_handle_single_tool_result_with_error(tool_result_handler: ToolResultEventHandler, agent_context, mock_notifier, caplog):
+    """Test handling of a single errored ToolResultEvent."""
     tool_name = "file_writer"
     error_message = "Permission denied"
     tool_invocation_id = "fw-456"
     event = ToolResultEvent(tool_name=tool_name, result=None, error=error_message, tool_invocation_id=tool_invocation_id)
 
-    if not hasattr(agent_context.phase_manager, 'notifier') or not isinstance(agent_context.phase_manager.notifier, AsyncMock):
-        agent_context.phase_manager.notifier = AsyncMock()
+    agent_context.state.active_multi_tool_call_turn = None
 
-    with caplog.at_level(logging.INFO): # Captures INFO level for the initial log
-        await tool_result_handler.handle(event, agent_context)
+    await tool_result_handler.handle(event, agent_context)
 
-    assert f"Agent '{agent_context.agent_id}' handling ToolResultEvent from tool: '{tool_name}' (Invocation ID: {tool_invocation_id}). Error: True" in caplog.text
-    
-    log_msg_error_processed = f"[TOOL_RESULT_ERROR_PROCESSED] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Error: {error_message}"
-    agent_context.phase_manager.notifier.notify_agent_data_tool_log.assert_called_once_with(log_msg_error_processed)
+    # Assert notifier call
+    expected_log_msg = f"[TOOL_RESULT_ERROR_PROCESSED] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Error: {error_message}"
+    mock_notifier.notify_agent_data_tool_log.assert_called_once_with({
+        "log_entry": expected_log_msg,
+        "tool_invocation_id": tool_invocation_id,
+        "tool_name": tool_name,
+    })
 
+    # Assert LLM message
     agent_context.input_event_queues.enqueue_internal_system_event.assert_called_once()
     enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
-    assert isinstance(enqueued_event, LLMUserMessageReadyEvent) 
+    llm_content = enqueued_event.llm_user_message.content
+    assert f"Tool: {tool_name} (ID: {tool_invocation_id})" in llm_content
+    assert "Status: Error" in llm_content
+    assert f"Details: {error_message}" in llm_content
+
+# === Multi-Tool Call Tests ===
+
+@pytest.mark.asyncio
+async def test_handle_multi_tool_results_reorders_correctly(tool_result_handler: ToolResultEventHandler, agent_context, mock_notifier, caplog):
+    """Test that results arriving out of order are correctly re-ordered before sending to the LLM."""
+    # 1. Setup
+    inv_A = ToolInvocation("tool_A", {"arg": "A"}, id="call_A")
+    inv_B = ToolInvocation("tool_B", {"arg": "B"}, id="call_B")
     
-    expected_llm_content_part1 = f"The tool '{tool_name}' (invocation ID: {tool_invocation_id}) encountered an error."
-    expected_llm_content_part2 = f"Error details: {error_message}"
-    assert expected_llm_content_part1 in enqueued_event.llm_user_message.content
-    assert expected_llm_content_part2 in enqueued_event.llm_user_message.content
+    # The required final order
+    agent_context.state.active_multi_tool_call_turn = ToolInvocationTurn(invocations=[inv_A, inv_B])
 
+    res_B = ToolResultEvent(tool_name="tool_B", result="Result B", tool_invocation_id="call_B")
+    res_A = ToolResultEvent(tool_name="tool_A", result="Result A", tool_invocation_id="call_A")
 
-@pytest.mark.asyncio
-async def test_handle_tool_result_no_invocation_id(tool_result_handler: ToolResultEventHandler, agent_context, caplog):
-    """Test handling when tool_invocation_id is None."""
-    tool_name = "status_checker"
-    tool_result_data = "System OK"
-    event = ToolResultEvent(tool_name=tool_name, result=tool_result_data, tool_invocation_id=None)
+    # 2. Handle first result (B, arrives out of order)
+    with caplog.at_level(logging.INFO):
+        await tool_result_handler.handle(res_B, agent_context)
 
-    if not hasattr(agent_context.phase_manager, 'notifier') or not isinstance(agent_context.phase_manager.notifier, AsyncMock):
-        agent_context.phase_manager.notifier = AsyncMock()
+    # Assertions after first result
+    assert "Collected 1/2 results." in caplog.text
+    assert len(agent_context.state.active_multi_tool_call_turn.results) == 1
+    mock_notifier.notify_agent_data_tool_log.assert_called_once() # Notifier is called immediately
+    agent_context.input_event_queues.enqueue_internal_system_event.assert_not_called() # LLM not called yet
 
-    with caplog.at_level(logging.INFO): # ADDED this line to capture INFO logs
-        await tool_result_handler.handle(event, agent_context)
-
-    assert "(Invocation ID: N/A)" in caplog.text
-    log_msg_success_processed = f"[TOOL_RESULT_SUCCESS_PROCESSED] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: N/A, Result (first 200 chars of stringified): {str(tool_result_data)[:200]}"
-    agent_context.phase_manager.notifier.notify_agent_data_tool_log.assert_called_once_with(log_msg_success_processed)
-
-    enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
-    assert "(invocation ID: N/A)" in enqueued_event.llm_user_message.content
-
-@pytest.mark.asyncio
-async def test_handle_tool_result_truncation(tool_result_handler: ToolResultEventHandler, agent_context):
-    """Test that large tool results are truncated for the LLM prompt."""
-    tool_name = "data_loader"
-    long_result = "a" * 3000 
-    event = ToolResultEvent(tool_name=tool_name, result=long_result, tool_invocation_id="dl-789")
-
-    if not hasattr(agent_context.phase_manager, 'notifier') or not isinstance(agent_context.phase_manager.notifier, AsyncMock):
-        agent_context.phase_manager.notifier = AsyncMock()
-
-    await tool_result_handler.handle(event, agent_context)
-
+    # 3. Handle second result (A)
+    await tool_result_handler.handle(res_A, agent_context)
+    
+    # Assertions after second result
+    assert "All tool results for the turn collected. Re-ordering" in caplog.text
+    agent_context.input_event_queues.enqueue_internal_system_event.assert_called_once()
     enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
     llm_content = enqueued_event.llm_user_message.content
-    
-    assert len(llm_content) < len(long_result) + 500 
-    assert "... (result truncated, original length 3000)" in llm_content
-    assert long_result[:1000] in llm_content 
+
+    # CRITICAL: Assert that the final output is in the correct A -> B order
+    pos_A = llm_content.find("Tool: tool_A (ID: call_A)")
+    pos_B = llm_content.find("Tool: tool_B (ID: call_B)")
+    assert pos_A != -1 and pos_B != -1
+    assert pos_A < pos_B
+
+    # Assert state is cleaned up
+    assert agent_context.state.active_multi_tool_call_turn is None
 
 @pytest.mark.asyncio
-async def test_handle_tool_result_non_string_json_serializable(tool_result_handler: ToolResultEventHandler, agent_context):
-    """Test handling of tool results that are dicts/lists (JSON serializable)."""
-    tool_name = "config_reader"
-    dict_result = {"key": "value", "nested": {"num": 1}}
-    event = ToolResultEvent(tool_name=tool_name, result=dict_result, tool_invocation_id="cr-001")
+async def test_handle_multi_tool_with_error_in_sequence(tool_result_handler: ToolResultEventHandler, agent_context, mock_notifier):
+    """Test that a mix of success and error results are correctly ordered."""
+    inv_A = ToolInvocation("tool_A", {"arg": "A"}, id="call_A")
+    inv_B = ToolInvocation("tool_B", {"arg": "B"}, id="call_B")
+    agent_context.state.active_multi_tool_call_turn = ToolInvocationTurn(invocations=[inv_A, inv_B])
 
-    if not hasattr(agent_context.phase_manager, 'notifier') or not isinstance(agent_context.phase_manager.notifier, AsyncMock):
-        agent_context.phase_manager.notifier = AsyncMock()
+    res_B_error = ToolResultEvent(tool_name="tool_B", result=None, error="Failed B", tool_invocation_id="call_B")
+    res_A_success = ToolResultEvent(tool_name="tool_A", result="Success A", tool_invocation_id="call_A")
 
-    await tool_result_handler.handle(event, agent_context)
+    # Handle in completion order (B then A)
+    await tool_result_handler.handle(res_B_error, agent_context)
+    await tool_result_handler.handle(res_A_success, agent_context)
+
+    # Assert final LLM message order is correct (A then B)
+    agent_context.input_event_queues.enqueue_internal_system_event.assert_called_once()
     enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
     llm_content = enqueued_event.llm_user_message.content
-    
-    expected_json_str = json.dumps(dict_result, indent=2)
-    assert f"Result:\n{expected_json_str}" in llm_content
+
+    pos_A_success = llm_content.find("Tool: tool_A (ID: call_A)")
+    pos_B_error = llm_content.find("Tool: tool_B (ID: call_B)")
+    assert pos_A_success != -1 and pos_B_error != -1
+    assert pos_A_success < pos_B_error
+    assert "Status: Success" in llm_content[pos_A_success:pos_B_error]
+    assert "Status: Error" in llm_content[pos_B_error:]
+    assert "Details: Failed B" in llm_content[pos_B_error:]
+
+# === Edge Case and Other Tests ===
 
 @pytest.mark.asyncio
-async def test_handle_tool_result_non_json_serializable_object(tool_result_handler: ToolResultEventHandler, agent_context):
+async def test_handle_tool_result_non_json_serializable_object(tool_result_handler: ToolResultEventHandler, agent_context, mock_notifier):
     """Test handling of tool results that are objects not directly JSON serializable."""
     class MyObject:
         def __init__(self, val): self.val = val
@@ -137,33 +167,26 @@ async def test_handle_tool_result_non_json_serializable_object(tool_result_handl
     obj_result = MyObject("test_data")
     event = ToolResultEvent(tool_name="object_tool", result=obj_result, tool_invocation_id="obj-002")
 
-    if not hasattr(agent_context.phase_manager, 'notifier') or not isinstance(agent_context.phase_manager.notifier, AsyncMock):
-        agent_context.phase_manager.notifier = AsyncMock()
-
     await tool_result_handler.handle(event, agent_context)
     enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
     llm_content = enqueued_event.llm_user_message.content
     
     assert f"Result:\n{str(obj_result)}" in llm_content
 
-
 @pytest.mark.asyncio
-async def test_handle_invalid_event_type(tool_result_handler: ToolResultEventHandler, agent_context, caplog):
+async def test_handle_invalid_event_type(tool_result_handler: ToolResultEventHandler, agent_context, mock_notifier, caplog):
     """Test that the handler skips events that are not ToolResultEvent."""
     invalid_event = GenericEvent(payload={}, type_name="wrong_event")
 
-    if not hasattr(agent_context.phase_manager, 'notifier') or not isinstance(agent_context.phase_manager.notifier, AsyncMock):
-        agent_context.phase_manager.notifier = AsyncMock()
-
     with caplog.at_level(logging.WARNING):
-        await tool_result_handler.handle(invalid_event, agent_context) # type: ignore
+        await tool_result_handler.handle(invalid_event, agent_context)
     
     assert f"ToolResultEventHandler received non-ToolResultEvent: {type(invalid_event)}. Skipping." in caplog.text
-    agent_context.phase_manager.notifier.notify_agent_data_tool_log.assert_not_called()
+    mock_notifier.notify_agent_data_tool_log.assert_not_called()
     agent_context.input_event_queues.enqueue_internal_system_event.assert_not_called()
 
-
 def test_tool_result_handler_initialization(caplog):
+    """Test simple initialization of the handler."""
     with caplog.at_level(logging.INFO):
         handler = ToolResultEventHandler()
     assert "ToolResultEventHandler initialized." in caplog.text

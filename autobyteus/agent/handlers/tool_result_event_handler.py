@@ -16,10 +16,10 @@ logger = logging.getLogger(__name__)
 
 class ToolResultEventHandler(AgentEventHandler):
     """
-    Handles ToolResultEvents. It immediately processes and notifies for each
-    individual tool result. If a multi-tool call turn is active, it accumulates
-    these processed results until the turn is complete, then sends a single
-    aggregated message to the LLM.
+    Handles ToolResultEvents. It processes and notifies for each individual tool
+    result as it arrives. If a multi-tool call turn is active, it accumulates
+    these results until the turn is complete, re-orders them to match the original
+    invocation sequence, and then sends a single aggregated message to the LLM.
     """
     def __init__(self):
         logger.info("ToolResultEventHandler initialized.")
@@ -28,8 +28,8 @@ class ToolResultEventHandler(AgentEventHandler):
                                                   processed_events: List[ToolResultEvent],
                                                   context: 'AgentContext'):
         """
-        Aggregates a list of PRE-PROCESSED tool results into a single message and
-        dispatches it to the LLM.
+        Aggregates a list of PRE-PROCESSED and ORDERED tool results into a single
+        message and dispatches it to the LLM.
         """
         agent_id = context.agent_id
         
@@ -133,9 +133,29 @@ class ToolResultEventHandler(AgentEventHandler):
         if not active_turn.is_complete():
             return
             
-        # If all results are in, dispatch them to the LLM and clean up the turn state.
-        logger.info(f"Agent '{agent_id}': All tool results for the turn collected. Aggregating for LLM.")
-        await self._dispatch_aggregated_results_to_llm(active_turn.results, context)
+        # If all results are in, re-order them and then dispatch to the LLM.
+        logger.info(f"Agent '{agent_id}': All tool results for the turn collected. Re-ordering to match invocation sequence.")
+        
+        # --- NEW RE-ORDERING LOGIC ---
+        results_by_id = {res.tool_invocation_id: res for res in active_turn.results}
+        sorted_results: List[ToolResultEvent] = []
+        for original_invocation in active_turn.invocations:
+            result = results_by_id.get(original_invocation.id)
+            if result:
+                sorted_results.append(result)
+            else:
+                # This should not happen if the logic is correct, but it's a good safeguard.
+                logger.error(f"Agent '{agent_id}': Missing result for invocation ID '{original_invocation.id}' during re-ordering.")
+                # Add a synthetic error result to maintain sequence length.
+                sorted_results.append(ToolResultEvent(
+                    tool_name=original_invocation.name,
+                    result=None,
+                    error=f"Critical Error: Result for this tool call was lost.",
+                    tool_invocation_id=original_invocation.id
+                ))
+
+        await self._dispatch_aggregated_results_to_llm(sorted_results, context)
         
         context.state.active_multi_tool_call_turn = None
         logger.info(f"Agent '{agent_id}': Multi-tool call turn state has been cleared.")
+
