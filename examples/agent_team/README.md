@@ -48,12 +48,11 @@ This example demonstrates a collaborative agent team simulating a full software 
 
 ### Overview
 
-The script sets up a five-agent team to handle a coding task from inception to testing:
+The script sets up a four-agent team to handle a coding task from inception to testing:
 
 - **ProjectManager (Coordinator Agent):** Receives a task from the user and creates a plan.
-- **SoftwareEngineer (Worker Agent):** Writes the initial code.
-- **CodeReviewer (Worker Agent):** Reviews the code for quality.
-- **TestWriter (Worker Agent):** Writes `pytest` tests for the source code.
+- **SoftwareEngineer (Worker Agent):** Writes the initial code and the corresponding tests.
+- **CodeReviewer (Worker Agent):** Reviews the code and tests for quality.
 - **Tester (Worker Agent):** Runs the tests and reports the results.
 
 In the **manual** version, the ProjectManager is responsible for sending a message to each agent to kick off their task. In the **event-driven** version, the ProjectManager only publishes the plan, and the system handles all subsequent notifications automatically.
@@ -74,7 +73,7 @@ python examples/agent_team/manual_notification/run_software_engineering_team.py
 python examples/agent_team/event_driven/run_software_engineering_team.py
 ```
 
-Once the TUI starts for either version, you can provide a prompt like: `Please write a python function that calculates the factorial of a number and save it in "factorial.py"`
+Once the TUI starts for either version, you can provide a prompt like: `Please write a python function that calculates the factorial of a number, save it in "factorial.py", and write a test for it in "test_factorial.py"`
 
 ### Advanced Usage: Specifying Different LLMs
 
@@ -86,7 +85,6 @@ You can assign different LLM models to each agent to simulate a team with differ
 -   `--coordinator-model`: Sets the model for the `Project Manager`.
 -   `--engineer-model`: Sets the model for the `Software Engineer`.
 -   `--reviewer-model`: Sets the model for the `Code Reviewer`.
--   `--test-writer-model`: Sets the model for the `Test Writer`.
 -   `--tester-model`: Sets the model for the `Tester`.
 -   `--output-dir`: Specifies the shared workspace directory for the agents. Defaults to `./code_review_output`.
 -   `--use-xml-tool-format`: Forces all agents in the team to use XML for tool definitions and parsing, overriding any provider defaults (e.g., for Anthropic models).
@@ -110,7 +108,6 @@ python examples/agent_team/event_driven/run_software_engineering_team.py \
     --coordinator-model qwen/qwen3-coder-30b:lmstudio@192.168.2.126:1234 \
     --engineer-model qwen/qwen3-coder-30b:lmstudio@192.168.2.126:1234 \
     --reviewer-model qwen/qwen3-coder-30b:lmstudio@192.168.2.126:1234 \
-    --test-writer-model qwen/qwen3-coder-30b:lmstudio@192.168.2.126:1234 \
     --tester-model qwen/qwen3-coder-30b:lmstudio@192.168.2.126:1234 \
     --use-xml-tool-format
 ```
@@ -119,7 +116,6 @@ python examples/agent_team/event_driven/run_software_engineering_team.py \
     --coordinator-model google/gemma-3n-e4b:lmstudio@192.168.2.126:1234 \
     --engineer-model google/gemma-3n-e4b:lmstudio@192.168.2.126:1234 \
     --reviewer-model google/gemma-3n-e4b:lmstudio@192.168.2.126:1234 \
-    --test-writer-model google/gemma-3n-e4b:lmstudio@192.168.2.126:1234 \
     --tester-model google/gemma-3n-e4b:lmstudio@192.168.2.126:1234
 
 ### Listing Available Models

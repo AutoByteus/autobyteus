@@ -1,7 +1,7 @@
 # file: autobyteus/examples/agent_team/manual_notification/run_software_engineering_team.py
 """
 This example script demonstrates a simple software development agent team
-with a coordinator, an engineer, a code reviewer, a test writer, and a tester.
+with a coordinator, an engineer, a code reviewer, and a tester.
 It showcases a notification-based communication protocol.
 """
 import asyncio
@@ -124,7 +124,6 @@ def create_code_review_team(
     coordinator_model: str, 
     engineer_model: str, 
     reviewer_model: str, 
-    test_writer_model: str,
     tester_model: str,
     workspace: BaseAgentWorkspace,
     use_xml_tool_format: bool
@@ -143,7 +142,7 @@ def create_code_review_team(
 
     # Software Engineer Agent
     engineer_config = AgentConfig(
-        name="Software Engineer", role="Developer", description="Writes Python code based on instructions and saves it to a file.",
+        name="Software Engineer", role="Developer", description="Writes Python code and corresponding tests based on instructions.",
         llm_instance=default_llm_factory.create_llm(model_identifier=engineer_model),
         system_prompt=load_prompt("software_engineer.prompt"),
         tools=[file_writer, UpdateTaskStatus(), GetTaskBoardStatus()],
@@ -152,18 +151,9 @@ def create_code_review_team(
     
     # Code Reviewer Agent
     reviewer_config = AgentConfig(
-        name="Code Reviewer", role="Senior Developer", description="Reads and reviews Python code from files for quality and correctness.",
+        name="Code Reviewer", role="Senior Developer", description="Reads and reviews Python code and tests for quality and correctness.",
         llm_instance=default_llm_factory.create_llm(model_identifier=reviewer_model),
         system_prompt=load_prompt("code_reviewer.prompt"),
-        tools=[file_reader, UpdateTaskStatus(), GetTaskBoardStatus()],
-        workspace=workspace
-    )
-
-    # Test Writer Agent
-    test_writer_config = AgentConfig(
-        name="Test Writer", role="QA Engineer", description="Writes pytest tests for Python code.",
-        llm_instance=default_llm_factory.create_llm(model_identifier=test_writer_model),
-        system_prompt=load_prompt("test_writer.prompt"),
         tools=[file_reader, file_writer, UpdateTaskStatus(), GetTaskBoardStatus()],
         workspace=workspace
     )
@@ -185,7 +175,6 @@ def create_code_review_team(
         .set_coordinator(coordinator_config)
         .add_agent_node(engineer_config)
         .add_agent_node(reviewer_config)
-        .add_agent_node(test_writer_config)
         .add_agent_node(tester_config)
     )
 
@@ -213,17 +202,15 @@ async def main(args: argparse.Namespace, log_file: Path):
     coordinator_model = args.coordinator_model or args.llm_model
     engineer_model = args.engineer_model or args.llm_model
     reviewer_model = args.reviewer_model or args.llm_model
-    test_writer_model = args.test_writer_model or args.llm_model
     tester_model = args.tester_model or args.llm_model
     
     # Validate all model identifiers before proceeding
-    for model_id in [coordinator_model, engineer_model, reviewer_model, test_writer_model, tester_model]:
+    for model_id in [coordinator_model, engineer_model, reviewer_model, tester_model]:
         _validate_model(model_id)
 
     print(f"--> Coordinator Model: {coordinator_model}")
     print(f"--> Engineer Model: {engineer_model}")
     print(f"--> Reviewer Model: {reviewer_model}")
-    print(f"--> Test Writer Model: {test_writer_model}")
     print(f"--> Tester Model: {tester_model}")
 
     try:
@@ -231,7 +218,6 @@ async def main(args: argparse.Namespace, log_file: Path):
             coordinator_model=coordinator_model,
             engineer_model=engineer_model,
             reviewer_model=reviewer_model,
-            test_writer_model=test_writer_model,
             tester_model=tester_model,
             workspace=workspace,
             use_xml_tool_format=args.use_xml_tool_format
@@ -251,7 +237,6 @@ if __name__ == "__main__":
     parser.add_argument("--coordinator-model", type=str, help="Specific LLM model for the ProjectManager. Defaults to --llm-model.")
     parser.add_argument("--engineer-model", type=str, help="Specific LLM model for the SoftwareEngineer. Defaults to --llm-model.")
     parser.add_argument("--reviewer-model", type=str, help="Specific LLM model for the CodeReviewer. Defaults to --llm-model.")
-    parser.add_argument("--test-writer-model", type=str, help="Specific LLM model for the TestWriter. Defaults to --llm-model.")
     parser.add_argument("--tester-model", type=str, help="Specific LLM model for the Tester. Defaults to --llm-model.")
     parser.add_argument("--output-dir", type=str, default="./code_review_output", help="Directory for the shared workspace.")
     parser.add_argument("--use-xml-tool-format", action="store_true", help="Force the use of XML format for tool definitions and parsing.")
