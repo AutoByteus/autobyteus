@@ -1,4 +1,3 @@
-# file: autobyteus/autobyteus/agent_team/task_notification/system_event_driven_agent_task_notifier.py
 import asyncio
 import logging
 from typing import Set, Any, TYPE_CHECKING, List, Union
@@ -91,6 +90,7 @@ class SystemEventDrivenAgentTaskNotifier:
         Constructs and sends a context-rich notification for a single runnable task
         by treating it as a user message to trigger the full processing pipeline.
         It tags the message with metadata to indicate its system origin.
+        Upon successful dispatch, it updates the task's status to 'in_progress'.
         """
         try:
             team_id = self._team_manager.team_id
@@ -133,6 +133,14 @@ class SystemEventDrivenAgentTaskNotifier:
             )
 
             await self._team_manager.dispatch_user_message_to_agent(event)
+            
+            # Automatically update the task status to IN_PROGRESS upon dispatch.
+            self._task_board.update_task_status(
+                task_id=task.task_id,
+                status=TaskStatus.IN_PROGRESS,
+                agent_name="SystemTaskNotifier"  # Use a system identifier
+            )
+            
             self._dispatched_task_ids.add(task.task_id)
 
         except Exception as e:

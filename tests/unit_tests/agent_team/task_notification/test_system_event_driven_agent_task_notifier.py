@@ -1,6 +1,6 @@
 import pytest
 import asyncio
-from unittest.mock import MagicMock, AsyncMock, call
+from unittest.mock import MagicMock, AsyncMock, call, patch
 
 from autobyteus.agent_team.task_notification.system_event_driven_agent_task_notifier import SystemEventDrivenAgentTaskNotifier
 from autobyteus.task_management import InMemoryTaskBoard, Task, TaskStatus, FileDeliverable
@@ -90,6 +90,35 @@ async def test_notifies_on_tasks_added(notifier, task_board, mock_team_manager, 
         assert isinstance(event.user_message, AgentInputUserMessage)
         assert event.user_message.metadata.get('source') == 'system_task_notifier'
         assert "is now ready to start" in event.user_message.content
+
+@pytest.mark.asyncio
+@patch("autobyteus.task_management.in_memory_task_board.InMemoryTaskBoard.update_task_status", return_value=True)
+async def test_auto_updates_task_status_to_in_progress_on_dispatch(mock_update_status, notifier, task_board, mock_team_manager, single_dependency_tasks):
+    """
+    Tests that when a task is dispatched, its status is automatically updated to IN_PROGRESS on the board.
+    """
+    # Arrange
+    notifier.start_monitoring()
+    
+    task_a = next(t for t in single_dependency_tasks if t.task_name == "task_a")
+    task_c = next(t for t in single_dependency_tasks if t.task_name == "task_c")
+
+    # Act
+    task_board.add_tasks(single_dependency_tasks)
+    await asyncio.sleep(0.01) # Allow events to propagate
+
+    # Assert
+    # 1. The notifications are still sent correctly
+    assert mock_team_manager.dispatch_user_message_to_agent.call_count == 2
+    
+    # 2. The status update method was called for the two dispatched tasks
+    assert mock_update_status.call_count == 2
+    
+    expected_calls = [
+        call(task_id=task_a.task_id, status=TaskStatus.IN_PROGRESS, agent_name="SystemTaskNotifier"),
+        call(task_id=task_c.task_id, status=TaskStatus.IN_PROGRESS, agent_name="SystemTaskNotifier"),
+    ]
+    mock_update_status.assert_has_calls(expected_calls, any_order=True)
 
 @pytest.mark.asyncio
 async def test_notifies_when_dependency_completes(notifier, task_board, mock_team_manager, single_dependency_tasks):
