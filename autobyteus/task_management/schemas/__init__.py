@@ -2,12 +2,12 @@
 """
 Exposes the public schema models for the task management module.
 """
-from .plan_definition import TaskPlanDefinitionSchema, TaskDefinitionSchema
+from .task_definition import TasksDefinitionSchema, TaskDefinitionSchema
 from .task_status_report import TaskStatusReportSchema, TaskStatusReportItemSchema
 from .deliverable_schema import FileDeliverableSchema
 
 __all__ = [
-    "TaskPlanDefinitionSchema",
+    "TasksDefinitionSchema",
     "TaskDefinitionSchema",
     "TaskStatusReportSchema",
     "TaskStatusReportItemSchema",

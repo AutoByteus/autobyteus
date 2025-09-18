@@ -30,6 +30,7 @@ try:
     from autobyteus.llm.llm_factory import default_llm_factory, LLMFactory
     from autobyteus.agent_team.agent_team_builder import AgentTeamBuilder
     from autobyteus.cli.agent_team_tui.app import AgentTeamApp
+    from autobyteus.agent.message import SendMessageTo
 except ImportError as e:
     print(f"Error importing autobyteus components: {e}", file=sys.stderr)
     sys.exit(1)
@@ -73,7 +74,8 @@ def create_multi_researcher_team(model_name: str):
             "- Your only job is to delegate. Do not answer the user's question yourself.\n\n"
             "### Your Tools\n"
             "{{tools}}"
-        )
+        ),
+        tools=[SendMessageTo()],
     )
 
     # Researcher 1: Web Specialist

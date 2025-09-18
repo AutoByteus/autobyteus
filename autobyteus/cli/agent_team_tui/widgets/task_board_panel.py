@@ -6,7 +6,7 @@ from rich.panel import Panel
 from rich.text import Text
 from textual.widgets import Static
 
-from autobyteus.task_management.task_plan import Task
+from autobyteus.task_management.task import Task
 from autobyteus.task_management.base_task_board import TaskStatus
 from .shared import TASK_STATUS_ICONS, LOG_ICON
 

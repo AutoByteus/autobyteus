@@ -2,7 +2,6 @@
 import pytest
 from autobyteus.task_management import (
     InMemoryTaskBoard,
-    TaskPlan,
     Task,
     TaskStatus,
     TaskBoardConverter,
@@ -15,19 +14,21 @@ def task_board_with_plan() -> InMemoryTaskBoard:
     """Provides a task board with a realistic plan loaded and statuses updated."""
     task_board = InMemoryTaskBoard(team_id="test_team_converter")
     
-    plan = TaskPlan(
-        overall_goal="Test the converter.",
-        tasks=[
-            Task(task_name="task_one", assignee_name="Agent1", description="First task."),
-            Task(task_name="task_two", assignee_name="Agent2", description="Second task.", dependencies=["task_one"]),
-            Task(task_name="task_three", assignee_name="Agent1", description="Third task.", dependencies=["task_one"]),
-        ]
-    )
-    plan.hydrate_dependencies()
-    task_board.load_task_plan(plan)
+    tasks = [
+        Task(task_name="task_one", assignee_name="Agent1", description="First task."),
+        Task(task_name="task_two", assignee_name="Agent2", description="Second task.", dependencies=["task_one"]),
+        Task(task_name="task_three", assignee_name="Agent1", description="Third task.", dependencies=["task_one"]),
+    ]
     
-    task_one = next(t for t in plan.tasks if t.task_name == "task_one")
-    task_three = next(t for t in plan.tasks if t.task_name == "task_three")
+    # Manually hydrate dependencies for the fixture
+    name_to_id = {t.task_name: t.task_id for t in tasks}
+    for task in tasks:
+        task.dependencies = [name_to_id.get(dep_name, dep_name) for dep_name in task.dependencies]
+
+    task_board.add_tasks(tasks)
+    
+    task_one = next(t for t in tasks if t.task_name == "task_one")
+    task_three = next(t for t in tasks if t.task_name == "task_three")
     
     task_board.update_task_status(task_one.task_id, TaskStatus.COMPLETED, "Agent1")
     task_board.update_task_status(task_three.task_id, TaskStatus.IN_PROGRESS, "Agent1")
@@ -43,12 +44,15 @@ def task_board_with_plan() -> InMemoryTaskBoard:
 
 def test_to_schema_with_loaded_plan(task_board_with_plan: InMemoryTaskBoard):
     """Tests that the converter correctly transforms a populated task board."""
+    # Arrange
+    overall_goal = "Test the converter."
+
     # Act
-    report = TaskBoardConverter.to_schema(task_board_with_plan)
+    report = TaskBoardConverter.to_schema(task_board_with_plan, overall_goal)
     
     # Assert
     assert isinstance(report, TaskStatusReportSchema)
-    assert report.overall_goal == "Test the converter."
+    assert report.overall_goal == overall_goal
     assert len(report.tasks) == 3
     
     # Find specific task reports
@@ -76,12 +80,12 @@ def test_to_schema_with_loaded_plan(task_board_with_plan: InMemoryTaskBoard):
     assert not hasattr(deliverable, 'status')
 
 def test_to_schema_with_empty_board():
-    """Tests that the converter returns None for a board with no plan."""
+    """Tests that the converter returns None for a board with no tasks."""
     # Arrange
     empty_board = InMemoryTaskBoard(team_id="empty_team")
 
     # Act
-    report = TaskBoardConverter.to_schema(empty_board)
+    report = TaskBoardConverter.to_schema(empty_board, "An empty goal.")
 
     # Assert
     assert report is None

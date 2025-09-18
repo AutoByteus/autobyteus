@@ -2,7 +2,7 @@
 import pytest
 from unittest.mock import Mock, MagicMock
 
-from autobyteus.task_management import InMemoryTaskBoard, TaskPlan, Task, TaskStatus
+from autobyteus.task_management import InMemoryTaskBoard, Task, TaskStatus
 from autobyteus.task_management.tools import UpdateTaskStatus
 from autobyteus.task_management.deliverable import FileDeliverable
 from autobyteus.tools.usage.parsers import DefaultXmlToolUsageParser
@@ -12,15 +12,11 @@ from autobyteus.llm.utils.response_types import CompleteResponse
 def task_board() -> InMemoryTaskBoard:
     """Provides a task board with a simple plan loaded."""
     board = InMemoryTaskBoard(team_id="test_team_tool")
-    plan = TaskPlan(
-        overall_goal="Test the UpdateTaskStatus tool.",
-        tasks=[
-            Task(task_name="task_a", assignee_name="Agent1", description="First task."),
-            Task(task_name="task_b", assignee_name="Agent2", description="Second task."),
-        ]
-    )
-    plan.hydrate_dependencies()
-    board.load_task_plan(plan)
+    tasks = [
+        Task(task_name="task_a", assignee_name="Agent1", description="First task."),
+        Task(task_name="task_b", assignee_name="Agent2", description="Second task."),
+    ]
+    board.add_tasks(tasks)
     return board
 
 @pytest.fixture
@@ -46,7 +42,7 @@ async def test_execute_status_only_success(agent_context: Mock, task_board: InMe
     task_to_update = "task_a"
     new_status = "in_progress"
     
-    task_id_to_check = next(t.task_id for t in task_board.current_plan.tasks if t.task_name == task_to_update)
+    task_id_to_check = next(t.task_id for t in task_board.tasks if t.task_name == task_to_update)
     assert task_board.task_statuses[task_id_to_check] == TaskStatus.NOT_STARTED
 
     result = await tool._execute(context=agent_context, task_name=task_to_update, status=new_status)
@@ -71,7 +67,7 @@ async def test_execute_with_deliverables_success(agent_context: Mock, task_board
     )
 
     assert "Successfully updated status of task 'task_b' to 'completed'" in result
-    updated_task = next(t for t in task_board.current_plan.tasks if t.task_name == task_to_update)
+    updated_task = next(t for t in task_board.tasks if t.task_name == task_to_update)
     assert len(updated_task.file_deliverables) == 1
     assert updated_task.file_deliverables[0].file_path == "output/report.md"
 
@@ -82,7 +78,7 @@ async def test_execute_with_invalid_deliverable_schema(agent_context: Mock, task
     task_to_update = "task_a"
     invalid_deliverables = [{"file_path": "output/bad.txt"}] # Missing 'summary'
     
-    task_id_to_check = next(t.task_id for t in task_board.current_plan.tasks if t.task_name == task_to_update)
+    task_id_to_check = next(t.task_id for t in task_board.tasks if t.task_name == task_to_update)
     assert task_board.task_statuses[task_id_to_check] == TaskStatus.NOT_STARTED
 
     result = await tool._execute(
@@ -135,7 +131,7 @@ async def test_execute_with_input_from_xml_parser(agent_context: Mock, task_boar
     assert "Successfully updated status" in result
     assert "and submitted 1 deliverable(s)" in result
     
-    updated_task = next(t for t in task_board.current_plan.tasks if t.task_name == task_to_update)
+    updated_task = next(t for t in task_board.tasks if t.task_name == task_to_update)
     assert task_board.task_statuses[updated_task.task_id] == TaskStatus.COMPLETED
     assert len(updated_task.file_deliverables) == 1
     

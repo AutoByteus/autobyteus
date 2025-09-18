@@ -47,8 +47,8 @@ class EventType(Enum):
     TEAM_STREAM_EVENT = "team_stream_event" # For unified agent team event stream
 
     # --- Task Board Events ---
-    TASK_BOARD_PLAN_PUBLISHED = "task_board_plan_published"
-    TASK_BOARD_STATUS_UPDATED = "task_board_status_updated"
+    TASK_BOARD_TASKS_ADDED = "task_board.tasks.added"
+    TASK_BOARD_STATUS_UPDATED = "task_board.status.updated"
 
     def __str__(self): 
         return self.value

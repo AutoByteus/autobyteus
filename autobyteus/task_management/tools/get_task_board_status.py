@@ -54,10 +54,12 @@ class GetTaskBoardStatus(BaseTool):
             return error_msg
         
         try:
-            status_report_schema = TaskBoardConverter.to_schema(task_board)
+            # The overall goal is now part of the static team config, not the dynamic board.
+            overall_goal = team_context.config.description
+            status_report_schema = TaskBoardConverter.to_schema(task_board, overall_goal)
             
             if not status_report_schema:
-                return "The task board is currently empty. No plan has been published."
+                return "The task board is currently empty. No tasks have been published."
             
             logger.info(f"Agent '{context.agent_id}' successfully retrieved and formatted task board status.")
             return status_report_schema.model_dump_json(indent=2)

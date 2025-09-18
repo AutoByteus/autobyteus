@@ -15,7 +15,7 @@ from textual.containers import VerticalScroll, Horizontal
 from autobyteus.agent.phases import AgentOperationalPhase
 from autobyteus.agent_team.phases import AgentTeamOperationalPhase
 from autobyteus.task_management.base_task_board import TaskStatus
-from autobyteus.task_management.task_plan import Task
+from autobyteus.task_management.task import Task
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent, StreamEventType as AgentStreamEventType
 from autobyteus.agent.streaming.stream_event_payloads import (
     AgentOperationalPhaseTransitionData, AssistantChunkData, AssistantCompleteResponseData,

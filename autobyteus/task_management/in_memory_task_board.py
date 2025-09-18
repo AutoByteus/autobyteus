@@ -8,9 +8,9 @@ from typing import Optional, List, Dict, Any
 from enum import Enum
 
 from autobyteus.events.event_types import EventType
-from .task_plan import TaskPlan, Task
+from .task import Task
 from .base_task_board import BaseTaskBoard, TaskStatus
-from .events import TaskPlanPublishedEvent, TaskStatusUpdatedEvent
+from .events import TasksAddedEvent, TaskStatusUpdatedEvent
 
 logger = logging.getLogger(__name__)
 
@@ -23,36 +23,62 @@ class InMemoryTaskBoard(BaseTaskBoard):
         """
         Initializes the InMemoryTaskBoard.
         """
-        # BaseTaskBoard now handles EventEmitter initialization
         super().__init__(team_id=team_id)
-        self.current_plan: Optional[TaskPlan] = None
         self.task_statuses: Dict[str, TaskStatus] = {}
         self._task_map: Dict[str, Task] = {}
         logger.info(f"InMemoryTaskBoard initialized for team '{self.team_id}'.")
 
-    def load_task_plan(self, plan: TaskPlan) -> bool:
+    def add_tasks(self, tasks: List[Task]) -> bool:
         """
-        Loads a new plan onto the board, resetting its state and emitting an event.
+        Adds new tasks to the board. This is an additive-only operation.
         """
-        if not isinstance(plan, TaskPlan):
-            logger.error(f"Team '{self.team_id}': Failed to load task plan. Provided object is not a TaskPlan.")
-            return False
+        for task in tasks:
+            self.tasks.append(task)
+            self.task_statuses[task.task_id] = TaskStatus.NOT_STARTED
+            self._task_map[task.task_id] = task
 
-        self.current_plan = plan
-        self.task_statuses = {task.task_id: TaskStatus.NOT_STARTED for task in plan.tasks}
-        self._task_map = {task.task_id: task for task in plan.tasks}
+        self._hydrate_all_dependencies()
+        logger.info(f"Team '{self.team_id}': Added {len(tasks)} new task(s) to the board. Emitting TasksAddedEvent.")
         
-        logger.info(f"Team '{self.team_id}': New TaskPlan '{plan.plan_id}' loaded. Emitting event.")
-        
-        # Emit event
-        event_payload = TaskPlanPublishedEvent(
+        event_payload = TasksAddedEvent(
             team_id=self.team_id,
-            plan_id=plan.plan_id,
-            plan=plan
+            tasks=tasks,
         )
-        self.emit(EventType.TASK_BOARD_PLAN_PUBLISHED, payload=event_payload)
-        
+        self.emit(EventType.TASK_BOARD_TASKS_ADDED, payload=event_payload)
         return True
+
+    def add_task(self, task: Task) -> bool:
+        """
+        Adds a single new task to the board by wrapping it in a list and calling add_tasks.
+        """
+        return self.add_tasks([task])
+        
+    def _hydrate_all_dependencies(self):
+        """
+        Re-calculates all dependencies to ensure they are all valid task_ids.
+        This robustly handles dependencies that are already IDs and those that are names.
+        """
+        name_to_id_map = {task.task_name: task.task_id for task in self.tasks}
+        all_task_ids = set(self._task_map.keys())
+
+        for task in self.tasks:
+            if not task.dependencies:
+                continue
+
+            resolved_deps = []
+            for dep in task.dependencies:
+                # Case 1: The dependency is already a valid task_id on the board.
+                if dep in all_task_ids:
+                    resolved_deps.append(dep)
+                # Case 2: The dependency is a task_name that can be resolved.
+                elif dep in name_to_id_map:
+                    resolved_deps.append(name_to_id_map[dep])
+                # Case 3: The dependency is invalid.
+                else:
+                    logger.warning(f"Team '{self.team_id}': Dependency '{dep}' for task '{task.task_name}' could not be resolved to a known task ID or name.")
+            
+            task.dependencies = resolved_deps
+
 
     def update_task_status(self, task_id: str, status: TaskStatus, agent_name: str) -> bool:
         """
@@ -67,40 +93,27 @@ class InMemoryTaskBoard(BaseTaskBoard):
         log_msg = f"Team '{self.team_id}': Status of task '{task_id}' updated from '{old_status.value if isinstance(old_status, Enum) else old_status}' to '{status.value}' by agent '{agent_name}'."
         logger.info(log_msg)
         
-        # Find the task to get its deliverables for the event payload
         task = self._task_map.get(task_id)
         task_deliverables = task.file_deliverables if task else None
 
-        # Emit event
         event_payload = TaskStatusUpdatedEvent(
             team_id=self.team_id,
-            plan_id=self.current_plan.plan_id if self.current_plan else None,
             task_id=task_id,
             new_status=status,
             agent_name=agent_name,
             deliverables=task_deliverables
         )
         self.emit(EventType.TASK_BOARD_STATUS_UPDATED, payload=event_payload)
-
         return True
 
     def get_status_overview(self) -> Dict[str, Any]:
         """
         Returns a serializable dictionary of the board's current state.
+        The overall_goal is now fetched from the context via the converter.
         """
-        if not self.current_plan:
-            return {
-                "plan_id": None,
-                "overall_goal": None,
-                "task_statuses": {},
-                "tasks": []
-            }
-        
         return {
-            "plan_id": self.current_plan.plan_id,
-            "overall_goal": self.current_plan.overall_goal,
             "task_statuses": {task_id: status.value for task_id, status in self.task_statuses.items()},
-            "tasks": [task.model_dump() for task in self.current_plan.tasks]
+            "tasks": [task.model_dump() for task in self.tasks]
         }
 
     def get_next_runnable_tasks(self) -> List[Task]:
@@ -108,9 +121,6 @@ class InMemoryTaskBoard(BaseTaskBoard):
         Calculates which tasks can be executed now based on dependencies and statuses.
         """
         runnable_tasks: List[Task] = []
-        if not self.current_plan:
-            return runnable_tasks
-
         for task_id, status in self.task_statuses.items():
             if status == TaskStatus.NOT_STARTED:
                 task = self._task_map.get(task_id)

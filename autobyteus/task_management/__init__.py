@@ -4,15 +4,15 @@ This package defines components for task management and state tracking,
 including task plans and live task boards. It is designed to be a general-purpose
 module usable by various components, such as agents or agent teams.
 """
-from .task_plan import TaskPlan, Task
-from .schemas import (TaskPlanDefinitionSchema, TaskDefinitionSchema, TaskStatusReportSchema,
+from .task import Task
+from .schemas import (TasksDefinitionSchema, TaskDefinitionSchema, TaskStatusReportSchema,
                       TaskStatusReportItemSchema, FileDeliverableSchema)
 from .base_task_board import BaseTaskBoard, TaskStatus
 from .in_memory_task_board import InMemoryTaskBoard
 from .deliverable import FileDeliverable
-from .tools import GetTaskBoardStatus, PublishTaskPlan, UpdateTaskStatus
-from .converters import TaskBoardConverter, TaskPlanConverter
-from .events import BaseTaskBoardEvent, TaskPlanPublishedEvent, TaskStatusUpdatedEvent
+from .tools import GetTaskBoardStatus, PublishTasks, PublishTask, UpdateTaskStatus
+from .converters import TaskBoardConverter
+from .events import BaseTaskBoardEvent, TasksAddedEvent, TaskStatusUpdatedEvent
 
 # For convenience, we can alias InMemoryTaskBoard as the default TaskBoard.
 # This allows other parts of the code to import `TaskBoard` without needing
@@ -20,9 +20,8 @@ from .events import BaseTaskBoardEvent, TaskPlanPublishedEvent, TaskStatusUpdate
 TaskBoard = InMemoryTaskBoard
 
 __all__ = [
-    "TaskPlan",
     "Task",
-    "TaskPlanDefinitionSchema",
+    "TasksDefinitionSchema",
     "TaskDefinitionSchema",
     "TaskStatusReportSchema",
     "TaskStatusReportItemSchema",
@@ -33,11 +32,11 @@ __all__ = [
     "TaskBoard",  # Exposing the alias
     "FileDeliverable",
     "GetTaskBoardStatus",
-    "PublishTaskPlan",
+    "PublishTasks",
+    "PublishTask",
     "UpdateTaskStatus",
     "TaskBoardConverter",
-    "TaskPlanConverter",
     "BaseTaskBoardEvent",
-    "TaskPlanPublishedEvent",
+    "TasksAddedEvent",
     "TaskStatusUpdatedEvent",
 ]

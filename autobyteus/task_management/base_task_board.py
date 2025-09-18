@@ -8,7 +8,7 @@ from enum import Enum
 from typing import Dict, Any, List, Optional
 
 from autobyteus.events.event_emitter import EventEmitter
-from .task_plan import Task, TaskPlan
+from .task import Task
 
 logger = logging.getLogger(__name__)
 
@@ -29,20 +29,27 @@ class BaseTaskBoard(ABC, EventEmitter):
     Abstract base class for a TaskBoard.
 
     This class defines the contract for any component that manages the live state
-    of a TaskPlan. Implementations could be in-memory, database-backed, or
-    connected to external services like JIRA. It inherits from EventEmitter to
-    broadcast state changes.
+    of tasks for a team. It is a dynamic board, not a static plan.
+    It inherits from EventEmitter to broadcast state changes.
     """
 
     def __init__(self, team_id: str):
         EventEmitter.__init__(self)
         self.team_id = team_id
+        self.tasks: List[Task] = []
         logger.debug(f"BaseTaskBoard initialized for team '{self.team_id}'.")
 
     @abstractmethod
-    def load_task_plan(self, plan: TaskPlan) -> bool:
+    def add_tasks(self, tasks: List[Task]) -> bool:
         """
-        Loads a new plan onto the board, resetting its state.
+        Adds a list of new tasks to the board. This is an additive-only operation.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def add_task(self, task: Task) -> bool:
+        """
+        Adds a single new task to the board.
         """
         raise NotImplementedError
 

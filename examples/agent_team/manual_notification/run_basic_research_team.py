@@ -31,6 +31,7 @@ try:
     from autobyteus.llm.llm_factory import default_llm_factory, LLMFactory
     from autobyteus.agent_team.agent_team_builder import AgentTeamBuilder
     from autobyteus.cli.agent_team_tui.app import AgentTeamApp
+    from autobyteus.agent.message import SendMessageTo
 except ImportError as e:
     print(f"Error importing autobyteus components: {e}", file=sys.stderr)
     print("Please ensure that the autobyteus library is installed and accessible.", file=sys.stderr)
@@ -97,6 +98,7 @@ async def main(args: argparse.Namespace):
             "### Your Task\n"
             "Analyze the user's request and delegate it to the appropriate team member."
         ),
+        tools=[SendMessageTo()],
     )
 
     # The Worker/Specialist Agent

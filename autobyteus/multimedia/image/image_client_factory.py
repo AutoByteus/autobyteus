@@ -52,17 +52,6 @@ class ImageClientFactory(metaclass=SingletonMeta):
             }
         )
 
-        dall_e_2_model = ImageModel(
-            name="dall-e-2",
-            value="dall-e-2",
-            provider=MultimediaProvider.OPENAI,
-            client_class=OpenAIImageClient,
-            parameter_schema={
-                "n": {"type": "integer", "default": 1, "description": "The number of images to generate."},
-                "size": {"type": "string", "default": "1024x1024", "allowed_values": ["256x256", "512x512", "1024x1024"], "description": "The size of the generated images."}
-            }
-        )
-
         # Google Imagen Models (via Gemini API)
         imagen_model = ImageModel(
             name="imagen-4",
@@ -74,7 +63,6 @@ class ImageClientFactory(metaclass=SingletonMeta):
 
         models_to_register = [
             gpt_image_1_model,
-            dall_e_2_model,
             imagen_model,
         ]
         

@@ -6,9 +6,9 @@ from typing import Set, Any, TYPE_CHECKING, List, Union
 from autobyteus.events.event_types import EventType
 from autobyteus.agent_team.events import ProcessUserMessageEvent
 from autobyteus.agent.message import AgentInputUserMessage
-from autobyteus.task_management.events import TaskPlanPublishedEvent, TaskStatusUpdatedEvent
+from autobyteus.task_management.events import TasksAddedEvent, TaskStatusUpdatedEvent
 from autobyteus.task_management.base_task_board import TaskStatus
-from autobyteus.task_management.task_plan import Task
+from autobyteus.task_management.task import Task
 
 if TYPE_CHECKING:
     from autobyteus.task_management.base_task_board import BaseTaskBoard
@@ -42,72 +42,49 @@ class SystemEventDrivenAgentTaskNotifier:
         Subscribes to task board events to begin monitoring for runnable tasks.
         This should be called once during the agent team's bootstrap process.
         """
-        self._task_board.subscribe(
-            EventType.TASK_BOARD_PLAN_PUBLISHED,
-            self._handle_task_board_update
-        )
-        self._task_board.subscribe(
-            EventType.TASK_BOARD_STATUS_UPDATED,
-            self._handle_task_board_update
-        )
+        self._task_board.subscribe(EventType.TASK_BOARD_TASKS_ADDED, self._handle_tasks_added)
+        self._task_board.subscribe(EventType.TASK_BOARD_STATUS_UPDATED, self._handle_status_updated)
         logger.info(f"Team '{self._team_manager.team_id}': Task notifier is now monitoring TaskBoard events.")
+    
+    async def _handle_tasks_added(self, payload: TasksAddedEvent, **kwargs):
+        """Handles the event for tasks being added to the board."""
+        logger.info(f"Team '{self._team_manager.team_id}': {len(payload.tasks)} tasks added to board. Checking if they are runnable.")
+        await self._scan_and_notify_tasks(payload.tasks)
 
-    async def _handle_task_board_update(self, payload: Union[TaskPlanPublishedEvent, TaskStatusUpdatedEvent], **kwargs):
-        """
-        Asynchronous event handler triggered by the task board. It uses the event
-        payload to decide when to check for and notify agents of newly runnable tasks.
-        """
-        if isinstance(payload, TaskPlanPublishedEvent):
-            logger.info(f"Team '{self._team_manager.team_id}': New task plan detected. Resetting dispatched tasks and checking for initial runnable tasks.")
-            self._dispatched_task_ids.clear()
-            await self._scan_and_notify_all_runnable_tasks()
-        
-        elif isinstance(payload, TaskStatusUpdatedEvent):
-            # Only trigger a check for dependent tasks if a task has been completed,
-            # as this is the only status change that can unblock dependent tasks.
-            if payload.new_status == TaskStatus.COMPLETED:
-                logger.info(f"Team '{self._team_manager.team_id}': Task '{payload.task_id}' completed. Checking for newly unblocked dependent tasks.")
-                await self._check_and_notify_dependent_tasks(payload.task_id)
-            else:
-                logger.debug(f"Team '{self._team_manager.team_id}': Task '{payload.task_id}' status updated to '{payload.new_status.value}'. No dependent task check needed.")
-        else:
-            # This case should ideally not be hit with the new strong typing, but is kept as a safeguard.
-            logger.warning(f"Team '{self._team_manager.team_id}': Task notifier received an unhandled payload type: {type(payload)}")
+    async def _handle_status_updated(self, payload: TaskStatusUpdatedEvent, **kwargs):
+        """Handles the event for a task's status changing."""
+        if payload.new_status == TaskStatus.COMPLETED:
+            logger.info(f"Team '{self._team_manager.team_id}': Task '{payload.task_id}' completed. Checking for newly unblocked dependent tasks.")
+            await self._check_and_notify_dependent_tasks(payload.task_id)
 
+    async def _scan_and_notify_tasks(self, tasks_to_check: List[Task]):
+        """Scans a specific list of tasks to see if they are runnable and notifies if so."""
+        all_task_statuses = self._task_board.task_statuses
+        for task in tasks_to_check:
+            if task.task_id not in self._dispatched_task_ids and all_task_statuses.get(task.task_id) == TaskStatus.NOT_STARTED:
+                dependencies_met = all(
+                    all_task_statuses.get(dep_id) == TaskStatus.COMPLETED for dep_id in task.dependencies
+                )
+                if dependencies_met:
+                    await self._dispatch_notification_for_task(task)
 
     async def _check_and_notify_dependent_tasks(self, completed_task_id: str):
         """
         Finds tasks that depend on the completed task and notifies their assignees
         if all of their other dependencies are also met.
         """
-        if not getattr(self._task_board, 'current_plan', None):
-            return
-
-        all_tasks = self._task_board.current_plan.tasks
-        task_statuses = getattr(self._task_board, 'task_statuses', {})
+        all_tasks = self._task_board.tasks
+        task_statuses = self._task_board.task_statuses
 
         for child_task in all_tasks:
-            # Find tasks that are direct children of the completed task
+            # Dependencies are now IDs, so we check against the completed task's ID
             if completed_task_id in child_task.dependencies:
-                # Now, check if this child task is fully runnable (all its parents are done)
                 all_deps_met = all(
                     task_statuses.get(dep_id) == TaskStatus.COMPLETED for dep_id in child_task.dependencies
                 )
                 
                 if all_deps_met and child_task.task_id not in self._dispatched_task_ids:
                     await self._dispatch_notification_for_task(child_task)
-
-    async def _scan_and_notify_all_runnable_tasks(self):
-        """
-        Scans the entire board for any runnable tasks. Used for initial plan loading.
-        """
-        try:
-            runnable_tasks = self._task_board.get_next_runnable_tasks()
-            for task in runnable_tasks:
-                if task.task_id not in self._dispatched_task_ids:
-                    await self._dispatch_notification_for_task(task)
-        except Exception as e:
-            logger.error(f"Team '{self._team_manager.team_id}': Error during full scan for runnable tasks: {e}", exc_info=True)
     
     async def _dispatch_notification_for_task(self, task: Task):
         """
@@ -123,7 +100,7 @@ class SystemEventDrivenAgentTaskNotifier:
             if task.dependencies:
                 parent_task_deliverables_info = []
                 for dep_id in task.dependencies:
-                    parent_task = getattr(self._task_board, '_task_map', {}).get(dep_id)
+                    parent_task = self._task_board._task_map.get(dep_id)
                     if parent_task and parent_task.file_deliverables:
                         deliverables_str = "\n".join(
                             [f"  - File: {d.file_path}, Summary: {d.summary}" for d in parent_task.file_deliverables]
@@ -146,7 +123,6 @@ class SystemEventDrivenAgentTaskNotifier:
             
             content = "\n\n".join(message_parts)
             
-            # Create the user message with metadata indicating its origin.
             user_message = AgentInputUserMessage(
                 content=content,
                 metadata={'source': 'system_task_notifier'}
@@ -156,7 +132,6 @@ class SystemEventDrivenAgentTaskNotifier:
                 target_agent_name=task.assignee_name
             )
 
-            # Use the existing method for dispatching user messages.
             await self._team_manager.dispatch_user_message_to_agent(event)
             self._dispatched_task_ids.add(task.task_id)
 

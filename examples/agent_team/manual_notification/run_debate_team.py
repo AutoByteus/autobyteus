@@ -31,6 +31,7 @@ try:
     from autobyteus.agent_team.agent_team_builder import AgentTeamBuilder
     from autobyteus.cli.agent_team_tui.app import AgentTeamApp
     from autobyteus.agent_team.context.agent_team_config import AgentTeamConfig
+    from autobyteus.agent.message import SendMessageTo
 except ImportError as e:
     print(f"Error importing autobyteus components: {e}", file=sys.stderr)
     sys.exit(1)
@@ -83,7 +84,8 @@ def create_debate_team(moderator_model: str, affirmative_model: str, negative_mo
             "- You MUST use the team's unique, case-sensitive `name` (e.g., 'Team_Affirmative') when using the `SendMessageTo` tool.\n\n"
             "### Your Tools\n"
             "{{tools}}"
-        )
+        ),
+        tools=[SendMessageTo()],
     )
 
     # Team Affirmative Agents
@@ -99,7 +101,8 @@ def create_debate_team(moderator_model: str, affirmative_model: str, negative_mo
             "- You MUST use the `SendMessageTo` tool to delegate tasks to your team member, using their exact name 'Proponent'.\n\n"
             "### Your Tools\n"
             "{{tools}}"
-        )
+        ),
+        tools=[SendMessageTo()],
     )
     proponent_config = AgentConfig(
         name="Proponent", role="Debater", description="Argues in favor of the debate topic.",
@@ -120,7 +123,8 @@ def create_debate_team(moderator_model: str, affirmative_model: str, negative_mo
             "- You MUST use the `SendMessageTo` tool to delegate tasks to your team member, using their exact name 'Opponent'.\n\n"
             "### Your Tools\n"
             "{{tools}}"
-        )
+        ),
+        tools=[SendMessageTo()],
     )
     opponent_config = AgentConfig(
         name="Opponent", role="Debater", description="Argues against the debate topic.",

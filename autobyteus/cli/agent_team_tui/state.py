@@ -16,8 +16,8 @@ from autobyteus.agent.streaming.stream_event_payloads import (
 )
 from autobyteus.agent_team.streaming.agent_team_stream_events import AgentTeamStreamEvent
 from autobyteus.agent_team.streaming.agent_team_stream_event_payloads import AgentEventRebroadcastPayload, SubTeamEventRebroadcastPayload, AgentTeamPhaseTransitionData
-from autobyteus.task_management.task_plan import Task
-from autobyteus.task_management.events import TaskPlanPublishedEvent, TaskStatusUpdatedEvent
+from autobyteus.task_management.task import Task
+from autobyteus.task_management.events import TasksAddedEvent, TaskStatusUpdatedEvent
 from autobyteus.task_management.base_task_board import TaskStatus
 
 logger = logging.getLogger(__name__)
@@ -86,29 +86,26 @@ class TUIStateStore:
         self._team_event_history[parent_name].append(event)
         
         if event.event_source_type == "TASK_BOARD":
-            # The 'parent_name' argument holds the friendly name of the team (or sub-team)
-            # that is the context for this event. This is the key we use for UI state.
             team_name_key = parent_name
-            if isinstance(event.data, TaskPlanPublishedEvent):
-                self._task_plans[team_name_key] = event.data.plan.tasks
-                # Reset statuses when a new plan is published
-                self._task_statuses[team_name_key] = {task.task_id: TaskStatus.NOT_STARTED for task in event.data.plan.tasks}
-                logger.debug(f"TUI State: Updated task plan for '{team_name_key}' with {len(event.data.plan.tasks)} tasks.")
+            if isinstance(event.data, TasksAddedEvent):
+                if team_name_key not in self._task_plans: self._task_plans[team_name_key] = []
+                if team_name_key not in self._task_statuses: self._task_statuses[team_name_key] = {}
+                self._task_plans[team_name_key].extend(event.data.tasks)
+                for task in event.data.tasks:
+                    self._task_statuses[team_name_key][task.task_id] = TaskStatus.NOT_STARTED
+                logger.debug(f"TUI State: Added {len(event.data.tasks)} tasks to board for '{team_name_key}'.")
+
             elif isinstance(event.data, TaskStatusUpdatedEvent):
-                # Update status
-                if team_name_key not in self._task_statuses:
-                    self._task_statuses[team_name_key] = {}
+                if team_name_key not in self._task_statuses: self._task_statuses[team_name_key] = {}
                 self._task_statuses[team_name_key][event.data.task_id] = event.data.new_status
                 logger.debug(f"TUI State: Updated status for task '{event.data.task_id}' in team '{team_name_key}' to {event.data.new_status}.")
                 
-                # Update deliverables if they are provided in the event.
-                if event.data.deliverables is not None:
-                    if team_name_key in self._task_plans:
-                        for task in self._task_plans[team_name_key]:
-                            if task.task_id == event.data.task_id:
-                                task.file_deliverables = event.data.deliverables
-                                logger.debug(f"TUI State: Synced deliverables for task '{event.data.task_id}' in team '{team_name_key}'.")
-                                break
+                if event.data.deliverables is not None and team_name_key in self._task_plans:
+                    for task in self._task_plans[team_name_key]:
+                        if task.task_id == event.data.task_id:
+                            task.file_deliverables = event.data.deliverables
+                            logger.debug(f"TUI State: Synced deliverables for task '{event.data.task_id}' in team '{team_name_key}'.")
+                            break
             return
 
         if isinstance(event.data, AgentEventRebroadcastPayload):

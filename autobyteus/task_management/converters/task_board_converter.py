@@ -15,34 +15,28 @@ class TaskBoardConverter:
     """A converter to transform TaskBoard state into LLM-friendly schemas."""
 
     @staticmethod
-    def to_schema(task_board: BaseTaskBoard) -> Optional[TaskStatusReportSchema]:
+    def to_schema(task_board: BaseTaskBoard, overall_goal: str) -> Optional[TaskStatusReportSchema]:
         """
         Converts the current state of a TaskBoard into a TaskStatusReportSchema.
 
         Args:
             task_board: The task board instance to convert.
+            overall_goal: The overall goal of the team, passed in from the team context.
 
         Returns:
-            A TaskStatusReportSchema object if a plan is loaded, otherwise None.
+            A TaskStatusReportSchema object if there are tasks, otherwise None.
         """
-        internal_status = task_board.get_status_overview()
-        plan = task_board.current_plan
-
-        if not plan:
-            logger.debug(f"TaskBoard for team '{task_board.team_id}' has no plan loaded. Cannot generate report.")
+        if not task_board.tasks:
+            logger.debug(f"TaskBoard for team '{task_board.team_id}' has no tasks. Cannot generate report.")
             return None
 
-        # --- Conversion to LLM-Friendly Format ---
+        internal_status = task_board.get_status_overview()
         
-        # 1. Create maps for easy lookup
-        id_to_name_map = {task.task_id: task.task_name for task in plan.tasks}
+        id_to_name_map = {task.task_id: task.task_name for task in task_board.tasks}
         
-        # 2. Build the list of LLM-friendly task items
         report_items = []
-        for task in plan.tasks:
-            # Convert dependency IDs back to names. This is safe because the plan
-            # should have been hydrated already.
-            dep_names = [id_to_name_map[dep_id] for dep_id in task.dependencies]
+        for task in task_board.tasks:
+            dep_names = [id_to_name_map.get(dep_id, str(dep_id)) for dep_id in task.dependencies]
             
             report_item = TaskStatusReportItemSchema(
                 task_name=task.task_name,
@@ -54,9 +48,8 @@ class TaskBoardConverter:
             )
             report_items.append(report_item)
 
-        # 3. Assemble the final report object
         status_report = TaskStatusReportSchema(
-            overall_goal=plan.overall_goal,
+            overall_goal=overall_goal,
             tasks=report_items
         )
         

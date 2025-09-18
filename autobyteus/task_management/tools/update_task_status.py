@@ -77,12 +77,12 @@ class UpdateTaskStatus(BaseTool):
             logger.error(f"Agent '{agent_name}': {error_msg}")
             return error_msg
         
-        if not task_board.current_plan:
-            error_msg = "Error: No task plan is currently loaded on the task board."
-            logger.warning(f"Agent '{agent_name}' tried to update task status, but no plan is loaded.")
+        if not task_board.tasks:
+            error_msg = "Error: No tasks are currently loaded on the task board."
+            logger.warning(f"Agent '{agent_name}' tried to update task status, but the board is empty.")
             return error_msg
 
-        target_task = next((t for t in task_board.current_plan.tasks if t.task_name == task_name), None)
+        target_task = next((t for t in task_board.tasks if t.task_name == task_name), None)
 
         if not target_task:
             error_msg = f"Failed to update status for task '{task_name}'. The task name does not exist on the current plan."
