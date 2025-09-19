@@ -23,5 +23,4 @@ class TaskStatusReportItemSchema(BaseModel):
 
 class TaskStatusReportSchema(BaseModel):
     """Represents a full task board status report in an LLM-friendly format."""
-    overall_goal: str = Field(..., description="The high-level objective of the entire plan.")
     tasks: List[TaskStatusReportItemSchema] = Field(..., description="The list of tasks and their current statuses.")

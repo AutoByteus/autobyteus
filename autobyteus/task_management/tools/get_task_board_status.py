@@ -25,8 +25,8 @@ class GetTaskBoardStatus(BaseTool):
     @classmethod
     def get_description(cls) -> str:
         return (
-            "Retrieves the current status of the team's task board, including the overall goal "
-            "and the status of all individual tasks. Returns the status as a structured, LLM-friendly JSON string."
+            "Retrieves the current status of the team's task board, including the status of all individual tasks. "
+            "Returns the status as a structured, LLM-friendly JSON string."
         )
 
     @classmethod
@@ -54,9 +54,7 @@ class GetTaskBoardStatus(BaseTool):
             return error_msg
         
         try:
-            # The overall goal is now part of the static team config, not the dynamic board.
-            overall_goal = team_context.config.description
-            status_report_schema = TaskBoardConverter.to_schema(task_board, overall_goal)
+            status_report_schema = TaskBoardConverter.to_schema(task_board)
             
             if not status_report_schema:
                 return "The task board is currently empty. No tasks have been published."

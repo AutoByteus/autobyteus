@@ -42,16 +42,15 @@ async def test_execute_success(mock_to_schema: MagicMock, tool_instance: GetTask
     # Arrange
     mock_agent_context.custom_data["team_context"] = mock_team_context_with_board
     
-    # Mock the converter's return value with an empty deliverables list
+    # Mock the converter's return value without overall_goal
     mock_report = TaskStatusReportSchema(
-        overall_goal="mock goal", 
         tasks=[TaskStatusReportItemSchema(
             task_name="task1", 
             assignee_name="a1", 
             description="d1",
             dependencies=[],
             status="not_started",
-            file_deliverables=[] # Ensure mock is accurate
+            file_deliverables=[]
         )]
     )
     mock_to_schema.return_value = mock_report
@@ -60,10 +59,12 @@ async def test_execute_success(mock_to_schema: MagicMock, tool_instance: GetTask
     result = await tool_instance._execute(mock_agent_context)
     
     # Assert
+    # The converter is now called without the overall_goal argument
     mock_to_schema.assert_called_once_with(mock_team_context_with_board.state.task_board)
     
     result_data = json.loads(result)
-    assert result_data["overall_goal"] == "mock goal"
+    assert "overall_goal" not in result_data # Verify the field is gone
+    assert result_data["tasks"][0]["task_name"] == "task1"
     assert result_data["tasks"][0]["file_deliverables"] == []
 
 
@@ -80,9 +81,8 @@ async def test_execute_success_with_deliverables(mock_to_schema: MagicMock, tool
         author_agent_name="TestAgent"
     )
 
-    # Mock the converter's return value with a deliverable
+    # Mock the converter's return value without overall_goal
     mock_report = TaskStatusReportSchema(
-        overall_goal="mock goal with deliverable",
         tasks=[TaskStatusReportItemSchema(
             task_name="task1", assignee_name="a1", description="d1",
             dependencies=[], status="completed", file_deliverables=[deliverable]
@@ -98,14 +98,14 @@ async def test_execute_success_with_deliverables(mock_to_schema: MagicMock, tool
     assert len(result_data["tasks"][0]["file_deliverables"]) == 1
     deliverable_data = result_data["tasks"][0]["file_deliverables"][0]
     assert deliverable_data["file_path"] == "report.pdf"
-    assert "status" not in deliverable_data
     assert deliverable_data["summary"] == "Final report"
+    assert "overall_goal" not in result_data
 
 
 @pytest.mark.asyncio
 @patch('autobyteus.task_management.tools.get_task_board_status.TaskBoardConverter.to_schema')
-async def test_execute_with_no_plan_loaded(mock_to_schema: MagicMock, tool_instance: GetTaskBoardStatus, mock_agent_context: AgentContext, mock_team_context_with_board: AgentTeamContext):
-    """Tests execution when the converter returns None (i.e., no plan is loaded)."""
+async def test_execute_with_no_tasks_on_board(mock_to_schema: MagicMock, tool_instance: GetTaskBoardStatus, mock_agent_context: AgentContext, mock_team_context_with_board: AgentTeamContext):
+    """Tests execution when the converter returns None (i.e., no tasks are on the board)."""
     # Arrange
     mock_agent_context.custom_data["team_context"] = mock_team_context_with_board
     mock_to_schema.return_value = None
@@ -114,7 +114,8 @@ async def test_execute_with_no_plan_loaded(mock_to_schema: MagicMock, tool_insta
     result = await tool_instance._execute(mock_agent_context)
 
     # Assert
-    assert result == "The task board is currently empty. No plan has been published."
+    # The string was updated for clarity
+    assert result == "The task board is currently empty. No tasks have been published."
 
 @pytest.mark.asyncio
 async def test_execute_no_team_context(tool_instance: GetTaskBoardStatus, mock_agent_context: AgentContext):

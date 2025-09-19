@@ -15,13 +15,12 @@ class TaskBoardConverter:
     """A converter to transform TaskBoard state into LLM-friendly schemas."""
 
     @staticmethod
-    def to_schema(task_board: BaseTaskBoard, overall_goal: str) -> Optional[TaskStatusReportSchema]:
+    def to_schema(task_board: BaseTaskBoard) -> Optional[TaskStatusReportSchema]:
         """
         Converts the current state of a TaskBoard into a TaskStatusReportSchema.
 
         Args:
             task_board: The task board instance to convert.
-            overall_goal: The overall goal of the team, passed in from the team context.
 
         Returns:
             A TaskStatusReportSchema object if there are tasks, otherwise None.
@@ -49,7 +48,6 @@ class TaskBoardConverter:
             report_items.append(report_item)
 
         status_report = TaskStatusReportSchema(
-            overall_goal=overall_goal,
             tasks=report_items
         )
         
