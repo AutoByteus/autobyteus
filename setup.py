@@ -28,7 +28,7 @@ common_dependencies = [
 
 setup(
     name="autobyteus",
-    version="1.1.8",
+    version="1.1.9",
     packages=find_packages(exclude=["tests", "tests.*"]),
     include_package_data=True,
     install_requires=[
