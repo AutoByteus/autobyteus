@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 class TaskStatus(str, Enum):
     """Enumerates the possible lifecycle states of a task on the TaskBoard."""
     NOT_STARTED = "not_started"
+    QUEUED = "queued"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     BLOCKED = "blocked"

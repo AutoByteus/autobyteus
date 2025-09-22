@@ -1,6 +1,7 @@
 import asyncio
 import logging
-from typing import Set, Any, TYPE_CHECKING, List, Union
+from typing import Set, Any, TYPE_CHECKING, List, Union, Dict
+from collections import defaultdict
 
 from autobyteus.events.event_types import EventType
 from autobyteus.agent_team.events import ProcessUserMessageEvent
@@ -12,13 +13,15 @@ from autobyteus.task_management.task import Task
 if TYPE_CHECKING:
     from autobyteus.task_management.base_task_board import BaseTaskBoard
     from autobyteus.agent_team.context.team_manager import TeamManager
+    from autobyteus.agent.agent import Agent
 
 logger = logging.getLogger(__name__)
 
 class SystemEventDrivenAgentTaskNotifier:
     """
-    An internal component that monitors a TaskBoard and automatically sends
-    notifications to agents when their assigned tasks become runnable.
+    An internal component that monitors a TaskBoard. When it finds runnable tasks,
+    it updates their status to QUEUED and sends a single, generic notification
+    to the assigned agent to trigger their work cycle.
     """
     def __init__(self, task_board: 'BaseTaskBoard', team_manager: 'TeamManager'):
         """
@@ -33,115 +36,80 @@ class SystemEventDrivenAgentTaskNotifier:
             
         self._task_board = task_board
         self._team_manager = team_manager
-        self._dispatched_task_ids: Set[str] = set()
+        # This set tracks which agents have been notified about new work in the current cycle.
+        self._notified_agents: Set[str] = set()
         logger.info(f"SystemEventDrivenAgentTaskNotifier initialized for team '{self._team_manager.team_id}'.")
 
     def start_monitoring(self):
         """
         Subscribes to task board events to begin monitoring for runnable tasks.
-        This should be called once during the agent team's bootstrap process.
         """
-        self._task_board.subscribe(EventType.TASK_BOARD_TASKS_ADDED, self._handle_tasks_added)
-        self._task_board.subscribe(EventType.TASK_BOARD_STATUS_UPDATED, self._handle_status_updated)
+        self._task_board.subscribe(EventType.TASK_BOARD_TASKS_ADDED, self._handle_tasks_changed)
+        self._task_board.subscribe(EventType.TASK_BOARD_STATUS_UPDATED, self._handle_tasks_changed)
         logger.info(f"Team '{self._team_manager.team_id}': Task notifier is now monitoring TaskBoard events.")
     
-    async def _handle_tasks_added(self, payload: TasksAddedEvent, **kwargs):
-        """Handles the event for tasks being added to the board."""
-        logger.info(f"Team '{self._team_manager.team_id}': {len(payload.tasks)} tasks added to board. Checking if they are runnable.")
-        await self._scan_and_notify_tasks(payload.tasks)
+    async def _handle_tasks_changed(self, payload: Union[TasksAddedEvent, TaskStatusUpdatedEvent], **kwargs):
+        """
+        Generic handler for any event that might change task runnability.
+        """
+        logger.info(f"Team '{self._team_manager.team_id}': Task board changed. Scanning for new runnable tasks.")
+        self._notified_agents.clear() # Reset for the new scan cycle
+        await self._scan_and_notify_runnable_tasks()
 
-    async def _handle_status_updated(self, payload: TaskStatusUpdatedEvent, **kwargs):
-        """Handles the event for a task's status changing."""
-        if payload.new_status == TaskStatus.COMPLETED:
-            logger.info(f"Team '{self._team_manager.team_id}': Task '{payload.task_id}' completed. Checking for newly unblocked dependent tasks.")
-            await self._check_and_notify_dependent_tasks(payload.task_id)
+    async def _scan_and_notify_runnable_tasks(self):
+        """
+        Scans the task board for runnable (NOT_STARTED) tasks, updates their
+        status to QUEUED, and sends a single notification per affected agent.
+        """
+        runnable_tasks = self._task_board.get_next_runnable_tasks()
 
-    async def _scan_and_notify_tasks(self, tasks_to_check: List[Task]):
-        """Scans a specific list of tasks to see if they are runnable and notifies if so."""
-        all_task_statuses = self._task_board.task_statuses
-        for task in tasks_to_check:
-            if task.task_id not in self._dispatched_task_ids and all_task_statuses.get(task.task_id) == TaskStatus.NOT_STARTED:
-                dependencies_met = all(
-                    all_task_statuses.get(dep_id) == TaskStatus.COMPLETED for dep_id in task.dependencies
+        if not runnable_tasks:
+            return
+
+        # Group tasks by agent to send a single notification
+        tasks_by_agent: Dict[str, List[Task]] = defaultdict(list)
+        for task in runnable_tasks:
+            # Only consider tasks that are not yet queued or processed.
+            if self._task_board.task_statuses.get(task.task_id) == TaskStatus.NOT_STARTED:
+                tasks_by_agent[task.assignee_name].append(task)
+        
+        for agent_name, tasks_to_queue in tasks_by_agent.items():
+            if not tasks_to_queue:
+                continue
+
+            # 1. Update status on the global task board to QUEUED
+            for task in tasks_to_queue:
+                self._task_board.update_task_status(
+                    task_id=task.task_id,
+                    status=TaskStatus.QUEUED,
+                    agent_name="SystemTaskNotifier"
                 )
-                if dependencies_met:
-                    await self._dispatch_notification_for_task(task)
+            
+            # 2. Send the single, generic notification to trigger the agent's work cycle
+            if agent_name not in self._notified_agents:
+                await self._notify_agent(agent_name, len(tasks_to_queue))
+                self._notified_agents.add(agent_name)
 
-    async def _check_and_notify_dependent_tasks(self, completed_task_id: str):
-        """
-        Finds tasks that depend on the completed task and notifies their assignees
-        if all of their other dependencies are also met.
-        """
-        all_tasks = self._task_board.tasks
-        task_statuses = self._task_board.task_statuses
-
-        for child_task in all_tasks:
-            # Dependencies are now IDs, so we check against the completed task's ID
-            if completed_task_id in child_task.dependencies:
-                all_deps_met = all(
-                    task_statuses.get(dep_id) == TaskStatus.COMPLETED for dep_id in child_task.dependencies
-                )
-                
-                if all_deps_met and child_task.task_id not in self._dispatched_task_ids:
-                    await self._dispatch_notification_for_task(child_task)
-    
-    async def _dispatch_notification_for_task(self, task: Task):
-        """
-        Constructs and sends a context-rich notification for a single runnable task
-        by treating it as a user message to trigger the full processing pipeline.
-        It tags the message with metadata to indicate its system origin.
-        Upon successful dispatch, it updates the task's status to 'in_progress'.
-        """
+    async def _notify_agent(self, agent_name: str, task_count: int):
+        """Sends a single, generic trigger message to an agent."""
+        team_id = self._team_manager.team_id
         try:
-            team_id = self._team_manager.team_id
-            logger.info(f"Team '{team_id}': Dispatching notification for runnable task '{task.task_name}' to assignee '{task.assignee_name}'.")
+            logger.info(f"Team '{team_id}': Notifying agent '{agent_name}' about {task_count} new task(s) in their queue.")
             
-            context_from_parents = []
-            if task.dependencies:
-                parent_task_deliverables_info = []
-                for dep_id in task.dependencies:
-                    parent_task = self._task_board._task_map.get(dep_id)
-                    if parent_task and parent_task.file_deliverables:
-                        deliverables_str = "\n".join(
-                            [f"  - File: {d.file_path}, Summary: {d.summary}" for d in parent_task.file_deliverables]
-                        )
-                        parent_task_deliverables_info.append(
-                            f"The parent task '{parent_task.task_name}' produced the following deliverables:\n{deliverables_str}"
-                        )
-                
-                if parent_task_deliverables_info:
-                    context_from_parents.append(
-                        "Your task is now unblocked. Here is the context from the completed parent task(s):\n" +
-                        "\n\n".join(parent_task_deliverables_info)
-                    )
+            # This ensures the agent is started and ready to receive the message.
+            await self._team_manager.ensure_node_is_ready(agent_name)
 
-            message_parts: List[str] = [f"Your task '{task.task_name}' is now ready to start."]
-            if context_from_parents:
-                message_parts.extend(context_from_parents)
-            
-            message_parts.append(f"\nYour task description:\n{task.description}")
-            
-            content = "\n\n".join(message_parts)
-            
-            user_message = AgentInputUserMessage(
-                content=content,
+            notification_message = AgentInputUserMessage(
+                content="You have new tasks in your queue. Please review your task list using your tools and begin your work.",
                 metadata={'source': 'system_task_notifier'}
             )
             event = ProcessUserMessageEvent(
-                user_message=user_message,
-                target_agent_name=task.assignee_name
+                user_message=notification_message,
+                target_agent_name=agent_name
             )
-
             await self._team_manager.dispatch_user_message_to_agent(event)
             
-            # Automatically update the task status to IN_PROGRESS upon dispatch.
-            self._task_board.update_task_status(
-                task_id=task.task_id,
-                status=TaskStatus.IN_PROGRESS,
-                agent_name="SystemTaskNotifier"  # Use a system identifier
-            )
-            
-            self._dispatched_task_ids.add(task.task_id)
+            logger.info(f"Team '{team_id}': Successfully sent task notification to '{agent_name}'.")
 
         except Exception as e:
-            logger.error(f"Team '{self._team_manager.team_id}': Failed to dispatch notification for task '{task.task_id}': {e}", exc_info=True)
+            logger.error(f"Team '{team_id}': Failed to notify agent '{agent_name}': {e}", exc_info=True)

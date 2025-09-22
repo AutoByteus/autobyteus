@@ -19,7 +19,9 @@ class AutobyteusAudioModelProvider:
 
     @staticmethod
     def _get_hosts() -> List[str]:
-        """Gets Autobyteus server hosts from env vars."""
+        """
+        Gets Autobyteus server hosts from env vars. Skips discovery if no host is configured.
+        """
         hosts_str = os.getenv('AUTOBYTEUS_LLM_SERVER_HOSTS')
         if hosts_str:
             return [host.strip() for host in hosts_str.split(',')]
@@ -28,7 +30,7 @@ class AutobyteusAudioModelProvider:
         if legacy_host:
             return [legacy_host]
             
-        return [AutobyteusAudioModelProvider.DEFAULT_SERVER_URL]
+        return []
 
     @staticmethod
     def discover_and_register():
@@ -37,6 +39,10 @@ class AutobyteusAudioModelProvider:
             from autobyteus.multimedia.audio.audio_client_factory import AudioClientFactory
 
             hosts = AutobyteusAudioModelProvider._get_hosts()
+            if not hosts:
+                logger.info("No Autobyteus server hosts configured. Skipping Autobyteus audio model discovery.")
+                return
+
             total_registered_count = 0
 
             for host_url in hosts:

@@ -19,7 +19,9 @@ class AutobyteusModelProvider:
 
     @staticmethod
     def _get_hosts() -> List[str]:
-        """Gets Autobyteus LLM server hosts from env vars, supporting a comma-separated list."""
+        """
+        Gets Autobyteus LLM server hosts from env vars. Skips discovery if no host is configured.
+        """
         hosts_str = os.getenv('AUTOBYTEUS_LLM_SERVER_HOSTS')
         if hosts_str:
             return [host.strip() for host in hosts_str.split(',')]
@@ -28,7 +30,7 @@ class AutobyteusModelProvider:
         if legacy_host:
             return [legacy_host]
             
-        return [AutobyteusModelProvider.DEFAULT_SERVER_URL]
+        return []
 
     @staticmethod
     def discover_and_register():
@@ -37,6 +39,10 @@ class AutobyteusModelProvider:
             from autobyteus.llm.llm_factory import LLMFactory
 
             hosts = AutobyteusModelProvider._get_hosts()
+            if not hosts:
+                logger.info("No Autobyteus LLM server hosts configured. Skipping Autobyteus LLM model discovery.")
+                return
+
             total_registered_count = 0
 
             for host_url in hosts:
