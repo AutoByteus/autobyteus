@@ -62,7 +62,8 @@ class GeminiAudioClient(BaseAudioClient):
     async def generate_speech(
         self,
         prompt: str,
-        generation_config: Optional[Dict[str, Any]] = None
+        generation_config: Optional[Dict[str, Any]] = None,
+        **kwargs
     ) -> SpeechGenerationResponse:
         """
         Generates spoken audio from text using a Gemini TTS model, supporting single-speaker,

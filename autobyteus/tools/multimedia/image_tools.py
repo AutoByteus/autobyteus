@@ -121,7 +121,7 @@ class EditImageTool(BaseTool):
     An agent tool for editing an existing image using a text prompt and a pre-configured model.
     """
     CATEGORY = ToolCategory.MULTIMEDIA
-    MODEL_ENV_VAR = "DEFAULT_IMAGE_GENERATION_MODEL"
+    MODEL_ENV_VAR = "DEFAULT_IMAGE_EDIT_MODEL"
     DEFAULT_MODEL = "gpt-image-1"
 
     @classmethod

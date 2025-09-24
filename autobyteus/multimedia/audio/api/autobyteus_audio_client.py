@@ -26,7 +26,8 @@ class AutobyteusAudioClient(BaseAudioClient):
     async def generate_speech(
         self,
         prompt: str,
-        generation_config: Optional[Dict[str, Any]] = None
+        generation_config: Optional[Dict[str, Any]] = None,
+        **kwargs
     ) -> SpeechGenerationResponse:
         """
         Generates speech by calling the generate_speech endpoint on the remote Autobyteus server.
@@ -36,6 +37,8 @@ class AutobyteusAudioClient(BaseAudioClient):
             
             model_name_for_server = self.model.name
 
+            # Note: The underlying autobyteus_client.generate_speech does not currently accept **kwargs.
+            # They are accepted here for interface consistency and future-proofing.
             response_data = await self.autobyteus_client.generate_speech(
                 model_name=model_name_for_server,
                 prompt=prompt,

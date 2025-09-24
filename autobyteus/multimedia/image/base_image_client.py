@@ -21,7 +21,8 @@ class BaseImageClient(ABC):
         self,
         prompt: str,
         input_image_urls: Optional[List[str]] = None,
-        generation_config: Optional[Dict[str, Any]] = None
+        generation_config: Optional[Dict[str, Any]] = None,
+        **kwargs
     ) -> ImageGenerationResponse:
         """
         Generates an image based on a textual prompt.
@@ -33,6 +34,7 @@ class BaseImageClient(ABC):
             generation_config (Optional[Dict[str, Any]]): Provider-specific parameters for image generation
                                                         to override defaults.
                                                         (e.g., n, size, quality, style).
+            **kwargs: Additional keyword arguments for extensibility.
 
         Returns:
             ImageGenerationResponse: An object containing URLs to the generated images.
@@ -45,7 +47,8 @@ class BaseImageClient(ABC):
         prompt: str,
         input_image_urls: List[str],
         mask_url: Optional[str] = None,
-        generation_config: Optional[Dict[str, Any]] = None
+        generation_config: Optional[Dict[str, Any]] = None,
+        **kwargs
     ) -> ImageGenerationResponse:
         """
         Edits an existing image based on a textual prompt.
@@ -56,6 +59,7 @@ class BaseImageClient(ABC):
             mask_url (Optional[str]): The path to a mask image. The transparent areas of the mask
                                        indicate where the image should be edited.
             generation_config (Optional[Dict[str, Any]]): Provider-specific parameters.
+            **kwargs: Additional keyword arguments for extensibility.
 
         Returns:
             ImageGenerationResponse: An object containing URLs to the edited images.

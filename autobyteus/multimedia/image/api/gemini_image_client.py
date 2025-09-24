@@ -42,7 +42,8 @@ class GeminiImageClient(BaseImageClient):
         self,
         prompt: str,
         input_image_urls: Optional[List[str]] = None,
-        generation_config: Optional[Dict[str, Any]] = None
+        generation_config: Optional[Dict[str, Any]] = None,
+        **kwargs
     ) -> ImageGenerationResponse:
         """
         Generates an image using a Google Gemini model. Can be text-to-image or image-to-image.
@@ -102,7 +103,8 @@ class GeminiImageClient(BaseImageClient):
         prompt: str,
         input_image_urls: List[str],
         mask_url: Optional[str] = None,
-        generation_config: Optional[Dict[str, Any]] = None
+        generation_config: Optional[Dict[str, Any]] = None,
+        **kwargs
     ) -> ImageGenerationResponse:
         """
         Edits an image using a Google Gemini model by providing the image(s) as context.
@@ -121,6 +123,7 @@ class GeminiImageClient(BaseImageClient):
             prompt=prompt,
             input_image_urls=input_image_urls,
             generation_config=generation_config,
+            **kwargs
         )
 
     async def cleanup(self):
