@@ -17,7 +17,7 @@ def qwen_llm(set_qwen_env):
     qwen_api_key = os.getenv("DASHSCOPE_API_KEY")
     if not qwen_api_key or qwen_api_key == "YOUR_DASHSCOPE_API_KEY":
         pytest.skip("DashScope API key not set. Skipping QwenLLM tests.")
-    return QwenLLM(model=LLMModel['qwen3-max-preview'], llm_config=LLMConfig())
+    return QwenLLM(model=LLMModel['qwen3-max'], llm_config=LLMConfig())
 
 @pytest.mark.asyncio
 async def test_qwen_llm_response(qwen_llm):

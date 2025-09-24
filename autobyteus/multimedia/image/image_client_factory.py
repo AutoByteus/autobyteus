@@ -61,9 +61,19 @@ class ImageClientFactory(metaclass=SingletonMeta):
             parameter_schema={} # The genai library doesn't expose these as simple params
         )
 
+        # Google Gemini Flash Image Model (aka "Nano Banana")
+        gemini_flash_image_model = ImageModel(
+            name="gemini-2.5-flash-image-preview",
+            value="gemini-2.5-flash-image-preview",
+            provider=MultimediaProvider.GOOGLE,
+            client_class=GeminiImageClient,
+            parameter_schema={} # Parameters are not exposed for this model via the genai library.
+        )
+
         models_to_register = [
             gpt_image_1_model,
             imagen_model,
+            gemini_flash_image_model,
         ]
         
         for model in models_to_register:
