@@ -17,6 +17,7 @@ from autobyteus.llm.api.deepseek_llm import DeepSeekLLM
 from autobyteus.llm.api.gemini_llm import GeminiLLM
 from autobyteus.llm.api.grok_llm import GrokLLM
 from autobyteus.llm.api.kimi_llm import KimiLLM
+from autobyteus.llm.api.qwen_llm import QwenLLM
 from autobyteus.llm.ollama_provider import OllamaModelProvider
 from autobyteus.llm.lmstudio_provider import LMStudioModelProvider
 from autobyteus.utils.singleton import SingletonMeta
@@ -342,6 +343,21 @@ class LLMFactory(metaclass=SingletonMeta):
                 canonical_name="kimi-thinking-preview",
                 default_config=LLMConfig(
                     pricing_config=TokenPricingConfig(27.59, 27.59)
+                )
+            ),
+            # QWEN Provider Models
+            LLMModel(
+                name="qwen3-max",
+                value="qwen-max",
+                provider=LLMProvider.QWEN,
+                llm_class=QwenLLM,
+                canonical_name="qwen3-max",
+                default_config=LLMConfig(
+                    token_limit=262144,
+                    pricing_config=TokenPricingConfig(
+                        input_token_pricing=2.4,
+                        output_token_pricing=12.0
+                    )
                 )
             ),
         ]
