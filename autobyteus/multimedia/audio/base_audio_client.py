@@ -20,7 +20,8 @@ class BaseAudioClient(ABC):
     async def generate_speech(
         self,
         prompt: str,
-        generation_config: Optional[Dict[str, Any]] = None
+        generation_config: Optional[Dict[str, Any]] = None,
+        **kwargs
     ) -> SpeechGenerationResponse:
         """
         Generates spoken audio from text (Text-to-Speech).
@@ -29,6 +30,7 @@ class BaseAudioClient(ABC):
             prompt (str): The text to be converted to speech.
             generation_config (Optional[Dict[str, Any]]): Provider-specific parameters
                                                         (e.g., voice_name, speaker_mapping).
+            **kwargs: Additional keyword arguments for extensibility.
 
         Returns:
             SpeechGenerationResponse: An object containing URLs or paths to the generated audio files.

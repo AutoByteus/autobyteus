@@ -30,7 +30,8 @@ class OpenAIImageClient(BaseImageClient):
         self,
         prompt: str,
         input_image_urls: Optional[List[str]] = None,
-        generation_config: Optional[Dict[str, Any]] = None
+        generation_config: Optional[Dict[str, Any]] = None,
+        **kwargs
     ) -> ImageGenerationResponse:
         """
         Generates an image using an OpenAI DALL-E model via the v1/images/generations endpoint.
@@ -83,7 +84,8 @@ class OpenAIImageClient(BaseImageClient):
         prompt: str,
         input_image_urls: List[str],
         mask_url: Optional[str] = None,
-        generation_config: Optional[Dict[str, Any]] = None
+        generation_config: Optional[Dict[str, Any]] = None,
+        **kwargs
     ) -> ImageGenerationResponse:
         """
         Edits an image using an OpenAI model that supports the v1/images/edits endpoint.

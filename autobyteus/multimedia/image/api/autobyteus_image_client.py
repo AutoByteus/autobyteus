@@ -27,7 +27,8 @@ class AutobyteusImageClient(BaseImageClient):
         self,
         prompt: str,
         input_image_urls: Optional[List[str]] = None,
-        generation_config: Optional[Dict[str, Any]] = None
+        generation_config: Optional[Dict[str, Any]] = None,
+        **kwargs
     ) -> ImageGenerationResponse:
         """
         Generates an image by calling the generate_image endpoint on the remote Autobyteus server.
@@ -38,7 +39,8 @@ class AutobyteusImageClient(BaseImageClient):
             prompt=prompt,
             input_image_urls=input_image_urls,
             mask_url=None, # Not used in pure generation
-            generation_config=generation_config
+            generation_config=generation_config,
+            **kwargs
         )
 
     async def edit_image(
@@ -46,7 +48,8 @@ class AutobyteusImageClient(BaseImageClient):
         prompt: str,
         input_image_urls: List[str],
         mask_url: Optional[str] = None,
-        generation_config: Optional[Dict[str, Any]] = None
+        generation_config: Optional[Dict[str, Any]] = None,
+        **kwargs
     ) -> ImageGenerationResponse:
         """
         Edits an image by calling the generate_image endpoint on the remote Autobyteus server.
@@ -55,7 +58,8 @@ class AutobyteusImageClient(BaseImageClient):
             prompt=prompt,
             input_image_urls=input_image_urls,
             mask_url=mask_url,
-            generation_config=generation_config
+            generation_config=generation_config,
+            **kwargs
         )
     
     async def _call_remote_generate(
@@ -63,7 +67,8 @@ class AutobyteusImageClient(BaseImageClient):
         prompt: str,
         input_image_urls: Optional[List[str]],
         mask_url: Optional[str],
-        generation_config: Optional[Dict[str, Any]]
+        generation_config: Optional[Dict[str, Any]],
+        **kwargs
     ) -> ImageGenerationResponse:
         """Internal helper to call the remote server."""
         try:
@@ -72,6 +77,8 @@ class AutobyteusImageClient(BaseImageClient):
             # The model name for the remote server is the `value`, not the unique `model_identifier`
             model_name_for_server = self.model.name
 
+            # Note: The underlying autobyteus_client.generate_image does not currently accept **kwargs.
+            # They are accepted here for interface consistency and future-proofing.
             response_data = await self.autobyteus_client.generate_image(
                 model_name=model_name_for_server,
                 prompt=prompt,

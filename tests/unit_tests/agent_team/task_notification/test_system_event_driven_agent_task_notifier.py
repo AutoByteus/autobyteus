@@ -1,224 +1,155 @@
+# file: autobyteus/tests/unit_tests/agent_team/task_notification/test_system_event_driven_agent_task_notifier.py
 import pytest
 import asyncio
-from unittest.mock import MagicMock, AsyncMock, call
+from unittest.mock import MagicMock, AsyncMock, call, patch
+
+# We are testing the orchestrator, so we mock its direct dependencies
+from autobyteus.agent_team.task_notification.activation_policy import ActivationPolicy
+from autobyteus.agent_team.task_notification.task_activator import TaskActivator
 
 from autobyteus.agent_team.task_notification.system_event_driven_agent_task_notifier import SystemEventDrivenAgentTaskNotifier
 from autobyteus.task_management import InMemoryTaskBoard, Task, TaskStatus
-from autobyteus.agent_team.events import ProcessUserMessageEvent
-from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.events.event_types import EventType
+from autobyteus.task_management.events import TasksAddedEvent, TaskStatusUpdatedEvent
 
 # --- Mocks and Fixtures ---
 
 @pytest.fixture
-def mock_agent_a():
-    """Provides a mock agent for AgentA."""
-    agent = MagicMock()
-    agent.agent_id = "agent_a_id"
-    # The agent's context and state no longer need a personal_task_queue
-    agent.context = MagicMock()
-    agent.context.state = MagicMock()
-    return agent
+def mock_policy():
+    """Provides a mock ActivationPolicy."""
+    policy = MagicMock(spec=ActivationPolicy)
+    policy.reset = MagicMock()
+    policy.determine_activations = MagicMock(return_value=[])
+    return policy
 
 @pytest.fixture
-def mock_agent_b():
-    """Provides a mock agent for AgentB."""
-    agent = MagicMock()
-    agent.agent_id = "agent_b_id"
-    agent.context = MagicMock()
-    agent.context.state = MagicMock()
-    return agent
-
-@pytest.fixture
-def mock_agent_c():
-    """Provides a mock agent for AgentC."""
-    agent = MagicMock()
-    agent.agent_id = "agent_c_id"
-    agent.context = MagicMock()
-    agent.context.state = MagicMock()
-    return agent
-
-@pytest.fixture
-def mock_team_manager(mock_agent_a, mock_agent_b, mock_agent_c):
-    """
-    Provides a mock TeamManager that can return mock agents by name.
-    """
-    manager = MagicMock()
-    manager.team_id = "test_team_notifier"
-    manager.dispatch_user_message_to_agent = AsyncMock()
-
-    # Configure the mock to return the correct agent based on name
-    agent_map = {
-        "AgentA": mock_agent_a,
-        "AgentB": mock_agent_b,
-        "AgentC": mock_agent_c,
-    }
-    
-    async def ensure_node_is_ready_side_effect(agent_name):
-        return agent_map.get(agent_name)
-
-    manager.ensure_node_is_ready = AsyncMock(side_effect=ensure_node_is_ready_side_effect)
-    return manager
+def mock_activator():
+    """Provides a mock TaskActivator."""
+    activator = MagicMock(spec=TaskActivator)
+    activator.activate_agent = AsyncMock()
+    return activator
 
 @pytest.fixture
 def task_board():
-    """Provides a real InMemoryTaskBoard instance."""
-    return InMemoryTaskBoard(team_id="test_team_notifier")
+    """Provides a real InMemoryTaskBoard instance for realistic state changes."""
+    return InMemoryTaskBoard(team_id="test_orchestrator_team")
 
 @pytest.fixture
-def single_dependency_tasks() -> list[Task]:
-    """Provides a standard list of tasks with a single dependency."""
-    tasks = [
+def notifier(task_board, mock_policy, mock_activator):
+    """
+    Provides an instance of the notifier with its dependencies mocked out.
+    We patch the __init__ to inject our mocks.
+    """
+    with patch('autobyteus.agent_team.task_notification.system_event_driven_agent_task_notifier.ActivationPolicy', return_value=mock_policy), \
+         patch('autobyteus.agent_team.task_notification.system_event_driven_agent_task_notifier.TaskActivator', return_value=mock_activator):
+        
+        # The team_manager is now only passed to the activator, so we can use a simple mock here.
+        mock_team_manager = MagicMock()
+        mock_team_manager.team_id = "test_orchestrator_team"
+        
+        notifier_instance = SystemEventDrivenAgentTaskNotifier(task_board=task_board, team_manager=mock_team_manager)
+        yield notifier_instance
+
+@pytest.fixture
+def tasks():
+    """Provides a standard list of tasks."""
+    task_list = [
         Task(task_name="task_a", assignee_name="AgentA", description="Task A."),
         Task(task_name="task_b", assignee_name="AgentB", description="Task B.", dependencies=["task_a"]),
-        Task(task_name="task_c", assignee_name="AgentA", description="Task C."), # Assign to AgentA for batching test
     ]
-    name_to_id = {t.task_name: t.task_id for t in tasks}
-    for t in tasks:
-        t.dependencies = [name_to_id.get(dep) for dep in t.dependencies if dep]
-    return tasks
-
-@pytest.fixture
-def multi_dependency_tasks() -> list[Task]:
-    """Provides tasks where one has multiple dependencies."""
-    tasks = [
-        Task(task_name="task_a", assignee_name="AgentA", description="Task A."),
-        Task(task_name="task_b", assignee_name="AgentB", description="Task B."),
-        Task(task_name="task_c", assignee_name="AgentC", description="Task C.", dependencies=["task_a", "task_b"]),
-    ]
-    name_to_id = {t.task_name: t.task_id for t in tasks}
-    for t in tasks:
-        t.dependencies = [name_to_id.get(dep) for dep in t.dependencies if dep]
-    return tasks
-
-@pytest.fixture
-def notifier(task_board, mock_team_manager):
-    """Provides an instance of the notifier connected to mocks."""
-    return SystemEventDrivenAgentTaskNotifier(task_board=task_board, team_manager=mock_team_manager)
+    # This is a simplified test setup; we don't need to resolve IDs as the board does it.
+    return task_list
 
 # --- Tests ---
 
-def test_start_monitoring_subscribes_to_events(notifier: SystemEventDrivenAgentTaskNotifier, task_board: InMemoryTaskBoard):
-    """Tests that start_monitoring correctly subscribes to the correct events."""
-    with MagicMock() as mock_subscribe:
-        task_board.subscribe = mock_subscribe
-        notifier.start_monitoring()
+@pytest.mark.asyncio
+async def test_on_tasks_added_resets_policy_and_activates(notifier, task_board, mock_policy, mock_activator, tasks):
+    """
+    Tests that on TasksAddedEvent, the orchestrator resets the policy, gets a
+    decision, updates task statuses, and calls the activator.
+    """
+    task_a = tasks[0]
+    
+    # Configure mock policy to return an agent to activate
+    mock_policy.determine_activations.return_value = ["AgentA"]
+    
+    # Act
+    # The handler is being tested in isolation. We must first establish the state
+    # of the task board that the handler will read from. The TasksAddedEvent itself
+    # just carries data; it doesn't mutate the board's state.
+    task_board.add_tasks(tasks)
 
-    expected_calls = [
-        call(EventType.TASK_BOARD_TASKS_ADDED, notifier._handle_tasks_changed),
-        call(EventType.TASK_BOARD_STATUS_UPDATED, notifier._handle_tasks_changed),
-    ]
-    mock_subscribe.assert_has_calls(expected_calls, any_order=True)
-    assert mock_subscribe.call_count == 2
+    event = TasksAddedEvent(team_id=task_board.team_id, tasks=tasks)
+    await notifier._handle_tasks_changed(event)
+    
+    # Assert Orchestration Flow
+    # 1. Policy was reset because it's a TasksAddedEvent
+    mock_policy.reset.assert_called_once()
+    
+    # 2. Policy was asked for a decision
+    mock_policy.determine_activations.assert_called_once()
+    
+    # 3. Task status was updated on the board for the runnable task
+    assert task_board.task_statuses[task_a.task_id] == TaskStatus.QUEUED
+    
+    # 4. Activator was called for the agent returned by the policy
+    mock_activator.activate_agent.assert_awaited_once_with("AgentA")
 
 @pytest.mark.asyncio
-async def test_queues_tasks_and_notifies_on_add(notifier, task_board, mock_team_manager, single_dependency_tasks):
+async def test_on_status_update_does_not_reset_policy(notifier, task_board, mock_policy, mock_activator, tasks):
     """
-    Tests that initial runnable tasks are moved to QUEUED status and a single
-    notification is sent to the agent.
+    Tests that on TaskStatusUpdatedEvent, the orchestrator does NOT reset the
+    policy, but still orchestrates the activation for any handoffs.
     """
-    notifier.start_monitoring()
+    task_b = tasks[1]
     
-    task_a = next(t for t in single_dependency_tasks if t.task_name == "task_a")
-    task_c = next(t for t in single_dependency_tasks if t.task_name == "task_c")
+    # Configure mock policy to decide AgentB is ready for a handoff
+    mock_policy.determine_activations.return_value = ["AgentB"]
 
     # Act
-    task_board.add_tasks(single_dependency_tasks)
-    await asyncio.sleep(0.01) # Allow async events to propagate
+    event = TaskStatusUpdatedEvent(team_id=task_board.team_id, task_id="any_id", new_status=TaskStatus.COMPLETED, agent_name="AgentA")
+    # Manually set up the board state to make task_b runnable for the test
+    task_board.add_tasks(tasks)
+    task_board.update_task_status(tasks[0].task_id, TaskStatus.COMPLETED, "AgentA")
 
-    # Assert
-    # 1. Statuses are updated to QUEUED on the board
-    assert task_board.task_statuses[task_a.task_id] == TaskStatus.QUEUED
-    assert task_board.task_statuses[task_c.task_id] == TaskStatus.QUEUED
+    await notifier._handle_tasks_changed(event)
     
-    # 2. AgentA was prepared
-    mock_team_manager.ensure_node_is_ready.assert_called_once_with("AgentA")
-
-    # 3. AgentA received exactly ONE notification for its TWO tasks
-    mock_team_manager.dispatch_user_message_to_agent.assert_called_once()
+    # Assert Orchestration Flow
+    # 1. Policy was NOT reset
+    mock_policy.reset.assert_not_called()
     
-    dispatched_event = mock_team_manager.dispatch_user_message_to_agent.call_args.args[0]
-    assert isinstance(dispatched_event, ProcessUserMessageEvent)
-    assert dispatched_event.target_agent_name == "AgentA"
-    assert isinstance(dispatched_event.user_message, AgentInputUserMessage)
-    assert "You have new tasks in your queue" in dispatched_event.user_message.content
-
-@pytest.mark.asyncio
-async def test_notifies_when_dependency_completes(notifier, task_board, mock_team_manager, single_dependency_tasks):
-    """Tests that a dependent task is queued after its dependency is completed."""
-    notifier.start_monitoring()
-    task_board.add_tasks(single_dependency_tasks)
-    await asyncio.sleep(0.01)
+    # 2. Policy was asked for a decision
+    mock_policy.determine_activations.assert_called_once()
     
-    # Reset mocks after initial assignment
-    mock_team_manager.ensure_node_is_ready.reset_mock()
-    mock_team_manager.dispatch_user_message_to_agent.reset_mock()
-
-    task_a = next(t for t in single_dependency_tasks if t.task_name == "task_a")
-    task_b = next(t for t in single_dependency_tasks if t.task_name == "task_b")
-
-    # Act: Complete the first task
-    task_board.update_task_status(task_a.task_id, TaskStatus.COMPLETED, "AgentA")
-    await asyncio.sleep(0.01)
-
-    # Assert
-    # 1. Dependent task is now QUEUED
+    # 3. Task status was updated
     assert task_board.task_statuses[task_b.task_id] == TaskStatus.QUEUED
-
-    # 2. AgentB was prepared
-    mock_team_manager.ensure_node_is_ready.assert_called_once_with("AgentB")
     
-    # 3. AgentB received a single notification
-    mock_team_manager.dispatch_user_message_to_agent.assert_called_once()
-    dispatched_event = mock_team_manager.dispatch_user_message_to_agent.call_args.args[0]
-    assert dispatched_event.target_agent_name == "AgentB"
+    # 4. Activator was called for the handoff
+    mock_activator.activate_agent.assert_awaited_once_with("AgentB")
 
 @pytest.mark.asyncio
-async def test_notifies_only_when_all_dependencies_are_complete(notifier, task_board, mock_team_manager, multi_dependency_tasks):
-    """Tests that a task with multiple dependencies is only queued after all are complete."""
-    notifier.start_monitoring()
-    task_board.add_tasks(multi_dependency_tasks)
-    await asyncio.sleep(0.01)
+async def test_does_not_activate_if_policy_returns_empty(notifier, task_board, mock_policy, mock_activator, tasks):
+    """
+    Tests that the activator is not called if the policy determines no new agents
+    should be activated, even if there are runnable tasks.
+    """
+    # Configure mock policy to return an empty list (no one to activate)
+    mock_policy.determine_activations.return_value = []
     
-    mock_team_manager.dispatch_user_message_to_agent.reset_mock()
-    mock_team_manager.ensure_node_is_ready.reset_mock()
+    # Act
+    event = TaskStatusUpdatedEvent(team_id=task_board.team_id, task_id="any_id", new_status=TaskStatus.COMPLETED, agent_name="AgentA")
+    task_board.add_tasks(tasks)
+    task_board.update_task_status(tasks[0].task_id, TaskStatus.COMPLETED, "AgentA")
 
-    task_a = next(t for t in multi_dependency_tasks if t.task_name == "task_a")
-    task_b = next(t for t in multi_dependency_tasks if t.task_name == "task_b")
-    task_c = next(t for t in multi_dependency_tasks if t.task_name == "task_c")
+    await notifier._handle_tasks_changed(event)
     
-    # Act 1: Complete only the first dependency
-    task_board.update_task_status(task_a.task_id, TaskStatus.COMPLETED, "AgentA")
-    await asyncio.sleep(0.01)
-
-    # Assert: Nothing should have happened to task_c yet
-    mock_team_manager.dispatch_user_message_to_agent.assert_not_called()
-    assert task_board.task_statuses[task_c.task_id] == TaskStatus.NOT_STARTED
-
-    # Act 2: Complete the second and final dependency
-    task_board.update_task_status(task_b.task_id, TaskStatus.COMPLETED, "AgentB")
-    await asyncio.sleep(0.01)
+    # Assert Orchestration Flow
+    # 1. Policy was asked for a decision
+    mock_policy.determine_activations.assert_called_once()
     
-    # Assert: Now task_c should be queued and its agent notified
-    assert task_board.task_statuses[task_c.task_id] == TaskStatus.QUEUED
-    mock_team_manager.ensure_node_is_ready.assert_called_once_with("AgentC")
-    mock_team_manager.dispatch_user_message_to_agent.assert_called_once()
-    assert mock_team_manager.dispatch_user_message_to_agent.call_args.args[0].target_agent_name == "AgentC"
+    # 2. Activator was NOT called
+    mock_activator.activate_agent.assert_not_awaited()
 
-@pytest.mark.asyncio
-async def test_does_not_re_notify_for_queued_tasks(notifier, task_board, mock_team_manager, single_dependency_tasks):
-    """Tests that a task is not re-processed if it's already in the QUEUED state."""
-    notifier.start_monitoring()
-    task_board.add_tasks(single_dependency_tasks)
-    await asyncio.sleep(0.01)
-    
-    # At this point, task_a and task_c are QUEUED, and AgentA has been notified once.
-    assert mock_team_manager.dispatch_user_message_to_agent.call_count == 1
-    mock_team_manager.dispatch_user_message_to_agent.reset_mock()
-
-    # Act: Trigger another scan by pretending another task got completed (even one not in the list)
-    task_board.emit(EventType.TASK_BOARD_STATUS_UPDATED, payload=MagicMock())
-    await asyncio.sleep(0.01)
-
-    # Assert: No new notification was sent because the runnable tasks were already QUEUED.
-    mock_team_manager.dispatch_user_message_to_agent.assert_not_called()
+    # 3. Task statuses are NOT updated to QUEUED by the orchestrator in this case.
+    # The orchestrator only queues tasks for agents it is about to activate.
+    assert task_board.task_statuses[tasks[1].task_id] == TaskStatus.NOT_STARTED

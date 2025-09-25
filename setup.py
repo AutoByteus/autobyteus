@@ -11,7 +11,7 @@ common_dependencies = [
     "brui-core==1.0.9",
     "certifi==2025.4.26",
     "google-api-python-client",
-    "google-generativeai",
+    "google-genai==1.38.0",
     "Jinja2",
     "mcp[cli]",
     "mistral_common",
