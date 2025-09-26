@@ -84,6 +84,7 @@ class GenerateImageTool(BaseTool):
     def get_description(cls) -> str:
         return (
             "Generates one or more images based on a textual description (prompt) using the system's default image model. "
+            "Can optionally accept reference images to influence the style or content. "
             "Returns a list of URLs to the generated images upon success."
         )
 
@@ -95,17 +96,31 @@ class GenerateImageTool(BaseTool):
                 param_type=ParameterType.STRING,
                 description="A detailed textual description of the image to generate.",
                 required=True
+            ),
+            ParameterDefinition(
+                name="input_image_urls",
+                param_type=ParameterType.STRING,
+                description="Optional. A comma-separated string of URLs to reference images. The generated image will try to match the style or content of these images.",
+                required=False
             )
         ]
         return _build_dynamic_image_schema(base_params, cls.MODEL_ENV_VAR, cls.DEFAULT_MODEL)
 
-    async def _execute(self, context, prompt: str, generation_config: Optional[dict] = None) -> List[str]:
+    async def _execute(self, context, prompt: str, input_image_urls: Optional[str] = None, generation_config: Optional[dict] = None) -> List[str]:
         model_identifier = _get_configured_model_identifier(self.MODEL_ENV_VAR, self.DEFAULT_MODEL)
         logger.info(f"GenerateImageTool executing with configured model '{model_identifier}'.")
         client = None
         try:
+            urls_list = None
+            if input_image_urls:
+                urls_list = [url.strip() for url in input_image_urls.split(',') if url.strip()]
+
             client = image_client_factory.create_image_client(model_identifier=model_identifier)
-            response = await client.generate_image(prompt=prompt, generation_config=generation_config)
+            response = await client.generate_image(
+                prompt=prompt, 
+                input_image_urls=urls_list,
+                generation_config=generation_config
+            )
             
             if not response.image_urls:
                 raise ValueError("Image generation failed to return any image URLs.")
