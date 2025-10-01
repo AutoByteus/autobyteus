@@ -7,6 +7,7 @@ from autobyteus.agent.events import UserMessageReceivedEvent, LLMUserMessageRead
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.agent.input_processor import BaseAgentUserInputMessageProcessor
 from autobyteus.agent.message.multimodal_message_builder import build_llm_user_message
+from autobyteus.agent.sender_type import SenderType
 
 
 if TYPE_CHECKING:
@@ -35,21 +36,21 @@ class UserInputMessageEventHandler(AgentEventHandler):
 
         original_agent_input_user_msg: AgentInputUserMessage = event.agent_input_user_message
 
-        # --- NEW LOGIC: Check metadata for system-generated tasks and notify TUI ---
-        if original_agent_input_user_msg.metadata.get('source') == 'system_task_notifier':
+        # --- UPDATED LOGIC: Check sender_type for system-generated tasks and notify TUI ---
+        if original_agent_input_user_msg.sender_type == SenderType.SYSTEM:
             if context.phase_manager:
                 notifier: 'AgentExternalEventNotifier' = context.phase_manager.notifier
                 notification_data = {
-                    "sender_id": "system.task_notifier",
+                    "sender_id": original_agent_input_user_msg.metadata.get("sender_id", "system"),
                     "content": original_agent_input_user_msg.content,
                 }
                 notifier.notify_agent_data_system_task_notification_received(notification_data)
-                logger.info(f"Agent '{context.agent_id}' emitted system task notification for TUI.")
-        # --- END NEW LOGIC ---
+                logger.info(f"Agent '{context.agent_id}' emitted system task notification for TUI based on SYSTEM sender_type.")
+        # --- END UPDATED LOGIC ---
 
         processed_agent_input_user_msg: AgentInputUserMessage = original_agent_input_user_msg
 
-        logger.info(f"Agent '{context.agent_id}' handling UserMessageReceivedEvent: '{original_agent_input_user_msg.content}'")
+        logger.info(f"Agent '{context.agent_id}' handling UserMessageReceivedEvent (type: {original_agent_input_user_msg.sender_type.value}): '{original_agent_input_user_msg.content}'")
 
         processor_instances = context.config.input_processors
         if processor_instances:

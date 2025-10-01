@@ -3,10 +3,10 @@ import logging
 from typing import TYPE_CHECKING
 
 from autobyteus.agent.handlers.base_event_handler import AgentEventHandler
-from autobyteus.agent.events import InterAgentMessageReceivedEvent, LLMUserMessageReadyEvent 
+from autobyteus.agent.events import InterAgentMessageReceivedEvent, UserMessageReceivedEvent
 from autobyteus.agent.message.inter_agent_message import InterAgentMessage
-from autobyteus.llm.user_message import LLMUserMessage
-from autobyteus.agent.sender_type import TASK_NOTIFIER_SENDER_ID # New import
+from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
+from autobyteus.agent.sender_type import SenderType
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext 
@@ -17,7 +17,8 @@ logger = logging.getLogger(__name__)
 class InterAgentMessageReceivedEventHandler(AgentEventHandler):
     """
     Handles InterAgentMessageReceivedEvents by formatting the InterAgentMessage
-    into an LLMUserMessage and enqueuing an LLMUserMessageReadyEvent for LLM processing.
+    into an AgentInputUserMessage and enqueuing a UserMessageReceivedEvent to route
+    it through the main input processing pipeline.
     """
 
     def __init__(self):
@@ -47,10 +48,6 @@ class InterAgentMessageReceivedEventHandler(AgentEventHandler):
             f"'{inter_agent_msg.sender_agent_id}', type '{inter_agent_msg.message_type.value}'. "
             f"Content: '{inter_agent_msg.content}'"
         )
-
-        # This handler now only deals with messages from other agents, not the system notifier.
-        # The logic for system task notifications has been moved to UserInputMessageEventHandler
-        # by checking the message metadata.
         
         content_for_llm = (
             f"You have received a message from another agent.\n"
@@ -63,19 +60,20 @@ class InterAgentMessageReceivedEventHandler(AgentEventHandler):
             f"Please process this information and act accordingly."
         )
         
-        context.state.add_message_to_history({
-            "role": "user", 
-            "content": content_for_llm,
-            "sender_agent_id": inter_agent_msg.sender_agent_id, 
-            "original_message_type": inter_agent_msg.message_type.value
-        })
-
-        llm_user_message = LLMUserMessage(content=content_for_llm)
+        # --- REFACTORED: Route through the main input pipeline ---
+        agent_input_user_message = AgentInputUserMessage(
+            content=content_for_llm,
+            sender_type=SenderType.AGENT,
+            metadata={
+                "sender_agent_id": inter_agent_msg.sender_agent_id,
+                "original_message_type": inter_agent_msg.message_type.value
+            }
+        )
         
-        llm_user_message_ready_event = LLMUserMessageReadyEvent(llm_user_message=llm_user_message) 
-        await context.input_event_queues.enqueue_internal_system_event(llm_user_message_ready_event)
+        user_message_received_event = UserMessageReceivedEvent(agent_input_user_message=agent_input_user_message) 
+        await context.input_event_queues.enqueue_user_message(user_message_received_event)
         
         logger.info(
             f"Agent '{context.agent_id}' processed InterAgentMessage from sender '{inter_agent_msg.sender_agent_id}' "
-            f"and enqueued LLMUserMessageReadyEvent."
+            f"and enqueued UserMessageReceivedEvent to route through input pipeline."
         )

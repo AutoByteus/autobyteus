@@ -9,6 +9,7 @@ class SenderType(str, Enum):
     USER = "user"        # A message originating from an external human user.
     AGENT = "agent"      # A message from another agent within the same team or a different team.
     SYSTEM = "system"    # An automated message from an internal system component.
+    TOOL = "tool"        # A message generated as the result of a tool execution.
 
 
 # --- System Sender Identification ---

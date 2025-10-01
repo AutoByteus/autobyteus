@@ -4,6 +4,7 @@ from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, field
 
 from .context_file import ContextFile # Import the new ContextFile dataclass
+from autobyteus.agent.sender_type import SenderType
 
 logger = logging.getLogger(__name__)
 
@@ -15,11 +16,14 @@ class AgentInputUserMessage:
     allowing users to provide various documents and media as context via a single list.
     """
     content: str
+    sender_type: SenderType = SenderType.USER
     context_files: Optional[List[ContextFile]] = field(default=None)
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         # Basic type validation that dataclasses don't do automatically for mutable defaults or complex types
+        if not isinstance(self.sender_type, SenderType):
+            raise TypeError(f"AgentInputUserMessage 'sender_type' must be a SenderType enum. Got {type(self.sender_type)}")
         if self.context_files is not None and not (isinstance(self.context_files, list) and all(isinstance(cf, ContextFile) for cf in self.context_files)):
             raise TypeError("AgentInputUserMessage 'context_files' must be a list of ContextFile objects if provided.")
         if not isinstance(self.metadata, dict): # Should be caught by default_factory, but good practice
@@ -30,7 +34,7 @@ class AgentInputUserMessage:
         if logger.isEnabledFor(logging.DEBUG):
             num_context_files = len(self.context_files) if self.context_files else 0
             logger.debug(
-                f"AgentInputUserMessage initialized. Content: '{self.content[:50]}...', "
+                f"AgentInputUserMessage initialized. SenderType: {self.sender_type.value}, Content: '{self.content[:50]}...', "
                 f"Num ContextFiles: {num_context_files}, "
                 f"Metadata keys: {list(self.metadata.keys())}"
             )
@@ -44,6 +48,7 @@ class AgentInputUserMessage:
 
         return {
             "content": self.content,
+            "sender_type": self.sender_type.value,
             "context_files": context_files_dict_list,
             "metadata": self.metadata,
         }
@@ -54,6 +59,13 @@ class AgentInputUserMessage:
         content = data.get("content")
         if not isinstance(content, str): # Ensure content is string
             raise ValueError("AgentInputUserMessage 'content' in dictionary must be a string.")
+
+        sender_type_val = data.get("sender_type", "user")
+        try:
+            sender_type = SenderType(sender_type_val)
+        except ValueError:
+            logger.warning(f"Invalid sender_type '{sender_type_val}' in AgentInputUserMessage data. Defaulting to USER.")
+            sender_type = SenderType.USER
 
         context_files_data = data.get("context_files")
         context_files_list: Optional[List[ContextFile]] = None
@@ -68,6 +80,7 @@ class AgentInputUserMessage:
 
         return cls(
             content=content,
+            sender_type=sender_type,
             context_files=context_files_list,
             metadata=metadata
         )
@@ -82,5 +95,5 @@ class AgentInputUserMessage:
             
         meta_repr = f", metadata_keys={list(self.metadata.keys())}" if self.metadata else ""
         
-        return (f"AgentInputUserMessage(content='{content_preview}'"
+        return (f"AgentInputUserMessage(sender_type='{self.sender_type.value}', content='{content_preview}'"
                 f"{context_repr}{meta_repr})")

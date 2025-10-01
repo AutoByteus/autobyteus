@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from autobyteus.agent.message import AgentInputUserMessage
 from autobyteus.agent_team.events import ProcessUserMessageEvent
+from autobyteus.agent.sender_type import SenderType, TASK_NOTIFIER_SENDER_ID
 
 if TYPE_CHECKING:
     from autobyteus.agent_team.context.team_manager import TeamManager
@@ -49,7 +50,8 @@ class TaskActivator:
 
             notification_message = AgentInputUserMessage(
                 content="You have new tasks in your queue. Please review your task list using your tools and begin your work.",
-                metadata={'source': 'system_task_notifier'}
+                sender_type=SenderType.SYSTEM,
+                metadata={'sender_id': TASK_NOTIFIER_SENDER_ID}
             )
             event = ProcessUserMessageEvent(
                 user_message=notification_message,

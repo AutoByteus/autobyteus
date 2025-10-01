@@ -4,9 +4,10 @@ import json
 from unittest.mock import AsyncMock, MagicMock
 
 from autobyteus.agent.handlers.tool_result_event_handler import ToolResultEventHandler
-from autobyteus.agent.events.agent_events import ToolResultEvent, LLMUserMessageReadyEvent, GenericEvent, PendingToolInvocationEvent
-from autobyteus.llm.user_message import LLMUserMessage
+from autobyteus.agent.events.agent_events import ToolResultEvent, UserMessageReceivedEvent, GenericEvent
 from autobyteus.agent.tool_invocation import ToolInvocation, ToolInvocationTurn
+from autobyteus.agent.sender_type import SenderType
+from autobyteus.agent.message.context_file import ContextFile
 
 @pytest.fixture
 def tool_result_handler():
@@ -46,16 +47,18 @@ async def test_handle_single_tool_result_success(tool_result_handler: ToolResult
         "tool_name": tool_name,
     })
 
-    # Assert that the correct event was enqueued for the LLM
-    agent_context.input_event_queues.enqueue_internal_system_event.assert_called_once()
-    enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
-    assert isinstance(enqueued_event, LLMUserMessageReadyEvent)
+    # Assert that the correct event was enqueued for the input pipeline
+    agent_context.input_event_queues.enqueue_user_message.assert_called_once()
+    enqueued_event = agent_context.input_event_queues.enqueue_user_message.call_args[0][0]
+    assert isinstance(enqueued_event, UserMessageReceivedEvent)
     
-    # Assert the content of the message sent to the LLM
-    llm_content = enqueued_event.llm_user_message.content
-    assert f"Tool: {tool_name} (ID: {tool_invocation_id})" in llm_content
-    assert "Status: Success" in llm_content
-    assert f"Result:\n{json.dumps(tool_result_data, indent=2)}" in llm_content
+    # Assert the content of the message sent to the pipeline
+    agent_input_message = enqueued_event.agent_input_user_message
+    assert agent_input_message.sender_type == SenderType.TOOL
+    assert f"Tool: {tool_name} (ID: {tool_invocation_id})" in agent_input_message.content
+    assert "Status: Success" in agent_input_message.content
+    assert f"Result:\n{json.dumps(tool_result_data, indent=2)}" in agent_input_message.content
+    assert not agent_input_message.context_files
 
 @pytest.mark.asyncio
 async def test_handle_single_tool_result_with_error(tool_result_handler: ToolResultEventHandler, agent_context, mock_notifier, caplog):
@@ -77,13 +80,14 @@ async def test_handle_single_tool_result_with_error(tool_result_handler: ToolRes
         "tool_name": tool_name,
     })
 
-    # Assert LLM message
-    agent_context.input_event_queues.enqueue_internal_system_event.assert_called_once()
-    enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
-    llm_content = enqueued_event.llm_user_message.content
-    assert f"Tool: {tool_name} (ID: {tool_invocation_id})" in llm_content
-    assert "Status: Error" in llm_content
-    assert f"Details: {error_message}" in llm_content
+    # Assert message sent to pipeline
+    agent_context.input_event_queues.enqueue_user_message.assert_called_once()
+    enqueued_event = agent_context.input_event_queues.enqueue_user_message.call_args[0][0]
+    agent_input_message = enqueued_event.agent_input_user_message
+    assert agent_input_message.sender_type == SenderType.TOOL
+    assert f"Tool: {tool_name} (ID: {tool_invocation_id})" in agent_input_message.content
+    assert "Status: Error" in agent_input_message.content
+    assert f"Details: {error_message}" in agent_input_message.content
 
 # === Multi-Tool Call Tests ===
 
@@ -108,20 +112,21 @@ async def test_handle_multi_tool_results_reorders_correctly(tool_result_handler:
     assert "Collected 1/2 results." in caplog.text
     assert len(agent_context.state.active_multi_tool_call_turn.results) == 1
     mock_notifier.notify_agent_data_tool_log.assert_called_once() # Notifier is called immediately
-    agent_context.input_event_queues.enqueue_internal_system_event.assert_not_called() # LLM not called yet
+    agent_context.input_event_queues.enqueue_user_message.assert_not_called() # Pipeline not triggered yet
 
     # 3. Handle second result (A)
     await tool_result_handler.handle(res_A, agent_context)
     
     # Assertions after second result
     assert "All tool results for the turn collected. Re-ordering" in caplog.text
-    agent_context.input_event_queues.enqueue_internal_system_event.assert_called_once()
-    enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
-    llm_content = enqueued_event.llm_user_message.content
+    agent_context.input_event_queues.enqueue_user_message.assert_called_once()
+    enqueued_event = agent_context.input_event_queues.enqueue_user_message.call_args[0][0]
+    agent_input_message = enqueued_event.agent_input_user_message
+    content = agent_input_message.content
 
     # CRITICAL: Assert that the final output is in the correct A -> B order
-    pos_A = llm_content.find("Tool: tool_A (ID: call_A)")
-    pos_B = llm_content.find("Tool: tool_B (ID: call_B)")
+    pos_A = content.find("Tool: tool_A (ID: call_A)")
+    pos_B = content.find("Tool: tool_B (ID: call_B)")
     assert pos_A != -1 and pos_B != -1
     assert pos_A < pos_B
 
@@ -142,18 +147,70 @@ async def test_handle_multi_tool_with_error_in_sequence(tool_result_handler: Too
     await tool_result_handler.handle(res_B_error, agent_context)
     await tool_result_handler.handle(res_A_success, agent_context)
 
-    # Assert final LLM message order is correct (A then B)
-    agent_context.input_event_queues.enqueue_internal_system_event.assert_called_once()
-    enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
-    llm_content = enqueued_event.llm_user_message.content
+    # Assert final message order is correct (A then B)
+    agent_context.input_event_queues.enqueue_user_message.assert_called_once()
+    enqueued_event = agent_context.input_event_queues.enqueue_user_message.call_args[0][0]
+    content = enqueued_event.agent_input_user_message.content
 
-    pos_A_success = llm_content.find("Tool: tool_A (ID: call_A)")
-    pos_B_error = llm_content.find("Tool: tool_B (ID: call_B)")
+    pos_A_success = content.find("Tool: tool_A (ID: call_A)")
+    pos_B_error = content.find("Tool: tool_B (ID: call_B)")
     assert pos_A_success != -1 and pos_B_error != -1
     assert pos_A_success < pos_B_error
-    assert "Status: Success" in llm_content[pos_A_success:pos_B_error]
-    assert "Status: Error" in llm_content[pos_B_error:]
-    assert "Details: Failed B" in llm_content[pos_B_error:]
+    assert "Status: Success" in content[pos_A_success:pos_B_error]
+    assert "Status: Error" in content[pos_B_error:]
+    assert "Details: Failed B" in content[pos_B_error:]
+
+# === New Tests for Media/ContextFile Handling ===
+
+@pytest.mark.asyncio
+async def test_handle_single_tool_result_with_context_file(tool_result_handler: ToolResultEventHandler, agent_context):
+    """Test that a tool result containing a ContextFile is handled correctly."""
+    context_file = ContextFile(uri="/path/to/image.png", file_name="image.png")
+    event = ToolResultEvent(tool_name="ReadMediaFile", result=context_file, tool_invocation_id="media-1")
+    
+    await tool_result_handler.handle(event, agent_context)
+
+    agent_context.input_event_queues.enqueue_user_message.assert_called_once()
+    enqueued_event = agent_context.input_event_queues.enqueue_user_message.call_args[0][0]
+    
+    assert isinstance(enqueued_event, UserMessageReceivedEvent)
+    
+    agent_input_message = enqueued_event.agent_input_user_message
+    assert agent_input_message.sender_type == SenderType.TOOL
+    assert "The file 'image.png' has been loaded into the context" in agent_input_message.content
+    assert agent_input_message.context_files == [context_file]
+
+@pytest.mark.asyncio
+async def test_handle_multi_tool_with_mixed_media_and_text(tool_result_handler: ToolResultEventHandler, agent_context):
+    """Test a multi-tool turn with both media and text results are aggregated correctly."""
+    context_file = ContextFile(uri="/path/to/image.png", file_name="image.png")
+    
+    inv_A = ToolInvocation("ReadMediaFile", {"path": "/path/to/image.png"}, id="media-1")
+    inv_B = ToolInvocation("calculator", {"op": "add"}, id="calc-1")
+    agent_context.state.active_multi_tool_call_turn = ToolInvocationTurn(invocations=[inv_A, inv_B])
+
+    res_A = ToolResultEvent(tool_name="ReadMediaFile", result=context_file, tool_invocation_id="media-1")
+    res_B = ToolResultEvent(tool_name="calculator", result={"sum": 5}, tool_invocation_id="calc-1")
+
+    # Handle both results
+    await tool_result_handler.handle(res_A, agent_context)
+    await tool_result_handler.handle(res_B, agent_context)
+
+    # Assertions
+    agent_context.input_event_queues.enqueue_user_message.assert_called_once()
+    enqueued_event = agent_context.input_event_queues.enqueue_user_message.call_args[0][0]
+    
+    agent_input_message = enqueued_event.agent_input_user_message
+    assert agent_input_message.sender_type == SenderType.TOOL
+    assert agent_input_message.context_files == [context_file]
+
+    # Check that text content for both results is present and in order
+    content = agent_input_message.content
+    pos_A = content.find("Tool: ReadMediaFile")
+    pos_B = content.find("Tool: calculator")
+    assert pos_A < pos_B
+    assert "The file 'image.png' has been loaded" in content
+    assert '"sum": 5' in content
 
 # === Edge Case and Other Tests ===
 
@@ -168,10 +225,10 @@ async def test_handle_tool_result_non_json_serializable_object(tool_result_handl
     event = ToolResultEvent(tool_name="object_tool", result=obj_result, tool_invocation_id="obj-002")
 
     await tool_result_handler.handle(event, agent_context)
-    enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
-    llm_content = enqueued_event.llm_user_message.content
+    enqueued_event = agent_context.input_event_queues.enqueue_user_message.call_args[0][0]
+    content = enqueued_event.agent_input_user_message.content
     
-    assert f"Result:\n{str(obj_result)}" in llm_content
+    assert f"Result:\n{str(obj_result)}" in content
 
 @pytest.mark.asyncio
 async def test_handle_invalid_event_type(tool_result_handler: ToolResultEventHandler, agent_context, mock_notifier, caplog):
@@ -183,7 +240,7 @@ async def test_handle_invalid_event_type(tool_result_handler: ToolResultEventHan
     
     assert f"ToolResultEventHandler received non-ToolResultEvent: {type(invalid_event)}. Skipping." in caplog.text
     mock_notifier.notify_agent_data_tool_log.assert_not_called()
-    agent_context.input_event_queues.enqueue_internal_system_event.assert_not_called()
+    agent_context.input_event_queues.enqueue_user_message.assert_not_called()
 
 def test_tool_result_handler_initialization(caplog):
     """Test simple initialization of the handler."""

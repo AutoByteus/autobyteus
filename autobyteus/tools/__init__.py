@@ -26,6 +26,7 @@ from .google_search import GoogleSearch
 from .image_downloader import ImageDownloader
 from .timer import Timer
 from .multimedia.image_tools import GenerateImageTool, EditImageTool
+from .multimedia.media_reader_tool import ReadMediaFile
 
 # Standalone Browser tools
 from .browser.standalone.navigate_to import NavigateTo as StandaloneNavigateTo # Alias to avoid name clash
@@ -64,6 +65,7 @@ __all__ = [
     "Timer",
     "GenerateImageTool",
     "EditImageTool",
+    "ReadMediaFile",
 
     # Re-exported Standalone Browser tools
     "StandaloneNavigateTo",

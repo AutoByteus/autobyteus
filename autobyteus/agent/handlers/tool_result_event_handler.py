@@ -4,9 +4,11 @@ import json
 from typing import TYPE_CHECKING, Optional, List
 
 from autobyteus.agent.handlers.base_event_handler import AgentEventHandler 
-from autobyteus.agent.events import ToolResultEvent, LLMUserMessageReadyEvent 
-from autobyteus.llm.user_message import LLMUserMessage 
+from autobyteus.agent.events import ToolResultEvent, UserMessageReceivedEvent
 from autobyteus.agent.tool_execution_result_processor import BaseToolExecutionResultProcessor
+from autobyteus.agent.message.context_file import ContextFile
+from autobyteus.agent.message import AgentInputUserMessage
+from autobyteus.agent.sender_type import SenderType
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext 
@@ -19,31 +21,65 @@ class ToolResultEventHandler(AgentEventHandler):
     Handles ToolResultEvents. It processes and notifies for each individual tool
     result as it arrives. If a multi-tool call turn is active, it accumulates
     these results until the turn is complete, re-orders them to match the original
-    invocation sequence, and then sends a single aggregated message to the LLM.
+    invocation sequence, and then sends a single aggregated message to the LLM
+    by enqueuing a UserMessageReceivedEvent.
+    
+    This handler is now "media-aware": if a tool's result is a `ContextFile`
+    object, it will be added as multimodal context to the next LLM call rather
+    than as plain text.
     """
     def __init__(self):
         logger.info("ToolResultEventHandler initialized.")
 
-    async def _dispatch_aggregated_results_to_llm(self,
+    async def _dispatch_results_to_input_pipeline(self,
                                                   processed_events: List[ToolResultEvent],
                                                   context: 'AgentContext'):
         """
         Aggregates a list of PRE-PROCESSED and ORDERED tool results into a single
-        message and dispatches it to the LLM.
+        AgentInputUserMessage and dispatches it into the main input processing pipeline
+        by enqueuing a UserMessageReceivedEvent.
         """
         agent_id = context.agent_id
         
-        # --- Aggregate results into a single message ---
-        aggregated_content_parts = []
+        # --- NEW: Separate text results from media context results ---
+        aggregated_content_parts: List[str] = []
+        media_context_files: List[ContextFile] = []
+
         for p_event in processed_events:
             tool_invocation_id = p_event.tool_invocation_id if p_event.tool_invocation_id else 'N/A'
-            content_part: str
+            
+            # Check if the result is a ContextFile or a list of them
+            result_is_media = False
+            if isinstance(p_event.result, ContextFile):
+                media_context_files.append(p_event.result)
+                aggregated_content_parts.append(
+                    f"Tool: {p_event.tool_name} (ID: {tool_invocation_id})\n"
+                    f"Status: Success\n"
+                    f"Result: The file '{p_event.result.file_name}' has been loaded into the context for you to view."
+                )
+                result_is_media = True
+            elif isinstance(p_event.result, list) and all(isinstance(item, ContextFile) for item in p_event.result):
+                media_context_files.extend(p_event.result)
+                file_names = [cf.file_name for cf in p_event.result if cf.file_name]
+                aggregated_content_parts.append(
+                    f"Tool: {p_event.tool_name} (ID: {tool_invocation_id})\n"
+                    f"Status: Success\n"
+                    f"Result: The following files have been loaded into the context for you to view: {file_names}"
+                )
+                result_is_media = True
+
+            if result_is_media:
+                continue
+
+            # Handle errors
             if p_event.error:
                 content_part = (
                     f"Tool: {p_event.tool_name} (ID: {tool_invocation_id})\n"
                     f"Status: Error\n"
                     f"Details: {p_event.error}"
                 )
+                aggregated_content_parts.append(content_part)
+            # Handle standard text/JSON results
             else:
                 try:
                     result_str = json.dumps(p_event.result, indent=2) if not isinstance(p_event.result, str) else p_event.result
@@ -54,20 +90,26 @@ class ToolResultEventHandler(AgentEventHandler):
                     f"Status: Success\n"
                     f"Result:\n{result_str}" 
                 )
-            aggregated_content_parts.append(content_part)
+                aggregated_content_parts.append(content_part)
 
         final_content_for_llm = (
             "The following tool executions have completed. Please analyze their results and decide the next course of action.\n\n"
             + "\n\n---\n\n".join(aggregated_content_parts)
         )
         
-        logger.debug(f"Agent '{agent_id}' preparing aggregated message for LLM:\n---\n{final_content_for_llm}\n---")
-        llm_user_message = LLMUserMessage(content=final_content_for_llm)
+        logger.debug(f"Agent '{agent_id}' preparing aggregated message from tool results for input pipeline:\n---\n{final_content_for_llm}\n---")
         
-        next_event = LLMUserMessageReadyEvent(llm_user_message=llm_user_message) 
-        await context.input_event_queues.enqueue_internal_system_event(next_event)
+        # --- REFACTORED: Create an AgentInputUserMessage and route it through the standard input pipeline ---
+        agent_input_user_message = AgentInputUserMessage(
+            content=final_content_for_llm,
+            sender_type=SenderType.TOOL,
+            context_files=media_context_files
+        )
         
-        logger.info(f"Agent '{agent_id}' enqueued LLMUserMessageReadyEvent with aggregated results from {len(processed_events)} tool(s).")
+        next_event = UserMessageReceivedEvent(agent_input_user_message=agent_input_user_message)
+        await context.input_event_queues.enqueue_user_message(next_event)
+        
+        logger.info(f"Agent '{agent_id}' enqueued UserMessageReceivedEvent with aggregated results from {len(processed_events)} tool(s) and {len(media_context_files)} media file(s).")
 
 
     async def handle(self,
@@ -119,7 +161,7 @@ class ToolResultEventHandler(AgentEventHandler):
         # Case 1: Not a multi-tool call turn, dispatch to LLM immediately.
         if not active_turn:
             logger.info(f"Agent '{agent_id}' handling single ToolResultEvent from tool: '{processed_event.tool_name}'.")
-            await self._dispatch_aggregated_results_to_llm([processed_event], context)
+            await self._dispatch_results_to_input_pipeline([processed_event], context)
             return
 
         # Case 2: Multi-tool call turn is active, accumulate results.
@@ -154,8 +196,7 @@ class ToolResultEventHandler(AgentEventHandler):
                     tool_invocation_id=original_invocation.id
                 ))
 
-        await self._dispatch_aggregated_results_to_llm(sorted_results, context)
+        await self._dispatch_results_to_input_pipeline(sorted_results, context)
         
         context.state.active_multi_tool_call_turn = None
         logger.info(f"Agent '{agent_id}': Multi-tool call turn state has been cleared.")
-
