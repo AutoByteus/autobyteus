@@ -126,7 +126,9 @@ class ToolResultEventHandler(AgentEventHandler):
         processed_event = event
         processor_instances = context.config.tool_execution_result_processors
         if processor_instances:
-            for processor_instance in processor_instances:
+            # Sort processors by their order attribute
+            sorted_processors = sorted(processor_instances, key=lambda p: p.get_order())
+            for processor_instance in sorted_processors:
                 if not isinstance(processor_instance, BaseToolExecutionResultProcessor):
                     logger.error(f"Agent '{agent_id}': Invalid tool result processor type: {type(processor_instance)}. Skipping.")
                     continue

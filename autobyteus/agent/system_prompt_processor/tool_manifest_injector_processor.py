@@ -32,6 +32,16 @@ class ToolManifestInjectorProcessor(BaseSystemPromptProcessor):
     def get_name(cls) -> str:
         return "ToolManifestInjector"
 
+    @classmethod
+    def get_order(cls) -> int:
+        """Explicitly set to default, as it's often the only system prompt processor."""
+        return 500
+
+    @classmethod
+    def is_mandatory(cls) -> bool:
+        """This processor is essential for the LLM to know which tools are available."""
+        return True
+
     def process(self, system_prompt: str, tool_instances: Dict[str, 'BaseTool'], agent_id: str, context: 'AgentContext') -> str:
         try:
             prompt_template = PromptTemplate(template=system_prompt)

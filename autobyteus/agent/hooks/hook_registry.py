@@ -3,6 +3,7 @@ import logging
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 from autobyteus.utils.singleton import SingletonMeta
+from autobyteus.agent.processor_option import HookOption
 from .hook_definition import PhaseHookDefinition
 
 if TYPE_CHECKING:
@@ -24,14 +25,6 @@ class PhaseHookRegistry(metaclass=SingletonMeta):
     def register_hook(self, definition: PhaseHookDefinition) -> None:
         """
         Registers a phase hook definition.
-        If a definition with the same name already exists, it will be overwritten,
-        and a warning will be logged.
-
-        Args:
-            definition: The PhaseHookDefinition object to register.
-
-        Raises:
-            TypeError: If the definition is not an instance of PhaseHookDefinition.
         """
         if not isinstance(definition, PhaseHookDefinition):
             raise TypeError(f"Expected PhaseHookDefinition instance, got {type(definition).__name__}.")
@@ -46,12 +39,6 @@ class PhaseHookRegistry(metaclass=SingletonMeta):
     def get_hook_definition(self, name: str) -> Optional[PhaseHookDefinition]:
         """
         Retrieves a phase hook definition by its name.
-
-        Args:
-            name: The name of the phase hook definition to retrieve.
-
-        Returns:
-            The PhaseHookDefinition object if found, otherwise None.
         """
         if not isinstance(name, str):
             logger.warning(f"Attempted to retrieve hook definition with non-string name: {type(name).__name__}.")
@@ -64,12 +51,6 @@ class PhaseHookRegistry(metaclass=SingletonMeta):
     def get_hook(self, name: str) -> Optional['BasePhaseHook']:
         """
         Retrieves an instance of a phase hook by its name.
-
-        Args:
-            name: The name of the phase hook to retrieve.
-
-        Returns:
-            An instance of the BasePhaseHook if found and instantiable, otherwise None.
         """
         definition = self.get_hook_definition(name)
         if definition:
@@ -82,19 +63,26 @@ class PhaseHookRegistry(metaclass=SingletonMeta):
 
     def list_hook_names(self) -> List[str]:
         """
-        Returns a list of names of all registered phase hook definitions.
-
-        Returns:
-            A list of strings, where each string is a registered hook name.
+        Returns an unordered list of names of all registered phase hook definitions.
         """
         return list(self._definitions.keys())
+
+    def get_ordered_hook_options(self) -> List[HookOption]:
+        """
+        Returns a list of HookOption objects, sorted by their execution order.
+        """
+        definitions = list(self._definitions.values())
+        sorted_definitions = sorted(definitions, key=lambda d: d.hook_class.get_order())
+        return [
+            HookOption(
+                name=d.name,
+                is_mandatory=d.hook_class.is_mandatory()
+            ) for d in sorted_definitions
+        ]
 
     def get_all_definitions(self) -> Dict[str, PhaseHookDefinition]:
         """
         Returns a shallow copy of the dictionary containing all registered phase hook definitions.
-
-        Returns:
-            A dictionary where keys are hook names and values are PhaseHookDefinition objects.
         """
         return dict(self._definitions)
 

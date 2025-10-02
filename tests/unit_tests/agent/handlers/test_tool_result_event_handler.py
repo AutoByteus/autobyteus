@@ -181,6 +181,32 @@ async def test_handle_single_tool_result_with_context_file(tool_result_handler: 
     assert agent_input_message.context_files == [context_file]
 
 @pytest.mark.asyncio
+async def test_handle_single_tool_result_with_list_of_context_files(tool_result_handler: ToolResultEventHandler, agent_context):
+    """Test that a tool result containing a list of ContextFile objects is handled correctly."""
+    context_file1 = ContextFile(uri="/path/to/file1.txt", file_name="file1.txt")
+    context_file2 = ContextFile(uri="/path/to/file2.log", file_name="file2.log")
+    context_files_list = [context_file1, context_file2]
+    
+    event = ToolResultEvent(tool_name="ListFiles", result=context_files_list, tool_invocation_id="list-1")
+    
+    await tool_result_handler.handle(event, agent_context)
+
+    agent_context.input_event_queues.enqueue_user_message.assert_called_once()
+    enqueued_event = agent_context.input_event_queues.enqueue_user_message.call_args[0][0]
+    
+    assert isinstance(enqueued_event, UserMessageReceivedEvent)
+    
+    agent_input_message = enqueued_event.agent_input_user_message
+    assert agent_input_message.sender_type == SenderType.TOOL
+    
+    # Check that the text content mentions the list of files
+    assert "The following files have been loaded into the context" in agent_input_message.content
+    assert "['file1.txt', 'file2.log']" in agent_input_message.content
+    
+    # Check that the context_files list is correctly populated
+    assert agent_input_message.context_files == context_files_list
+
+@pytest.mark.asyncio
 async def test_handle_multi_tool_with_mixed_media_and_text(tool_result_handler: ToolResultEventHandler, agent_context):
     """Test a multi-tool turn with both media and text results are aggregated correctly."""
     context_file = ContextFile(uri="/path/to/image.png", file_name="image.png")

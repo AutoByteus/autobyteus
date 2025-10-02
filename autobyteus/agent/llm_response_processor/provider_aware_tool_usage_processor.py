@@ -27,6 +27,20 @@ class ProviderAwareToolUsageProcessor(BaseLLMResponseProcessor):
         self._parser = ProviderAwareToolUsageParser()
         logger.debug("ProviderAwareToolUsageProcessor initialized.")
 
+    @classmethod
+    def get_name(cls) -> str:
+        return "ProviderAwareToolUsageProcessor"
+
+    @classmethod
+    def get_order(cls) -> int:
+        """Runs with the highest priority to parse for tool calls before any other processing."""
+        return 100
+
+    @classmethod
+    def is_mandatory(cls) -> bool:
+        """This processor is essential for any agent that uses tools."""
+        return True
+
     async def process_response(self, response: 'CompleteResponse', context: 'AgentContext', triggering_event: 'LLMCompleteResponseReceivedEvent') -> bool:
         """
         Uses a ProviderAwareToolUsageParser to get tool invocations, makes their

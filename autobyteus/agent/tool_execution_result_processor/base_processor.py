@@ -26,6 +26,22 @@ class BaseToolExecutionResultProcessor(ABC, metaclass=ToolExecutionResultProcess
         """
         return cls.__name__
 
+    @classmethod
+    def get_order(cls) -> int:
+        """
+        Returns the execution order for this processor. Lower numbers execute earlier.
+        Defaults to 500 (normal priority).
+        """
+        return 500
+
+    @classmethod
+    def is_mandatory(cls) -> bool:
+        """
+        Returns True if this processor is mandatory for the agent to function correctly.
+        Defaults to False (optional).
+        """
+        return False
+
     @abstractmethod
     async def process(self,
                       event: 'ToolResultEvent',
@@ -43,4 +59,4 @@ class BaseToolExecutionResultProcessor(ABC, metaclass=ToolExecutionResultProcess
         raise NotImplementedError("Subclasses must implement the 'process' method.")
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__}>"
+        return f"&lt;{self.__class__.__name__}&gt;"

@@ -54,9 +54,12 @@ class UserInputMessageEventHandler(AgentEventHandler):
 
         processor_instances = context.config.input_processors
         if processor_instances:
-            processor_names = [p.get_name() for p in processor_instances]
-            logger.debug(f"Agent '{context.agent_id}': Applying input processors: {processor_names}")
-            for processor_instance in processor_instances:
+            # Sort processors by their order attribute
+            sorted_processors = sorted(processor_instances, key=lambda p: p.get_order())
+            processor_names = [p.get_name() for p in sorted_processors]
+            logger.debug(f"Agent '{context.agent_id}': Applying input processors in order: {processor_names}")
+            
+            for processor_instance in sorted_processors:
                 processor_name_for_log = "unknown"
                 try:
                     if not isinstance(processor_instance, BaseAgentUserInputMessageProcessor):

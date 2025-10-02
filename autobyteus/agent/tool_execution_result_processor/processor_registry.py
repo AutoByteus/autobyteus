@@ -3,6 +3,7 @@ import logging
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 from autobyteus.utils.singleton import SingletonMeta
+from autobyteus.agent.processor_option import ProcessorOption
 from .processor_definition import ToolExecutionResultProcessorDefinition
 
 if TYPE_CHECKING:
@@ -56,9 +57,22 @@ class ToolExecutionResultProcessorRegistry(metaclass=SingletonMeta):
 
     def list_processor_names(self) -> List[str]:
         """
-        Returns a list of names of all registered processor definitions.
+        Returns an unordered list of names of all registered processor definitions.
         """
         return list(self._definitions.keys())
+
+    def get_ordered_processor_options(self) -> List[ProcessorOption]:
+        """
+        Returns a list of ProcessorOption objects, sorted by their execution order.
+        """
+        definitions = list(self._definitions.values())
+        sorted_definitions = sorted(definitions, key=lambda d: d.processor_class.get_order())
+        return [
+            ProcessorOption(
+                name=d.name,
+                is_mandatory=d.processor_class.is_mandatory()
+            ) for d in sorted_definitions
+        ]
 
     def get_all_definitions(self) -> Dict[str, ToolExecutionResultProcessorDefinition]:
         """

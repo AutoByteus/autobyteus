@@ -45,8 +45,12 @@ class SystemPromptProcessingStep(BaseBootstrapStep):
             if not processor_instances:
                 logger.debug(f"Agent '{agent_id}': No system prompt processors configured. Using system prompt as is.")
             else:
-                logger.debug(f"Agent '{agent_id}': Found {len(processor_instances)} configured system prompt processors. Applying sequentially.")
-                for processor_instance in processor_instances:
+                # Sort processors by their order attribute
+                sorted_processors = sorted(processor_instances, key=lambda p: p.get_order())
+                processor_names = [p.get_name() for p in sorted_processors]
+                logger.debug(f"Agent '{agent_id}': Found {len(sorted_processors)} configured system prompt processors. Applying sequentially in order: {processor_names}")
+
+                for processor_instance in sorted_processors:
                     if not isinstance(processor_instance, BaseSystemPromptProcessor):
                         error_message = f"Agent '{agent_id}': Invalid system prompt processor configuration type: {type(processor_instance)}. Expected BaseSystemPromptProcessor."
                         logger.error(error_message)

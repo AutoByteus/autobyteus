@@ -29,6 +29,23 @@ class BasePhaseHook(ABC, metaclass=PhaseHookMeta):
         """
         return cls.__name__
 
+    @classmethod
+    def get_order(cls) -> int:
+        """
+        Returns the execution order for this hook if multiple hooks are triggered
+        on the same transition. Lower numbers execute earlier.
+        Defaults to 500 (normal priority).
+        """
+        return 500
+
+    @classmethod
+    def is_mandatory(cls) -> bool:
+        """
+        Returns True if this hook is mandatory for the agent to function correctly.
+        Defaults to False (optional).
+        """
+        return False
+
     @property
     @abstractmethod
     def source_phase(self) -> AgentOperationalPhase:

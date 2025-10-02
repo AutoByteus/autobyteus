@@ -63,9 +63,12 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
                     f"Proceeding to treat LLM response as output for this leg."
                 )
             else:
-                processor_names = [p.get_name() for p in processor_instances_to_try]
-                logger.debug(f"Agent '{agent_id}': Attempting LLM response processing with: {processor_names}")
-                for processor_instance in processor_instances_to_try:
+                # Sort processors by their order attribute
+                sorted_processors = sorted(processor_instances_to_try, key=lambda p: p.get_order())
+                processor_names = [p.get_name() for p in sorted_processors]
+                logger.debug(f"Agent '{agent_id}': Attempting LLM response processing in order: {processor_names}")
+
+                for processor_instance in sorted_processors:
                     processor_name_for_log: str = "unknown"
                     try:
                         if not isinstance(processor_instance, BaseLLMResponseProcessor):
