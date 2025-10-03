@@ -5,7 +5,7 @@ from pydantic import ValidationError
 
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.tool_category import ToolCategory
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.pydantic_schema_converter import pydantic_to_parameter_schema
 from autobyteus.task_management.base_task_board import TaskStatus
 from autobyteus.task_management.deliverable import FileDeliverable

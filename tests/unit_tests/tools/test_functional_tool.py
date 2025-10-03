@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, AsyncMock
 
 from autobyteus.tools.functional_tool import FunctionalTool, tool, _parse_signature
 from autobyteus.tools.registry import ToolRegistry, ToolDefinition
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.agent.context import AgentContext
 from typing import Optional, List, Dict, Any
 import inspect

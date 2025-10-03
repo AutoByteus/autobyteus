@@ -2,7 +2,7 @@
 import json
 from typing import Dict, Any, TYPE_CHECKING, Optional
 
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition
 from .base_formatter import BaseExampleFormatter
 # Import for reuse of the intelligent example generation logic
 from .default_json_example_formatter import DefaultJsonExampleFormatter

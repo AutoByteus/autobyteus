@@ -7,7 +7,7 @@ import autobyteus.tools.file.file_reader
 
 from autobyteus.tools.registry import default_tool_registry 
 from autobyteus.tools.base_tool import BaseTool 
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.agent.context import AgentContext
 
 TOOL_NAME_FILE_READER = "FileReader"

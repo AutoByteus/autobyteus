@@ -1,7 +1,7 @@
 # file: autobyteus/tests/unit_tests/tools/mcp/test_schema_mapper.py
 import pytest
 from autobyteus.tools.mcp.schema_mapper import McpSchemaMapper
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 
 @pytest.fixture
 def schema_mapper() -> McpSchemaMapper:

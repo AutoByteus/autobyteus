@@ -1,7 +1,7 @@
 import pytest
 import os
 from autobyteus.tools.multimedia.image_tools import GenerateImageTool, EditImageTool, _get_configured_model_identifier
-from autobyteus.tools.parameter_schema import ParameterType
+from autobyteus.utils.parameter_schema import ParameterType
 
 @pytest.fixture(scope="module", autouse=True)
 def check_api_keys():

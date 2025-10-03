@@ -86,13 +86,19 @@ class GeminiAudioClient(BaseAudioClient):
 
             # Handle multi-speaker generation
             if mode == "multi-speaker":
-                speaker_mapping = final_config.get("speaker_mapping")
-                if not speaker_mapping or not isinstance(speaker_mapping, dict):
-                    raise ValueError("Multi-speaker mode requires a 'speaker_mapping' dictionary in generation_config.")
+                speaker_mapping_list = final_config.get("speaker_mapping")
+                if not speaker_mapping_list or not isinstance(speaker_mapping_list, list):
+                    raise ValueError("Multi-speaker mode requires a 'speaker_mapping' list in generation_config.")
                 
-                logger.info(f"Configuring multi-speaker TTS with mapping: {speaker_mapping}")
+                logger.info(f"Configuring multi-speaker TTS with mapping: {speaker_mapping_list}")
                 speaker_voice_configs = []
-                for speaker, voice_name in speaker_mapping.items():
+                for mapping_item in speaker_mapping_list:
+                    speaker = mapping_item.get("speaker")
+                    voice_name = mapping_item.get("voice")
+                    if not speaker or not voice_name:
+                        logger.warning(f"Skipping invalid item in speaker_mapping list: {mapping_item}")
+                        continue
+                    
                     speaker_voice_configs.append(
                         genai_types.SpeakerVoiceConfig(
                             speaker=speaker,
@@ -102,6 +108,9 @@ class GeminiAudioClient(BaseAudioClient):
                         )
                     )
                 
+                if not speaker_voice_configs:
+                    raise ValueError("The 'speaker_mapping' list was empty or contained no valid mappings.")
+
                 speech_config = genai_types.SpeechConfig(
                     multi_speaker_voice_config=genai_types.MultiSpeakerVoiceConfig(speaker_voice_configs=speaker_voice_configs)
                 )

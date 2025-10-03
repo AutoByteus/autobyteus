@@ -3,7 +3,7 @@ import logging
 from typing import Optional, List
 
 from autobyteus.tools.base_tool import BaseTool
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.tool_category import ToolCategory
 from autobyteus.multimedia.image import image_client_factory, ImageModel, ImageClientFactory
 

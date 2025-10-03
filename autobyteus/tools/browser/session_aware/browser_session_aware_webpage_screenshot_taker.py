@@ -6,7 +6,7 @@ from typing import Optional, TYPE_CHECKING, Any
 from autobyteus.tools.browser.session_aware.browser_session_aware_tool import BrowserSessionAwareTool
 from autobyteus.tools.browser.session_aware.shared_browser_session import SharedBrowserSession
 from autobyteus.tools.tool_config import ToolConfig 
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType 
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType 
 from autobyteus.tools.tool_category import ToolCategory
 
 if TYPE_CHECKING:

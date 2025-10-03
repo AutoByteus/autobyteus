@@ -3,7 +3,7 @@ import logging
 import uuid
 from abc import ABC, abstractmethod
 from typing import Optional, Any, Dict, TYPE_CHECKING
-from autobyteus.tools.parameter_schema import ParameterSchema
+from autobyteus.utils.parameter_schema import ParameterSchema
 from autobyteus.agent.workspace.workspace_meta import WorkspaceMeta
 from autobyteus.agent.workspace.workspace_config import WorkspaceConfig
 

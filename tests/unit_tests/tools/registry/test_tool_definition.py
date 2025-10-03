@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 from autobyteus.tools.registry import ToolDefinition
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.llm.providers import LLMProvider
 
 @pytest.fixture

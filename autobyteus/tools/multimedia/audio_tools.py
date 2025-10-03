@@ -3,7 +3,7 @@ import logging
 from typing import Optional, List
 
 from autobyteus.tools.base_tool import BaseTool
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.tool_category import ToolCategory
 from autobyteus.multimedia.audio import audio_client_factory, AudioModel, AudioClientFactory
 
@@ -36,6 +36,7 @@ def _build_dynamic_audio_schema(base_params: List[ParameterDefinition], model_en
 
     config_schema = ParameterSchema()
     if model.parameter_schema:
+        # We need to handle the custom schema structure from the factory
         for name, meta in model.parameter_schema.items():
             param_type_str = meta.get("type", "string").upper()
             param_type = getattr(ParameterType, param_type_str, ParameterType.STRING)
@@ -43,6 +44,17 @@ def _build_dynamic_audio_schema(base_params: List[ParameterDefinition], model_en
             allowed_values = meta.get("allowed_values")
             if param_type == ParameterType.STRING and allowed_values:
                 param_type = ParameterType.ENUM
+            
+            # Use the standard 'items' key to get the schema for array elements.
+            array_item_schema = meta.get("items")
+            
+            # The schema from factory is a dict, but ParameterDefinition expects ParameterSchema or dict
+            # So we pass it as a raw dict. The from_dict logic in ParameterSchema can handle this.
+            if array_item_schema and isinstance(array_item_schema, dict):
+                 # This assumes the dict is a valid JSON schema for items
+                 pass
+            else:
+                 array_item_schema = None # Or handle other formats if necessary
 
             config_schema.add_parameter(ParameterDefinition(
                 name=name,
@@ -50,7 +62,8 @@ def _build_dynamic_audio_schema(base_params: List[ParameterDefinition], model_en
                 description=meta.get("description", ""),
                 required=False,
                 default_value=meta.get("default"),
-                enum_values=allowed_values
+                enum_values=allowed_values,
+                array_item_schema=array_item_schema
             ))
 
     schema = ParameterSchema()
@@ -70,6 +83,7 @@ def _build_dynamic_audio_schema(base_params: List[ParameterDefinition], model_en
 
 class GenerateSpeechTool(BaseTool):
     """
+
     An agent tool for generating speech from text using a Text-to-Speech (TTS) model.
     """
     CATEGORY = ToolCategory.MULTIMEDIA
@@ -93,7 +107,12 @@ class GenerateSpeechTool(BaseTool):
             ParameterDefinition(
                 name="prompt",
                 param_type=ParameterType.STRING,
-                description="The text to be converted into spoken audio.",
+                description=(
+                    "The text to be converted into spoken audio. For multi-speaker mode, you must format the prompt "
+                    "with speaker labels that match the speakers defined in 'speaker_mapping'. "
+                    "CRITICAL: Each speaker's dialogue MUST be on a new line. "
+                    "Example: 'Joe: Hello Jane.\\nJane: Hi Joe, how are you?'"
+                ),
                 required=True
             )
         ]

@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import Mock, AsyncMock, patch
 from autobyteus.tools.browser.session_aware.browser_session_aware_navigate_to import BrowserSessionAwareNavigateTo
 from autobyteus.tools.browser.session_aware.shared_browser_session import SharedBrowserSession
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.agent.context import AgentContext # For mock_agent_context
 from autobyteus.tools.registry import default_tool_registry
 from autobyteus.tools.tool_state import ToolState

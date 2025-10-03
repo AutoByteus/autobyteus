@@ -8,7 +8,7 @@ It also contains implementations of various standard tools.
 # Core components for defining tools
 from .base_tool import BaseTool
 from .functional_tool import tool # The @tool decorator
-from .parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from .tool_config import ToolConfig # Configuration data object, primarily for class-based tools
 from .tool_origin import ToolOrigin
 from .tool_category import ToolCategory

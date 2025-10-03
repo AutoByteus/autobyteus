@@ -7,7 +7,7 @@ from autobyteus.tools.mcp.config_service import McpConfigService
 from autobyteus.tools.mcp.types import StdioMcpServerConfig
 from autobyteus.tools.mcp.server_instance_manager import McpServerInstanceManager
 from autobyteus.tools.registry import ToolRegistry, ToolDefinition
-from autobyteus.tools.parameter_schema import ParameterType
+from autobyteus.utils.parameter_schema import ParameterType
 
 # Mock the external mcp.types.Tool for type checking and isolation
 # This is a class, so we mock its instances

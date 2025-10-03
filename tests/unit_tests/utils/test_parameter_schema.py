@@ -1,5 +1,5 @@
 import pytest
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 
 @pytest.fixture
 def nested_object_schema() -> ParameterSchema:

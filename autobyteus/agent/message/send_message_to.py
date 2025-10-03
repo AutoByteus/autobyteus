@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.tool_category import ToolCategory
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.tool_config import ToolConfig
 # This import is for type hinting only and avoids circular dependencies at runtime
 if TYPE_CHECKING:

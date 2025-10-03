@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import AsyncMock, Mock, patch
 from autobyteus.tools.browser.session_aware.browser_session_aware_webpage_reader import BrowserSessionAwareWebPageReader
 from autobyteus.tools.browser.session_aware.shared_browser_session import SharedBrowserSession
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.tool_config import ToolConfig
 from autobyteus.utils.html_cleaner import CleaningMode
 from autobyteus.agent.context import AgentContext

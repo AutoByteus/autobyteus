@@ -3,7 +3,7 @@ import logging
 from typing import Any, Optional, TYPE_CHECKING
 
 from autobyteus.tools.base_tool import BaseTool
-from autobyteus.tools.parameter_schema import ParameterSchema
+from autobyteus.utils.parameter_schema import ParameterSchema
 from .server.proxy import McpServerProxy
 
 if TYPE_CHECKING:

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.functional_tool import tool, FunctionalTool
-from autobyteus.tools.parameter_schema import ParameterSchema
+from autobyteus.utils.parameter_schema import ParameterSchema
 from autobyteus.tools.registry import ToolRegistry, ToolDefinition
 from autobyteus.tools.tool_config import ToolConfig
 from autobyteus.tools.tool_category import ToolCategory

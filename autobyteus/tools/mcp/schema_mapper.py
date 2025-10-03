@@ -2,7 +2,7 @@
 import logging
 from typing import Dict, Any, List, Optional
 
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 
 logger = logging.getLogger(__name__)
 

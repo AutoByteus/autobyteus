@@ -12,7 +12,7 @@ from autobyteus.tools.mcp import (
 )
 from autobyteus.tools.mcp.types import StdioMcpServerConfig
 from autobyteus.tools.registry import default_tool_registry
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.agent.context import AgentContext
 
 _MCP_SCRIPT_PATH_ENV_VAR_NAME = "TEST_GOOGLE_SLIDES_MCP_SCRIPT_PATH"

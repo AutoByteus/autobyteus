@@ -5,7 +5,7 @@ import xml.sax.saxutils
 from unittest.mock import patch, MagicMock, Mock, call
 from autobyteus.tools.timer import Timer
 from autobyteus.tools.tool_config import ToolConfig
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType 
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType 
 from autobyteus.events.event_types import EventType
 
 @pytest.fixture

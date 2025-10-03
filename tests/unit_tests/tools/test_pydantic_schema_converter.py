@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict
 
 from autobyteus.tools.pydantic_schema_converter import pydantic_to_parameter_schema
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterType
 
 # --- Pydantic Models for Testing ---
 

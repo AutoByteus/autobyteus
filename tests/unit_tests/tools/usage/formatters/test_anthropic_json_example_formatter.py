@@ -3,7 +3,7 @@ import pytest
 
 from autobyteus.tools.usage.formatters.anthropic_json_example_formatter import AnthropicJsonExampleFormatter
 from autobyteus.tools.registry import ToolDefinition
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.tool_origin import ToolOrigin
 from autobyteus.tools.tool_category import ToolCategory

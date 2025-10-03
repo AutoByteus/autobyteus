@@ -13,7 +13,7 @@ from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.providers import LLMProvider
 from autobyteus.llm.utils.llm_config import LLMConfig
-from autobyteus.tools.parameter_schema import ParameterSchema
+from autobyteus.utils.parameter_schema import ParameterSchema
 from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 
 # Setup logger

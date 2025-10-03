@@ -2,7 +2,7 @@ import os
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 from autobyteus.tools.browser.standalone.webpage_image_downloader import WebPageImageDownloader
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.agent.context import AgentContext
 from autobyteus.tools.registry import default_tool_registry # Added
 from autobyteus.tools.tool_state import ToolState

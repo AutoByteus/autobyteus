@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import MagicMock, AsyncMock
 
 from autobyteus.tools.mcp.tool import GenericMcpTool
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.agent.context import AgentContext
 
 @pytest.fixture

@@ -2,7 +2,7 @@ import pytest
 from typing import Dict, Optional, Any
 
 from autobyteus.tools.base_tool import BaseTool
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 
 def _parameter_type_to_json_schema_type(param_type: ParameterType) -> str:
     """Helper to convert ParameterType to a JSON schema type string."""

@@ -6,7 +6,7 @@ from .tool import GenericMcpTool
 from autobyteus.tools.factory.tool_factory import ToolFactory
 
 if TYPE_CHECKING:
-    from autobyteus.tools.parameter_schema import ParameterSchema
+    from autobyteus.utils.parameter_schema import ParameterSchema
     from autobyteus.tools.tool_config import ToolConfig
     from autobyteus.tools.base_tool import BaseTool
 

@@ -5,14 +5,14 @@ from abc import ABC, abstractmethod
 from typing import Optional, Any, TYPE_CHECKING, List as TypingList, Dict, Union
 
 from autobyteus.events.event_emitter import EventEmitter
-from autobyteus.tools.parameter_schema import ParameterType
+from autobyteus.utils.parameter_schema import ParameterType
 
 from .tool_meta import ToolMeta
 from .tool_state import ToolState
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
-    from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition
+    from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition
     from autobyteus.tools.tool_config import ToolConfig
     from .tool_state import ToolState
     from autobyteus.tools.registry import ToolDefinition
@@ -90,8 +90,8 @@ class BaseTool(ABC, EventEmitter, metaclass=ToolMeta):
             if item_schema_dict and isinstance(item_schema_dict, dict) and item_schema_dict.get("type") == "object":
                 # Create a temporary ParameterSchema for the item type to enable recursion.
                 # This is a simplified conversion for coercion purposes only.
-                from .parameter_schema import ParameterSchema as TempSchema
-                from .parameter_schema import ParameterDefinition as TempDef
+                from autobyteus.utils.parameter_schema import ParameterSchema as TempSchema
+                from autobyteus.utils.parameter_schema import ParameterDefinition as TempDef
 
                 item_param_schema = TempSchema()
                 props = item_schema_dict.get("properties", {})

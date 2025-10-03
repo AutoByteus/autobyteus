@@ -2,7 +2,7 @@ import asyncio
 from typing import Optional, TYPE_CHECKING, Any
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.tool_config import ToolConfig 
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType 
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType 
 from autobyteus.tools.tool_category import ToolCategory
 from autobyteus.events.event_emitter import EventEmitter 
 from autobyteus.events.event_types import EventType

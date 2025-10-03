@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 from autobyteus.agent_team.bootstrap_steps.agent_configuration_preparation_step import AgentConfigurationPreparationStep
 from autobyteus.agent_team.context import AgentTeamContext, AgentTeamConfig, TeamNodeConfig
 from autobyteus.agent.context import AgentConfig
-from autobyteus.task_management.tools import PublishTaskPlan
+from autobyteus.task_management.tools import PublishTasks
 from autobyteus.agent.message.send_message_to import SendMessageTo
 
 @pytest.fixture
@@ -32,7 +32,7 @@ async def test_execute_prepares_final_configs_correctly(
     # Create agent definitions with their own specific tools
     coordinator_def = agent_config_factory("Coordinator")
     # Coordinator is explicitly given SendMessageTo by the user
-    coordinator_def.tools = [PublishTaskPlan(), SendMessageTo()]
+    coordinator_def.tools = [PublishTasks(), SendMessageTo()]
 
     # This member agent is NOT given the tool and should not be able to communicate
     member_def = agent_config_factory("Member")
@@ -76,7 +76,7 @@ async def test_execute_prepares_final_configs_correctly(
     
     # Check that original tools are preserved and NO new tools are added
     coord_tool_names = {t.get_name() for t in coord_config.tools}
-    assert PublishTaskPlan.get_name() in coord_tool_names
+    assert PublishTasks.get_name() in coord_tool_names
     assert SendMessageTo.get_name() in coord_tool_names
     assert len(coord_tool_names) == 2
     

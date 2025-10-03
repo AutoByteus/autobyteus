@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 from autobyteus.tools.mcp.factory import McpToolFactory
 from autobyteus.tools.mcp.tool import GenericMcpTool
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.tool_config import ToolConfig
 
 @pytest.fixture

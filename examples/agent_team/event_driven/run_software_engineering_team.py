@@ -34,7 +34,7 @@ try:
     from autobyteus.cli.agent_team_tui.app import AgentTeamApp
     from autobyteus.tools import file_writer, file_reader, bash_executor
     from autobyteus.agent.workspace import BaseAgentWorkspace, WorkspaceConfig
-    from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+    from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
     from autobyteus.task_management.tools import (
         PublishTasks,
         GetTaskBoardStatus,

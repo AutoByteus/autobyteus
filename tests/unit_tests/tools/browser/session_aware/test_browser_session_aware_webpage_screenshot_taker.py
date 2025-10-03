@@ -3,7 +3,7 @@ import os
 from unittest.mock import AsyncMock, Mock, patch
 from autobyteus.tools.browser.session_aware.browser_session_aware_webpage_screenshot_taker import BrowserSessionAwareWebPageScreenshotTaker
 from autobyteus.tools.browser.session_aware.shared_browser_session import SharedBrowserSession
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.tool_config import ToolConfig
 from autobyteus.agent.context import AgentContext
 from autobyteus.tools.registry import default_tool_registry

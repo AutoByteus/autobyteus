@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import Mock, AsyncMock, patch
 import xml.sax.saxutils
 from autobyteus.tools.browser.standalone.webpage_reader import WebPageReader
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType # Updated
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType # Updated
 from autobyteus.tools.tool_config import ToolConfig
 from autobyteus.utils.html_cleaner import CleaningMode
 from autobyteus.tools.registry import default_tool_registry

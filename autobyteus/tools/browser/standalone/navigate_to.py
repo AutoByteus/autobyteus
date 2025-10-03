@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 from typing import Optional, TYPE_CHECKING, Any
 import logging
 
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext

@@ -10,7 +10,7 @@ import xml.sax.saxutils
 from unittest.mock import patch, AsyncMock, MagicMock, Mock
 from autobyteus.tools.image_downloader import ImageDownloader
 from autobyteus.tools.tool_config import ToolConfig
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType 
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType 
 
 @pytest.fixture
 def mock_agent_context():

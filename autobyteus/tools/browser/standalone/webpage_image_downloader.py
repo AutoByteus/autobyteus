@@ -7,7 +7,7 @@ import logging
 from urllib.parse import urljoin, urlparse 
 from typing import Optional, TYPE_CHECKING, Any, List 
 
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext

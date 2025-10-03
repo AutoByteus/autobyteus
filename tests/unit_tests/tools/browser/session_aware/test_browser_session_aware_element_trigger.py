@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import AsyncMock, Mock, patch
 from autobyteus.tools.browser.session_aware.browser_session_aware_web_element_trigger import BrowserSessionAwareWebElementTrigger, WebElementAction
 # Removed BrowserSessionAwareWebPageReader as it's not directly tested here, only used as a helper in original.
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.agent.context import AgentContext
 from autobyteus.tools.registry import default_tool_registry
 from autobyteus.tools.browser.session_aware.shared_browser_session import SharedBrowserSession

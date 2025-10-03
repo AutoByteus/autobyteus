@@ -4,7 +4,7 @@ from abc import ABCMeta
 from typing import Dict, Any 
 
 from autobyteus.tools.registry import default_tool_registry, ToolDefinition
-from autobyteus.tools.parameter_schema import ParameterSchema
+from autobyteus.utils.parameter_schema import ParameterSchema
 from autobyteus.tools.tool_origin import ToolOrigin
 from autobyteus.tools.tool_category import ToolCategory
 

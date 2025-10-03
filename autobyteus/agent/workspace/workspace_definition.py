@@ -4,7 +4,7 @@ for a specific type of agent workspace.
 """
 import logging
 from typing import Type, Optional, TYPE_CHECKING
-from autobyteus.tools.parameter_schema import ParameterSchema
+from autobyteus.utils.parameter_schema import ParameterSchema
 
 if TYPE_CHECKING:
     from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace

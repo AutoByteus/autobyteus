@@ -2,7 +2,7 @@
 import json
 from typing import Dict, Any, TYPE_CHECKING, List, Optional, Union
 
-from autobyteus.tools.parameter_schema import ParameterType, ParameterDefinition, ParameterSchema
+from autobyteus.utils.parameter_schema import ParameterType, ParameterDefinition, ParameterSchema
 from .base_formatter import BaseExampleFormatter
 
 if TYPE_CHECKING:

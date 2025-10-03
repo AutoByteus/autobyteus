@@ -5,7 +5,7 @@ from typing import Dict, Any, List as TypingList, Type, TYPE_CHECKING, Optional,
 
 from autobyteus.llm.providers import LLMProvider
 from autobyteus.tools.tool_config import ToolConfig
-from autobyteus.tools.parameter_schema import ParameterSchema
+from autobyteus.utils.parameter_schema import ParameterSchema
 from autobyteus.tools.tool_origin import ToolOrigin
 # Import default formatters directly to provide convenience methods
 from autobyteus.tools.usage.formatters import (

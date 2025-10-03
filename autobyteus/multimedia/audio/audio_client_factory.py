@@ -46,6 +46,23 @@ class AudioClientFactory(metaclass=SingletonMeta):
     def _initialize_registry():
         """Initializes the registry with built-in audio models."""
         
+        # --- Define a clear schema for speaker mapping items ---
+        speaker_mapping_item_schema = {
+            "type": "object",
+            "properties": {
+                "speaker": {
+                    "type": "string",
+                    "description": "The speaker's name as it appears in the prompt (e.g., 'Joe')."
+                },
+                "voice": {
+                    "type": "string",
+                    "description": "The voice to assign to this speaker.",
+                    "enum": GEMINI_TTS_VOICES
+                }
+            },
+            "required": ["speaker", "voice"]
+        }
+        
         # Google Gemini Audio Models
         gemini_tts_model = AudioModel(
             name="gemini-2.5-flash-tts",
@@ -70,8 +87,9 @@ class AudioClientFactory(metaclass=SingletonMeta):
                     "description": "Optional instructions on the style of speech, e.g., 'Say this in a dramatic whisper'."
                 },
                 "speaker_mapping": {
-                    "type": "object",
-                    "description": "Required for multi-speaker mode. An object mapping speaker names from the prompt (e.g., 'Joe') to a voice name (e.g., 'Puck')."
+                    "type": "array",
+                    "description": "Required for multi-speaker mode. A list of objects, each mapping a speaker name from the prompt to a voice name.",
+                    "items": speaker_mapping_item_schema
                 }
             }
         )

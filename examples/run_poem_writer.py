@@ -42,7 +42,7 @@ try:
     from autobyteus.tools.file.file_writer import file_writer
     # Import core workspace and schema components from the library
     from autobyteus.agent.workspace import BaseAgentWorkspace, WorkspaceConfig
-    from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+    from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 except ImportError as e: # pragma: no cover
     print(f"Error importing autobyteus components: {e}")
     print("Please ensure that the autobyteus and autobyteus-server libraries are installed and accessible in your PYTHONPATH.")

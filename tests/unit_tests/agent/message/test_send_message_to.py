@@ -7,7 +7,7 @@ from autobyteus.agent.context import AgentContext
 from autobyteus.agent_team.context.team_manager import TeamManager
 from autobyteus.agent_team.context.agent_team_context import AgentTeamContext
 from autobyteus.agent_team.events.agent_team_events import InterAgentMessageRequestEvent
-from autobyteus.tools.parameter_schema import ParameterSchema
+from autobyteus.utils.parameter_schema import ParameterSchema
 
 @pytest.fixture
 def mock_team_manager() -> MagicMock:

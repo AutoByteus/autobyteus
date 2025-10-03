@@ -1,4 +1,4 @@
-# file: autobyteus/autobyteus/tools/parameter_schema.py
+# file: autobyteus/autobyteus/utils/parameter_schema.py
 from __future__ import annotations
 import logging
 from typing import Dict, Any, List, Optional, Union, Type

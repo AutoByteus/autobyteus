@@ -3,7 +3,7 @@ import pytest
 
 from autobyteus.tools.usage.formatters.default_xml_example_formatter import DefaultXmlExampleFormatter
 from autobyteus.tools.registry import ToolDefinition
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.tool_origin import ToolOrigin
 from autobyteus.tools.tool_category import ToolCategory
 

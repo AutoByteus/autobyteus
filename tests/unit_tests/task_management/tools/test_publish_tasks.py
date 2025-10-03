@@ -7,7 +7,7 @@ from autobyteus.agent_team.context import AgentTeamContext, AgentTeamRuntimeStat
 from autobyteus.task_management import InMemoryTaskBoard, Task
 from autobyteus.task_management.schemas import TasksDefinitionSchema, TaskDefinitionSchema
 from autobyteus.task_management.tools import PublishTasks
-from autobyteus.tools.parameter_schema import ParameterType
+from autobyteus.utils.parameter_schema import ParameterType
 
 @pytest.fixture
 def tool() -> PublishTasks:

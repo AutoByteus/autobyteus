@@ -2,7 +2,7 @@ import pytest
 import os
 from unittest.mock import Mock, AsyncMock, patch
 from autobyteus.tools.browser.standalone.webpage_screenshot_taker import WebPageScreenshotTaker
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType 
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType 
 from autobyteus.tools.tool_config import ToolConfig 
 from autobyteus.agent.context import AgentContext 
 from autobyteus.tools.registry import default_tool_registry # Added

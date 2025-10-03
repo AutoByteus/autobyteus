@@ -4,7 +4,7 @@ from typing import Dict, Optional, Any
 from ._test_helpers import MockTool 
 
 from autobyteus.tools.base_tool import BaseTool
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.agent.context import AgentContext, AgentConfig
 from unittest.mock import MagicMock 
 

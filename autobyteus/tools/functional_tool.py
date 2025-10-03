@@ -5,7 +5,7 @@ import asyncio
 from typing import Callable, Optional, Any, Dict, Tuple, Union, get_origin, get_args, List as TypingList, TYPE_CHECKING, Type
 
 from autobyteus.tools.base_tool import BaseTool
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.tool_config import ToolConfig
 from autobyteus.tools.registry import default_tool_registry, ToolDefinition
 from autobyteus.tools.tool_origin import ToolOrigin

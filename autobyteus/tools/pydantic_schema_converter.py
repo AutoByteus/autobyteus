@@ -2,7 +2,7 @@
 import logging
 from typing import Type, get_origin, get_args, Union, List, Dict
 from pydantic import BaseModel
-from autobyteus.tools.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 
 logger = logging.getLogger(__name__)
 
