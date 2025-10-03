@@ -112,6 +112,41 @@ def test_to_json_schema_for_array_of_objects_dict_schema():
     }
     assert json_schema == expected
 
+def test_to_json_schema_for_array_of_objects_schema_instance(nested_object_schema: ParameterSchema):
+    """
+    Verifies that to_json_schema_dict correctly generates a nested JSON schema for an array of objects
+    when the item schema is a ParameterSchema instance (the strongly-typed approach).
+    """
+    main_schema = ParameterSchema()
+    main_schema.add_parameter(ParameterDefinition(
+        name="users",
+        param_type=ParameterType.ARRAY,
+        description="A list of user profiles.",
+        array_item_schema=nested_object_schema
+    ))
+
+    json_schema = main_schema.to_json_schema_dict()
+
+    expected = {
+        "type": "object",
+        "properties": {
+            "users": {
+                "type": "array",
+                "description": "A list of user profiles.",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "description": "The name of the person."},
+                        "age": {"type": "integer", "description": "The age of the person."}
+                    },
+                    "required": ["name"]
+                }
+            }
+        },
+        "required": []
+    }
+    assert json_schema == expected
+
 def test_serialization_deserialization_nested(nested_object_schema: ParameterSchema):
     """
     Ensures that a schema with nested objects can be serialized to a dict and deserialized back.
@@ -139,6 +174,30 @@ def test_serialization_deserialization_nested(nested_object_schema: ParameterSch
     assert isinstance(obj_schema, ParameterSchema)
     assert len(obj_schema.parameters) == 2
     assert obj_schema.get_parameter("name").description == "The name of the person."
+
+def test_serialization_deserialization_array_of_objects(nested_object_schema: ParameterSchema):
+    """
+    Ensures that a schema with an array of nested objects can be serialized and deserialized correctly.
+    """
+    original_schema = ParameterSchema()
+    original_schema.add_parameter(ParameterDefinition(
+        name="users",
+        param_type=ParameterType.ARRAY,
+        description="A list of user profiles.",
+        array_item_schema=nested_object_schema
+    ))
+    
+    schema_dict = original_schema.to_dict()
+    deserialized_schema = ParameterSchema.from_dict(schema_dict)
+
+    param = deserialized_schema.get_parameter("users")
+    assert param is not None
+    assert param.param_type == ParameterType.ARRAY
+    
+    item_schema = param.array_item_schema
+    assert isinstance(item_schema, ParameterSchema)
+    assert len(item_schema.parameters) == 2
+    assert item_schema.get_parameter("name").description == "The name of the person."
 
 def test_validation_rejects_wrong_type():
     """

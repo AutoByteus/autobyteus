@@ -4,7 +4,7 @@ from pathlib import Path
 import logging
 
 from autobyteus.tools.multimedia.audio_tools import GenerateSpeechTool, _get_configured_model_identifier
-from autobyteus.utils.parameter_schema import ParameterType, ParameterSchema
+from autobyteus.utils.parameter_schema import ParameterType, ParameterSchema, ParameterDefinition
 
 logger = logging.getLogger(__name__)
 
@@ -60,24 +60,21 @@ def test_generate_speech_tool_dynamic_schema():
     speaker_mapping_param = config_params_dict["speaker_mapping"]
     assert speaker_mapping_param.param_type == ParameterType.ARRAY
     
-    # The item schema can be a dict or a ParameterSchema object
-    item_schema_repr = speaker_mapping_param.array_item_schema
-    assert item_schema_repr is not None
+    # The item schema should now be a ParameterSchema object
+    item_schema = speaker_mapping_param.array_item_schema
+    assert isinstance(item_schema, ParameterSchema)
 
-    # We expect it to be a dict representing a JSON schema
-    assert isinstance(item_schema_repr, dict)
-    assert item_schema_repr.get("type") == "object"
-    
-    properties = item_schema_repr.get("properties", {})
-    assert "speaker" in properties
-    assert "voice" in properties
-    assert properties["speaker"]["type"] == "string"
-    assert properties["voice"]["type"] == "string" # It's an enum, which maps to string in JSON schema
-    assert "enum" in properties["voice"]
-    
-    required = item_schema_repr.get("required", [])
-    assert "speaker" in required
-    assert "voice" in required
+    # Inspect the parameters of the nested schema
+    speaker_param = item_schema.get_parameter("speaker")
+    assert isinstance(speaker_param, ParameterDefinition)
+    assert speaker_param.param_type == ParameterType.STRING
+    assert speaker_param.required is True
+
+    voice_param = item_schema.get_parameter("voice")
+    assert isinstance(voice_param, ParameterDefinition)
+    assert voice_param.param_type == ParameterType.ENUM
+    assert voice_param.required is True
+    assert isinstance(voice_param.enum_values, list)
 
 
 @pytest.mark.asyncio

@@ -8,6 +8,7 @@ from autobyteus.multimedia.image.api.openai_image_client import OpenAIImageClien
 from autobyteus.multimedia.image.api.gemini_image_client import GeminiImageClient
 from autobyteus.multimedia.utils.multimedia_config import MultimediaConfig
 from autobyteus.utils.singleton import SingletonMeta
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 
 logger = logging.getLogger(__name__)
 
@@ -39,17 +40,19 @@ class ImageClientFactory(metaclass=SingletonMeta):
         """Initializes the registry with built-in image models and discovers remote ones."""
         
         # OpenAI Models
+        gpt_image_1_schema = ParameterSchema(parameters=[
+            ParameterDefinition(name="n", param_type=ParameterType.INTEGER, default_value=1, enum_values=[1], description="The number of images to generate."),
+            ParameterDefinition(name="size", param_type=ParameterType.ENUM, default_value="1024x1024", enum_values=["1024x1024", "1792x1024", "1024x1792"], description="The size of the generated images."),
+            ParameterDefinition(name="quality", param_type=ParameterType.ENUM, default_value="hd", enum_values=["standard", "hd"], description="The quality of the image that will be generated."),
+            ParameterDefinition(name="style", param_type=ParameterType.ENUM, default_value="vivid", enum_values=["vivid", "natural"], description="The style of the generated images.")
+        ])
+
         gpt_image_1_model = ImageModel(
             name="gpt-image-1",
             value="dall-e-3",
             provider=MultimediaProvider.OPENAI,
             client_class=OpenAIImageClient,
-            parameter_schema={
-                "n": {"type": "integer", "default": 1, "allowed_values": [1], "description": "The number of images to generate."},
-                "size": {"type": "string", "default": "1024x1024", "allowed_values": ["1024x1024", "1792x1024", "1024x1792"], "description": "The size of the generated images."},
-                "quality": {"type": "string", "default": "hd", "allowed_values": ["standard", "hd"], "description": "The quality of the image that will be generated."},
-                "style": {"type": "string", "default": "vivid", "allowed_values": ["vivid", "natural"], "description": "The style of the generated images."}
-            }
+            parameter_schema=gpt_image_1_schema
         )
 
         # Google Imagen Models (via Gemini API)
@@ -58,7 +61,7 @@ class ImageClientFactory(metaclass=SingletonMeta):
             value="imagen-4.0-generate-001",
             provider=MultimediaProvider.GOOGLE,
             client_class=GeminiImageClient,
-            parameter_schema={} # The genai library doesn't expose these as simple params
+            parameter_schema=None # The genai library doesn't expose these as simple params
         )
 
         # Google Gemini Flash Image Model (aka "Nano Banana")
@@ -67,7 +70,7 @@ class ImageClientFactory(metaclass=SingletonMeta):
             value="gemini-2.5-flash-image-preview",
             provider=MultimediaProvider.GOOGLE,
             client_class=GeminiImageClient,
-            parameter_schema={} # Parameters are not exposed for this model via the genai library.
+            parameter_schema=None # Parameters are not exposed for this model via the genai library.
         )
 
         models_to_register = [

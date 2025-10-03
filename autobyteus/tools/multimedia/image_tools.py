@@ -34,24 +34,8 @@ def _build_dynamic_image_schema(base_params: List[ParameterDefinition], model_en
         logger.error(f"Cannot generate image tool schema. Check environment and model registry. Error: {e}")
         raise RuntimeError(f"Failed to configure image tool. Error: {e}")
 
-    config_schema = ParameterSchema()
-    if model.parameter_schema:
-        for name, meta in model.parameter_schema.items():
-            param_type_str = meta.get("type", "string").upper()
-            param_type = getattr(ParameterType, param_type_str, ParameterType.STRING)
-            
-            allowed_values = meta.get("allowed_values")
-            if param_type == ParameterType.STRING and allowed_values:
-                param_type = ParameterType.ENUM
-
-            config_schema.add_parameter(ParameterDefinition(
-                name=name,
-                param_type=param_type,
-                description=meta.get("description", ""),
-                required=False,
-                default_value=meta.get("default"),
-                enum_values=allowed_values
-            ))
+    # The model's parameter schema is now a ParameterSchema object, so we can use it directly.
+    config_schema = model.parameter_schema
 
     schema = ParameterSchema()
     for param in base_params:

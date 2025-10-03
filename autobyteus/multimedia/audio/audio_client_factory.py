@@ -8,6 +8,7 @@ from autobyteus.multimedia.audio.api.gemini_audio_client import GeminiAudioClien
 from autobyteus.multimedia.audio.autobyteus_audio_provider import AutobyteusAudioModelProvider
 from autobyteus.multimedia.utils.multimedia_config import MultimediaConfig
 from autobyteus.utils.singleton import SingletonMeta
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 
 logger = logging.getLogger(__name__)
 
@@ -46,52 +47,58 @@ class AudioClientFactory(metaclass=SingletonMeta):
     def _initialize_registry():
         """Initializes the registry with built-in audio models."""
         
-        # --- Define a clear schema for speaker mapping items ---
-        speaker_mapping_item_schema = {
-            "type": "object",
-            "properties": {
-                "speaker": {
-                    "type": "string",
-                    "description": "The speaker's name as it appears in the prompt (e.g., 'Joe')."
-                },
-                "voice": {
-                    "type": "string",
-                    "description": "The voice to assign to this speaker.",
-                    "enum": GEMINI_TTS_VOICES
-                }
-            },
-            "required": ["speaker", "voice"]
-        }
-        
+        # --- Define a clear schema for speaker mapping items using ParameterSchema ---
+        speaker_mapping_item_schema = ParameterSchema(parameters=[
+            ParameterDefinition(
+                name="speaker",
+                param_type=ParameterType.STRING,
+                description="The speaker's name as it appears in the prompt (e.g., 'Joe').",
+                required=True
+            ),
+            ParameterDefinition(
+                name="voice",
+                param_type=ParameterType.ENUM,
+                description="The voice to assign to this speaker.",
+                enum_values=GEMINI_TTS_VOICES,
+                required=True
+            )
+        ])
+
         # Google Gemini Audio Models
+        gemini_tts_schema = ParameterSchema(parameters=[
+            ParameterDefinition(
+                name="mode",
+                param_type=ParameterType.ENUM,
+                default_value="single-speaker",
+                enum_values=["single-speaker", "multi-speaker"],
+                description="The speech generation mode. 'single-speaker' for a consistent voice, or 'multi-speaker' to assign different voices to speakers identified in the prompt."
+            ),
+            ParameterDefinition(
+                name="voice_name",
+                param_type=ParameterType.ENUM,
+                default_value="Kore",
+                enum_values=GEMINI_TTS_VOICES,
+                description="The voice to use for single-speaker generation."
+            ),
+            ParameterDefinition(
+                name="style_instructions",
+                param_type=ParameterType.STRING,
+                description="Optional instructions on the style of speech, e.g., 'Say this in a dramatic whisper'."
+            ),
+            ParameterDefinition(
+                name="speaker_mapping",
+                param_type=ParameterType.ARRAY,
+                description="Required for multi-speaker mode. A list of objects, each mapping a speaker name from the prompt to a voice name.",
+                array_item_schema=speaker_mapping_item_schema
+            )
+        ])
+        
         gemini_tts_model = AudioModel(
             name="gemini-2.5-flash-tts",
             value="gemini-2.5-flash-preview-tts",
             provider=MultimediaProvider.GOOGLE,
             client_class=GeminiAudioClient,
-            parameter_schema={
-                "mode": { 
-                    "type": "string", 
-                    "default": "single-speaker", 
-                    "allowed_values": ["single-speaker", "multi-speaker"],
-                    "description": "The speech generation mode. 'single-speaker' for a consistent voice, or 'multi-speaker' to assign different voices to speakers identified in the prompt."
-                },
-                "voice_name": { 
-                    "type": "string", 
-                    "default": "Kore",
-                    "allowed_values": GEMINI_TTS_VOICES,
-                    "description": "The voice to use for single-speaker generation."
-                },
-                "style_instructions": {
-                    "type": "string",
-                    "description": "Optional instructions on the style of speech, e.g., 'Say this in a dramatic whisper'."
-                },
-                "speaker_mapping": {
-                    "type": "array",
-                    "description": "Required for multi-speaker mode. A list of objects, each mapping a speaker name from the prompt to a voice name.",
-                    "items": speaker_mapping_item_schema
-                }
-            }
+            parameter_schema=gemini_tts_schema
         )
 
         models_to_register = [

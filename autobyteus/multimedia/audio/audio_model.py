@@ -1,11 +1,12 @@
 from __future__ import annotations
 import logging
-from typing import TYPE_CHECKING, Type, Optional, Iterator, Dict, Any
+from typing import TYPE_CHECKING, Type, Optional, Iterator, Dict, Any, Union
 from urllib.parse import urlparse
 
 from autobyteus.multimedia.providers import MultimediaProvider
 from autobyteus.multimedia.runtimes import MultimediaRuntime
 from autobyteus.multimedia.utils.multimedia_config import MultimediaConfig
+from autobyteus.utils.parameter_schema import ParameterSchema
 
 if TYPE_CHECKING:
     from autobyteus.multimedia.audio.base_audio_client import BaseAudioClient
@@ -47,7 +48,7 @@ class AudioModel(metaclass=AudioModelMeta):
         value: str,
         provider: MultimediaProvider,
         client_class: Type["BaseAudioClient"],
-        parameter_schema: Optional[Dict[str, Any]] = None,
+        parameter_schema: Optional[Union[Dict[str, Any], ParameterSchema]] = None,
         runtime: MultimediaRuntime = MultimediaRuntime.API,
         host_url: Optional[str] = None
     ):
@@ -57,13 +58,19 @@ class AudioModel(metaclass=AudioModelMeta):
         self.client_class = client_class
         self.runtime = runtime
         self.host_url = host_url
-        self.parameter_schema = parameter_schema if parameter_schema else {}
+
+        if isinstance(parameter_schema, dict):
+            self.parameter_schema = ParameterSchema.from_dict(parameter_schema)
+        elif parameter_schema is None:
+            self.parameter_schema = ParameterSchema()
+        else:
+            self.parameter_schema = parameter_schema
 
         # Automatically build default_config from the schema's default values
         default_params = {
-            key: meta.get("default")
-            for key, meta in self.parameter_schema.items()
-            if "default" in meta
+            param.name: param.default_value
+            for param in self.parameter_schema.parameters
+            if param.default_value is not None
         }
         self.default_config = MultimediaConfig(params=default_params)
 
