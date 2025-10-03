@@ -1,5 +1,6 @@
 # file: autobyteus/autobyteus/agent/handlers/user_input_message_event_handler.py
 import logging
+import copy
 from typing import TYPE_CHECKING
 
 from autobyteus.agent.handlers.base_event_handler import AgentEventHandler
@@ -48,7 +49,11 @@ class UserInputMessageEventHandler(AgentEventHandler):
                 logger.info(f"Agent '{context.agent_id}' emitted system task notification for TUI based on SYSTEM sender_type.")
         # --- END UPDATED LOGIC ---
 
-        processed_agent_input_user_msg: AgentInputUserMessage = original_agent_input_user_msg
+        # Create a deep copy of the message to pass through the processor chain.
+        # This prevents in-place mutation of the original event's message object,
+        # ensuring that processors like UserInputPersistenceProcessor can access
+        # the true original content via the triggering_event.
+        processed_agent_input_user_msg = copy.deepcopy(original_agent_input_user_msg)
 
         logger.info(f"Agent '{context.agent_id}' handling UserMessageReceivedEvent (type: {original_agent_input_user_msg.sender_type.value}): '{original_agent_input_user_msg.content}'")
 
