@@ -16,17 +16,16 @@ from .tool_category import ToolCategory
 # --- Re-export specific tools for easier access ---
 
 # Functional tools (decorated functions are now instances)
-from .pdf_downloader import pdf_downloader
 from .bash.bash_executor import bash_executor
 from .file.file_reader import file_reader
 from .file.file_writer import file_writer
 
 # General Class-based tools
-from .google_search import GoogleSearch 
-from .image_downloader import ImageDownloader
+from .google_search import GoogleSearch
 from .timer import Timer
 from .multimedia.image_tools import GenerateImageTool, EditImageTool
 from .multimedia.media_reader_tool import ReadMediaFile
+from .download_media_tool import DownloadMediaTool
 
 # Standalone Browser tools
 from .browser.standalone.navigate_to import NavigateTo as StandaloneNavigateTo # Alias to avoid name clash
@@ -54,18 +53,17 @@ __all__ = [
     "ToolCategory",
 
     # Re-exported functional tool instances
-    "pdf_downloader",
     "bash_executor",
     "file_reader",
     "file_writer",
 
     # Re-exported general class-based tools
     "GoogleSearch",
-    "ImageDownloader",
     "Timer",
     "GenerateImageTool",
     "EditImageTool",
     "ReadMediaFile",
+    "DownloadMediaTool",
 
     # Re-exported Standalone Browser tools
     "StandaloneNavigateTo",
