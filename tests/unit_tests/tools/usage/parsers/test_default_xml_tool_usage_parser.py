@@ -376,3 +376,29 @@ def test_large_code_block_as_string_content(parser: DefaultXmlToolUsageParser):
     assert isinstance(invocation.arguments["content"], str)
     assert invocation.arguments["content"] == code_content
     print(f"[Backend Test] Generated ID for Production XML Case: {invocation.id}")
+
+def test_handles_nested_tool_tag_in_argument_content(parser: DefaultXmlToolUsageParser):
+    """
+    Tests that the main parser's nesting logic is not fooled by a literal
+    <tool> tag appearing inside an argument's content.
+    """
+    # Note: In a real LLM response, the inner '<' and '>' would be escaped as '&lt;' and '&gt;'.
+    # The arguments parser will treat the escaped version as a literal string.
+    # The main parser's job is to correctly find the outer </tool> tag.
+    nested_content = "Here is an example of a tool tag: <tool name='fake'></tool>"
+    xml_string = f"""
+    <tool name="WrapperTool">
+        <arguments>
+            <arg name="content">{nested_content}</arg>
+        </arguments>
+    </tool>
+    """
+    response = CompleteResponse(content=xml_string)
+    invocations = parser.parse(response)
+    
+    # Should only find the single, outer tool call
+    assert len(invocations) == 1
+    invocation = invocations[0]
+    
+    assert invocation.name == "WrapperTool"
+    assert invocation.arguments == {"content": nested_content}

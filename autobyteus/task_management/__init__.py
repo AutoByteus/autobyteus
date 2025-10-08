@@ -10,7 +10,7 @@ from .schemas import (TasksDefinitionSchema, TaskDefinitionSchema, TaskStatusRep
 from .base_task_board import BaseTaskBoard, TaskStatus
 from .in_memory_task_board import InMemoryTaskBoard
 from .deliverable import FileDeliverable
-from .tools import GetTaskBoardStatus, PublishTasks, PublishTask, UpdateTaskStatus
+from .tools import GetTaskBoardStatus, PublishTasks, PublishTask, UpdateTaskStatus, AssignTaskTo
 from .converters import TaskBoardConverter
 from .events import BaseTaskBoardEvent, TasksAddedEvent, TaskStatusUpdatedEvent
 
@@ -35,6 +35,7 @@ __all__ = [
     "PublishTasks",
     "PublishTask",
     "UpdateTaskStatus",
+    "AssignTaskTo",
     "TaskBoardConverter",
     "BaseTaskBoardEvent",
     "TasksAddedEvent",

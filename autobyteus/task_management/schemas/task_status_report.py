@@ -16,7 +16,7 @@ class TaskStatusReportItemSchema(BaseModel):
     """Represents the status of a single task in an LLM-friendly format."""
     task_name: str = Field(..., description="The unique, descriptive name for this task.")
     assignee_name: str = Field(..., description="The name of the agent or sub-team assigned to this task.")
-    description: str = Field(..., description="A detailed description of the task.")
+    description: str = Field(..., description="A clear, detailed, and unambiguous description of what this task entails. Provide all necessary context for the assignee to complete the work. For example, if the task involves a file, specify its full, absolute path. If it requires creating a file, specify where it should be saved. Mention any specific requirements or expected outputs.")
     dependencies: List[str] = Field(..., description="A list of 'task_name' values for tasks that must be completed first.")
     status: TaskStatus = Field(..., description="The current status of this task.")
     file_deliverables: List[FileDeliverable] = Field(default_factory=list, description="A list of files submitted as deliverables for this task.")

@@ -7,10 +7,12 @@ from .get_task_board_status import GetTaskBoardStatus
 from .publish_tasks import PublishTasks
 from .publish_task import PublishTask
 from .update_task_status import UpdateTaskStatus
+from .assign_task_to import AssignTaskTo
 
 __all__ = [
     "GetTaskBoardStatus",
     "PublishTasks",
     "PublishTask",
     "UpdateTaskStatus",
+    "AssignTaskTo",
 ]

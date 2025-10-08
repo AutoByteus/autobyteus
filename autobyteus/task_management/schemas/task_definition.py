@@ -13,7 +13,7 @@ class TaskDefinitionSchema(BaseModel):
     """A Pydantic model representing a single task as defined by an LLM."""
     task_name: str = Field(..., description="A short, unique, descriptive name for this task within the plan (e.g., 'setup_project', 'implement_scraper'). Used for defining dependencies.")
     assignee_name: str = Field(..., description="The name of the agent or sub-team assigned to this task.")
-    description: str = Field(..., description="A detailed description of the task.")
+    description: str = Field(..., description="A clear, detailed, and unambiguous description of what this task entails. Provide all necessary context for the assignee to complete the work. For example, if the task involves a file, specify its full, absolute path. If it requires creating a file, specify where it should be saved. Mention any specific requirements or expected outputs.")
     dependencies: List[str] = Field(
         default_factory=list,
         description="A list of 'task_name' values for tasks that must be completed first."
