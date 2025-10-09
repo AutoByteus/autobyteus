@@ -7,7 +7,7 @@ from typing import Dict, Any, TYPE_CHECKING, List, Optional
 import os
 import logging
 from urllib.parse import urlparse
-from autobyteus_llm_client import AutobyteusClient
+from autobyteus.clients import AutobyteusClient
 
 if TYPE_CHECKING:
     from autobyteus.llm.llm_factory import LLMFactory

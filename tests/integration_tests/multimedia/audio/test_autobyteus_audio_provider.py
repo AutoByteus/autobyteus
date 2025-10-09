@@ -45,7 +45,7 @@ def test_successful_model_registration():
 def test_no_models_available_from_server(mocker):
     """Test handling when the server returns an empty list of models."""
     mocker.patch(
-        'autobyteus_llm_client.client.AutobyteusClient.get_available_audio_models_sync',
+        'autobyteus.clients.autobyteus_client.AutobyteusClient.get_available_audio_models_sync',
         return_value={"models": []}
     )
     

@@ -4,6 +4,7 @@ from autobyteus.llm.token_counter.claude_token_counter import ClaudeTokenCounter
 from autobyteus.llm.token_counter.mistral_token_counter import MistralTokenCounter
 from autobyteus.llm.token_counter.deepseek_token_counter import DeepSeekTokenCounter
 from autobyteus.llm.token_counter.kimi_token_counter import KimiTokenCounter
+from autobyteus.llm.token_counter.zhipu_token_counter import ZhipuTokenCounter
 from autobyteus.llm.token_counter.base_token_counter import BaseTokenCounter
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.providers import LLMProvider
@@ -42,6 +43,8 @@ def get_token_counter(model: LLMModel, llm: 'BaseLLM') -> BaseTokenCounter:
         return OpenAITokenCounter(model, llm)
     elif model.provider == LLMProvider.GEMINI:
         return OpenAITokenCounter(model, llm)
+    elif model.provider == LLMProvider.ZHIPU:
+        return ZhipuTokenCounter(model, llm)
     else:
         # For models that do not have a specialized counter, raise a NotImplementedError
         raise NotImplementedError(f"No token counter available for model {model.value}")

@@ -45,7 +45,7 @@ def test_no_models_available_from_server(mocker):
     """Test handling when server returns an empty list of models."""
     # Mock the sync client's response to return no models
     mocker.patch(
-        'autobyteus_llm_client.client.AutobyteusClient.get_available_models_sync',
+        'autobyteus.clients.autobyteus_client.AutobyteusClient.get_available_llm_models_sync',
         return_value={"models": []}
     )
     

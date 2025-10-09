@@ -15,3 +15,4 @@ class LLMProvider(Enum):
     KIMI = "KIMI"
     QWEN = "QWEN"
     LMSTUDIO = "LMSTUDIO"
+    ZHIPU = "ZHIPU"

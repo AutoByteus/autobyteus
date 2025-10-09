@@ -3,7 +3,7 @@ from typing import List
 import os
 from urllib.parse import urlparse
 
-from autobyteus_llm_client import AutobyteusClient
+from autobyteus.clients import AutobyteusClient
 from autobyteus.multimedia.audio.api.autobyteus_audio_client import AutobyteusAudioClient
 from autobyteus.multimedia.audio.audio_model import AudioModel
 from autobyteus.multimedia.providers import MultimediaProvider

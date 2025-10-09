@@ -4,14 +4,15 @@ from setuptools import setup, find_packages
 common_dependencies = [
     "aiohttp",
     "anthropic",
-    "autobyteus-llm-client==1.1.3",
     "beautifulsoup4",
     "boto3",
     "botocore",
     "brui-core==1.0.9",
     "certifi==2025.4.26",
+    "cryptography",
     "google-api-python-client",
     "google-genai==1.38.0",
+    "httpx",
     "Jinja2",
     "mcp[cli]",
     "mistral_common",
@@ -73,6 +74,6 @@ setup(
         "Programming Language :: Python :: 3.10",
     ],
     package_data={
-        "autobyteus": ["py.typed"],
+        "autobyteus": ["py.typed", "clients/certificates/cert.pem"],
     },
 )

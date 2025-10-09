@@ -18,6 +18,7 @@ from autobyteus.llm.api.gemini_llm import GeminiLLM
 from autobyteus.llm.api.grok_llm import GrokLLM
 from autobyteus.llm.api.kimi_llm import KimiLLM
 from autobyteus.llm.api.qwen_llm import QwenLLM
+from autobyteus.llm.api.zhipu_llm import ZhipuLLM
 from autobyteus.llm.ollama_provider import OllamaModelProvider
 from autobyteus.llm.lmstudio_provider import LMStudioModelProvider
 from autobyteus.utils.singleton import SingletonMeta
@@ -358,6 +359,28 @@ class LLMFactory(metaclass=SingletonMeta):
                         input_token_pricing=2.4,
                         output_token_pricing=12.0
                     )
+                )
+            ),
+            # ZHIPU Provider Models
+            LLMModel(
+                name="glm-4.6",
+                value="glm-4.6",
+                provider=LLMProvider.ZHIPU,
+                llm_class=ZhipuLLM,
+                canonical_name="glm-4.6",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(13.8, 13.8)
+                )
+            ),
+            LLMModel(
+                name="glm-4.6-thinking",
+                value="glm-4.6",
+                provider=LLMProvider.ZHIPU,
+                llm_class=ZhipuLLM,
+                canonical_name="glm-4.6-thinking",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(13.8, 13.8),
+                    extra_params={ "extra_body": { "thinking": { "type": "enabled" } } }
                 )
             ),
         ]

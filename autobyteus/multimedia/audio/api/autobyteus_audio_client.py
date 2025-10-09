@@ -1,6 +1,6 @@
 import logging
 from typing import Optional, List, Dict, Any, TYPE_CHECKING
-from autobyteus_llm_client import AutobyteusClient
+from autobyteus.clients import AutobyteusClient
 from autobyteus.multimedia.audio.base_audio_client import BaseAudioClient
 from autobyteus.multimedia.utils.response_types import SpeechGenerationResponse
 

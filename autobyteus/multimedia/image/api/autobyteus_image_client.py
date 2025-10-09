@@ -1,6 +1,6 @@
 import logging
 from typing import Optional, List, Dict, Any, TYPE_CHECKING
-from autobyteus_llm_client import AutobyteusClient
+from autobyteus.clients import AutobyteusClient
 from autobyteus.multimedia.image.base_image_client import BaseImageClient
 from autobyteus.multimedia.utils.response_types import ImageGenerationResponse
 

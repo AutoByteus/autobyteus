@@ -5,7 +5,7 @@ from autobyteus.llm.utils.llm_config import LLMConfig
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 from autobyteus.llm.user_message import LLMUserMessage
-from autobyteus_llm_client.client import AutobyteusClient
+from autobyteus.clients import AutobyteusClient
 import logging
 import uuid
 

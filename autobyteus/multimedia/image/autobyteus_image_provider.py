@@ -3,7 +3,7 @@ from typing import Dict, Any, List
 import os
 from urllib.parse import urlparse
 
-from autobyteus_llm_client import AutobyteusClient
+from autobyteus.clients import AutobyteusClient
 from autobyteus.multimedia.image.api.autobyteus_image_client import AutobyteusImageClient
 from autobyteus.multimedia.image.image_model import ImageModel
 from autobyteus.multimedia.providers import MultimediaProvider
