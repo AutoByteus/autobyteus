@@ -49,7 +49,7 @@ class ImageClientFactory(metaclass=SingletonMeta):
 
         gpt_image_1_model = ImageModel(
             name="gpt-image-1",
-            value="dall-e-3",
+            value="gpt-image-1",
             provider=MultimediaProvider.OPENAI,
             client_class=OpenAIImageClient,
             parameter_schema=gpt_image_1_schema

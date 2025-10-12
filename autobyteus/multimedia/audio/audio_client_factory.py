@@ -5,6 +5,7 @@ from autobyteus.multimedia.audio.base_audio_client import BaseAudioClient
 from autobyteus.multimedia.audio.audio_model import AudioModel
 from autobyteus.multimedia.providers import MultimediaProvider
 from autobyteus.multimedia.audio.api.gemini_audio_client import GeminiAudioClient
+from autobyteus.multimedia.audio.api.openai_audio_client import OpenAIAudioClient
 from autobyteus.multimedia.audio.autobyteus_audio_provider import AutobyteusAudioModelProvider
 from autobyteus.multimedia.utils.multimedia_config import MultimediaConfig
 from autobyteus.utils.singleton import SingletonMeta
@@ -18,6 +19,11 @@ GEMINI_TTS_VOICES = [
     "Despina", "Erinome", "Algenib", "Rasalgethi", "Laomedeia", "Achernar", 
     "Alnilam", "Schedar", "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi", 
     "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat"
+]
+
+OPENAI_TTS_VOICES = [
+    "alloy", "ash", "ballad", "coral", "echo", "fable", "onyx",
+    "nova", "sage", "shimmer", "verse"
 ]
 
 class AudioClientFactory(metaclass=SingletonMeta):
@@ -101,7 +107,38 @@ class AudioClientFactory(metaclass=SingletonMeta):
             parameter_schema=gemini_tts_schema
         )
 
+        openai_tts_schema = ParameterSchema(parameters=[
+            ParameterDefinition(
+                name="voice",
+                param_type=ParameterType.ENUM,
+                default_value="alloy",
+                enum_values=OPENAI_TTS_VOICES,
+                description="The OpenAI TTS voice to use for generation."
+            ),
+            ParameterDefinition(
+                name="format",
+                param_type=ParameterType.ENUM,
+                default_value="mp3",
+                enum_values=["mp3", "wav"],
+                description="The audio format to generate."
+            ),
+            ParameterDefinition(
+                name="instructions",
+                param_type=ParameterType.STRING,
+                description="Optional delivery instructions (tone, pacing, accent, etc.)."
+            )
+        ])
+
+        openai_tts_model = AudioModel(
+            name="gpt-4o-mini-tts",
+            value="gpt-4o-mini-tts",
+            provider=MultimediaProvider.OPENAI,
+            client_class=OpenAIAudioClient,
+            parameter_schema=openai_tts_schema
+        )
+
         models_to_register = [
+            openai_tts_model,
             gemini_tts_model,
         ]
         
