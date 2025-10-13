@@ -1,4 +1,4 @@
-# file: autobyteus/tests/unit_tests/task_management/tools/test_publish_tasks.py
+# file: autobyteus/tests/unit_tests/task_management/tools/task_tools/test_publish_tasks.py
 import pytest
 from unittest.mock import Mock, MagicMock
 
@@ -64,13 +64,13 @@ async def test_execute_success(tool: PublishTasks, mock_agent_context: AgentCont
         TaskDefinitionSchema(task_name="task2", assignee_name="qa", description="d2"),
     ])
     
-    result = await tool._execute(mock_agent_context, tasks=tasks_def.model_dump())
+    result = await tool._execute(mock_agent_context, tasks=tasks_def.model_dump()["tasks"])
 
     assert result == "Successfully published 2 new task(s) to the task board."
     task_board_mock.add_tasks.assert_called_once()
     
-    call_args, _ = task_board_mock.add_tasks.call_args
-    added_tasks: list[Task] = call_args[0]
+    call_kwargs = task_board_mock.add_tasks.call_args.kwargs
+    added_tasks: list[Task] = call_kwargs["tasks"]
     assert isinstance(added_tasks, list)
     assert len(added_tasks) == 2
     assert all(isinstance(t, Task) for t in added_tasks)
@@ -100,7 +100,7 @@ async def test_execute_invalid_task_definitions(tool: PublishTasks, mock_agent_c
         "tasks": [{"task_name": "task1"}] # Task is missing required fields
     }
     
-    result = await tool._execute(mock_agent_context, tasks=invalid_tasks_dict)
+    result = await tool._execute(mock_agent_context, tasks=invalid_tasks_dict["tasks"])
     assert "Error: Invalid task definitions provided" in result
     mock_team_context_with_board.state.task_board.add_tasks.assert_not_called()
 
@@ -116,6 +116,6 @@ async def test_execute_duplicate_task_names(tool: PublishTasks, mock_agent_conte
         ]
     }
     
-    result = await tool._execute(mock_agent_context, tasks=tasks_with_duplicates)
+    result = await tool._execute(mock_agent_context, tasks=tasks_with_duplicates["tasks"])
     assert "Error: Invalid task definitions provided" in result
     assert "Duplicate task_name 'duplicate' found" in result

@@ -1,4 +1,4 @@
-# file: autobyteus/tests/unit_tests/task_management/tools/test_get_task_board_status.py
+# file: autobyteus/tests/unit_tests/task_management/tools/task_tools/test_get_task_board_status.py
 import json
 import pytest
 from unittest.mock import Mock, MagicMock, patch
@@ -36,7 +36,7 @@ def mock_team_context_with_board() -> AgentTeamContext:
     return mock_context
 
 @pytest.mark.asyncio
-@patch('autobyteus.task_management.tools.get_task_board_status.TaskBoardConverter.to_schema')
+@patch('autobyteus.task_management.tools.task_tools.get_task_board_status.TaskBoardConverter.to_schema')
 async def test_execute_success(mock_to_schema: MagicMock, tool_instance: GetTaskBoardStatus, mock_agent_context: AgentContext, mock_team_context_with_board: AgentTeamContext):
     """Tests that the tool successfully calls the converter and returns its JSON output."""
     # Arrange
@@ -69,7 +69,7 @@ async def test_execute_success(mock_to_schema: MagicMock, tool_instance: GetTask
 
 
 @pytest.mark.asyncio
-@patch('autobyteus.task_management.tools.get_task_board_status.TaskBoardConverter.to_schema')
+@patch('autobyteus.task_management.tools.task_tools.get_task_board_status.TaskBoardConverter.to_schema')
 async def test_execute_success_with_deliverables(mock_to_schema: MagicMock, tool_instance: GetTaskBoardStatus, mock_agent_context: AgentContext, mock_team_context_with_board: AgentTeamContext):
     """Tests that deliverables are correctly serialized in the tool's JSON output."""
     # Arrange
@@ -103,7 +103,7 @@ async def test_execute_success_with_deliverables(mock_to_schema: MagicMock, tool
 
 
 @pytest.mark.asyncio
-@patch('autobyteus.task_management.tools.get_task_board_status.TaskBoardConverter.to_schema')
+@patch('autobyteus.task_management.tools.task_tools.get_task_board_status.TaskBoardConverter.to_schema')
 async def test_execute_with_no_tasks_on_board(mock_to_schema: MagicMock, tool_instance: GetTaskBoardStatus, mock_agent_context: AgentContext, mock_team_context_with_board: AgentTeamContext):
     """Tests execution when the converter returns None (i.e., no tasks are on the board)."""
     # Arrange

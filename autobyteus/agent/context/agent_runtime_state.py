@@ -12,6 +12,7 @@ from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
 from autobyteus.agent.tool_invocation import ToolInvocation
 # LLMConfig is no longer needed here
 # from autobyteus.llm.utils.llm_config import LLMConfig 
+from autobyteus.task_management.todo_list import ToDoList
 
 if TYPE_CHECKING:
     from autobyteus.agent.phases import AgentPhaseManager 
@@ -51,6 +52,9 @@ class AgentRuntimeState:
         
         # NEW: State for multi-tool call invocation turns, with a very explicit name.
         self.active_multi_tool_call_turn: Optional['ToolInvocationTurn'] = None
+        
+        # NEW: State for the agent's personal ToDoList
+        self.todo_list: Optional[ToDoList] = None
         
         self.processed_system_prompt: Optional[str] = None
         # self.final_llm_config_for_creation removed
