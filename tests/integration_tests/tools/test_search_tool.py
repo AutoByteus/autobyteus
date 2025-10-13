@@ -3,7 +3,7 @@ import os
 import logging
 from typing import Generator
 
-from autobyteus.tools.google_search import GoogleSearch
+from autobyteus.tools.search_tool import Search
 from autobyteus.tools.search.factory import SearchClientFactory
 from autobyteus.tools.search.providers import SearchProvider
 from autobyteus.utils.parameter_schema import ParameterSchema, ParameterType
@@ -11,9 +11,9 @@ from autobyteus.utils.parameter_schema import ParameterSchema, ParameterType
 logger = logging.getLogger(__name__)
 
 @pytest.fixture
-def serper_search_tool(monkeypatch) -> Generator[GoogleSearch, None, None]:
+def serper_search_tool(monkeypatch) -> Generator[Search, None, None]:
     """
-    Provides a GoogleSearch tool instance configured to use the Serper strategy.
+    Provides a Search tool instance configured to use the Serper strategy.
     Skips the test if the SERPER_API_KEY is not configured.
     """
     serper_api_key = os.getenv("SERPER_API_KEY")
@@ -22,14 +22,14 @@ def serper_search_tool(monkeypatch) -> Generator[GoogleSearch, None, None]:
 
     monkeypatch.setenv("DEFAULT_SEARCH_PROVIDER", SearchProvider.SERPER.value)
     SearchClientFactory._instance = None
-    yield GoogleSearch()
+    yield Search()
     SearchClientFactory._instance = None
 
 
 @pytest.fixture
-def google_cse_search_tool(monkeypatch) -> Generator[GoogleSearch, None, None]:
+def google_cse_search_tool(monkeypatch) -> Generator[Search, None, None]:
     """
-    Provides a GoogleSearch tool instance configured to use the Google CSE strategy.
+    Provides a Search tool instance configured to use the Google CSE strategy.
     Skips the test if GOOGLE_CSE_API_KEY or GOOGLE_CSE_ID are not configured.
     """
     google_api_key = os.getenv("GOOGLE_CSE_API_KEY")
@@ -42,13 +42,13 @@ def google_cse_search_tool(monkeypatch) -> Generator[GoogleSearch, None, None]:
 
     monkeypatch.setenv("DEFAULT_SEARCH_PROVIDER", SearchProvider.GOOGLE_CSE.value)
     SearchClientFactory._instance = None
-    yield GoogleSearch()
+    yield Search()
     SearchClientFactory._instance = None
 
 
-def test_google_search_schema():
-    """Tests that the GoogleSearch tool has a valid schema."""
-    schema = GoogleSearch.get_argument_schema()
+def test_search_schema():
+    """Tests that the Search tool has a valid schema."""
+    schema = Search.get_argument_schema()
     assert isinstance(schema, ParameterSchema)
     
     params = {p.name: p for p in schema.parameters}
@@ -62,9 +62,9 @@ def test_google_search_schema():
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_google_search_tool_with_serper(serper_search_tool: GoogleSearch):
+async def test_search_tool_with_serper(serper_search_tool: Search):
     """
-    Integration test for the GoogleSearch tool using the Serper provider.
+    Integration test for the Search tool using the Serper provider.
     """
     query = "What is the capital of France?"
     mock_context = type("AgentContext", (), {"agent_id": "test_agent"})()
@@ -74,13 +74,13 @@ async def test_google_search_tool_with_serper(serper_search_tool: GoogleSearch):
     assert isinstance(result, str)
     assert "Paris" in result
     assert "Search Results:" in result
-    logger.info(f"GoogleSearch Tool (Serper) result:\n{result}")
+    logger.info(f"Search Tool (Serper) result:\n{result}")
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_google_search_tool_with_google_cse(google_cse_search_tool: GoogleSearch):
+async def test_search_tool_with_google_cse(google_cse_search_tool: Search):
     """
-    Integration test for the GoogleSearch tool using the Google CSE provider.
+    Integration test for the Search tool using the Google CSE provider.
     """
     query = "What is Python programming language?"
     mock_context = type("AgentContext", (), {"agent_id": "test_agent"})()
@@ -90,4 +90,4 @@ async def test_google_search_tool_with_google_cse(google_cse_search_tool: Google
     assert isinstance(result, str)
     assert "Search Results:" in result
     assert "Link:" in result
-    logger.info(f"GoogleSearch Tool (Google CSE) result:\n{result}")
+    logger.info(f"Search Tool (Google CSE) result:\n{result}")

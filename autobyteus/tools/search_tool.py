@@ -5,16 +5,17 @@ from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.tool_config import ToolConfig
 from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.tool_category import ToolCategory
-from .search import search_client_factory, SearchClient
+from autobyteus.tools.search import SearchClientFactory, SearchClient
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
 
 logger = logging.getLogger(__name__)
 
-class GoogleSearch(BaseTool):
+
+class Search(BaseTool):
     """
-    Performs a Google search using a configurable backend provider (e.g., Serper.dev, Google CSE).
+    Performs a web search using a configurable backend provider (e.g., Serper.dev, Google CSE).
     Returns a structured summary of the results.
     Configuration is managed via environment variables (see SearchClientFactory for details).
     """
@@ -23,21 +24,25 @@ class GoogleSearch(BaseTool):
     def __init__(self, config: Optional[ToolConfig] = None):
         super().__init__(config=config)
         try:
-            self.search_client: SearchClient = search_client_factory.create_search_client()
+            factory = SearchClientFactory()
+            self.search_client: SearchClient = factory.create_search_client()
         except ValueError as e:
-            logger.error(f"Failed to initialize GoogleSearch tool: {e}", exc_info=True)
+            logger.error(f"Failed to initialize Search tool: {e}", exc_info=True)
             # Re-raise to prevent tool from being used in a misconfigured state.
-            raise RuntimeError(f"Could not initialize GoogleSearch tool. Please check your search provider configuration. Error: {e}")
-        logger.debug("GoogleSearch tool initialized with a configured search client.")
+            raise RuntimeError(
+                "Could not initialize Search tool. Please check your search provider configuration. "
+                f"Error: {e}"
+            )
+        logger.debug("Search tool initialized with a configured search client.")
     
     @classmethod
     def get_name(cls) -> str:
-        return "GoogleSearch"
+        return "Search"
 
     @classmethod
     def get_description(cls) -> str:
         return (
-            "Searches Google for a given query using the configured search provider. "
+            "Searches the web for a given query using the configured search provider. "
             "Returns a concise, structured summary of search results, including direct answers (if available) and top organic links."
         )
 
@@ -68,11 +73,11 @@ class GoogleSearch(BaseTool):
         return None
 
     async def _execute(self, context: 'AgentContext', query: str, num_results: int = 5) -> str:
-        logger.info(f"Executing GoogleSearch for agent {context.agent_id} with query: '{query}'")
+        logger.info(f"Executing Search for agent {context.agent_id} with query: '{query}'")
         
         try:
             return await self.search_client.search(query=query, num_results=num_results)
         except Exception as e:
-            logger.error(f"An unexpected error occurred in GoogleSearch tool execution: {e}", exc_info=True)
+            logger.error(f"An unexpected error occurred in Search tool execution: {e}", exc_info=True)
             # Re-raise to ensure the agent is aware of the failure.
             raise

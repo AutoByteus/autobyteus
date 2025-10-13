@@ -27,10 +27,10 @@ from .file.file_editor import file_edit
 
 # General Class-based tools
 try:
-    from .google_search import GoogleSearch
+    from .search_tool import Search
 except ModuleNotFoundError as import_err:
-    logger.warning("GoogleSearch tool not available: %s", import_err)
-    GoogleSearch = None
+    logger.warning("Search tool not available: %s", import_err)
+    Search = None
 from .timer import Timer
 try:
     from .multimedia.image_tools import GenerateImageTool, EditImageTool
@@ -44,7 +44,7 @@ except ModuleNotFoundError as import_err:
     logger.warning("Media reader tool not available: %s", import_err)
     ReadMediaFile = None
 try:
-    from .download_media_tool import DownloadMediaTool
+    from .multimedia.download_media_tool import DownloadMediaTool
 except ModuleNotFoundError as import_err:
     logger.warning("Download media tool not available: %s", import_err)
     DownloadMediaTool = None
@@ -96,7 +96,7 @@ __all__ = [
     "file_edit",
 
     # Re-exported general class-based tools
-    "GoogleSearch",
+    "Search",
     "Timer",
     "GenerateImageTool",
     "EditImageTool",
