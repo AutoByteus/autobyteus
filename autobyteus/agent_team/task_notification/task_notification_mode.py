@@ -16,7 +16,7 @@ class TaskNotificationMode(str, Enum):
     
     SYSTEM_EVENT_DRIVEN = "system_event_driven"
     """
-    In this mode, the agent team framework automatically monitors the TaskBoard
+    In this mode, the agent team framework automatically monitors the TaskPlan
     and sends notifications to agents when their assigned tasks become runnable.
     """
 

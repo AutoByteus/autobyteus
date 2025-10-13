@@ -37,7 +37,7 @@ try:
     from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
     from autobyteus.task_management.tools import (
         PublishTasks,
-        GetTaskBoardStatus,
+        GetTaskPlanStatus,
         UpdateTaskStatus,
     )
     from autobyteus.agent.message import SendMessageTo
@@ -139,7 +139,7 @@ def create_code_review_team(
         name="Project Manager", role="Coordinator", description="Manages the development process by planning and assigning tasks to the team.",
         llm_instance=default_llm_factory.create_llm(model_identifier=coordinator_model),
         system_prompt=load_prompt("coordinator.prompt"),
-        tools=[PublishTasks(), GetTaskBoardStatus()],
+        tools=[PublishTasks(), GetTaskPlanStatus()],
     )
 
     # Software Engineer Agent
@@ -147,7 +147,7 @@ def create_code_review_team(
         name="Software Engineer", role="Developer", description="Writes Python code and corresponding tests based on instructions.",
         llm_instance=default_llm_factory.create_llm(model_identifier=engineer_model),
         system_prompt=load_prompt("software_engineer.prompt"),
-        tools=[file_writer, UpdateTaskStatus(), GetTaskBoardStatus()],
+        tools=[file_writer, UpdateTaskStatus(), GetTaskPlanStatus()],
         workspace=workspace
     )
     
@@ -156,7 +156,7 @@ def create_code_review_team(
         name="Code Reviewer", role="Senior Developer", description="Reads and reviews Python code and tests for quality and correctness.",
         llm_instance=default_llm_factory.create_llm(model_identifier=reviewer_model),
         system_prompt=load_prompt("code_reviewer.prompt"),
-        tools=[file_reader, file_writer, UpdateTaskStatus(), GetTaskBoardStatus()],
+        tools=[file_reader, file_writer, UpdateTaskStatus(), GetTaskPlanStatus()],
         workspace=workspace
     )
 
@@ -165,7 +165,7 @@ def create_code_review_team(
         name="Tester", role="QA Automation", description="Executes pytest tests and reports results.",
         llm_instance=default_llm_factory.create_llm(model_identifier=tester_model),
         system_prompt=load_prompt("tester.prompt"),
-        tools=[bash_executor, UpdateTaskStatus(), GetTaskBoardStatus(), SendMessageTo()],
+        tools=[bash_executor, UpdateTaskStatus(), GetTaskPlanStatus(), SendMessageTo()],
         workspace=workspace
     )
 

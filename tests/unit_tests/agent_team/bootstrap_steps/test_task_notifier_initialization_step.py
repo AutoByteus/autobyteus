@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 from autobyteus.agent_team.bootstrap_steps import TaskNotifierInitializationStep
 from autobyteus.agent_team.context import AgentTeamContext, AgentTeamConfig, TeamNodeConfig, AgentTeamRuntimeState
 from autobyteus.agent_team.task_notification.task_notification_mode import TaskNotificationMode
-from autobyteus.task_management import InMemoryTaskBoard
+from autobyteus.task_management import InMemoryTaskPlan
 
 @pytest.fixture
 def step_instance() -> TaskNotifierInitializationStep:
@@ -50,7 +50,7 @@ async def test_execute_initializes_in_event_driven_mode(step_instance: TaskNotif
         task_notification_mode=TaskNotificationMode.SYSTEM_EVENT_DRIVEN
     )
     agent_team_context.config = event_driven_config
-    agent_team_context.state.task_board = MagicMock(spec=InMemoryTaskBoard) # Ensure task board exists
+    agent_team_context.state.task_plan = MagicMock(spec=InMemoryTaskPlan) # Ensure task plan exists
 
     # Act
     with patch("autobyteus.agent_team.bootstrap_steps.task_notifier_initialization_step.SystemEventDrivenAgentTaskNotifier") as MockNotifierClass:
@@ -60,16 +60,16 @@ async def test_execute_initializes_in_event_driven_mode(step_instance: TaskNotif
     # Assert
     assert success is True
     MockNotifierClass.assert_called_once_with(
-        task_board=agent_team_context.state.task_board,
+        task_plan=agent_team_context.state.task_plan,
         team_manager=agent_team_context.team_manager
     )
     mock_notifier_instance.start_monitoring.assert_called_once()
     assert agent_team_context.state.task_notifier is mock_notifier_instance
 
 @pytest.mark.asyncio
-async def test_execute_fails_if_task_board_missing(step_instance: TaskNotifierInitializationStep, agent_team_context: AgentTeamContext):
+async def test_execute_fails_if_task_plan_missing(step_instance: TaskNotifierInitializationStep, agent_team_context: AgentTeamContext):
     """
-    Tests that the step fails in event-driven mode if the task board isn't initialized.
+    Tests that the step fails in event-driven mode if the task plan isn't initialized.
     """
     # Arrange - Create a new config with the desired mode
     event_driven_config = AgentTeamConfig(
@@ -80,7 +80,7 @@ async def test_execute_fails_if_task_board_missing(step_instance: TaskNotifierIn
         task_notification_mode=TaskNotificationMode.SYSTEM_EVENT_DRIVEN
     )
     agent_team_context.config = event_driven_config
-    agent_team_context.state.task_board = None
+    agent_team_context.state.task_plan = None
 
     # Act
     success = await step_instance.execute(agent_team_context, agent_team_context.phase_manager)
@@ -102,7 +102,7 @@ async def test_execute_fails_if_team_manager_missing(step_instance: TaskNotifier
         task_notification_mode=TaskNotificationMode.SYSTEM_EVENT_DRIVEN
     )
     agent_team_context.config = event_driven_config
-    agent_team_context.state.task_board = MagicMock(spec=InMemoryTaskBoard)
+    agent_team_context.state.task_plan = MagicMock(spec=InMemoryTaskPlan)
     agent_team_context.state.team_manager = None
 
     # Act

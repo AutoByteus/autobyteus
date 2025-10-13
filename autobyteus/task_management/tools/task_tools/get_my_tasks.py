@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Optional, List
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.tool_category import ToolCategory
 from autobyteus.task_management.schemas import TaskDefinitionSchema
-from autobyteus.task_management.base_task_board import TaskStatus
+from autobyteus.task_management.base_task_plan import TaskStatus
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 class GetMyTasks(BaseTool):
-    """A tool for an agent to inspect its own assigned tasks from the central TaskBoard."""
+    """A tool for an agent to inspect its own assigned tasks from the central TaskPlan."""
 
     CATEGORY = ToolCategory.TASK_MANAGEMENT
 
@@ -26,7 +26,7 @@ class GetMyTasks(BaseTool):
     @classmethod
     def get_description(cls) -> str:
         return (
-            "Retrieves the list of tasks currently assigned to you from the team's shared task board. "
+            "Retrieves the list of tasks currently assigned to you from the team's shared task plan. "
             "This is your personal to-do list. Use this to understand your current workload and decide what to do next."
         )
 
@@ -37,7 +37,7 @@ class GetMyTasks(BaseTool):
 
     async def _execute(self, context: 'AgentContext') -> str:
         """
-        Executes the tool by fetching tasks from the team's TaskBoard and
+        Executes the tool by fetching tasks from the team's TaskPlan and
         filtering them for the current agent.
         """
         agent_name = context.config.name
@@ -45,21 +45,21 @@ class GetMyTasks(BaseTool):
 
         team_context: Optional['AgentTeamContext'] = context.custom_data.get("team_context")
         if not team_context:
-            error_msg = "Error: Team context is not available. Cannot access the task board."
+            error_msg = "Error: Team context is not available. Cannot access the task plan."
             logger.error(f"Agent '{agent_name}': {error_msg}")
             return error_msg
 
-        task_board = getattr(team_context.state, 'task_board', None)
-        if not task_board:
-            error_msg = "Error: Task board has not been initialized for this team."
+        task_plan = getattr(team_context.state, 'task_plan', None)
+        if not task_plan:
+            error_msg = "Error: Task plan has not been initialized for this team."
             logger.error(f"Agent '{agent_name}': {error_msg}")
             return error_msg
         
-        # Filter the tasks from the central board for this agent.
+        # Filter the tasks from the central plan for this agent.
         # An agent should only see tasks that are specifically for them and are ready to be worked on.
         my_tasks = [
-            task for task in task_board.tasks 
-            if task.assignee_name == agent_name and task_board.task_statuses.get(task.task_id) == TaskStatus.QUEUED
+            task for task in task_plan.tasks 
+            if task.assignee_name == agent_name and task_plan.task_statuses.get(task.task_id) == TaskStatus.QUEUED
         ]
 
         if not my_tasks:
@@ -71,7 +71,7 @@ class GetMyTasks(BaseTool):
                 TaskDefinitionSchema.model_validate(task).model_dump() for task in my_tasks
             ]
             
-            logger.info(f"Agent '{agent_name}' retrieved {len(tasks_for_llm)} tasks from the central task board.")
+            logger.info(f"Agent '{agent_name}' retrieved {len(tasks_for_llm)} tasks from the central task plan.")
             return json.dumps(tasks_for_llm, indent=2)
             
         except Exception as e:

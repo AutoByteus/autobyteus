@@ -141,8 +141,8 @@ class AgentTeamApp(App):
         focused_data = self.focused_node_data
         if focused_data and focused_data.get("type") in ['team', 'subteam']:
             node_name = focused_data['name']
-            task_plan = self.store.get_task_board_plan(node_name)
-            task_statuses = self.store.get_task_board_statuses(node_name)
+            task_plan = self.store.get_task_plan_tasks(node_name)
+            task_statuses = self.store.get_task_plan_statuses(node_name)
             await focus_pane.update_content(
                 node_data=focused_data,
                 history=[], # No history for teams
@@ -169,8 +169,8 @@ class AgentTeamApp(App):
         task_plan = None
         task_statuses = None
         if node_type in ['team', 'subteam']:
-            task_plan = self.store.get_task_board_plan(node_name)
-            task_statuses = self.store.get_task_board_statuses(node_name)
+            task_plan = self.store.get_task_plan_tasks(node_name)
+            task_statuses = self.store.get_task_plan_statuses(node_name)
         
         sidebar = self.query_one(AgentListSidebar)
         focus_pane = self.query_one(FocusPane)

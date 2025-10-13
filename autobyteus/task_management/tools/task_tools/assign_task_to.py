@@ -41,7 +41,7 @@ class AssignTaskTo(BaseTool):
 
     async def _execute(self, context: 'AgentContext', **kwargs: Any) -> str:
         """
-        Executes the tool by adding the task to the central TaskBoard and then
+        Executes the tool by adding the task to the central TaskPlan and then
         sending a direct message to the assignee with the task's details.
         """
         agent_name = context.config.name
@@ -49,20 +49,20 @@ class AssignTaskTo(BaseTool):
         assignee_name = kwargs.get("assignee_name")
         logger.info(f"Agent '{agent_name}' is executing AssignTaskTo for task '{task_name}' assigned to '{assignee_name}'.")
 
-        # --- Get Team Context and Task Board ---
+        # --- Get Team Context and Task Plan ---
         team_context: Optional['AgentTeamContext'] = context.custom_data.get("team_context")
         if not team_context:
-            error_msg = "Error: Team context is not available. Cannot access the task board or send messages."
+            error_msg = "Error: Team context is not available. Cannot access the task plan or send messages."
             logger.error(f"Agent '{agent_name}': {error_msg}")
             return error_msg
 
-        task_board = getattr(team_context.state, 'task_board', None)
-        if not task_board:
-            error_msg = "Error: Task board has not been initialized for this team."
+        task_plan = getattr(team_context.state, 'task_plan', None)
+        if not task_plan:
+            error_msg = "Error: Task plan has not been initialized for this team."
             logger.error(f"Agent '{agent_name}': {error_msg}")
             return error_msg
         
-        # --- Action 1: Add the task to the Task Board ---
+        # --- Action 1: Add the task to the Task Plan ---
         try:
             task_def_schema = TaskDefinitionSchema(**kwargs)
             new_task = Task(**task_def_schema.model_dump())
@@ -71,12 +71,12 @@ class AssignTaskTo(BaseTool):
             logger.warning(f"Agent '{agent_name}' provided an invalid definition for AssignTaskTo: {error_msg}")
             return f"Error: {error_msg}"
 
-        if not task_board.add_task(new_task):
-            error_msg = f"Failed to publish task '{new_task.task_name}' to the board for an unknown reason."
+        if not task_plan.add_task(new_task):
+            error_msg = f"Failed to publish task '{new_task.task_name}' to the plan for an unknown reason."
             logger.error(f"Agent '{agent_name}': {error_msg}")
             return f"Error: {error_msg}"
         
-        logger.info(f"Agent '{agent_name}' successfully published task '{new_task.task_name}' to the task board.")
+        logger.info(f"Agent '{agent_name}' successfully published task '{new_task.task_name}' to the task plan.")
 
         # --- Action 2: Send a direct notification message to the assignee ---
         team_manager: Optional['TeamManager'] = team_context.team_manager
@@ -98,11 +98,11 @@ class AssignTaskTo(BaseTool):
             )
             if new_task.dependencies:
                 # Resolve dependency names for the message
-                id_to_name_map = {task.task_id: task.task_name for task in task_board.tasks}
+                id_to_name_map = {task.task_id: task.task_name for task in task_plan.tasks}
                 dep_names = [id_to_name_map.get(dep_id, str(dep_id)) for dep_id in new_task.dependencies]
                 notification_content += f"**Dependencies**: {', '.join(dep_names)}\n"
             
-            notification_content += "\nThis task has been logged on the team's task board. You can begin work when its dependencies are met."
+            notification_content += "\nThis task has been logged on the team's task plan. You can begin work when its dependencies are met."
 
             event = InterAgentMessageRequestEvent(
                 sender_agent_id=context.agent_id,

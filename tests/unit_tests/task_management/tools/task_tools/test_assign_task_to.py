@@ -4,7 +4,7 @@ from unittest.mock import Mock, MagicMock, AsyncMock
 
 from autobyteus.agent.context import AgentContext
 from autobyteus.agent_team.context import AgentTeamContext, AgentTeamRuntimeState, TeamManager
-from autobyteus.task_management import InMemoryTaskBoard, Task
+from autobyteus.task_management import InMemoryTaskPlan, Task
 from autobyteus.task_management.schemas import TaskDefinitionSchema
 from autobyteus.task_management.tools import AssignTaskTo
 from autobyteus.agent_team.events import InterAgentMessageRequestEvent
@@ -26,13 +26,13 @@ def mock_agent_context() -> AgentContext:
 
 @pytest.fixture
 def mock_team_context() -> AgentTeamContext:
-    """Provides a mock AgentTeamContext with mocks for task board and team manager."""
+    """Provides a mock AgentTeamContext with mocks for task plan and team manager."""
     mock_context = Mock(spec=AgentTeamContext)
     mock_state = Mock(spec=AgentTeamRuntimeState)
     
-    # Use a real InMemoryTaskBoard to test dependency name resolution in the notification message
-    mock_state.task_board = InMemoryTaskBoard(team_id="test_team")
-    mock_state.task_board.add_task(Task(task_name="setup", assignee_name="a", description="d"))
+    # Use a real InMemoryTaskPlan to test dependency name resolution in the notification message
+    mock_state.task_plan = InMemoryTaskPlan(team_id="test_team")
+    mock_state.task_plan.add_task(Task(task_name="setup", assignee_name="a", description="d"))
     
     mock_team_manager = Mock(spec=TeamManager)
     mock_team_manager.dispatch_inter_agent_message_request = AsyncMock()
@@ -53,7 +53,7 @@ async def test_execute_success(tool: AssignTaskTo, mock_agent_context: AgentCont
     """Tests the happy path: task is published and notification is sent."""
     # Arrange
     mock_agent_context.custom_data["team_context"] = mock_team_context
-    task_board = mock_team_context.state.task_board
+    task_plan = mock_team_context.state.task_plan
     team_manager = mock_team_context.team_manager
     
     task_def = TaskDefinitionSchema(
@@ -70,8 +70,8 @@ async def test_execute_success(tool: AssignTaskTo, mock_agent_context: AgentCont
     assert result == "Successfully assigned task 'new_delegated_task' to agent 'RecipientAgent' and sent a notification."
     
     # Assert Action 1: Task was added to the board
-    assert len(task_board.tasks) == 2
-    newly_added_task = next((t for t in task_board.tasks if t.task_name == "new_delegated_task"), None)
+    assert len(task_plan.tasks) == 2
+    newly_added_task = next((t for t in task_plan.tasks if t.task_name == "new_delegated_task"), None)
     assert newly_added_task is not None
     assert newly_added_task.assignee_name == "RecipientAgent"
 
@@ -95,12 +95,12 @@ async def test_execute_no_team_context(tool: AssignTaskTo, mock_agent_context: A
     assert "Error: Team context is not available." in result
 
 @pytest.mark.asyncio
-async def test_execute_no_task_board(tool: AssignTaskTo, mock_agent_context: AgentContext, mock_team_context: AgentTeamContext):
-    """Tests failure when the task board is not initialized."""
-    mock_team_context.state.task_board = None
+async def test_execute_no_task_plan(tool: AssignTaskTo, mock_agent_context: AgentContext, mock_team_context: AgentTeamContext):
+    """Tests failure when the task plan is not initialized."""
+    mock_team_context.state.task_plan = None
     mock_agent_context.custom_data["team_context"] = mock_team_context
     result = await tool._execute(mock_agent_context, task_name="t", assignee_name="a", description="d")
-    assert "Error: Task board has not been initialized" in result
+    assert "Error: Task plan has not been initialized" in result
 
 @pytest.mark.asyncio
 async def test_execute_degraded_success_no_team_manager(tool: AssignTaskTo, mock_agent_context: AgentContext, mock_team_context: AgentTeamContext):
@@ -108,7 +108,7 @@ async def test_execute_degraded_success_no_team_manager(tool: AssignTaskTo, mock
     # Arrange
     mock_team_context.team_manager = None # Remove the team manager
     mock_agent_context.custom_data["team_context"] = mock_team_context
-    task_board = mock_team_context.state.task_board
+    task_plan = mock_team_context.state.task_plan
 
     task_def = TaskDefinitionSchema(
         task_name="delegated_task_no_notify",
@@ -123,15 +123,15 @@ async def test_execute_degraded_success_no_team_manager(tool: AssignTaskTo, mock
     assert "Successfully published task 'delegated_task_no_notify', but could not send a direct notification" in result
     
     # Assert that the task was still added to the board
-    assert len(task_board.tasks) == 2
-    newly_added_task = next((t for t in task_board.tasks if t.task_name == "delegated_task_no_notify"), None)
+    assert len(task_plan.tasks) == 2
+    newly_added_task = next((t for t in task_plan.tasks if t.task_name == "delegated_task_no_notify"), None)
     assert newly_added_task is not None
 
 @pytest.mark.asyncio
 async def test_execute_invalid_task_definition(tool: AssignTaskTo, mock_agent_context: AgentContext, mock_team_context: AgentTeamContext):
     """Tests failure when provided arguments don't match the schema."""
     mock_agent_context.custom_data["team_context"] = mock_team_context
-    task_board = mock_team_context.state.task_board
+    task_plan = mock_team_context.state.task_plan
     
     invalid_kwargs = {
         "task_name": "invalid_task"
@@ -142,4 +142,4 @@ async def test_execute_invalid_task_definition(tool: AssignTaskTo, mock_agent_co
 
     assert "Error: Invalid task definition provided" in result
     # Assert that no new task was added
-    assert len(task_board.tasks) == 1
+    assert len(task_plan.tasks) == 1

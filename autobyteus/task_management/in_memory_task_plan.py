@@ -1,6 +1,6 @@
-# file: autobyteus/autobyteus/task_management/in_memory_task_board.py
+# file: autobyteus/autobyteus/task_management/in_memory_task_plan.py
 """
-An in-memory implementation of the BaseTaskBoard.
+An in-memory implementation of the BaseTaskPlan.
 It tracks task statuses in a simple dictionary and emits events on state changes.
 """
 import logging
@@ -9,28 +9,28 @@ from enum import Enum
 
 from autobyteus.events.event_types import EventType
 from .task import Task
-from .base_task_board import BaseTaskBoard, TaskStatus
+from .base_task_plan import BaseTaskPlan, TaskStatus
 from .events import TasksAddedEvent, TaskStatusUpdatedEvent
 
 logger = logging.getLogger(__name__)
 
-class InMemoryTaskBoard(BaseTaskBoard):
+class InMemoryTaskPlan(BaseTaskPlan):
     """
-    An in-memory, dictionary-based implementation of the TaskBoard that emits
+    An in-memory, dictionary-based implementation of the TaskPlan that emits
     events on state changes.
     """
     def __init__(self, team_id: str):
         """
-        Initializes the InMemoryTaskBoard.
+        Initializes the InMemoryTaskPlan.
         """
         super().__init__(team_id=team_id)
         self.task_statuses: Dict[str, TaskStatus] = {}
         self._task_map: Dict[str, Task] = {}
-        logger.info(f"InMemoryTaskBoard initialized for team '{self.team_id}'.")
+        logger.info(f"InMemoryTaskPlan initialized for team '{self.team_id}'.")
 
     def add_tasks(self, tasks: List[Task]) -> bool:
         """
-        Adds new tasks to the board. This is an additive-only operation.
+        Adds new tasks to the plan. This is an additive-only operation.
         """
         for task in tasks:
             self.tasks.append(task)
@@ -38,18 +38,18 @@ class InMemoryTaskBoard(BaseTaskBoard):
             self._task_map[task.task_id] = task
 
         self._hydrate_all_dependencies()
-        logger.info(f"Team '{self.team_id}': Added {len(tasks)} new task(s) to the board. Emitting TasksAddedEvent.")
+        logger.info(f"Team '{self.team_id}': Added {len(tasks)} new task(s) to the plan. Emitting TasksAddedEvent.")
         
         event_payload = TasksAddedEvent(
             team_id=self.team_id,
             tasks=tasks,
         )
-        self.emit(EventType.TASK_BOARD_TASKS_ADDED, payload=event_payload)
+        self.emit(EventType.TASK_PLAN_TASKS_ADDED, payload=event_payload)
         return True
 
     def add_task(self, task: Task) -> bool:
         """
-        Adds a single new task to the board by wrapping it in a list and calling add_tasks.
+        Adds a single new task to the plan by wrapping it in a list and calling add_tasks.
         """
         return self.add_tasks([task])
         
@@ -67,7 +67,7 @@ class InMemoryTaskBoard(BaseTaskBoard):
 
             resolved_deps = []
             for dep in task.dependencies:
-                # Case 1: The dependency is already a valid task_id on the board.
+                # Case 1: The dependency is already a valid task_id on the plan.
                 if dep in all_task_ids:
                     resolved_deps.append(dep)
                 # Case 2: The dependency is a task_name that can be resolved.
@@ -103,12 +103,12 @@ class InMemoryTaskBoard(BaseTaskBoard):
             agent_name=agent_name,
             deliverables=task_deliverables
         )
-        self.emit(EventType.TASK_BOARD_STATUS_UPDATED, payload=event_payload)
+        self.emit(EventType.TASK_PLAN_STATUS_UPDATED, payload=event_payload)
         return True
 
     def get_status_overview(self) -> Dict[str, Any]:
         """
-        Returns a serializable dictionary of the board's current state.
+        Returns a serializable dictionary of the plan's current state.
         The overall_goal is now fetched from the context via the converter.
         """
         return {

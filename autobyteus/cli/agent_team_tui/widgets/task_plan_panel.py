@@ -7,13 +7,13 @@ from rich.text import Text
 from textual.widgets import Static
 
 from autobyteus.task_management.task import Task
-from autobyteus.task_management.base_task_board import TaskStatus
+from autobyteus.task_management.base_task_plan import TaskStatus
 from .shared import TASK_STATUS_ICONS, LOG_ICON
 
 logger = logging.getLogger(__name__)
 
-class TaskBoardPanel(Static):
-    """A widget to display the team's task board."""
+class TaskPlanPanel(Static):
+    """A widget to display the team's task plan."""
 
     def __init__(self, tasks: Optional[List[Task]], statuses: Dict[str, TaskStatus], team_name: str, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -23,7 +23,7 @@ class TaskBoardPanel(Static):
 
     def compose(self) -> None:
         if not self.tasks:
-            yield Static(Panel("No task plan has been published yet.", title="Task Board", border_style="yellow", title_align="left"))
+            yield Static(Panel("No task plan has been published yet.", title="Task Plan", border_style="yellow", title_align="left"))
             return
 
         table = Table(
@@ -79,4 +79,4 @@ class TaskBoardPanel(Static):
                 ", ".join(dep_names)
             )
 
-        yield Static(Panel(table, title="Task Board", border_style="blue", title_align="left"))
+        yield Static(Panel(table, title="Task Plan", border_style="blue", title_align="left"))

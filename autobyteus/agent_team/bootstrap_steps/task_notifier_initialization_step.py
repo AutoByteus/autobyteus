@@ -27,9 +27,9 @@ class TaskNotifierInitializationStep(BaseAgentTeamBootstrapStep):
 
         logger.info(f"Team '{team_id}': Mode is SYSTEM_EVENT_DRIVEN. Initializing and activating task notifier.")
         try:
-            task_board = context.state.task_board
-            if not task_board:
-                logger.error(f"Team '{team_id}': TaskBoard not found. Cannot initialize task notifier. This step should run after TeamContextInitializationStep.")
+            task_plan = context.state.task_plan
+            if not task_plan:
+                logger.error(f"Team '{team_id}': TaskPlan not found. Cannot initialize task notifier. This step should run after TeamContextInitializationStep.")
                 return False
 
             team_manager = context.team_manager
@@ -38,7 +38,7 @@ class TaskNotifierInitializationStep(BaseAgentTeamBootstrapStep):
                 return False
 
             notifier = SystemEventDrivenAgentTaskNotifier(
-                task_board=task_board, 
+                task_plan=task_plan, 
                 team_manager=team_manager
             )
             notifier.start_monitoring()

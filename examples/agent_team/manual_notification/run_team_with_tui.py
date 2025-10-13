@@ -32,7 +32,7 @@ try:
     from autobyteus.cli.agent_team_tui.app import AgentTeamApp
     from autobyteus.task_management.tools import (
         PublishTasks,
-        GetTaskBoardStatus,
+        GetTaskPlanStatus,
         UpdateTaskStatus,
     )
     from autobyteus.agent.message import SendMessageTo
@@ -87,16 +87,16 @@ def create_demo_team(model_name: str):
             "{{team}}\n\n"
             "### Your Mission Workflow\n"
             "1.  **Analyze and Plan**: Decompose the user's request into a single task for your 'FactChecker' agent.\n"
-            "2.  **Publish the Plan**: You MUST use the `PublishTasks` tool to submit your list of tasks to the team's shared task board. This is a critical first step.\n"
+            "2.  **Publish the Plan**: You MUST use the `PublishTasks` tool to submit your list of tasks to the team's shared task plan. This is a critical first step.\n"
             "3.  **Delegate and Inform**: Use the `SendMessageTo` tool to notify your 'FactChecker' agent that they have a new task.\n"
             "4.  **Wait for Completion**: Await a message from 'FactChecker' that they have completed the task. DO NOT ask for status updates.\n"
-            "5.  **Report to User**: Once you receive the completion message, you can use `GetTaskBoardStatus` to review the results and then report them back to the user.\n\n"
+            "5.  **Report to User**: Once you receive the completion message, you can use `GetTaskPlanStatus` to review the results and then report them back to the user.\n\n"
             "### CRITICAL RULES\n"
             "- You MUST use the agent's unique, case-sensitive `name` ('FactChecker') when using tools.\n\n"
             "### Your Tools\n"
             "{{tools}}"
         ),
-        tools=[PublishTasks(), GetTaskBoardStatus(), SendMessageTo()],
+        tools=[PublishTasks(), GetTaskPlanStatus(), SendMessageTo()],
     )
 
     # Specialist Agent Config (FactChecker) - Gets its own LLM instance
@@ -107,7 +107,7 @@ def create_demo_team(model_name: str):
         llm_instance=default_llm_factory.create_llm(model_identifier=model_name),
         system_prompt=(
             "You are an AI agent. Your name is 'FactChecker'. You are a fact-checking specialist.\n"
-            "You will be notified by 'ProjectManager' when a task is ready for you. When you receive a message, you must first use `GetTaskBoardStatus` to find the task assigned to you.\n\n"
+            "You will be notified by 'ProjectManager' when a task is ready for you. When you receive a message, you must first use `GetTaskPlanStatus` to find the task assigned to you.\n\n"
             "### Your Knowledge Base\n"
             "- The capital of France is Paris.\n"
             "- The tallest mountain on Earth is Mount Everest.\n\n"
@@ -118,7 +118,7 @@ def create_demo_team(model_name: str):
             "Here is the manifest of tools available to you:\n"
             "{{tools}}"
         ),
-        tools=[UpdateTaskStatus(), GetTaskBoardStatus(), SendMessageTo()],
+        tools=[UpdateTaskStatus(), GetTaskPlanStatus(), SendMessageTo()],
     )
 
     # Build the agent team

@@ -18,7 +18,7 @@ from autobyteus.agent_team.streaming.agent_team_stream_events import AgentTeamSt
 from autobyteus.agent_team.streaming.agent_team_stream_event_payloads import AgentEventRebroadcastPayload, SubTeamEventRebroadcastPayload, AgentTeamPhaseTransitionData
 from autobyteus.task_management.task import Task
 from autobyteus.task_management.events import TasksAddedEvent, TaskStatusUpdatedEvent
-from autobyteus.task_management.base_task_board import TaskStatus
+from autobyteus.task_management.base_task_plan import TaskStatus
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ class TUIStateStore:
         self._pending_approvals: Dict[str, ToolInvocationApprovalRequestedData] = {}
         self._speaking_agents: Dict[str, bool] = {}
         
-        # State for task boards
+        # State for task plans
         self._task_plans: Dict[str, List[Task]] = {} # team_name -> List[Task]
         self._task_statuses: Dict[str, Dict[str, TaskStatus]] = {} # team_name -> {task_id: status}
         
@@ -85,7 +85,7 @@ class TUIStateStore:
             self._team_event_history[parent_name] = []
         self._team_event_history[parent_name].append(event)
         
-        if event.event_source_type == "TASK_BOARD":
+        if event.event_source_type == "TASK_PLAN":
             team_name_key = parent_name
             if isinstance(event.data, TasksAddedEvent):
                 if team_name_key not in self._task_plans: self._task_plans[team_name_key] = []
@@ -93,7 +93,7 @@ class TUIStateStore:
                 self._task_plans[team_name_key].extend(event.data.tasks)
                 for task in event.data.tasks:
                     self._task_statuses[team_name_key][task.task_id] = TaskStatus.NOT_STARTED
-                logger.debug(f"TUI State: Added {len(event.data.tasks)} tasks to board for '{team_name_key}'.")
+                logger.debug(f"TUI State: Added {len(event.data.tasks)} tasks to plan for '{team_name_key}'.")
 
             elif isinstance(event.data, TaskStatusUpdatedEvent):
                 if team_name_key not in self._task_statuses: self._task_statuses[team_name_key] = {}
@@ -164,10 +164,10 @@ class TUIStateStore:
     def get_pending_approval_for_agent(self, agent_name: str) -> Optional[ToolInvocationApprovalRequestedData]:
         return self._pending_approvals.get(agent_name)
         
-    def get_task_board_plan(self, team_name: str) -> Optional[List[Task]]:
+    def get_task_plan_tasks(self, team_name: str) -> Optional[List[Task]]:
         return self._task_plans.get(team_name)
 
-    def get_task_board_statuses(self, team_name: str) -> Optional[Dict[str, TaskStatus]]:
+    def get_task_plan_statuses(self, team_name: str) -> Optional[Dict[str, TaskStatus]]:
         return self._task_statuses.get(team_name)
 
     def clear_pending_approval(self, agent_name: str):

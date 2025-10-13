@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 class PublishTasks(BaseTool):
     """
-    A tool to publish multiple tasks to the task board. This is an additive-only operation.
+    A tool to publish multiple tasks to the task plan. This is an additive-only operation.
     """
 
     CATEGORY = ToolCategory.TASK_MANAGEMENT
@@ -31,7 +31,7 @@ class PublishTasks(BaseTool):
     @classmethod
     def get_description(cls) -> str:
         return (
-            "Adds a list of new tasks to the team's shared task board. This action is additive and "
+            "Adds a list of new tasks to the team's shared task plan. This action is additive and "
             "does not affect existing tasks or the team's overall goal."
         )
 
@@ -45,13 +45,13 @@ class PublishTasks(BaseTool):
         
         team_context: Optional['AgentTeamContext'] = context.custom_data.get("team_context")
         if not team_context:
-            error_msg = "Error: Team context is not available. Cannot access the task board."
+            error_msg = "Error: Team context is not available. Cannot access the task plan."
             logger.error(f"Agent '{agent_name}': {error_msg}")
             return error_msg
             
-        task_board = getattr(team_context.state, 'task_board', None)
-        if not task_board:
-            error_msg = "Error: Task board has not been initialized for this team."
+        task_plan = getattr(team_context.state, 'task_plan', None)
+        if not task_plan:
+            error_msg = "Error: Task plan has not been initialized for this team."
             logger.error(f"Agent '{agent_name}': {error_msg}")
             return error_msg
             
@@ -63,12 +63,12 @@ class PublishTasks(BaseTool):
             logger.warning(f"Agent '{agent_name}' provided an invalid definition for PublishTasks: {error_msg}")
             return f"Error: {error_msg}"
 
-        if task_board.add_tasks(tasks=final_tasks):
-            success_msg = f"Successfully published {len(final_tasks)} new task(s) to the task board."
+        if task_plan.add_tasks(tasks=final_tasks):
+            success_msg = f"Successfully published {len(final_tasks)} new task(s) to the task plan."
             logger.info(f"Agent '{agent_name}': {success_msg}")
             return success_msg
         else:
             # This path is less likely now but kept for robustness.
-            error_msg = "Failed to publish tasks to the board for an unknown reason."
+            error_msg = "Failed to publish tasks to the plan for an unknown reason."
             logger.error(f"Agent '{agent_name}': {error_msg}")
             return f"Error: {error_msg}"

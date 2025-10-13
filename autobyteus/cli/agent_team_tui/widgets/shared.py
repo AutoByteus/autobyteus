@@ -4,7 +4,7 @@ Shared constants and data for TUI widgets.
 from typing import Dict
 from autobyteus.agent.phases import AgentOperationalPhase
 from autobyteus.agent_team.phases import AgentTeamOperationalPhase
-from autobyteus.task_management.base_task_board import TaskStatus
+from autobyteus.task_management.base_task_plan import TaskStatus
 
 AGENT_PHASE_ICONS: Dict[AgentOperationalPhase, str] = {
     AgentOperationalPhase.UNINITIALIZED: "⚪",

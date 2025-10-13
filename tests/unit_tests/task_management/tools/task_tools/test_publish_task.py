@@ -4,7 +4,7 @@ from unittest.mock import Mock, MagicMock
 
 from autobyteus.agent.context import AgentContext
 from autobyteus.agent_team.context import AgentTeamContext, AgentTeamRuntimeState
-from autobyteus.task_management import InMemoryTaskBoard, Task
+from autobyteus.task_management import InMemoryTaskPlan, Task
 from autobyteus.task_management.schemas import TaskDefinitionSchema
 from autobyteus.task_management.tools import PublishTask
 from autobyteus.utils.parameter_schema import ParameterType
@@ -25,10 +25,10 @@ def mock_agent_context() -> AgentContext:
 
 @pytest.fixture
 def mock_team_context_with_board() -> AgentTeamContext:
-    """Provides a mock AgentTeamContext with a MagicMock for the task board."""
+    """Provides a mock AgentTeamContext with a MagicMock for the task plan."""
     mock_context = Mock(spec=AgentTeamContext)
     mock_state = Mock(spec=AgentTeamRuntimeState)
-    mock_state.task_board = MagicMock(spec=InMemoryTaskBoard)
+    mock_state.task_plan = MagicMock(spec=InMemoryTaskPlan)
     mock_context.state = mock_state
     return mock_context
 
@@ -53,8 +53,8 @@ def test_get_argument_schema(tool: PublishTask):
 async def test_execute_success(tool: PublishTask, mock_agent_context: AgentContext, mock_team_context_with_board: AgentTeamContext):
     """Tests successful execution of the tool."""
     mock_agent_context.custom_data["team_context"] = mock_team_context_with_board
-    task_board_mock = mock_team_context_with_board.state.task_board
-    task_board_mock.add_task.return_value = True
+    task_plan_mock = mock_team_context_with_board.state.task_plan
+    task_plan_mock.add_task.return_value = True
 
     task_def = TaskDefinitionSchema(
         task_name="test_task",
@@ -65,11 +65,11 @@ async def test_execute_success(tool: PublishTask, mock_agent_context: AgentConte
     
     result = await tool._execute(mock_agent_context, **task_def.model_dump())
 
-    assert result == "Successfully published new task 'test_task' to the task board."
-    task_board_mock.add_task.assert_called_once()
+    assert result == "Successfully published new task 'test_task' to the task plan."
+    task_plan_mock.add_task.assert_called_once()
     
     # Verify the object passed to add_task is a Task instance with correct data
-    call_args, _ = task_board_mock.add_task.call_args
+    call_args, _ = task_plan_mock.add_task.call_args
     added_task: Task = call_args[0]
     assert isinstance(added_task, Task)
     assert added_task.task_name == "test_task"
@@ -83,12 +83,12 @@ async def test_execute_no_team_context(tool: PublishTask, mock_agent_context: Ag
     assert "Error: Team context is not available." in result
 
 @pytest.mark.asyncio
-async def test_execute_no_task_board(tool: PublishTask, mock_agent_context: AgentContext, mock_team_context_with_board: AgentTeamContext):
-    """Tests failure when the task board is not initialized."""
-    mock_team_context_with_board.state.task_board = None
+async def test_execute_no_task_plan(tool: PublishTask, mock_agent_context: AgentContext, mock_team_context_with_board: AgentTeamContext):
+    """Tests failure when the task plan is not initialized."""
+    mock_team_context_with_board.state.task_plan = None
     mock_agent_context.custom_data["team_context"] = mock_team_context_with_board
     result = await tool._execute(mock_agent_context, task_name="t", assignee_name="a", description="d")
-    assert "Error: Task board has not been initialized" in result
+    assert "Error: Task plan has not been initialized" in result
 
 @pytest.mark.asyncio
 async def test_execute_invalid_task_definition(tool: PublishTask, mock_agent_context: AgentContext, mock_team_context_with_board: AgentTeamContext):
@@ -102,4 +102,4 @@ async def test_execute_invalid_task_definition(tool: PublishTask, mock_agent_con
     
     result = await tool._execute(mock_agent_context, **invalid_kwargs)
     assert "Error: Invalid task definition provided" in result
-    mock_team_context_with_board.state.task_board.add_task.assert_not_called()
+    mock_team_context_with_board.state.task_plan.add_task.assert_not_called()

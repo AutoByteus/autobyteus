@@ -31,7 +31,7 @@ class ActivationPolicy:
     def reset(self):
         """
         Resets the activation state. This should be called when a new batch of
-        tasks is published to the task board, signifying a new plan or a
+        tasks is published to the task plan, signifying a new plan or a
         significant change in scope.
         """
         logger.info(f"Team '{self._team_id}': ActivationPolicy state has been reset. All agents are now considered inactive.")

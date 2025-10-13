@@ -4,7 +4,7 @@ This package contains the class-based tools related to task and project
 management within an agent team.
 """
 from .task_tools import (
-    GetTaskBoardStatus,
+    GetTaskPlanStatus,
     PublishTasks,
     PublishTask,
     UpdateTaskStatus,
@@ -20,7 +20,7 @@ from .todo_tools import (
 )
 
 __all__ = [
-    "GetTaskBoardStatus",
+    "GetTaskPlanStatus",
     "PublishTasks",
     "PublishTask",
     "UpdateTaskStatus",

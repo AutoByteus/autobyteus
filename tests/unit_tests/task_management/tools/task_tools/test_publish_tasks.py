@@ -4,7 +4,7 @@ from unittest.mock import Mock, MagicMock
 
 from autobyteus.agent.context import AgentContext
 from autobyteus.agent_team.context import AgentTeamContext, AgentTeamRuntimeState
-from autobyteus.task_management import InMemoryTaskBoard, Task
+from autobyteus.task_management import InMemoryTaskPlan, Task
 from autobyteus.task_management.schemas import TasksDefinitionSchema, TaskDefinitionSchema
 from autobyteus.task_management.tools import PublishTasks
 from autobyteus.utils.parameter_schema import ParameterType
@@ -25,10 +25,10 @@ def mock_agent_context() -> AgentContext:
 
 @pytest.fixture
 def mock_team_context_with_board() -> AgentTeamContext:
-    """Provides a mock AgentTeamContext with a MagicMock for the task board."""
+    """Provides a mock AgentTeamContext with a MagicMock for the task plan."""
     mock_context = Mock(spec=AgentTeamContext)
     mock_state = Mock(spec=AgentTeamRuntimeState)
-    mock_state.task_board = MagicMock(spec=InMemoryTaskBoard)
+    mock_state.task_plan = MagicMock(spec=InMemoryTaskPlan)
     mock_context.state = mock_state
     return mock_context
 
@@ -56,8 +56,8 @@ def test_get_argument_schema(tool: PublishTasks):
 async def test_execute_success(tool: PublishTasks, mock_agent_context: AgentContext, mock_team_context_with_board: AgentTeamContext):
     """Tests successful execution of the tool."""
     mock_agent_context.custom_data["team_context"] = mock_team_context_with_board
-    task_board_mock = mock_team_context_with_board.state.task_board
-    task_board_mock.add_tasks.return_value = True
+    task_plan_mock = mock_team_context_with_board.state.task_plan
+    task_plan_mock.add_tasks.return_value = True
 
     tasks_def = TasksDefinitionSchema(tasks=[
         TaskDefinitionSchema(task_name="task1", assignee_name="dev", description="d1"),
@@ -66,10 +66,10 @@ async def test_execute_success(tool: PublishTasks, mock_agent_context: AgentCont
     
     result = await tool._execute(mock_agent_context, tasks=tasks_def.model_dump()["tasks"])
 
-    assert result == "Successfully published 2 new task(s) to the task board."
-    task_board_mock.add_tasks.assert_called_once()
+    assert result == "Successfully published 2 new task(s) to the task plan."
+    task_plan_mock.add_tasks.assert_called_once()
     
-    call_kwargs = task_board_mock.add_tasks.call_args.kwargs
+    call_kwargs = task_plan_mock.add_tasks.call_args.kwargs
     added_tasks: list[Task] = call_kwargs["tasks"]
     assert isinstance(added_tasks, list)
     assert len(added_tasks) == 2
@@ -84,12 +84,12 @@ async def test_execute_no_team_context(tool: PublishTasks, mock_agent_context: A
     assert "Error: Team context is not available." in result
 
 @pytest.mark.asyncio
-async def test_execute_no_task_board(tool: PublishTasks, mock_agent_context: AgentContext, mock_team_context_with_board: AgentTeamContext):
-    """Tests failure when the task board is not initialized."""
-    mock_team_context_with_board.state.task_board = None
+async def test_execute_no_task_plan(tool: PublishTasks, mock_agent_context: AgentContext, mock_team_context_with_board: AgentTeamContext):
+    """Tests failure when the task plan is not initialized."""
+    mock_team_context_with_board.state.task_plan = None
     mock_agent_context.custom_data["team_context"] = mock_team_context_with_board
     result = await tool._execute(mock_agent_context, tasks={})
-    assert "Error: Task board has not been initialized" in result
+    assert "Error: Task plan has not been initialized" in result
 
 @pytest.mark.asyncio
 async def test_execute_invalid_task_definitions(tool: PublishTasks, mock_agent_context: AgentContext, mock_team_context_with_board: AgentTeamContext):
@@ -102,7 +102,7 @@ async def test_execute_invalid_task_definitions(tool: PublishTasks, mock_agent_c
     
     result = await tool._execute(mock_agent_context, tasks=invalid_tasks_dict["tasks"])
     assert "Error: Invalid task definitions provided" in result
-    mock_team_context_with_board.state.task_board.add_tasks.assert_not_called()
+    mock_team_context_with_board.state.task_plan.add_tasks.assert_not_called()
 
 @pytest.mark.asyncio
 async def test_execute_duplicate_task_names(tool: PublishTasks, mock_agent_context: AgentContext, mock_team_context_with_board: AgentTeamContext):

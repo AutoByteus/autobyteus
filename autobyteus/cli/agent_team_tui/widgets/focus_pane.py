@@ -14,7 +14,7 @@ from textual.containers import VerticalScroll, Horizontal
 
 from autobyteus.agent.phases import AgentOperationalPhase
 from autobyteus.agent_team.phases import AgentTeamOperationalPhase
-from autobyteus.task_management.base_task_board import TaskStatus
+from autobyteus.task_management.base_task_plan import TaskStatus
 from autobyteus.task_management.task import Task
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent, StreamEventType as AgentStreamEventType
 from autobyteus.agent.streaming.stream_event_payloads import (
@@ -27,7 +27,7 @@ from .shared import (
     USER_ICON, ASSISTANT_ICON, TEAM_ICON, AGENT_ICON, SYSTEM_TASK_ICON
 )
 from . import renderables
-from .task_board_panel import TaskBoardPanel
+from .task_plan_panel import TaskPlanPanel
 
 logger = logging.getLogger(__name__)
 
@@ -211,7 +211,7 @@ class FocusPane(Static):
         info_text.append(f"Status: {phase_icon} {phase.value}")
         await log_container.mount(Static(Panel(info_text, title="Team Info", border_style="green", title_align="left")))
 
-        await log_container.mount(TaskBoardPanel(tasks=task_plan, statuses=task_statuses, team_name=node_data['name']))
+        await log_container.mount(TaskPlanPanel(tasks=task_plan, statuses=task_statuses, team_name=node_data['name']))
 
         children_data = node_data.get("children", {})
         if children_data:

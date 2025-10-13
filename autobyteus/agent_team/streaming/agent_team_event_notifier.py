@@ -7,7 +7,7 @@ from autobyteus.events.event_types import EventType
 from autobyteus.agent_team.phases.agent_team_operational_phase import AgentTeamOperationalPhase
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent
 from .agent_team_stream_events import AgentTeamStreamEvent, AgentEventRebroadcastPayload, AgentTeamPhaseTransitionData, SubTeamEventRebroadcastPayload
-from autobyteus.task_management.events import BaseTaskBoardEvent
+from autobyteus.task_management.events import BaseTaskPlanEvent
 
 if TYPE_CHECKING:
     from autobyteus.agent_team.runtime.agent_team_runtime import AgentTeamRuntime
@@ -56,9 +56,9 @@ class AgentTeamExternalEventNotifier(EventEmitter):
         event = AgentTeamStreamEvent(team_id=self.team_id, event_source_type="SUB_TEAM", data=SubTeamEventRebroadcastPayload(sub_team_node_name=sub_team_node_name, sub_team_event=sub_team_event))
         self._emit_event(event)
 
-    def handle_and_publish_task_board_event(self, payload: BaseTaskBoardEvent, **kwargs):
+    def handle_and_publish_task_plan_event(self, payload: BaseTaskPlanEvent, **kwargs):
         """
-        Listener for TaskBoard events. It wraps the event and publishes it on the main team stream.
+        Listener for TaskPlan events. It wraps the event and publishes it on the main team stream.
         """
-        event = AgentTeamStreamEvent(team_id=self.team_id, event_source_type="TASK_BOARD", data=payload)
+        event = AgentTeamStreamEvent(team_id=self.team_id, event_source_type="TASK_PLAN", data=payload)
         self._emit_event(event)

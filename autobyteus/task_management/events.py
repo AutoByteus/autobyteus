@@ -1,25 +1,25 @@
 # file: autobyteus/autobyteus/task_management/events.py
 """
-Defines the Pydantic models for events emitted by a TaskBoard.
+Defines the Pydantic models for events emitted by a TaskPlan.
 """
 from typing import List, Optional
 from pydantic import BaseModel
 
 from autobyteus.task_management.task import Task
-from autobyteus.task_management.base_task_board import TaskStatus
+from autobyteus.task_management.base_task_plan import TaskStatus
 from .deliverable import FileDeliverable
 
-class BaseTaskBoardEvent(BaseModel):
-    """Base class for all task board events."""
+class BaseTaskPlanEvent(BaseModel):
+    """Base class for all task plan events."""
     team_id: str
 
-class TasksAddedEvent(BaseTaskBoardEvent):
+class TasksAddedEvent(BaseTaskPlanEvent):
     """
-    Payload for when one or more tasks are added to the board.
+    Payload for when one or more tasks are added to the plan.
     """
     tasks: List[Task]
 
-class TaskStatusUpdatedEvent(BaseTaskBoardEvent):
+class TaskStatusUpdatedEvent(BaseTaskPlanEvent):
     """Payload for when a task's status is updated."""
     task_id: str
     new_status: TaskStatus

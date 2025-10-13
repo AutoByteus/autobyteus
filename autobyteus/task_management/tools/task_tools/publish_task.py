@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 class PublishTask(BaseTool):
-    """A tool for any agent to add a single new task to the team's task board."""
+    """A tool for any agent to add a single new task to the team's task plan."""
 
     CATEGORY = ToolCategory.TASK_MANAGEMENT
 
@@ -29,7 +29,7 @@ class PublishTask(BaseTool):
     @classmethod
     def get_description(cls) -> str:
         return (
-            "Adds a single new task to the team's shared task board. This is an additive action "
+            "Adds a single new task to the team's shared task plan. This is an additive action "
             "and does not affect existing tasks. Use this to create follow-up tasks or delegate new work."
         )
 
@@ -40,7 +40,7 @@ class PublishTask(BaseTool):
 
     async def _execute(self, context: 'AgentContext', **kwargs: Any) -> str:
         """
-        Executes the tool by validating the task object and adding it to the board.
+        Executes the tool by validating the task object and adding it to the plan.
         """
         agent_name = context.config.name
         task_name = kwargs.get("task_name", "unnamed task")
@@ -48,13 +48,13 @@ class PublishTask(BaseTool):
 
         team_context: Optional['AgentTeamContext'] = context.custom_data.get("team_context")
         if not team_context:
-            error_msg = "Error: Team context is not available. Cannot access the task board."
+            error_msg = "Error: Team context is not available. Cannot access the task plan."
             logger.error(f"Agent '{agent_name}': {error_msg}")
             return error_msg
 
-        task_board = getattr(team_context.state, 'task_board', None)
-        if not task_board:
-            error_msg = "Error: Task board has not been initialized for this team."
+        task_plan = getattr(team_context.state, 'task_plan', None)
+        if not task_plan:
+            error_msg = "Error: Task plan has not been initialized for this team."
             logger.error(f"Agent '{agent_name}': {error_msg}")
             return error_msg
             
@@ -66,12 +66,12 @@ class PublishTask(BaseTool):
             logger.warning(f"Agent '{agent_name}' provided an invalid definition for PublishTask: {error_msg}")
             return f"Error: {error_msg}"
 
-        if task_board.add_task(new_task):
-            success_msg = f"Successfully published new task '{new_task.task_name}' to the task board."
+        if task_plan.add_task(new_task):
+            success_msg = f"Successfully published new task '{new_task.task_name}' to the task plan."
             logger.info(f"Agent '{agent_name}': {success_msg}")
             return success_msg
         else:
             # This path is less likely now but kept for robustness.
-            error_msg = "Failed to publish task to the board for an unknown reason."
+            error_msg = "Failed to publish task to the plan for an unknown reason."
             logger.error(f"Agent '{agent_name}': {error_msg}")
             return f"Error: {error_msg}"

@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from autobyteus.agent_team.context.team_node_config import TeamNodeConfig
     from autobyteus.agent_team.context.team_manager import TeamManager
     from autobyteus.agent_team.streaming.agent_event_multiplexer import AgentEventMultiplexer
-    from autobyteus.task_management.base_task_board import BaseTaskBoard
+    from autobyteus.task_management.base_task_plan import BaseTaskPlan
     from autobyteus.agent_team.task_notification.system_event_driven_agent_task_notifier import SystemEventDrivenAgentTaskNotifier
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ class AgentTeamRuntimeState:
     multiplexer_ref: Optional['AgentEventMultiplexer'] = None
     
     # Dynamic planning and artifact state
-    task_board: Optional['BaseTaskBoard'] = None
+    task_plan: Optional['BaseTaskPlan'] = None
 
     def __post_init__(self):
         if not self.team_id or not isinstance(self.team_id, str):

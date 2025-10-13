@@ -28,5 +28,5 @@ class SubTeamEventRebroadcastPayload(BaseModel):
     sub_team_node_name: str # The friendly name of the sub-team node
     sub_team_event: "AgentTeamStreamEvent" = Field(..., description="The original, unmodified event from the sub-team's stream")
 
-# --- Payload for events originating from the "TASK_BOARD" source ---
-TaskBoardEventPayload = Union[TasksAddedEvent, TaskStatusUpdatedEvent]
+# --- Payload for events originating from the "TASK_PLAN" source ---
+TaskPlanEventPayload = Union[TasksAddedEvent, TaskStatusUpdatedEvent]

@@ -7,7 +7,7 @@ from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.tool_category import ToolCategory
 from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.pydantic_schema_converter import pydantic_to_parameter_schema
-from autobyteus.task_management.base_task_board import TaskStatus
+from autobyteus.task_management.base_task_plan import TaskStatus
 from autobyteus.task_management.deliverable import FileDeliverable
 from autobyteus.task_management.schemas import FileDeliverableSchema
 
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 class UpdateTaskStatus(BaseTool):
-    """A tool for member agents to update their progress and submit file deliverables on the TaskBoard."""
+    """A tool for member agents to update their progress and submit file deliverables on the TaskPlan."""
 
     CATEGORY = ToolCategory.TASK_MANAGEMENT
 
@@ -29,7 +29,7 @@ class UpdateTaskStatus(BaseTool):
     @classmethod
     def get_description(cls) -> str:
         return (
-            "Updates the status of a specific task on the team's shared task board. "
+            "Updates the status of a specific task on the team's shared task plan. "
             "When completing a task, this tool can also be used to formally submit a list of file deliverables."
         )
 
@@ -67,22 +67,22 @@ class UpdateTaskStatus(BaseTool):
         
         team_context: Optional['AgentTeamContext'] = context.custom_data.get("team_context")
         if not team_context:
-            error_msg = "Error: Team context is not available. Cannot access the task board."
+            error_msg = "Error: Team context is not available. Cannot access the task plan."
             logger.error(f"Agent '{agent_name}': {error_msg}")
             return error_msg
             
-        task_board = getattr(team_context.state, 'task_board', None)
-        if not task_board:
-            error_msg = "Error: Task board has not been initialized for this team."
+        task_plan = getattr(team_context.state, 'task_plan', None)
+        if not task_plan:
+            error_msg = "Error: Task plan has not been initialized for this team."
             logger.error(f"Agent '{agent_name}': {error_msg}")
             return error_msg
         
-        if not task_board.tasks:
-            error_msg = "Error: No tasks are currently loaded on the task board."
-            logger.warning(f"Agent '{agent_name}' tried to update task status, but the board is empty.")
+        if not task_plan.tasks:
+            error_msg = "Error: No tasks are currently loaded on the task plan."
+            logger.warning(f"Agent '{agent_name}' tried to update task status, but the plan is empty.")
             return error_msg
 
-        target_task = next((t for t in task_board.tasks if t.task_name == task_name), None)
+        target_task = next((t for t in task_plan.tasks if t.task_name == task_name), None)
 
         if not target_task:
             error_msg = f"Failed to update status for task '{task_name}'. The task name does not exist on the current plan."
@@ -108,8 +108,8 @@ class UpdateTaskStatus(BaseTool):
                 logger.warning(f"Agent '{agent_name}': {error_msg}")
                 return f"Error: {error_msg}"
 
-        if not task_board.update_task_status(target_task.task_id, status_enum, agent_name):
-            error_msg = f"Failed to update status for task '{task_name}'. An unexpected error occurred on the task board."
+        if not task_plan.update_task_status(target_task.task_id, status_enum, agent_name):
+            error_msg = f"Failed to update status for task '{task_name}'. An unexpected error occurred on the task plan."
             logger.error(f"Agent '{agent_name}': {error_msg}")
             return f"Error: {error_msg}"
 

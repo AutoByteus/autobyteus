@@ -28,11 +28,11 @@ Launch and monitor your agent teams with our built-in Textual-based TUI.
 -   **Hierarchical View**: See the structure of your team, including sub-teams and their agents.
 -   **Real-Time Status**: Agent and team statuses are updated live, showing you who is idle, thinking, or executing a tool.
 -   **Detailed Logs**: Select any agent to view a detailed, streaming log of their thoughts, actions, and tool interactions.
--   **Live Task Board**: Watch your team's `TaskBoard` update in real-time as the coordinator publishes a plan and agents complete their tasks.
+-   **Live Task Plan**: Watch your team's `TaskPlan` update in real-time as the coordinator publishes a plan and agents complete their tasks.
 
-| TUI - Detailed Agent Log | TUI - Task Board with Completed Task |
+| TUI - Detailed Agent Log | TUI - Task Plan with Completed Task |
 | :---: | :---: |
-| ![Autobyteus Agent Log](docs/images/image_4.png) | ![Autobyteus Task Board](docs/images/image_3.png) |
+| ![Autobyteus Agent Log](docs/images/image_4.png) | ![Autobyteus Task Plan](docs/images/image_3.png) |
 
 #### 🏗️ Fluent Team Building
 Define complex agent and team structures with an intuitive, fluent API. The `AgentTeamBuilder` makes composing your team simple and readable.
@@ -59,7 +59,7 @@ Autobyteus intelligently handles tool communication with LLMs while giving you f
 #### 📈 Flexible Communication Protocols
 Choose the collaboration pattern that best fits your use case with configurable `TaskNotificationMode`s.
 -   **`AGENT_MANUAL_NOTIFICATION` (Default)**: A traditional approach where a coordinator agent is responsible for creating a plan and then explicitly notifying other agents to begin their work via messages.
--   **`SYSTEM_EVENT_DRIVEN`**: A more automated approach where the coordinator's only job is to publish a plan to the `TaskBoard`. The framework then monitors the board and automatically notifies agents when their tasks become unblocked, enabling parallel execution and reducing coordinator overhead.
+-   **`SYSTEM_EVENT_DRIVEN`**: A more automated approach where the coordinator's only job is to publish a plan to the `TaskPlan`. The framework then monitors the board and automatically notifies agents when their tasks become unblocked, enabling parallel execution and reducing coordinator overhead.
 
 ## Requirements
 

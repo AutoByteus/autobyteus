@@ -9,7 +9,7 @@ but includes dynamic state information (like task status).
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
-from autobyteus.task_management.base_task_board import TaskStatus
+from autobyteus.task_management.base_task_plan import TaskStatus
 from autobyteus.task_management.deliverable import FileDeliverable
 
 class TaskStatusReportItemSchema(BaseModel):
@@ -22,5 +22,5 @@ class TaskStatusReportItemSchema(BaseModel):
     file_deliverables: List[FileDeliverable] = Field(default_factory=list, description="A list of files submitted as deliverables for this task.")
 
 class TaskStatusReportSchema(BaseModel):
-    """Represents a full task board status report in an LLM-friendly format."""
+    """Represents a full task plan status report in an LLM-friendly format."""
     tasks: List[TaskStatusReportItemSchema] = Field(..., description="The list of tasks and their current statuses.")

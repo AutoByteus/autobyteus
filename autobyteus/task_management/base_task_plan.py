@@ -1,6 +1,6 @@
-# file: autobyteus/autobyteus/task_management/base_task_board.py
+# file: autobyteus/autobyteus/task_management/base_task_plan.py
 """
-Defines the abstract interface for a TaskBoard and its related enums.
+Defines the abstract interface for a TaskPlan and its related enums.
 """
 import logging
 from abc import ABC, abstractmethod
@@ -13,7 +13,7 @@ from .task import Task
 logger = logging.getLogger(__name__)
 
 class TaskStatus(str, Enum):
-    """Enumerates the possible lifecycle states of a task on the TaskBoard."""
+    """Enumerates the possible lifecycle states of a task on the TaskPlan."""
     NOT_STARTED = "not_started"
     QUEUED = "queued"
     IN_PROGRESS = "in_progress"
@@ -25,12 +25,12 @@ class TaskStatus(str, Enum):
         """Returns True if the status is a final state."""
         return self in {TaskStatus.COMPLETED, TaskStatus.FAILED}
 
-class BaseTaskBoard(ABC, EventEmitter):
+class BaseTaskPlan(ABC, EventEmitter):
     """
-    Abstract base class for a TaskBoard.
+    Abstract base class for a TaskPlan.
 
     This class defines the contract for any component that manages the live state
-    of tasks for a team. It is a dynamic board, not a static plan.
+    of tasks for a team. It is a dynamic plan, not a static document.
     It inherits from EventEmitter to broadcast state changes.
     """
 
@@ -38,19 +38,19 @@ class BaseTaskBoard(ABC, EventEmitter):
         EventEmitter.__init__(self)
         self.team_id = team_id
         self.tasks: List[Task] = []
-        logger.debug(f"BaseTaskBoard initialized for team '{self.team_id}'.")
+        logger.debug(f"BaseTaskPlan initialized for team '{self.team_id}'.")
 
     @abstractmethod
     def add_tasks(self, tasks: List[Task]) -> bool:
         """
-        Adds a list of new tasks to the board. This is an additive-only operation.
+        Adds a list of new tasks to the plan. This is an additive-only operation.
         """
         raise NotImplementedError
 
     @abstractmethod
     def add_task(self, task: Task) -> bool:
         """
-        Adds a single new task to the board.
+        Adds a single new task to the plan.
         """
         raise NotImplementedError
 
@@ -64,7 +64,7 @@ class BaseTaskBoard(ABC, EventEmitter):
     @abstractmethod
     def get_status_overview(self) -> Dict[str, Any]:
         """
-        Returns a serializable dictionary of the board's current state.
+        Returns a serializable dictionary of the plan's current state.
         """
         raise NotImplementedError
 

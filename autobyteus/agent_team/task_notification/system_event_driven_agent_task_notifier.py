@@ -4,38 +4,38 @@ from typing import Union, TYPE_CHECKING
 
 from autobyteus.events.event_types import EventType
 from autobyteus.task_management.events import TasksAddedEvent, TaskStatusUpdatedEvent
-from autobyteus.task_management.base_task_board import TaskStatus
+from autobyteus.task_management.base_task_plan import TaskStatus
 
 # Import the new, separated components
 from .activation_policy import ActivationPolicy
 from .task_activator import TaskActivator
 
 if TYPE_CHECKING:
-    from autobyteus.task_management.base_task_board import BaseTaskBoard
+    from autobyteus.task_management.base_task_plan import BaseTaskPlan
     from autobyteus.agent_team.context.team_manager import TeamManager
 
 logger = logging.getLogger(__name__)
 
 class SystemEventDrivenAgentTaskNotifier:
     """
-    An internal component that monitors a TaskBoard and orchestrates agent
+    An internal component that monitors a TaskPlan and orchestrates agent
     activation based on task runnability.
 
     This class acts as a conductor, delegating the logic for *when* to activate
     to an ActivationPolicy and the action of *how* to activate to a TaskActivator.
     """
-    def __init__(self, task_board: 'BaseTaskBoard', team_manager: 'TeamManager'):
+    def __init__(self, task_plan: 'BaseTaskPlan', team_manager: 'TeamManager'):
         """
         Initializes the SystemEventDrivenAgentTaskNotifier.
 
         Args:
-            task_board: The team's shared task board instance.
+            task_plan: The team's shared task plan instance.
             team_manager: The team's manager for activating agents.
         """
-        if not task_board or not team_manager:
-            raise ValueError("TaskBoard and TeamManager are required for the notifier.")
+        if not task_plan or not team_manager:
+            raise ValueError("TaskPlan and TeamManager are required for the notifier.")
             
-        self._task_board = task_board
+        self._task_plan = task_plan
         self._team_manager = team_manager
         
         # Instantiate the components that hold the actual logic and action
@@ -46,18 +46,18 @@ class SystemEventDrivenAgentTaskNotifier:
 
     def start_monitoring(self):
         """
-        Subscribes to task board events to begin monitoring for runnable tasks.
+        Subscribes to task plan events to begin monitoring for runnable tasks.
         """
-        self._task_board.subscribe(EventType.TASK_BOARD_TASKS_ADDED, self._handle_tasks_changed)
-        self._task_board.subscribe(EventType.TASK_BOARD_STATUS_UPDATED, self._handle_tasks_changed)
-        logger.info(f"Team '{self._team_manager.team_id}': Task notifier orchestrator is now monitoring TaskBoard events.")
+        self._task_plan.subscribe(EventType.TASK_PLAN_TASKS_ADDED, self._handle_tasks_changed)
+        self._task_plan.subscribe(EventType.TASK_PLAN_STATUS_UPDATED, self._handle_tasks_changed)
+        logger.info(f"Team '{self._team_manager.team_id}': Task notifier orchestrator is now monitoring TaskPlan events.")
     
     async def _handle_tasks_changed(self, payload: Union[TasksAddedEvent, TaskStatusUpdatedEvent], **kwargs):
         """
-        Orchestrates the agent activation workflow upon any change to the task board.
+        Orchestrates the agent activation workflow upon any change to the task plan.
         """
         team_id = self._team_manager.team_id
-        logger.info(f"Team '{team_id}': Task board changed ({type(payload).__name__}). Orchestrating activation check.")
+        logger.info(f"Team '{team_id}': Task plan changed ({type(payload).__name__}). Orchestrating activation check.")
 
         # If a new batch of tasks was added, it's a new "wave" of work.
         # We must reset the policy's memory of who has been activated.
@@ -65,8 +65,8 @@ class SystemEventDrivenAgentTaskNotifier:
             logger.info(f"Team '{team_id}': New tasks added. Resetting activation policy.")
             self._policy.reset()
 
-        # 1. DATA FETCHING: Get the current state of runnable tasks from the board.
-        runnable_tasks = self._task_board.get_next_runnable_tasks()
+        # 1. DATA FETCHING: Get the current state of runnable tasks from the plan.
+        runnable_tasks = self._task_plan.get_next_runnable_tasks()
         
         if not runnable_tasks:
             logger.debug(f"Team '{team_id}': No runnable tasks found after change. No action needed.")
@@ -87,8 +87,8 @@ class SystemEventDrivenAgentTaskNotifier:
             agent_runnable_tasks = [t for t in runnable_tasks if t.assignee_name == agent_name]
             for task in agent_runnable_tasks:
                 # We only need to queue tasks that are NOT_STARTED.
-                if self._task_board.task_statuses.get(task.task_id) == TaskStatus.NOT_STARTED:
-                    self._task_board.update_task_status(
+                if self._task_plan.task_statuses.get(task.task_id) == TaskStatus.NOT_STARTED:
+                    self._task_plan.update_task_status(
                         task_id=task.task_id,
                         status=TaskStatus.QUEUED,
                         agent_name="SystemTaskNotifier"

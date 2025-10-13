@@ -1,17 +1,17 @@
 # file: autobyteus/autobyteus/task_management/__init__.py
 """
 This package defines components for task management and state tracking,
-including task plans and live task boards. It is designed to be a general-purpose
-module usable by various components, such as agents or agent teams.
+including task plans and live plan execution tracking. It is designed to be a
+general-purpose module usable by various components, such as agents or agent teams.
 """
 from .task import Task
 from .schemas import (TasksDefinitionSchema, TaskDefinitionSchema, TaskStatusReportSchema,
                       TaskStatusReportItemSchema, FileDeliverableSchema, ToDoDefinitionSchema, ToDosDefinitionSchema)
-from .base_task_board import BaseTaskBoard, TaskStatus
-from .in_memory_task_board import InMemoryTaskBoard
+from .base_task_plan import BaseTaskPlan, TaskStatus
+from .in_memory_task_plan import InMemoryTaskPlan
 from .deliverable import FileDeliverable
 from .tools import (
-    GetTaskBoardStatus,
+    GetTaskPlanStatus,
     PublishTasks,
     PublishTask,
     UpdateTaskStatus,
@@ -22,15 +22,15 @@ from .tools import (
     GetToDoList,
     UpdateToDoStatus as UpdateToDoStatusTool,
 )
-from .converters import TaskBoardConverter
-from .events import BaseTaskBoardEvent, TasksAddedEvent, TaskStatusUpdatedEvent
+from .converters import TaskPlanConverter
+from .events import BaseTaskPlanEvent, TasksAddedEvent, TaskStatusUpdatedEvent
 from .todo import ToDo, ToDoStatus
 from .todo_list import ToDoList
 
-# For convenience, we can alias InMemoryTaskBoard as the default TaskBoard.
-# This allows other parts of the code to import `TaskBoard` without needing
+# For convenience, we can alias InMemoryTaskPlan as the default TaskPlan.
+# This allows other parts of the code to import `TaskPlan` without needing
 # to know the specific implementation being used by default.
-TaskBoard = InMemoryTaskBoard
+TaskPlan = InMemoryTaskPlan
 
 __all__ = [
     "Task",
@@ -41,12 +41,12 @@ __all__ = [
     "FileDeliverableSchema",
     "ToDoDefinitionSchema",
     "ToDosDefinitionSchema",
-    "BaseTaskBoard",
+    "BaseTaskPlan",
     "TaskStatus",
-    "InMemoryTaskBoard",
-    "TaskBoard",  # Exposing the alias
+    "InMemoryTaskPlan",
+    "TaskPlan",  # Exposing the alias
     "FileDeliverable",
-    "GetTaskBoardStatus",
+    "GetTaskPlanStatus",
     "PublishTasks",
     "PublishTask",
     "UpdateTaskStatus",
@@ -56,8 +56,8 @@ __all__ = [
     "AddToDo",
     "GetToDoList",
     "UpdateToDoStatusTool",
-    "TaskBoardConverter",
-    "BaseTaskBoardEvent",
+    "TaskPlanConverter",
+    "BaseTaskPlanEvent",
     "TasksAddedEvent",
     "TaskStatusUpdatedEvent",
     "ToDo",

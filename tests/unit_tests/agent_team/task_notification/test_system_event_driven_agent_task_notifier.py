@@ -8,7 +8,7 @@ from autobyteus.agent_team.task_notification.activation_policy import Activation
 from autobyteus.agent_team.task_notification.task_activator import TaskActivator
 
 from autobyteus.agent_team.task_notification.system_event_driven_agent_task_notifier import SystemEventDrivenAgentTaskNotifier
-from autobyteus.task_management import InMemoryTaskBoard, Task, TaskStatus
+from autobyteus.task_management import InMemoryTaskPlan, Task, TaskStatus
 from autobyteus.events.event_types import EventType
 from autobyteus.task_management.events import TasksAddedEvent, TaskStatusUpdatedEvent
 
@@ -30,12 +30,12 @@ def mock_activator():
     return activator
 
 @pytest.fixture
-def task_board():
-    """Provides a real InMemoryTaskBoard instance for realistic state changes."""
-    return InMemoryTaskBoard(team_id="test_orchestrator_team")
+def task_plan():
+    """Provides a real InMemoryTaskPlan instance for realistic state changes."""
+    return InMemoryTaskPlan(team_id="test_orchestrator_team")
 
 @pytest.fixture
-def notifier(task_board, mock_policy, mock_activator):
+def notifier(task_plan, mock_policy, mock_activator):
     """
     Provides an instance of the notifier with its dependencies mocked out.
     We patch the __init__ to inject our mocks.
@@ -47,7 +47,7 @@ def notifier(task_board, mock_policy, mock_activator):
         mock_team_manager = MagicMock()
         mock_team_manager.team_id = "test_orchestrator_team"
         
-        notifier_instance = SystemEventDrivenAgentTaskNotifier(task_board=task_board, team_manager=mock_team_manager)
+        notifier_instance = SystemEventDrivenAgentTaskNotifier(task_plan=task_plan, team_manager=mock_team_manager)
         yield notifier_instance
 
 @pytest.fixture
@@ -63,7 +63,7 @@ def tasks():
 # --- Tests ---
 
 @pytest.mark.asyncio
-async def test_on_tasks_added_resets_policy_and_activates(notifier, task_board, mock_policy, mock_activator, tasks):
+async def test_on_tasks_added_resets_policy_and_activates(notifier, task_plan, mock_policy, mock_activator, tasks):
     """
     Tests that on TasksAddedEvent, the orchestrator resets the policy, gets a
     decision, updates task statuses, and calls the activator.
@@ -75,11 +75,11 @@ async def test_on_tasks_added_resets_policy_and_activates(notifier, task_board, 
     
     # Act
     # The handler is being tested in isolation. We must first establish the state
-    # of the task board that the handler will read from. The TasksAddedEvent itself
+    # of the task plan that the handler will read from. The TasksAddedEvent itself
     # just carries data; it doesn't mutate the board's state.
-    task_board.add_tasks(tasks)
+    task_plan.add_tasks(tasks)
 
-    event = TasksAddedEvent(team_id=task_board.team_id, tasks=tasks)
+    event = TasksAddedEvent(team_id=task_plan.team_id, tasks=tasks)
     await notifier._handle_tasks_changed(event)
     
     # Assert Orchestration Flow
@@ -90,13 +90,13 @@ async def test_on_tasks_added_resets_policy_and_activates(notifier, task_board, 
     mock_policy.determine_activations.assert_called_once()
     
     # 3. Task status was updated on the board for the runnable task
-    assert task_board.task_statuses[task_a.task_id] == TaskStatus.QUEUED
+    assert task_plan.task_statuses[task_a.task_id] == TaskStatus.QUEUED
     
     # 4. Activator was called for the agent returned by the policy
     mock_activator.activate_agent.assert_awaited_once_with("AgentA")
 
 @pytest.mark.asyncio
-async def test_on_status_update_does_not_reset_policy(notifier, task_board, mock_policy, mock_activator, tasks):
+async def test_on_status_update_does_not_reset_policy(notifier, task_plan, mock_policy, mock_activator, tasks):
     """
     Tests that on TaskStatusUpdatedEvent, the orchestrator does NOT reset the
     policy, but still orchestrates the activation for any handoffs.
@@ -107,10 +107,10 @@ async def test_on_status_update_does_not_reset_policy(notifier, task_board, mock
     mock_policy.determine_activations.return_value = ["AgentB"]
 
     # Act
-    event = TaskStatusUpdatedEvent(team_id=task_board.team_id, task_id="any_id", new_status=TaskStatus.COMPLETED, agent_name="AgentA")
+    event = TaskStatusUpdatedEvent(team_id=task_plan.team_id, task_id="any_id", new_status=TaskStatus.COMPLETED, agent_name="AgentA")
     # Manually set up the board state to make task_b runnable for the test
-    task_board.add_tasks(tasks)
-    task_board.update_task_status(tasks[0].task_id, TaskStatus.COMPLETED, "AgentA")
+    task_plan.add_tasks(tasks)
+    task_plan.update_task_status(tasks[0].task_id, TaskStatus.COMPLETED, "AgentA")
 
     await notifier._handle_tasks_changed(event)
     
@@ -122,13 +122,13 @@ async def test_on_status_update_does_not_reset_policy(notifier, task_board, mock
     mock_policy.determine_activations.assert_called_once()
     
     # 3. Task status was updated
-    assert task_board.task_statuses[task_b.task_id] == TaskStatus.QUEUED
+    assert task_plan.task_statuses[task_b.task_id] == TaskStatus.QUEUED
     
     # 4. Activator was called for the handoff
     mock_activator.activate_agent.assert_awaited_once_with("AgentB")
 
 @pytest.mark.asyncio
-async def test_does_not_activate_if_policy_returns_empty(notifier, task_board, mock_policy, mock_activator, tasks):
+async def test_does_not_activate_if_policy_returns_empty(notifier, task_plan, mock_policy, mock_activator, tasks):
     """
     Tests that the activator is not called if the policy determines no new agents
     should be activated, even if there are runnable tasks.
@@ -137,9 +137,9 @@ async def test_does_not_activate_if_policy_returns_empty(notifier, task_board, m
     mock_policy.determine_activations.return_value = []
     
     # Act
-    event = TaskStatusUpdatedEvent(team_id=task_board.team_id, task_id="any_id", new_status=TaskStatus.COMPLETED, agent_name="AgentA")
-    task_board.add_tasks(tasks)
-    task_board.update_task_status(tasks[0].task_id, TaskStatus.COMPLETED, "AgentA")
+    event = TaskStatusUpdatedEvent(team_id=task_plan.team_id, task_id="any_id", new_status=TaskStatus.COMPLETED, agent_name="AgentA")
+    task_plan.add_tasks(tasks)
+    task_plan.update_task_status(tasks[0].task_id, TaskStatus.COMPLETED, "AgentA")
 
     await notifier._handle_tasks_changed(event)
     
@@ -152,4 +152,4 @@ async def test_does_not_activate_if_policy_returns_empty(notifier, task_board, m
 
     # 3. Task statuses are NOT updated to QUEUED by the orchestrator in this case.
     # The orchestrator only queues tasks for agents it is about to activate.
-    assert task_board.task_statuses[tasks[1].task_id] == TaskStatus.NOT_STARTED
+    assert task_plan.task_statuses[tasks[1].task_id] == TaskStatus.NOT_STARTED

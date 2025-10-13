@@ -5,7 +5,7 @@ This directory contains example scripts that demonstrate how to build and run mu
 The examples are categorized into two subdirectories based on the team's task notification mode:
 
 -   `manual_notification/`: In this mode, the coordinator agent is explicitly prompted to manage the workflow by sending messages to other agents to start their tasks. This demonstrates direct, agent-driven orchestration.
--   `event_driven/`: In this mode, the team is configured to be `SYSTEM_EVENT_DRIVEN`. The coordinator's only job is to publish a plan to the `TaskBoard`. The framework then automatically monitors the board and sends notifications to agents when their tasks become runnable.
+-   `event_driven/`: In this mode, the team is configured to be `SYSTEM_EVENT_DRIVEN`. The coordinator's only job is to publish a plan to the `TaskPlan`. The framework then automatically monitors the board and sends notifications to agents when their tasks become runnable.
 
 **Examples:**
 - [Hierarchical Debate Team (Manual Notification)](#example-hierarchical-debate-team)
