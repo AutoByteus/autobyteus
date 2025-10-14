@@ -1,6 +1,6 @@
 # file: autobyteus/autobyteus/agent/events/notifiers.py
 import logging
-from typing import Optional, Dict, Any, TYPE_CHECKING
+from typing import Optional, Dict, Any, TYPE_CHECKING, List
 
 from autobyteus.events.event_emitter import EventEmitter
 from autobyteus.events.event_types import EventType 
@@ -116,6 +116,10 @@ class AgentExternalEventNotifier(EventEmitter):
     def notify_agent_data_system_task_notification_received(self, notification_data: Dict[str, Any]):
         """Notifies that the agent has received a system-generated task notification."""
         self._emit_event(EventType.AGENT_DATA_SYSTEM_TASK_NOTIFICATION_RECEIVED, payload_content=notification_data)
+
+    def notify_agent_data_todo_list_updated(self, todo_list: List[Dict[str, Any]]):
+        """Notifies that the agent's ToDo list has been updated."""
+        self._emit_event(EventType.AGENT_DATA_TODO_LIST_UPDATED, payload_content={"todos": todo_list})
 
     def notify_agent_error_output_generation(self, error_source: str, error_message: str, error_details: Optional[str] = None): 
         payload_dict = { 

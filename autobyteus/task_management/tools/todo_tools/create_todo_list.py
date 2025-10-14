@@ -16,6 +16,14 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+def _notify_todo_update(context: 'AgentContext'):
+    if context.phase_manager and context.phase_manager.notifier:
+        todo_list = context.state.todo_list
+        if todo_list:
+            todos_for_llm = [todo.model_dump(mode='json') for todo in todo_list.get_all_todos()]
+            context.phase_manager.notifier.notify_agent_data_todo_list_updated(todos_for_llm)
+            logger.debug(f"Agent '{context.agent_id}': Notified ToDo list update with {len(todos_for_llm)} items.")
+
 class CreateToDoList(BaseTool):
     """A tool for an agent to create or overwrite its own personal to-do list."""
 
@@ -54,6 +62,9 @@ class CreateToDoList(BaseTool):
 
         # Set it on the agent's state
         context.state.todo_list = todo_list
+
+        # Notify about the update
+        _notify_todo_update(context)
 
         success_msg = f"Successfully created a new to-do list with {len(new_todos)} items."
         logger.info(f"Agent '{agent_id}': {success_msg}")
