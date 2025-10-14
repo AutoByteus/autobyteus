@@ -17,7 +17,7 @@ from autobyteus.agent.streaming.stream_event_payloads import (
 from autobyteus.agent_team.streaming.agent_team_stream_events import AgentTeamStreamEvent
 from autobyteus.agent_team.streaming.agent_team_stream_event_payloads import AgentEventRebroadcastPayload, SubTeamEventRebroadcastPayload, AgentTeamPhaseTransitionData
 from autobyteus.task_management.task import Task
-from autobyteus.task_management.events import TasksAddedEvent, TaskStatusUpdatedEvent
+from autobyteus.task_management.events import TasksCreatedEvent, TaskStatusUpdatedEvent
 from autobyteus.task_management.base_task_plan import TaskStatus
 
 logger = logging.getLogger(__name__)
@@ -87,13 +87,13 @@ class TUIStateStore:
         
         if event.event_source_type == "TASK_PLAN":
             team_name_key = parent_name
-            if isinstance(event.data, TasksAddedEvent):
+            if isinstance(event.data, TasksCreatedEvent):
                 if team_name_key not in self._task_plans: self._task_plans[team_name_key] = []
                 if team_name_key not in self._task_statuses: self._task_statuses[team_name_key] = {}
                 self._task_plans[team_name_key].extend(event.data.tasks)
                 for task in event.data.tasks:
                     self._task_statuses[team_name_key][task.task_id] = TaskStatus.NOT_STARTED
-                logger.debug(f"TUI State: Added {len(event.data.tasks)} tasks to plan for '{team_name_key}'.")
+                logger.debug(f"TUI State: Created {len(event.data.tasks)} tasks in plan for '{team_name_key}'.")
 
             elif isinstance(event.data, TaskStatusUpdatedEvent):
                 if team_name_key not in self._task_statuses: self._task_statuses[team_name_key] = {}

@@ -5,8 +5,8 @@ management within an agent team.
 """
 from .task_tools import (
     GetTaskPlanStatus,
-    PublishTasks,
-    PublishTask,
+    CreateTasks,
+    CreateTask,
     UpdateTaskStatus,
     AssignTaskTo,
     GetMyTasks,
@@ -21,8 +21,8 @@ from .todo_tools import (
 
 __all__ = [
     "GetTaskPlanStatus",
-    "PublishTasks",
-    "PublishTask",
+    "CreateTasks",
+    "CreateTask",
     "UpdateTaskStatus",
     "AssignTaskTo",
     "GetMyTasks",

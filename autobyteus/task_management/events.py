@@ -13,9 +13,9 @@ class BaseTaskPlanEvent(BaseModel):
     """Base class for all task plan events."""
     team_id: str
 
-class TasksAddedEvent(BaseTaskPlanEvent):
+class TasksCreatedEvent(BaseTaskPlanEvent):
     """
-    Payload for when one or more tasks are added to the plan.
+    Payload for when one or more tasks are created in the plan.
     """
     tasks: List[Task]
 

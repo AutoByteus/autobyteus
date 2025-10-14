@@ -3,7 +3,7 @@ from typing import Optional, Any
 from pydantic import BaseModel, Field
 from autobyteus.agent_team.phases.agent_team_operational_phase import AgentTeamOperationalPhase
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent
-from autobyteus.task_management.events import TasksAddedEvent, TaskStatusUpdatedEvent
+from autobyteus.task_management.events import TasksCreatedEvent, TaskStatusUpdatedEvent
 # Need to use a forward reference string to avoid circular import at runtime
 from typing import TYPE_CHECKING, Union
 if TYPE_CHECKING:
@@ -29,4 +29,4 @@ class SubTeamEventRebroadcastPayload(BaseModel):
     sub_team_event: "AgentTeamStreamEvent" = Field(..., description="The original, unmodified event from the sub-team's stream")
 
 # --- Payload for events originating from the "TASK_PLAN" source ---
-TaskPlanEventPayload = Union[TasksAddedEvent, TaskStatusUpdatedEvent]
+TaskPlanEventPayload = Union[TasksCreatedEvent, TaskStatusUpdatedEvent]

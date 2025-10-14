@@ -12,8 +12,8 @@ from .in_memory_task_plan import InMemoryTaskPlan
 from .deliverable import FileDeliverable
 from .tools import (
     GetTaskPlanStatus,
-    PublishTasks,
-    PublishTask,
+    CreateTasks,
+    CreateTask,
     UpdateTaskStatus,
     AssignTaskTo,
     GetMyTasks,
@@ -23,7 +23,7 @@ from .tools import (
     UpdateToDoStatus as UpdateToDoStatusTool,
 )
 from .converters import TaskPlanConverter
-from .events import BaseTaskPlanEvent, TasksAddedEvent, TaskStatusUpdatedEvent
+from .events import BaseTaskPlanEvent, TasksCreatedEvent, TaskStatusUpdatedEvent
 from .todo import ToDo, ToDoStatus
 from .todo_list import ToDoList
 
@@ -47,8 +47,8 @@ __all__ = [
     "TaskPlan",  # Exposing the alias
     "FileDeliverable",
     "GetTaskPlanStatus",
-    "PublishTasks",
-    "PublishTask",
+    "CreateTasks",
+    "CreateTask",
     "UpdateTaskStatus",
     "AssignTaskTo",
     "GetMyTasks",
@@ -58,7 +58,7 @@ __all__ = [
     "UpdateToDoStatusTool",
     "TaskPlanConverter",
     "BaseTaskPlanEvent",
-    "TasksAddedEvent",
+    "TasksCreatedEvent",
     "TaskStatusUpdatedEvent",
     "ToDo",
     "ToDoStatus",

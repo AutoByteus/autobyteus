@@ -36,7 +36,7 @@ try:
     from autobyteus.agent.workspace import BaseAgentWorkspace, WorkspaceConfig
     from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
     from autobyteus.task_management.tools import (
-        PublishTasks,
+        CreateTasks,
         GetTaskPlanStatus,
         UpdateTaskStatus,
     )
@@ -139,7 +139,7 @@ def create_code_review_team(
         name="Project Manager", role="Coordinator", description="Manages the development process by planning and assigning tasks to the team.",
         llm_instance=default_llm_factory.create_llm(model_identifier=coordinator_model),
         system_prompt=load_prompt("coordinator.prompt"),
-        tools=[PublishTasks(), GetTaskPlanStatus()],
+        tools=[CreateTasks(), GetTaskPlanStatus()],
     )
 
     # Software Engineer Agent

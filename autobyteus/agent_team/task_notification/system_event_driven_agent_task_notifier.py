@@ -3,7 +3,7 @@ import logging
 from typing import Union, TYPE_CHECKING
 
 from autobyteus.events.event_types import EventType
-from autobyteus.task_management.events import TasksAddedEvent, TaskStatusUpdatedEvent
+from autobyteus.task_management.events import TasksCreatedEvent, TaskStatusUpdatedEvent
 from autobyteus.task_management.base_task_plan import TaskStatus
 
 # Import the new, separated components
@@ -48,11 +48,11 @@ class SystemEventDrivenAgentTaskNotifier:
         """
         Subscribes to task plan events to begin monitoring for runnable tasks.
         """
-        self._task_plan.subscribe(EventType.TASK_PLAN_TASKS_ADDED, self._handle_tasks_changed)
+        self._task_plan.subscribe(EventType.TASK_PLAN_TASKS_CREATED, self._handle_tasks_changed)
         self._task_plan.subscribe(EventType.TASK_PLAN_STATUS_UPDATED, self._handle_tasks_changed)
         logger.info(f"Team '{self._team_manager.team_id}': Task notifier orchestrator is now monitoring TaskPlan events.")
     
-    async def _handle_tasks_changed(self, payload: Union[TasksAddedEvent, TaskStatusUpdatedEvent], **kwargs):
+    async def _handle_tasks_changed(self, payload: Union[TasksCreatedEvent, TaskStatusUpdatedEvent], **kwargs):
         """
         Orchestrates the agent activation workflow upon any change to the task plan.
         """
@@ -61,8 +61,8 @@ class SystemEventDrivenAgentTaskNotifier:
 
         # If a new batch of tasks was added, it's a new "wave" of work.
         # We must reset the policy's memory of who has been activated.
-        if isinstance(payload, TasksAddedEvent):
-            logger.info(f"Team '{team_id}': New tasks added. Resetting activation policy.")
+        if isinstance(payload, TasksCreatedEvent):
+            logger.info(f"Team '{team_id}': New tasks created. Resetting activation policy.")
             self._policy.reset()
 
         # 1. DATA FETCHING: Get the current state of runnable tasks from the plan.

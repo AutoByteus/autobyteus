@@ -31,7 +31,7 @@ try:
     from autobyteus.agent_team.agent_team_builder import AgentTeamBuilder
     from autobyteus.cli.agent_team_tui.app import AgentTeamApp
     from autobyteus.task_management.tools import (
-        PublishTasks,
+        CreateTasks,
         GetTaskPlanStatus,
         UpdateTaskStatus,
     )
@@ -87,7 +87,7 @@ def create_demo_team(model_name: str):
             "{{team}}\n\n"
             "### Your Mission Workflow\n"
             "1.  **Analyze and Plan**: Decompose the user's request into a single task for your 'FactChecker' agent.\n"
-            "2.  **Publish the Plan**: You MUST use the `PublishTasks` tool to submit your list of tasks to the team's shared task plan. This is a critical first step.\n"
+            "2.  **Publish the Plan**: You MUST use the `CreateTasks` tool to submit your list of tasks to the team's shared task plan. This is a critical first step.\n"
             "3.  **Delegate and Inform**: Use the `SendMessageTo` tool to notify your 'FactChecker' agent that they have a new task.\n"
             "4.  **Wait for Completion**: Await a message from 'FactChecker' that they have completed the task. DO NOT ask for status updates.\n"
             "5.  **Report to User**: Once you receive the completion message, you can use `GetTaskPlanStatus` to review the results and then report them back to the user.\n\n"
@@ -96,7 +96,7 @@ def create_demo_team(model_name: str):
             "### Your Tools\n"
             "{{tools}}"
         ),
-        tools=[PublishTasks(), GetTaskPlanStatus(), SendMessageTo()],
+        tools=[CreateTasks(), GetTaskPlanStatus(), SendMessageTo()],
     )
 
     # Specialist Agent Config (FactChecker) - Gets its own LLM instance

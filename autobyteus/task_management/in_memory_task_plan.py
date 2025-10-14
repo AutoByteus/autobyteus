@@ -11,7 +11,7 @@ from autobyteus.events.event_types import EventType
 from .schemas import TaskDefinitionSchema
 from .task import Task
 from .base_task_plan import BaseTaskPlan, TaskStatus
-from .events import TasksAddedEvent, TaskStatusUpdatedEvent
+from .events import TasksCreatedEvent, TaskStatusUpdatedEvent
 
 logger = logging.getLogger(__name__)
 
@@ -49,13 +49,13 @@ class InMemoryTaskPlan(BaseTaskPlan):
             new_tasks.append(task)
 
         self._hydrate_all_dependencies()
-        logger.info(f"Team '{self.team_id}': Added {len(new_tasks)} new task(s) to the plan. Emitting TasksAddedEvent.")
+        logger.info(f"Team '{self.team_id}': Added {len(new_tasks)} new task(s) to the plan. Emitting TasksCreatedEvent.")
         
-        event_payload = TasksAddedEvent(
+        event_payload = TasksCreatedEvent(
             team_id=self.team_id,
             tasks=new_tasks,
         )
-        self.emit(EventType.TASK_PLAN_TASKS_ADDED, payload=event_payload)
+        self.emit(EventType.TASK_PLAN_TASKS_CREATED, payload=event_payload)
         return new_tasks
 
     def add_task(self, task_definition: TaskDefinitionSchema) -> Optional[Task]:

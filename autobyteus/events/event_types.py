@@ -48,7 +48,7 @@ class EventType(Enum):
     TEAM_STREAM_EVENT = "team_stream_event" # For unified agent team event stream
 
     # --- Task Plan Events ---
-    TASK_PLAN_TASKS_ADDED = "task_plan.tasks.added"
+    TASK_PLAN_TASKS_CREATED = "task_plan.tasks.created"
     TASK_PLAN_STATUS_UPDATED = "task_plan.status.updated"
 
     def __str__(self): 

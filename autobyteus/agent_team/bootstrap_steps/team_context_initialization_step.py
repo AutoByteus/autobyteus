@@ -30,7 +30,7 @@ class TeamContextInitializationStep(BaseAgentTeamBootstrapStep):
                 if notifier:
                     # The notifier, a long-lived component, subscribes to events
                     # from the task_plan, another long-lived component.
-                    notifier.subscribe_from(sender=task_plan, event=EventType.TASK_PLAN_TASKS_ADDED, listener=notifier.handle_and_publish_task_plan_event)
+                    notifier.subscribe_from(sender=task_plan, event=EventType.TASK_PLAN_TASKS_CREATED, listener=notifier.handle_and_publish_task_plan_event)
                     notifier.subscribe_from(sender=task_plan, event=EventType.TASK_PLAN_STATUS_UPDATED, listener=notifier.handle_and_publish_task_plan_event)
                     logger.info(f"Team '{team_id}': Successfully bridged TaskPlan events to the team notifier.")
                 else:

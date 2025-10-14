@@ -24,6 +24,7 @@ from .bash.bash_executor import bash_executor
 from .file.file_reader import file_reader
 from .file.file_writer import file_writer
 from .file.file_editor import file_edit
+from .file.file_search import file_search
 
 # General Class-based tools
 try:
@@ -94,6 +95,7 @@ __all__ = [
     "file_reader",
     "file_writer",
     "file_edit",
+    "file_search",
 
     # Re-exported general class-based tools
     "Search",

@@ -10,7 +10,7 @@ from autobyteus.agent_team.task_notification.task_activator import TaskActivator
 from autobyteus.agent_team.task_notification.system_event_driven_agent_task_notifier import SystemEventDrivenAgentTaskNotifier
 from autobyteus.task_management import InMemoryTaskPlan, Task, TaskStatus
 from autobyteus.events.event_types import EventType
-from autobyteus.task_management.events import TasksAddedEvent, TaskStatusUpdatedEvent
+from autobyteus.task_management.events import TasksCreatedEvent, TaskStatusUpdatedEvent
 
 # --- Mocks and Fixtures ---
 
@@ -63,9 +63,9 @@ def tasks():
 # --- Tests ---
 
 @pytest.mark.asyncio
-async def test_on_tasks_added_resets_policy_and_activates(notifier, task_plan, mock_policy, mock_activator, tasks):
+async def test_on_tasks_created_resets_policy_and_activates(notifier, task_plan, mock_policy, mock_activator, tasks):
     """
-    Tests that on TasksAddedEvent, the orchestrator resets the policy, gets a
+    Tests that on TasksCreatedEvent, the orchestrator resets the policy, gets a
     decision, updates task statuses, and calls the activator.
     """
     task_a = tasks[0]
@@ -75,15 +75,15 @@ async def test_on_tasks_added_resets_policy_and_activates(notifier, task_plan, m
     
     # Act
     # The handler is being tested in isolation. We must first establish the state
-    # of the task plan that the handler will read from. The TasksAddedEvent itself
+    # of the task plan that the handler will read from. The TasksCreatedEvent itself
     # just carries data; it doesn't mutate the board's state.
     task_plan.add_tasks(tasks)
 
-    event = TasksAddedEvent(team_id=task_plan.team_id, tasks=tasks)
+    event = TasksCreatedEvent(team_id=task_plan.team_id, tasks=tasks)
     await notifier._handle_tasks_changed(event)
     
     # Assert Orchestration Flow
-    # 1. Policy was reset because it's a TasksAddedEvent
+    # 1. Policy was reset because it's a TasksCreatedEvent
     mock_policy.reset.assert_called_once()
     
     # 2. Policy was asked for a decision

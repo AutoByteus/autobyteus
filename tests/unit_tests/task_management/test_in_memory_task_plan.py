@@ -8,7 +8,7 @@ from autobyteus.task_management import (
     Task,
     TaskStatus,
 )
-from autobyteus.task_management.events import TasksAddedEvent, TaskStatusUpdatedEvent
+from autobyteus.task_management.events import TasksCreatedEvent, TaskStatusUpdatedEvent
 
 @pytest.fixture
 def basic_plan_tasks() -> list[Task]:
@@ -70,9 +70,9 @@ def test_add_tasks_success(task_plan: InMemoryTaskPlan, basic_plan_tasks: list[T
         # Check that the correct event was emitted
         mock_emit.assert_called_once()
         event_name, kwargs = mock_emit.call_args
-        assert event_name[0] == EventType.TASK_PLAN_TASKS_ADDED
+        assert event_name[0] == EventType.TASK_PLAN_TASKS_CREATED
         payload = kwargs['payload']
-        assert isinstance(payload, TasksAddedEvent)
+        assert isinstance(payload, TasksCreatedEvent)
         assert payload.tasks == basic_plan_tasks
 
 def test_add_task_success(task_plan: InMemoryTaskPlan):
