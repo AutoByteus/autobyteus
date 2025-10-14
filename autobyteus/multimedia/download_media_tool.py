@@ -19,7 +19,7 @@ class DownloadMediaTool(BaseTool):
     """
     A unified tool to download any media file (e.g., image, PDF, audio) from a URL.
     """
-    CATEGORY = ToolCategory.WEB
+    CATEGORY = ToolCategory.MULTIMEDIA
 
     @classmethod
     def get_name(cls) -> str:
