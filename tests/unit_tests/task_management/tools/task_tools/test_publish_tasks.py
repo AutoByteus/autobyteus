@@ -20,6 +20,7 @@ def mock_agent_context() -> AgentContext:
     mock_context = Mock(spec=AgentContext)
     mock_context.agent_id = "test_agent_publish_tasks"
     mock_context.config = Mock(name="test_agent")
+    mock_context.config.name = "test_agent"
     mock_context.custom_data = {}
     return mock_context
 
@@ -57,7 +58,8 @@ async def test_execute_success(tool: PublishTasks, mock_agent_context: AgentCont
     """Tests successful execution of the tool."""
     mock_agent_context.custom_data["team_context"] = mock_team_context_with_board
     task_plan_mock = mock_team_context_with_board.state.task_plan
-    task_plan_mock.add_tasks.return_value = True
+    # FIX: Mock add_tasks to return a list of 2 mock Task objects
+    task_plan_mock.add_tasks.return_value = [Mock(spec=Task), Mock(spec=Task)]
 
     tasks_def = TasksDefinitionSchema(tasks=[
         TaskDefinitionSchema(task_name="task1", assignee_name="dev", description="d1"),
@@ -69,18 +71,20 @@ async def test_execute_success(tool: PublishTasks, mock_agent_context: AgentCont
     assert result == "Successfully published 2 new task(s) to the task plan."
     task_plan_mock.add_tasks.assert_called_once()
     
-    call_kwargs = task_plan_mock.add_tasks.call_args.kwargs
-    added_tasks: list[Task] = call_kwargs["tasks"]
-    assert isinstance(added_tasks, list)
-    assert len(added_tasks) == 2
-    assert all(isinstance(t, Task) for t in added_tasks)
-    assert added_tasks[0].task_name == "task1"
-    assert added_tasks[1].assignee_name == "qa"
+    # FIX: Retrieve positional argument and check its type
+    call_args, _ = task_plan_mock.add_tasks.call_args
+    added_task_defs: list[TaskDefinitionSchema] = call_args[0]
+    
+    assert isinstance(added_task_defs, list)
+    assert len(added_task_defs) == 2
+    assert all(isinstance(t, TaskDefinitionSchema) for t in added_task_defs)
+    assert added_task_defs[0].task_name == "task1"
+    assert added_task_defs[1].assignee_name == "qa"
 
 @pytest.mark.asyncio
 async def test_execute_no_team_context(tool: PublishTasks, mock_agent_context: AgentContext):
     """Tests failure when team context is missing."""
-    result = await tool._execute(mock_agent_context, tasks={})
+    result = await tool._execute(mock_agent_context, tasks=[])
     assert "Error: Team context is not available." in result
 
 @pytest.mark.asyncio
@@ -88,7 +92,7 @@ async def test_execute_no_task_plan(tool: PublishTasks, mock_agent_context: Agen
     """Tests failure when the task plan is not initialized."""
     mock_team_context_with_board.state.task_plan = None
     mock_agent_context.custom_data["team_context"] = mock_team_context_with_board
-    result = await tool._execute(mock_agent_context, tasks={})
+    result = await tool._execute(mock_agent_context, tasks=[])
     assert "Error: Task plan has not been initialized" in result
 
 @pytest.mark.asyncio

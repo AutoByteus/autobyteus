@@ -9,7 +9,6 @@ from autobyteus.tools.tool_category import ToolCategory
 from autobyteus.utils.parameter_schema import ParameterSchema
 from autobyteus.tools.pydantic_schema_converter import pydantic_to_parameter_schema
 from autobyteus.task_management.schemas import TasksDefinitionSchema
-from autobyteus.task_management.task import Task
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
@@ -57,18 +56,18 @@ class PublishTasks(BaseTool):
             
         try:
             tasks_def_schema = TasksDefinitionSchema(**kwargs)
-            final_tasks = [Task(**task_def.model_dump()) for task_def in tasks_def_schema.tasks]
         except (ValidationError, ValueError) as e:
             error_msg = f"Invalid task definitions provided: {e}"
             logger.warning(f"Agent '{agent_name}' provided an invalid definition for PublishTasks: {error_msg}")
             return f"Error: {error_msg}"
 
-        if task_plan.add_tasks(tasks=final_tasks):
-            success_msg = f"Successfully published {len(final_tasks)} new task(s) to the task plan."
+        newly_created_tasks = task_plan.add_tasks(tasks_def_schema.tasks)
+        if newly_created_tasks:
+            success_msg = f"Successfully published {len(newly_created_tasks)} new task(s) to the task plan."
             logger.info(f"Agent '{agent_name}': {success_msg}")
             return success_msg
         else:
-            # This path is less likely now but kept for robustness.
-            error_msg = "Failed to publish tasks to the plan for an unknown reason."
-            logger.error(f"Agent '{agent_name}': {error_msg}")
-            return f"Error: {error_msg}"
+            # This case might happen if the input list was empty, or an error occurred.
+            warning_msg = "No tasks were published. The provided list may have been empty."
+            logger.warning(f"Agent '{agent_name}': {warning_msg}")
+            return warning_msg

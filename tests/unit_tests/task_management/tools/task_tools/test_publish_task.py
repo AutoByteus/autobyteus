@@ -20,6 +20,7 @@ def mock_agent_context() -> AgentContext:
     mock_context = Mock(spec=AgentContext)
     mock_context.agent_id = "test_agent_publish_task"
     mock_context.config = Mock(name="test_agent")
+    mock_context.config.name = "test_agent"
     mock_context.custom_data = {}
     return mock_context
 
@@ -54,7 +55,12 @@ async def test_execute_success(tool: PublishTask, mock_agent_context: AgentConte
     """Tests successful execution of the tool."""
     mock_agent_context.custom_data["team_context"] = mock_team_context_with_board
     task_plan_mock = mock_team_context_with_board.state.task_plan
-    task_plan_mock.add_task.return_value = True
+    
+    # FIX: Mock add_task to return a mock Task object
+    mock_created_task = Mock(spec=Task)
+    mock_created_task.task_name = "test_task"
+    mock_created_task.task_id = "task_mock_0001"
+    task_plan_mock.add_task.return_value = mock_created_task
 
     task_def = TaskDefinitionSchema(
         task_name="test_task",
@@ -65,16 +71,17 @@ async def test_execute_success(tool: PublishTask, mock_agent_context: AgentConte
     
     result = await tool._execute(mock_agent_context, **task_def.model_dump())
 
-    assert result == "Successfully published new task 'test_task' to the task plan."
+    # FIX: Assert against the new success message format
+    assert result == "Successfully published new task 'test_task' (ID: task_mock_0001) to the task plan."
     task_plan_mock.add_task.assert_called_once()
     
-    # Verify the object passed to add_task is a Task instance with correct data
+    # FIX: Verify the object passed to add_task is a TaskDefinitionSchema instance
     call_args, _ = task_plan_mock.add_task.call_args
-    added_task: Task = call_args[0]
-    assert isinstance(added_task, Task)
-    assert added_task.task_name == "test_task"
-    assert added_task.assignee_name == "dev_agent"
-    assert added_task.dependencies == ["another_task"]
+    added_task_def: TaskDefinitionSchema = call_args[0]
+    assert isinstance(added_task_def, TaskDefinitionSchema)
+    assert added_task_def.task_name == "test_task"
+    assert added_task_def.assignee_name == "dev_agent"
+    assert added_task_def.dependencies == ["another_task"]
 
 @pytest.mark.asyncio
 async def test_execute_no_team_context(tool: PublishTask, mock_agent_context: AgentContext):

@@ -8,6 +8,7 @@ from typing import Optional, List, Dict, Any
 from enum import Enum
 
 from autobyteus.events.event_types import EventType
+from .schemas import TaskDefinitionSchema
 from .task import Task
 from .base_task_plan import BaseTaskPlan, TaskStatus
 from .events import TasksAddedEvent, TaskStatusUpdatedEvent
@@ -26,32 +27,43 @@ class InMemoryTaskPlan(BaseTaskPlan):
         super().__init__(team_id=team_id)
         self.task_statuses: Dict[str, TaskStatus] = {}
         self._task_map: Dict[str, Task] = {}
+        self._id_counter: int = 0
         logger.info(f"InMemoryTaskPlan initialized for team '{self.team_id}'.")
+    
+    def _generate_next_id(self) -> str:
+        self._id_counter += 1
+        return f"task_{self._id_counter:04d}"
 
-    def add_tasks(self, tasks: List[Task]) -> bool:
+    def add_tasks(self, task_definitions: List[TaskDefinitionSchema]) -> List[Task]:
         """
-        Adds new tasks to the plan. This is an additive-only operation.
+        Creates new tasks from definitions, adds them to the plan, and returns the created tasks.
         """
-        for task in tasks:
+        new_tasks: List[Task] = []
+        for task_def in task_definitions:
+            new_id = self._generate_next_id()
+            task = Task(task_id=new_id, **task_def.model_dump())
+            
             self.tasks.append(task)
             self.task_statuses[task.task_id] = TaskStatus.NOT_STARTED
             self._task_map[task.task_id] = task
+            new_tasks.append(task)
 
         self._hydrate_all_dependencies()
-        logger.info(f"Team '{self.team_id}': Added {len(tasks)} new task(s) to the plan. Emitting TasksAddedEvent.")
+        logger.info(f"Team '{self.team_id}': Added {len(new_tasks)} new task(s) to the plan. Emitting TasksAddedEvent.")
         
         event_payload = TasksAddedEvent(
             team_id=self.team_id,
-            tasks=tasks,
+            tasks=new_tasks,
         )
         self.emit(EventType.TASK_PLAN_TASKS_ADDED, payload=event_payload)
-        return True
+        return new_tasks
 
-    def add_task(self, task: Task) -> bool:
+    def add_task(self, task_definition: TaskDefinitionSchema) -> Optional[Task]:
         """
-        Adds a single new task to the plan by wrapping it in a list and calling add_tasks.
+        Creates a single new task from a definition, adds it to the plan, and returns it.
         """
-        return self.add_tasks([task])
+        created_tasks = self.add_tasks([task_definition])
+        return created_tasks[0] if created_tasks else None
         
     def _hydrate_all_dependencies(self):
         """

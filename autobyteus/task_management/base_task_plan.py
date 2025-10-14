@@ -5,10 +5,13 @@ Defines the abstract interface for a TaskPlan and its related enums.
 import logging
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, TYPE_CHECKING
 
 from autobyteus.events.event_emitter import EventEmitter
 from .task import Task
+
+if TYPE_CHECKING:
+    from autobyteus.task_management.schemas import TaskDefinitionSchema
 
 logger = logging.getLogger(__name__)
 
@@ -41,16 +44,16 @@ class BaseTaskPlan(ABC, EventEmitter):
         logger.debug(f"BaseTaskPlan initialized for team '{self.team_id}'.")
 
     @abstractmethod
-    def add_tasks(self, tasks: List[Task]) -> bool:
+    def add_tasks(self, task_definitions: List['TaskDefinitionSchema']) -> List[Task]:
         """
-        Adds a list of new tasks to the plan. This is an additive-only operation.
+        Creates new tasks from definitions, adds them to the plan, and returns the created Task objects.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def add_task(self, task: Task) -> bool:
+    def add_task(self, task_definition: 'TaskDefinitionSchema') -> Optional[Task]:
         """
-        Adds a single new task to the plan.
+        Creates a single new task from a definition, adds it to the plan, and returns it.
         """
         raise NotImplementedError
 

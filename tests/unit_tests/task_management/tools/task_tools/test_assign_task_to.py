@@ -4,7 +4,7 @@ from unittest.mock import Mock, MagicMock, AsyncMock
 
 from autobyteus.agent.context import AgentContext
 from autobyteus.agent_team.context import AgentTeamContext, AgentTeamRuntimeState, TeamManager
-from autobyteus.task_management import InMemoryTaskPlan, Task
+from autobyteus.task_management import InMemoryTaskPlan
 from autobyteus.task_management.schemas import TaskDefinitionSchema
 from autobyteus.task_management.tools import AssignTaskTo
 from autobyteus.agent_team.events import InterAgentMessageRequestEvent
@@ -31,9 +31,12 @@ def mock_team_context() -> AgentTeamContext:
     mock_state = Mock(spec=AgentTeamRuntimeState)
     
     # Use a real InMemoryTaskPlan to test dependency name resolution in the notification message
-    mock_state.task_plan = InMemoryTaskPlan(team_id="test_team")
-    mock_state.task_plan.add_task(Task(task_name="setup", assignee_name="a", description="d"))
-    
+    task_plan = InMemoryTaskPlan(team_id="test_team")
+    # FIX: Use TaskDefinitionSchema to add the initial task
+    setup_task_def = TaskDefinitionSchema(task_name="setup", assignee_name="a", description="d")
+    task_plan.add_task(setup_task_def)
+    mock_state.task_plan = task_plan
+
     mock_team_manager = Mock(spec=TeamManager)
     mock_team_manager.dispatch_inter_agent_message_request = AsyncMock()
     
@@ -74,6 +77,7 @@ async def test_execute_success(tool: AssignTaskTo, mock_agent_context: AgentCont
     newly_added_task = next((t for t in task_plan.tasks if t.task_name == "new_delegated_task"), None)
     assert newly_added_task is not None
     assert newly_added_task.assignee_name == "RecipientAgent"
+    assert newly_added_task.task_id == "task_0002" # Assert sequential ID
 
     # Assert Action 2: Notification was sent via TeamManager
     team_manager.dispatch_inter_agent_message_request.assert_awaited_once()

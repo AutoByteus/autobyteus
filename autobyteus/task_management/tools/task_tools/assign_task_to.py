@@ -9,7 +9,6 @@ from autobyteus.tools.tool_category import ToolCategory
 from autobyteus.utils.parameter_schema import ParameterSchema
 from autobyteus.tools.pydantic_schema_converter import pydantic_to_parameter_schema
 from autobyteus.task_management.schemas import TaskDefinitionSchema
-from autobyteus.task_management.task import Task
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
@@ -65,18 +64,19 @@ class AssignTaskTo(BaseTool):
         # --- Action 1: Add the task to the Task Plan ---
         try:
             task_def_schema = TaskDefinitionSchema(**kwargs)
-            new_task = Task(**task_def_schema.model_dump())
         except (ValidationError, ValueError) as e:
             error_msg = f"Invalid task definition provided: {e}"
             logger.warning(f"Agent '{agent_name}' provided an invalid definition for AssignTaskTo: {error_msg}")
             return f"Error: {error_msg}"
 
-        if not task_plan.add_task(new_task):
-            error_msg = f"Failed to publish task '{new_task.task_name}' to the plan for an unknown reason."
+        # The task plan now handles ID generation and returns the created Task object.
+        new_task = task_plan.add_task(task_def_schema)
+        if not new_task:
+            error_msg = f"Failed to publish task '{task_name}' to the plan for an unknown reason."
             logger.error(f"Agent '{agent_name}': {error_msg}")
             return f"Error: {error_msg}"
         
-        logger.info(f"Agent '{agent_name}' successfully published task '{new_task.task_name}' to the task plan.")
+        logger.info(f"Agent '{agent_name}' successfully published task '{new_task.task_name}' (ID: {new_task.task_id}) to the task plan.")
 
         # --- Action 2: Send a direct notification message to the assignee ---
         team_manager: Optional['TeamManager'] = team_context.team_manager

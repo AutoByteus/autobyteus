@@ -3,6 +3,7 @@ import pytest
 from unittest.mock import Mock, MagicMock
 
 from autobyteus.task_management import InMemoryTaskPlan, Task, TaskStatus
+from autobyteus.task_management.schemas import TaskDefinitionSchema
 from autobyteus.task_management.tools import UpdateTaskStatus
 from autobyteus.task_management.deliverable import FileDeliverable
 from autobyteus.tools.usage.parsers import DefaultXmlToolUsageParser
@@ -12,11 +13,12 @@ from autobyteus.llm.utils.response_types import CompleteResponse
 def task_plan() -> InMemoryTaskPlan:
     """Provides a task plan with a simple plan loaded."""
     board = InMemoryTaskPlan(team_id="test_team_tool")
-    tasks = [
-        Task(task_name="task_a", assignee_name="Agent1", description="First task."),
-        Task(task_name="task_b", assignee_name="Agent2", description="Second task."),
+    # FIX: Use TaskDefinitionSchema to populate the plan
+    task_defs = [
+        TaskDefinitionSchema(task_name="task_a", assignee_name="Agent1", description="First task."),
+        TaskDefinitionSchema(task_name="task_b", assignee_name="Agent2", description="Second task."),
     ]
-    board.add_tasks(tasks)
+    board.add_tasks(task_defs)
     return board
 
 @pytest.fixture
@@ -43,6 +45,7 @@ async def test_execute_status_only_success(agent_context: Mock, task_plan: InMem
     new_status = "in_progress"
     
     task_id_to_check = next(t.task_id for t in task_plan.tasks if t.task_name == task_to_update)
+    assert task_id_to_check == "task_0001" # Verify fixture correctness
     assert task_plan.task_statuses[task_id_to_check] == TaskStatus.NOT_STARTED
 
     result = await tool._execute(context=agent_context, task_name=task_to_update, status=new_status)

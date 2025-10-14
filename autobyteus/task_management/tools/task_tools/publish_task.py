@@ -9,7 +9,6 @@ from autobyteus.tools.tool_category import ToolCategory
 from autobyteus.utils.parameter_schema import ParameterSchema
 from autobyteus.tools.pydantic_schema_converter import pydantic_to_parameter_schema
 from autobyteus.task_management.schemas import TaskDefinitionSchema
-from autobyteus.task_management.task import Task
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
@@ -40,7 +39,7 @@ class PublishTask(BaseTool):
 
     async def _execute(self, context: 'AgentContext', **kwargs: Any) -> str:
         """
-        Executes the tool by validating the task object and adding it to the plan.
+        Executes the tool by validating the task definition and adding it to the plan.
         """
         agent_name = context.config.name
         task_name = kwargs.get("task_name", "unnamed task")
@@ -60,18 +59,17 @@ class PublishTask(BaseTool):
             
         try:
             task_def_schema = TaskDefinitionSchema(**kwargs)
-            new_task = Task(**task_def_schema.model_dump())
         except (ValidationError, ValueError) as e:
             error_msg = f"Invalid task definition provided: {e}"
             logger.warning(f"Agent '{agent_name}' provided an invalid definition for PublishTask: {error_msg}")
             return f"Error: {error_msg}"
 
-        if task_plan.add_task(new_task):
-            success_msg = f"Successfully published new task '{new_task.task_name}' to the task plan."
+        new_task = task_plan.add_task(task_def_schema)
+        if new_task:
+            success_msg = f"Successfully published new task '{new_task.task_name}' (ID: {new_task.task_id}) to the task plan."
             logger.info(f"Agent '{agent_name}': {success_msg}")
             return success_msg
         else:
-            # This path is less likely now but kept for robustness.
-            error_msg = "Failed to publish task to the plan for an unknown reason."
+            error_msg = f"Failed to publish task '{task_name}' to the plan for an unknown reason."
             logger.error(f"Agent '{agent_name}': {error_msg}")
             return f"Error: {error_msg}"
