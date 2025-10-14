@@ -4,7 +4,7 @@ import requests
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from autobyteus.multimedia.download_media_tool import DownloadMediaTool
+from autobyteus.tools.multimedia.download_media_tool import DownloadMediaTool
 
 # --- Test Configuration ---
 LOCAL_SERVER_BASE_URL = "http://192.168.2.124:29695"

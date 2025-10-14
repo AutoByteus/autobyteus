@@ -1,7 +1,6 @@
 from .providers import MultimediaProvider
 from .runtimes import MultimediaRuntime
 from .utils import *
-from .download_media_tool import DownloadMediaTool
 from .image import *
 from .audio import *
 
@@ -29,5 +28,4 @@ __all__ = [
     "ImageGenerationResponse",
     "SpeechGenerationResponse",
     "MultimediaConfig",
-    "DownloadMediaTool",
 ]

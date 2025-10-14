@@ -45,7 +45,7 @@ except ModuleNotFoundError as import_err:
     logger.warning("Media reader tool not available: %s", import_err)
     ReadMediaFile = None
 try:
-    from autobyteus.multimedia.download_media_tool import DownloadMediaTool
+    from .multimedia.download_media_tool import DownloadMediaTool
 except ModuleNotFoundError as import_err:
     logger.warning("Download media tool not available: %s", import_err)
     DownloadMediaTool = None
