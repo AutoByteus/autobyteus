@@ -8,7 +8,6 @@ from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.tool_category import ToolCategory
 from autobyteus.tools.pydantic_schema_converter import pydantic_to_parameter_schema
 from autobyteus.task_management.schemas.todo_definition import ToDoDefinitionSchema
-from autobyteus.task_management.todo import ToDo
 from autobyteus.task_management.todo_list import ToDoList
 
 if TYPE_CHECKING:
@@ -57,20 +56,23 @@ class AddToDo(BaseTool):
 
         try:
             todo_def_schema = ToDoDefinitionSchema(**kwargs)
-            new_todo = ToDo(**todo_def_schema.model_dump())
         except ValidationError as e:
             error_msg = f"Invalid to-do item definition provided: {e}"
             logger.warning(f"Agent '{agent_id}' provided an invalid definition for AddToDo: {error_msg}")
             return f"Error: {error_msg}"
 
-        if todo_list.add_todo(new_todo):
+        # The add_todo method now takes the definition and returns the created ToDo object
+        new_todo = todo_list.add_todo(todo_def_schema)
+
+        if new_todo:
             # Notify about the update
             _notify_todo_update(context)
 
-            success_msg = f"Successfully added new item to your to-do list: '{new_todo.description}'."
+            success_msg = f"Successfully added new item to your to-do list: '{new_todo.description}' (ID: {new_todo.todo_id})."
             logger.info(f"Agent '{agent_id}': {success_msg}")
             return success_msg
         else:
+            # This path is unlikely given the refactoring but kept for robustness.
             error_msg = "Failed to add item to the to-do list for an unknown reason."
             logger.error(f"Agent '{agent_id}': {error_msg}")
             return f"Error: {error_msg}"

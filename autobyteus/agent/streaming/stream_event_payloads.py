@@ -66,6 +66,14 @@ class SystemTaskNotificationData(BaseStreamPayload):
     sender_id: str
     content: str
 
+class ToDoItemData(BaseStreamPayload):
+    description: str
+    todo_id: str
+    status: str
+
+class ToDoListUpdateData(BaseStreamPayload):
+    todos: List[ToDoItemData]
+
 class EmptyData(BaseStreamPayload):
     pass
 
@@ -79,6 +87,7 @@ StreamDataPayload = Union[
     ToolInvocationApprovalRequestedData,
     ToolInvocationAutoExecutingData,
     SystemTaskNotificationData, # NEW
+    ToDoListUpdateData,
     EmptyData
 ]
 
@@ -196,3 +205,19 @@ def create_system_task_notification_data(notification_data_dict: Any) -> SystemT
         return SystemTaskNotificationData(**notification_data_dict)
     raise ValueError(f"Cannot create SystemTaskNotificationData from {type(notification_data_dict)}")
 
+def create_todo_list_update_data(todo_data_dict: Any) -> ToDoListUpdateData:
+    if isinstance(todo_data_dict, dict):
+        todos_payload = todo_data_dict.get('todos', [])
+        if not isinstance(todos_payload, list):
+            raise ValueError("Expected 'todos' to be a list when creating ToDoListUpdateData.")
+        todo_items = []
+        for todo_entry in todos_payload:
+            if not isinstance(todo_entry, dict):
+                logger.warning(f"Skipping non-dict todo entry when creating ToDoListUpdateData: {todo_entry!r}")
+                continue
+            try:
+                todo_items.append(ToDoItemData(**todo_entry))
+            except Exception as exc:
+                logger.warning(f"Failed to parse todo entry into ToDoItemData: {todo_entry!r}; error: {exc}")
+        return ToDoListUpdateData(todos=todo_items)
+    raise ValueError(f"Cannot create ToDoListUpdateData from {type(todo_data_dict)}")

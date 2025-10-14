@@ -17,7 +17,17 @@ from .stream_event_payloads import (
     ToolInvocationApprovalRequestedData,
     ToolInvocationAutoExecutingData,
     SystemTaskNotificationData, # NEW
-    EmptyData
+    ToDoListUpdateData,
+    EmptyData,
+    create_assistant_chunk_data,
+    create_assistant_complete_response_data,
+    create_tool_interaction_log_entry_data,
+    create_agent_operational_phase_transition_data, 
+    create_error_event_data,
+    create_tool_invocation_approval_requested_data,
+    create_tool_invocation_auto_executing_data,
+    create_system_task_notification_data, # NEW
+    create_todo_list_update_data,
 )
 
 logger = logging.getLogger(__name__)
@@ -35,6 +45,7 @@ class StreamEventType(str, Enum):
     TOOL_INVOCATION_APPROVAL_REQUESTED = "tool_invocation_approval_requested" 
     TOOL_INVOCATION_AUTO_EXECUTING = "tool_invocation_auto_executing"
     SYSTEM_TASK_NOTIFICATION = "system_task_notification" # NEW
+    AGENT_TODO_LIST_UPDATE = "agent_todo_list_updated"
     AGENT_IDLE = "agent_idle"
 
 
@@ -47,6 +58,7 @@ _STREAM_EVENT_TYPE_TO_PAYLOAD_CLASS: Dict[StreamEventType, Type[BaseModel]] = {
     StreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED: ToolInvocationApprovalRequestedData,
     StreamEventType.TOOL_INVOCATION_AUTO_EXECUTING: ToolInvocationAutoExecutingData,
     StreamEventType.SYSTEM_TASK_NOTIFICATION: SystemTaskNotificationData, # NEW
+    StreamEventType.AGENT_TODO_LIST_UPDATE: ToDoListUpdateData,
     StreamEventType.AGENT_IDLE: AgentOperationalPhaseTransitionData,
 }
 

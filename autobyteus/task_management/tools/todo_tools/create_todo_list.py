@@ -1,4 +1,5 @@
 # file: autobyteus/autobyteus/task_management/tools/todo_tools/create_todo_list.py
+import json
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -8,7 +9,6 @@ from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.tool_category import ToolCategory
 from autobyteus.tools.pydantic_schema_converter import pydantic_to_parameter_schema
 from autobyteus.task_management.schemas.todo_definition import ToDosDefinitionSchema
-from autobyteus.task_management.todo import ToDo
 from autobyteus.task_management.todo_list import ToDoList
 
 if TYPE_CHECKING:
@@ -37,7 +37,8 @@ class CreateToDoList(BaseTool):
     def get_description(cls) -> str:
         return (
             "Creates a new personal to-do list for you to manage your own sub-tasks. "
-            "This will overwrite any existing to-do list you have. Use this to break down a larger task into smaller steps."
+            "This will overwrite any existing to-do list you have. Use this to break down a larger task into smaller steps. "
+            "Returns the full list of created to-do items with their new IDs."
         )
 
     @classmethod
@@ -50,22 +51,29 @@ class CreateToDoList(BaseTool):
 
         try:
             todos_def_schema = ToDosDefinitionSchema(**kwargs)
-            new_todos = [ToDo(**todo_def.model_dump()) for todo_def in todos_def_schema.todos]
         except ValidationError as e:
             error_msg = f"Invalid to-do list definition provided: {e}"
             logger.warning(f"Agent '{agent_id}' provided an invalid definition for CreateToDoList: {error_msg}")
             return f"Error: {error_msg}"
 
-        # Create a new ToDoList and add the items
+        # Create a new ToDoList, which overwrites any existing one.
         todo_list = ToDoList(agent_id=agent_id)
-        todo_list.add_todos(new_todos)
+        # Add items from definitions; this now returns the created ToDo objects.
+        new_todos = todo_list.add_todos(todos_def_schema.todos)
 
-        # Set it on the agent's state
+        # Set the new list on the agent's state.
         context.state.todo_list = todo_list
 
-        # Notify about the update
+        # Notify any UI components about the update.
         _notify_todo_update(context)
 
-        success_msg = f"Successfully created a new to-do list with {len(new_todos)} items."
-        logger.info(f"Agent '{agent_id}': {success_msg}")
-        return success_msg
+        # Return the created list to the LLM so it knows the new IDs.
+        try:
+            todos_for_llm = [todo.model_dump(mode='json') for todo in new_todos]
+            logger.info(f"Agent '{agent_id}' successfully created a new to-do list with {len(new_todos)} items.")
+            return json.dumps(todos_for_llm, indent=2)
+        except Exception as e:
+            error_msg = f"An unexpected error occurred while formatting the new to-do list: {e}"
+            logger.error(f"Agent '{agent_id}': {error_msg}", exc_info=True)
+            # Fallback message
+            return f"Successfully created {len(new_todos)} to-do items, but failed to return them in the response."

@@ -3,7 +3,8 @@ import pytest
 from unittest.mock import Mock
 
 from autobyteus.agent.context import AgentContext, AgentRuntimeState
-from autobyteus.task_management.todo import ToDo, ToDoStatus
+from autobyteus.task_management.schemas import ToDoDefinitionSchema
+from autobyteus.task_management.todo import ToDoStatus
 from autobyteus.task_management.todo_list import ToDoList
 from autobyteus.task_management.tools import UpdateToDoStatus
 
@@ -16,11 +17,13 @@ def tool() -> UpdateToDoStatus:
 def build_context(agent_id: str = "agent_update_todo", with_list: bool = True) -> AgentContext:
     context = Mock(spec=AgentContext)
     context.agent_id = agent_id
+    context.phase_manager = Mock()
+    context.phase_manager.notifier = Mock()
 
     state = Mock(spec=AgentRuntimeState)
     if with_list:
         todo_list = ToDoList(agent_id=agent_id)
-        todo_list.add_todo(ToDo(description="Initial step"))
+        todo_list.add_todo(ToDoDefinitionSchema(description="Initial step"))
     else:
         todo_list = None
     state.todo_list = todo_list
@@ -40,6 +43,7 @@ def test_get_description(tool: UpdateToDoStatus):
 async def test_execute_success(tool: UpdateToDoStatus):
     context = build_context()
     todo = context.state.todo_list.get_all_todos()[0]
+    assert todo.todo_id == "todo_0001" # Verify fixture correctness
 
     result = await tool._execute(
         context, todo_id=todo.todo_id, status=ToDoStatus.DONE.value
@@ -47,7 +51,7 @@ async def test_execute_success(tool: UpdateToDoStatus):
 
     assert (
         result
-        == f"Successfully updated status of to-do item '{todo.todo_id}' to '{ToDoStatus.DONE.value}'."
+        == f"Successfully updated status of to-do item 'todo_0001' to '{ToDoStatus.DONE.value}'."
     )
     assert todo.status == ToDoStatus.DONE
 
