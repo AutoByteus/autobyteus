@@ -25,6 +25,7 @@ from .file.file_reader import file_reader
 from .file.file_writer import file_writer
 from .file.file_editor import file_edit
 from .file.file_search import file_search
+from .file.list_directory import list_directory
 
 # General Class-based tools
 try:
@@ -45,7 +46,7 @@ except ModuleNotFoundError as import_err:
     logger.warning("Media reader tool not available: %s", import_err)
     ReadMediaFile = None
 try:
-    from .multimedia.download_media_tool import DownloadMediaTool
+    from autobyteus.multimedia.download_media_tool import DownloadMediaTool
 except ModuleNotFoundError as import_err:
     logger.warning("Download media tool not available: %s", import_err)
     DownloadMediaTool = None
@@ -96,6 +97,7 @@ __all__ = [
     "file_writer",
     "file_edit",
     "file_search",
+    "list_directory",
 
     # Re-exported general class-based tools
     "Search",
