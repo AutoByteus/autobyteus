@@ -4,24 +4,25 @@ import tempfile
 import shutil
 from unittest.mock import Mock
 
-import autobyteus.tools.file.file_writer 
+import autobyteus.tools.file.write_file 
 
 from autobyteus.tools.registry import default_tool_registry
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.agent.context import AgentContext
 
-TOOL_NAME_FILE_WRITER = "FileWriter"
+TOOL_NAME_WRITE_FILE = "write_file"
 
 @pytest.fixture
 def mock_agent_context_file_ops() -> AgentContext: 
     mock_context = Mock(spec=AgentContext)
     mock_context.agent_id = "test_agent_file_ops_func_writer"
+    mock_context.workspace = None
     return mock_context
 
 @pytest.fixture
 def file_writer_tool_instance(mock_agent_context_file_ops: AgentContext) -> BaseTool:
-    tool_instance = default_tool_registry.create_tool(TOOL_NAME_FILE_WRITER)
+    tool_instance = default_tool_registry.create_tool(TOOL_NAME_WRITE_FILE)
     assert isinstance(tool_instance, BaseTool)
     tool_instance.set_agent_id(mock_agent_context_file_ops.agent_id)
     return tool_instance
@@ -35,9 +36,9 @@ def temp_dir_for_functional_writer() -> str:  # type: ignore
     shutil.rmtree(test_specific_dir, ignore_errors=True)
 
 def test_file_writer_definition():
-    definition = default_tool_registry.get_tool_definition(TOOL_NAME_FILE_WRITER)
+    definition = default_tool_registry.get_tool_definition(TOOL_NAME_WRITE_FILE)
     assert definition is not None 
-    assert definition.name == TOOL_NAME_FILE_WRITER
+    assert definition.name == TOOL_NAME_WRITE_FILE
     assert "Creates or overwrites a file" in definition.description
 
     schema = definition.argument_schema
@@ -48,14 +49,14 @@ def test_file_writer_definition():
     assert isinstance(param_path, ParameterDefinition)
     assert param_path.param_type == ParameterType.STRING # MODIFIED from FILE_PATH
     assert param_path.required is True
-    assert "Parameter 'path' for tool 'FileWriter'" in param_path.description
+    assert "Parameter 'path' for tool 'write_file'" in param_path.description
     assert "This is expected to be a path." in param_path.description # Heuristic added description
     
     param_content = schema.get_parameter("content")
     assert isinstance(param_content, ParameterDefinition)
     assert param_content.param_type == ParameterType.STRING
     assert param_content.required is True
-    assert "Parameter 'content' for tool 'FileWriter'" in param_content.description
+    assert "Parameter 'content' for tool 'write_file'" in param_content.description
 
 @pytest.mark.asyncio
 async def test_create_file_functional(file_writer_tool_instance: BaseTool, temp_dir_for_functional_writer: str, mock_agent_context_file_ops: AgentContext):
@@ -81,13 +82,13 @@ async def test_create_file_in_new_dir_functional(file_writer_tool_instance: Base
 
 @pytest.mark.asyncio
 async def test_write_missing_path_functional(file_writer_tool_instance: BaseTool, mock_agent_context_file_ops: AgentContext):
-    with pytest.raises(ValueError, match=f"Invalid arguments for tool '{TOOL_NAME_FILE_WRITER}'"):
+    with pytest.raises(ValueError, match=f"Invalid arguments for tool '{TOOL_NAME_WRITE_FILE}'"):
         await file_writer_tool_instance.execute(mock_agent_context_file_ops, content="Test Content")
 
 @pytest.mark.asyncio
 async def test_write_missing_content_functional(file_writer_tool_instance: BaseTool, temp_dir_for_functional_writer: str, mock_agent_context_file_ops: AgentContext):
     path = os.path.join(temp_dir_for_functional_writer, "test_writer_no_content.txt")
-    with pytest.raises(ValueError, match=f"Invalid arguments for tool '{TOOL_NAME_FILE_WRITER}'"):
+    with pytest.raises(ValueError, match=f"Invalid arguments for tool '{TOOL_NAME_WRITE_FILE}'"):
         await file_writer_tool_instance.execute(mock_agent_context_file_ops, path=path)
 
 @pytest.mark.asyncio
@@ -115,8 +116,8 @@ async def test_overwrite_existing_file_functional(file_writer_tool_instance: Bas
 @pytest.mark.asyncio
 async def test_write_io_error_functional(mocker, file_writer_tool_instance: BaseTool, temp_dir_for_functional_writer: str, mock_agent_context_file_ops: AgentContext):
     path = os.path.join(temp_dir_for_functional_writer, "writer_io_error.txt")
-    mocker.patch('autobyteus.tools.file.file_writer.os.makedirs') 
-    mocker.patch('autobyteus.tools.file.file_writer.open', side_effect=IOError("Simulated write permission denied"))
+    mocker.patch('autobyteus.tools.file.write_file.os.makedirs') 
+    mocker.patch('autobyteus.tools.file.write_file.open', side_effect=IOError("Simulated write permission denied"))
     
-    with pytest.raises(IOError, match=f"Could not write file at {path}: Simulated write permission denied"):
+    with pytest.raises(IOError, match=f"Could not write file at '{path}': Simulated write permission denied"):
         await file_writer_tool_instance.execute(mock_agent_context_file_ops, path=path, content="test")

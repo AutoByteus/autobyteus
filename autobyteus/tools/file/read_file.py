@@ -10,17 +10,16 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-@tool(name="FileWriter", category=ToolCategory.FILE_SYSTEM)
-async def file_writer(context: 'AgentContext', path: str, content: str) -> str:
+@tool(name="read_file", category=ToolCategory.FILE_SYSTEM)
+async def read_file(context: 'AgentContext', path: str) -> str:
     """
-    Creates or overwrites a file with specified content.
-    'path' is the path where the file will be written. If relative, it must be resolved against a configured agent workspace.
-    'content' is the string content to write.
-    Creates parent directories if they don't exist.
+    Reads content from a specified file.
+    'path' is the path to the file. If relative, it must be resolved against a configured agent workspace.
     Raises ValueError if a relative path is given without a valid workspace.
-    Raises IOError if file writing fails.
+    Raises FileNotFoundError if the file does not exist.
+    Raises IOError if file reading fails for other reasons.
     """
-    logger.debug(f"Functional FileWriter tool for agent {context.agent_id}, initial path: {path}")
+    logger.debug(f"Functional read_file tool for agent {context.agent_id}, initial path: {path}")
     
     final_path: str
     if os.path.isabs(path):
@@ -41,19 +40,17 @@ async def file_writer(context: 'AgentContext', path: str, content: str) -> str:
         final_path = os.path.join(base_path, path)
         logger.debug(f"Path '{path}' is relative. Resolved to '{final_path}' using workspace base path '{base_path}'.")
 
-    try:
-        # It's good practice to normalize the path to handle things like '..'
-        final_path = os.path.normpath(final_path)
+    # It's good practice to normalize the path to handle things like '..'
+    final_path = os.path.normpath(final_path)
+
+    if not os.path.exists(final_path):
+        raise FileNotFoundError(f"The file at resolved path {final_path} does not exist.")
         
-        dir_path = os.path.dirname(final_path)
-        if dir_path:
-            os.makedirs(dir_path, exist_ok=True)
-            
-        with open(final_path, 'w', encoding='utf-8') as file:
-            file.write(content)
-            
-        logger.info(f"File successfully written to '{final_path}' for agent '{context.agent_id}'.")
-        return f"File created/updated at {final_path}"
+    try:
+        with open(final_path, 'r', encoding='utf-8') as file:
+            content = file.read()
+        logger.info(f"File successfully read from '{final_path}' for agent '{context.agent_id}'.")
+        return content
     except Exception as e:
-        logger.error(f"Error writing file to final path '{final_path}' for agent {context.agent_id}: {e}", exc_info=True)
-        raise IOError(f"Could not write file at '{final_path}': {str(e)}")
+        logger.error(f"Error reading file from final path '{final_path}' for agent {context.agent_id}: {e}", exc_info=True)
+        raise IOError(f"Could not read file at {final_path}: {str(e)}")

@@ -63,7 +63,7 @@ async def test_handle_single_tool_result_success(tool_result_handler: ToolResult
 @pytest.mark.asyncio
 async def test_handle_single_tool_result_with_error(tool_result_handler: ToolResultEventHandler, agent_context, mock_notifier, caplog):
     """Test handling of a single errored ToolResultEvent."""
-    tool_name = "file_writer"
+    tool_name = "write_file"
     error_message = "Permission denied"
     tool_invocation_id = "fw-456"
     event = ToolResultEvent(tool_name=tool_name, result=None, error=error_message, tool_invocation_id=tool_invocation_id)

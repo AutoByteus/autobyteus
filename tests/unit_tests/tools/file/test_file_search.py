@@ -5,14 +5,14 @@ import subprocess
 from pathlib import Path
 from unittest.mock import Mock
 
-import autobyteus.tools.file.file_search
+import autobyteus.tools.file.search_files
 
 from autobyteus.tools.registry import default_tool_registry
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.agent.context import AgentContext
 
-TOOL_NAME_FILE_SEARCH = "FileSearch"
+TOOL_NAME_SEARCH_FILES = "search_files"
 
 # --- Fixtures ---
 
@@ -25,7 +25,7 @@ def mock_agent_context() -> AgentContext:
 
 @pytest.fixture
 def file_search_tool_instance(mock_agent_context: AgentContext) -> BaseTool:
-    tool_instance = default_tool_registry.create_tool(TOOL_NAME_FILE_SEARCH)
+    tool_instance = default_tool_registry.create_tool(TOOL_NAME_SEARCH_FILES)
     assert isinstance(tool_instance, BaseTool)
     tool_instance.set_agent_id(mock_agent_context.agent_id)
     return tool_instance
@@ -78,9 +78,9 @@ def non_git_path(tmp_path: Path) -> Path:
 # --- Tests ---
 
 def test_file_search_definition():
-    definition = default_tool_registry.get_tool_definition(TOOL_NAME_FILE_SEARCH)
+    definition = default_tool_registry.get_tool_definition(TOOL_NAME_SEARCH_FILES)
     assert definition is not None
-    assert definition.name == TOOL_NAME_FILE_SEARCH
+    assert definition.name == TOOL_NAME_SEARCH_FILES
     assert "Performs a high-performance fuzzy search" in definition.description
 
     schema = definition.argument_schema

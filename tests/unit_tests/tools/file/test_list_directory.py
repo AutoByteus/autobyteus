@@ -10,7 +10,7 @@ from autobyteus.tools.base_tool import BaseTool
 from autobyteus.agent.context import AgentContext
 from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 
-TOOL_NAME_LIST_DIRECTORY = "ListDirectory"
+TOOL_NAME_LIST_DIRECTORY = "list_directory"
 
 # --- Fixtures ---
 
@@ -24,7 +24,7 @@ def mock_agent_context() -> AgentContext:
 
 @pytest.fixture
 def list_directory_tool_instance(mock_agent_context: AgentContext) -> BaseTool:
-    """Provides an instance of the ListDirectory tool."""
+    """Provides an instance of the list_directory tool."""
     tool_instance = default_tool_registry.create_tool(TOOL_NAME_LIST_DIRECTORY)
     assert isinstance(tool_instance, BaseTool)
     tool_instance.set_agent_id(mock_agent_context.agent_id)
@@ -49,7 +49,7 @@ def test_dir_structure(tmp_path: Path) -> Path:
 # --- Tests ---
 
 def test_list_directory_definition():
-    """Tests if the ListDirectory tool is defined correctly."""
+    """Tests if the list_directory tool is defined correctly."""
     definition = default_tool_registry.get_tool_definition(TOOL_NAME_LIST_DIRECTORY)
     assert definition is not None
     assert definition.name == TOOL_NAME_LIST_DIRECTORY

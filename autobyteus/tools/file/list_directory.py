@@ -31,7 +31,7 @@ class DirEntry:
     kind: str
     depth: int
 
-@tool(name="ListDirectory", category=ToolCategory.FILE_SYSTEM)
+@tool(name="list_directory", category=ToolCategory.FILE_SYSTEM)
 async def list_directory(
     context: 'AgentContext',
     path: str,

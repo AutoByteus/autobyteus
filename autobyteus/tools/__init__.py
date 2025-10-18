@@ -21,10 +21,10 @@ logger = logging.getLogger(__name__)
 
 # Functional tools (decorated functions are now instances)
 from .bash.bash_executor import bash_executor
-from .file.file_reader import file_reader
-from .file.file_writer import file_writer
-from .file.file_editor import file_edit
-from .file.file_search import file_search
+from .file.read_file import read_file
+from .file.write_file import write_file
+from .file.edit_file import edit_file
+from .file.search_files import search_files
 from .file.list_directory import list_directory
 
 # General Class-based tools
@@ -93,10 +93,10 @@ __all__ = [
 
     # Re-exported functional tool instances
     "bash_executor",
-    "file_reader",
-    "file_writer",
-    "file_edit",
-    "file_search",
+    "read_file",
+    "write_file",
+    "edit_file",
+    "search_files",
     "list_directory",
 
     # Re-exported general class-based tools

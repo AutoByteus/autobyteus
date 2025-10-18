@@ -32,7 +32,7 @@ try:
     from autobyteus.llm.llm_factory import default_llm_factory, LLMFactory
     from autobyteus.agent_team.agent_team_builder import AgentTeamBuilder
     from autobyteus.cli.agent_team_tui.app import AgentTeamApp
-    from autobyteus.tools import file_writer, file_reader, bash_executor
+    from autobyteus.tools import write_file, read_file, bash_executor
     from autobyteus.agent.workspace import BaseAgentWorkspace, WorkspaceConfig
     from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
     from autobyteus.task_management.tools import (
@@ -147,7 +147,7 @@ def create_code_review_team(
         name="Software Engineer", role="Developer", description="Writes Python code and corresponding tests based on instructions.",
         llm_instance=default_llm_factory.create_llm(model_identifier=engineer_model),
         system_prompt=load_prompt("software_engineer.prompt"),
-        tools=[file_writer, UpdateTaskStatus(), GetTaskPlanStatus()],
+        tools=[write_file, UpdateTaskStatus(), GetTaskPlanStatus()],
         workspace=workspace
     )
     
@@ -156,7 +156,7 @@ def create_code_review_team(
         name="Code Reviewer", role="Senior Developer", description="Reads and reviews Python code and tests for quality and correctness.",
         llm_instance=default_llm_factory.create_llm(model_identifier=reviewer_model),
         system_prompt=load_prompt("code_reviewer.prompt"),
-        tools=[file_reader, file_writer, UpdateTaskStatus(), GetTaskPlanStatus()],
+        tools=[read_file, write_file, UpdateTaskStatus(), GetTaskPlanStatus()],
         workspace=workspace
     )
 

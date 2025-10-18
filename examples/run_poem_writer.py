@@ -39,7 +39,7 @@ try:
     from autobyteus.llm.llm_factory import default_llm_factory, LLMFactory
     from autobyteus.agent.factory.agent_factory import AgentFactory
     from autobyteus.cli import agent_cli
-    from autobyteus.tools.file.file_writer import file_writer
+    from autobyteus.tools.file.write_file import write_file
     # Import core workspace and schema components from the library
     from autobyteus.agent.workspace import BaseAgentWorkspace, WorkspaceConfig
     from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
@@ -176,8 +176,8 @@ async def main(args: argparse.Namespace):
     workspace_base_path.mkdir(parents=True, exist_ok=True)
     logger.info(f"Agent will be configured with a local workspace at: {workspace_base_path}")
 
-    # The file_writer tool is an instance ready to be used
-    tools_for_agent = [file_writer]
+    # The write_file tool is an instance ready to be used
+    tools_for_agent = [write_file]
     
     # UPDATED: The system prompt now provides context about the workspace.
     system_prompt = (

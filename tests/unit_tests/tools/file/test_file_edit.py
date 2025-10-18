@@ -1,14 +1,14 @@
 import pytest
 from unittest.mock import Mock
 
-import autobyteus.tools.file.file_editor  # Ensure registration side-effects
+import autobyteus.tools.file.edit_file  # Ensure registration side-effects
 
 from autobyteus.tools.registry import default_tool_registry
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
-from autobyteus.tools.file.file_editor import PatchApplicationError
+from autobyteus.tools.file.edit_file import PatchApplicationError
 
-TOOL_NAME_FILE_EDIT = "FileEdit"
+TOOL_NAME_EDIT_FILE = "edit_file"
 
 @pytest.fixture
 def mock_agent_context_file_ops():
@@ -19,16 +19,16 @@ def mock_agent_context_file_ops():
 
 @pytest.fixture
 def file_edit_tool_instance(mock_agent_context_file_ops) -> BaseTool:
-    tool_instance = default_tool_registry.create_tool(TOOL_NAME_FILE_EDIT)
+    tool_instance = default_tool_registry.create_tool(TOOL_NAME_EDIT_FILE)
     assert isinstance(tool_instance, BaseTool)
     tool_instance.set_agent_id(mock_agent_context_file_ops.agent_id)
     return tool_instance
 
 
 def test_file_edit_definition():
-    definition = default_tool_registry.get_tool_definition(TOOL_NAME_FILE_EDIT)
+    definition = default_tool_registry.get_tool_definition(TOOL_NAME_EDIT_FILE)
     assert definition is not None
-    assert definition.name == TOOL_NAME_FILE_EDIT
+    assert definition.name == TOOL_NAME_EDIT_FILE
     assert "Applies a unified diff patch" in definition.description
 
     schema = definition.argument_schema

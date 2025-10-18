@@ -1,4 +1,4 @@
-# file: autobyteus/autobyteus/tools/file/file_search.py
+# file: autobyteus/autobyteus/tools/file/search_files.py
 """
 This module provides a high-performance fuzzy file search tool.
 It uses 'git ls-files' for speed in Git repositories and falls back
@@ -26,8 +26,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-@tool(name="FileSearch", category=ToolCategory.FILE_SYSTEM)
-async def file_search(
+@tool(name="search_files", category=ToolCategory.FILE_SYSTEM)
+async def search_files(
     context: 'AgentContext',
     query: Optional[str] = None,
     path: str = '.',
