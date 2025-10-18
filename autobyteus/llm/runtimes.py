@@ -9,3 +9,5 @@ class LLMRuntime(Enum):
     OLLAMA = "ollama"
     LMSTUDIO = "lmstudio"
     AUTOBYTEUS = "autobyteus"
+    LLAMA_CPP = "llama_cpp"
+    MLX = "mlx"

@@ -21,6 +21,8 @@ from autobyteus.llm.api.qwen_llm import QwenLLM
 from autobyteus.llm.api.zhipu_llm import ZhipuLLM
 from autobyteus.llm.ollama_provider import OllamaModelProvider
 from autobyteus.llm.lmstudio_provider import LMStudioModelProvider
+from autobyteus.llm.llama_cpp_provider import LlamaCppModelProvider
+from autobyteus.llm.mlx_provider import MlxModelProvider
 from autobyteus.utils.singleton import SingletonMeta
 
 logger = logging.getLogger(__name__)
@@ -391,6 +393,8 @@ class LLMFactory(metaclass=SingletonMeta):
         OllamaModelProvider.discover_and_register()
         LMStudioModelProvider.discover_and_register()
         AutobyteusModelProvider.discover_and_register()
+        LlamaCppModelProvider.discover_and_register()
+        MlxModelProvider.discover_and_register()
 
     @staticmethod
     def register_model(model: LLMModel):
@@ -407,6 +411,30 @@ class LLMFactory(metaclass=SingletonMeta):
 
         LLMFactory._models_by_identifier[identifier] = model
         LLMFactory._models_by_provider.setdefault(model.provider, []).append(model)
+
+    @staticmethod
+    def unregister_model(model_identifier: str) -> bool:
+        """
+        Unregisters an LLM model, typically when its runtime is shut down.
+        """
+        if model_identifier not in LLMFactory._models_by_identifier:
+            logger.warning(f"Attempted to unregister a non-existent model: {model_identifier}")
+            return False
+
+        model_to_remove = LLMFactory._models_by_identifier.pop(model_identifier)
+        provider = model_to_remove.provider
+        
+        if provider in LLMFactory._models_by_provider:
+            provider_list = LLMFactory._models_by_provider[provider]
+            # Find and remove the specific model instance from the provider's list
+            LLMFactory._models_by_provider[provider] = [m for m in provider_list if m.model_identifier != model_identifier]
+            
+            # If the provider list is now empty, remove the provider key
+            if not LLMFactory._models_by_provider[provider]:
+                del LLMFactory._models_by_provider[provider]
+        
+        logger.info(f"Successfully unregistered model: {model_identifier}")
+        return True
 
     @staticmethod
     def create_llm(model_identifier: str, llm_config: Optional[LLMConfig] = None) -> BaseLLM:
