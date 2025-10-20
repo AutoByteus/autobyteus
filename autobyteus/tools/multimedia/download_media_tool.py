@@ -23,7 +23,7 @@ class DownloadMediaTool(BaseTool):
 
     @classmethod
     def get_name(cls) -> str:
-        return "DownloadMedia"
+        return "download_media"
 
     @classmethod
     def get_description(cls) -> str:

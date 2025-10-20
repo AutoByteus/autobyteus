@@ -41,7 +41,7 @@ class GenericMcpTool(BaseTool):
         self.get_description = self.get_instance_description
         self.get_argument_schema = self.get_instance_argument_schema
         
-        logger.info(f"GenericMcpTool instance created for remote tool '{remote_tool_name}' on server '{self._server_id}'. "
+        logger.info(f"call_remote_mcp_tool instance created for remote tool '{remote_tool_name}' on server '{self._server_id}'. "
                     f"Registered in AutoByteUs as '{self._instance_name}'.")
 
     # --- Getters for instance-specific data ---
@@ -51,7 +51,7 @@ class GenericMcpTool(BaseTool):
 
     # --- Base class methods (class-level, not instance-level) ---
     @classmethod
-    def get_name(cls) -> str: return "GenericMcpTool"
+    def get_name(cls) -> str: return "call_remote_mcp_tool"
     @classmethod
     def get_description(cls) -> str: return "A generic wrapper for executing remote MCP tools."
     @classmethod
@@ -65,7 +65,7 @@ class GenericMcpTool(BaseTool):
         agent_id = context.agent_id
         tool_name_for_log = self.get_instance_name()
         
-        logger.info(f"GenericMcpTool '{tool_name_for_log}': Creating proxy for agent '{agent_id}' and server '{self._server_id}'.")
+        logger.info(f"call_remote_mcp_tool '{tool_name_for_log}': Creating proxy for agent '{agent_id}' and server '{self._server_id}'.")
         
         try:
             # The proxy is created on-demand for each execution.

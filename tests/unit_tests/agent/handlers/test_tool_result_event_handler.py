@@ -166,7 +166,7 @@ async def test_handle_multi_tool_with_error_in_sequence(tool_result_handler: Too
 async def test_handle_single_tool_result_with_context_file(tool_result_handler: ToolResultEventHandler, agent_context):
     """Test that a tool result containing a ContextFile is handled correctly."""
     context_file = ContextFile(uri="/path/to/image.png", file_name="image.png")
-    event = ToolResultEvent(tool_name="ReadMediaFile", result=context_file, tool_invocation_id="media-1")
+    event = ToolResultEvent(tool_name="read_media_file", result=context_file, tool_invocation_id="media-1")
     
     await tool_result_handler.handle(event, agent_context)
 
@@ -211,11 +211,11 @@ async def test_handle_multi_tool_with_mixed_media_and_text(tool_result_handler: 
     """Test a multi-tool turn with both media and text results are aggregated correctly."""
     context_file = ContextFile(uri="/path/to/image.png", file_name="image.png")
     
-    inv_A = ToolInvocation("ReadMediaFile", {"path": "/path/to/image.png"}, id="media-1")
+    inv_A = ToolInvocation("read_media_file", {"path": "/path/to/image.png"}, id="media-1")
     inv_B = ToolInvocation("calculator", {"op": "add"}, id="calc-1")
     agent_context.state.active_multi_tool_call_turn = ToolInvocationTurn(invocations=[inv_A, inv_B])
 
-    res_A = ToolResultEvent(tool_name="ReadMediaFile", result=context_file, tool_invocation_id="media-1")
+    res_A = ToolResultEvent(tool_name="read_media_file", result=context_file, tool_invocation_id="media-1")
     res_B = ToolResultEvent(tool_name="calculator", result={"sum": 5}, tool_invocation_id="calc-1")
 
     # Handle both results
@@ -232,7 +232,7 @@ async def test_handle_multi_tool_with_mixed_media_and_text(tool_result_handler: 
 
     # Check that text content for both results is present and in order
     content = agent_input_message.content
-    pos_A = content.find("Tool: ReadMediaFile")
+    pos_A = content.find("Tool: read_media_file")
     pos_B = content.find("Tool: calculator")
     assert pos_A < pos_B
     assert "The file 'image.png' has been loaded" in content

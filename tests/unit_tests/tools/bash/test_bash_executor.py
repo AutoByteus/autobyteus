@@ -14,7 +14,7 @@ from autobyteus.tools.bash.bash_executor import bash_executor
 from autobyteus.tools.registry import default_tool_registry
 from autobyteus.agent.context import AgentContext
 
-TOOL_NAME = "BashExecutor"
+TOOL_NAME = "execute_bash"
 
 # -- Fixtures --
 
@@ -124,7 +124,7 @@ async def test_integration_pwd_command_returns_real_workspace_path(real_workspac
 @pytest.mark.skipif(not shutil.which("node"), reason="node.js executable not found in PATH")
 async def test_integration_write_and_run_node_script(real_workspace_context):
     """
-    Integration test: Uses BashExecutor to first write a JS file and then
+    Integration test: Uses execute_bash to first write a JS file and then
     execute it with Node, all within a real temporary workspace.
     """
     workspace_path = Path(real_workspace_context.workspace.get_base_path())
@@ -193,7 +193,7 @@ async def test_integration_ffmpeg_process_video_and_returns_logs_on_success(real
 async def test_integration_ffmpeg_with_invalid_arg_raises_error(real_workspace_context):
     """
     Integration test: Verifies that when ffmpeg fails, it returns a non-zero exit code,
-    and BashExecutor correctly raises a CalledProcessError. This test is unaffected
+    and execute_bash correctly raises a CalledProcessError. This test is unaffected
     by the return value change for successful commands.
     """
     invalid_cmd = "ffmpeg -i non_existent_input.mp4 -y output.mp4"

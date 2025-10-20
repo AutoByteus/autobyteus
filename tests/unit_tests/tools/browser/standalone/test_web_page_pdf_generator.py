@@ -7,7 +7,7 @@ from autobyteus.agent.context import AgentContext
 from autobyteus.tools.registry import default_tool_registry
 from autobyteus.tools.tool_state import ToolState
 
-TOOL_NAME_PDF_GENERATOR = "WebPagePDFGenerator"
+TOOL_NAME_PDF_GENERATOR = "generate_webpage_pdf"
 
 @pytest.fixture
 def mock_agent_context_pdf_gen():
@@ -103,7 +103,7 @@ async def test_execute_playwright_error(pdf_generator_tool_instance: WebPagePDFG
          patch.object(pdf_generator_tool_instance, 'close', AsyncMock()) as mock_close, \
          patch.object(pdf_generator_tool_instance, 'page', new_callable=lambda: mock_playwright_page):
 
-        with pytest.raises(RuntimeError, match="WebPagePDFGenerator failed for URL .* Playwright PDF goto failed"):
+        with pytest.raises(RuntimeError, match="generate_webpage_pdf failed for URL .* Playwright PDF goto failed"):
             await pdf_generator_tool_instance.execute(
                 mock_agent_context_pdf_gen, 
                 url=url_to_pdf, 

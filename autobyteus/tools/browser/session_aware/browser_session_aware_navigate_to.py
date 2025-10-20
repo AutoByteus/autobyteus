@@ -21,11 +21,11 @@ class BrowserSessionAwareNavigateTo(BrowserSessionAwareTool):
 
     def __init__(self, config: Optional[ToolConfig] = None):
         super().__init__(config=config)
-        logger.debug("BrowserSessionAwareNavigateTo tool initialized.")
+        logger.debug("navigate_to tool (session-aware) initialized.")
 
     @classmethod
     def get_name(cls) -> str:
-        return "NavigateTo"
+        return "navigate_to"
 
     @classmethod
     def get_description(cls) -> str:
@@ -44,7 +44,7 @@ class BrowserSessionAwareNavigateTo(BrowserSessionAwareTool):
         return schema
     
     async def perform_action(self, shared_session: SharedBrowserSession, webpage_url: str) -> str:
-        logger.info(f"BrowserSessionAwareNavigateTo performing action for URL: {webpage_url}")
+        logger.info(f"navigate_to (session-aware) performing action for URL: {webpage_url}")
 
         if not self._is_valid_url(webpage_url):
             raise ValueError(f"Invalid URL format: {webpage_url}. Must include scheme and netloc.")
@@ -53,12 +53,12 @@ class BrowserSessionAwareNavigateTo(BrowserSessionAwareTool):
             response = await shared_session.page.goto(webpage_url, wait_until="networkidle", timeout=60000)
             
             if response and response.ok:
-                success_msg = f"The NavigateTo command to {webpage_url} is executed successfully."
+                success_msg = f"The navigate_to command to {webpage_url} is executed successfully."
                 logger.info(success_msg)
                 return success_msg
             else:
                 status = response.status if response else "Unknown"
-                failure_msg = f"The NavigationTo command to {webpage_url} failed with status {status}."
+                failure_msg = f"The navigate_to command to {webpage_url} failed with status {status}."
                 logger.warning(failure_msg)
                 return failure_msg
         except Exception as e:

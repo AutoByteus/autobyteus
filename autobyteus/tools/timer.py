@@ -49,6 +49,10 @@ class Timer(BaseTool, EventEmitter):
         logger.debug(f"Timer initialized with duration: {self.duration}s, interval: {self.interval}s")
 
     @classmethod
+    def get_name(cls) -> str:
+        return "start_timer"
+
+    @classmethod
     def get_description(cls) -> str:
         return "Sets and runs a timer. Emits TIMER_UPDATE events with remaining time at specified intervals."
 

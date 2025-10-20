@@ -39,7 +39,7 @@ def test_generic_mcp_tool_properties(generic_mcp_tool_instance: GenericMcpTool, 
     assert generic_mcp_tool_instance.get_argument_schema() == sample_arg_schema
     
     # Test the base class's static methods for sanity check
-    assert GenericMcpTool.get_name() == "GenericMcpTool"
+    assert GenericMcpTool.get_name() == "call_remote_mcp_tool"
     assert "generic wrapper" in GenericMcpTool.get_description()
     assert GenericMcpTool.get_argument_schema() is None
 

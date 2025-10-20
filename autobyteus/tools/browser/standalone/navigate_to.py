@@ -23,7 +23,11 @@ class NavigateTo(BaseTool, UIIntegrator):
     def __init__(self, config: Optional[ToolConfig] = None):
         BaseTool.__init__(self, config=config)
         UIIntegrator.__init__(self)
-        logger.debug("NavigateTo (standalone) tool initialized.")
+        logger.debug("navigate_to (standalone) tool initialized.")
+
+    @classmethod
+    def get_name(cls) -> str:
+        return "navigate_to"
 
     @classmethod
     def get_description(cls) -> str:
@@ -41,33 +45,33 @@ class NavigateTo(BaseTool, UIIntegrator):
         return schema
 
     async def _execute(self, context: 'AgentContext', url: str) -> str:
-        logger.info(f"NavigateTo (standalone) for agent {context.agent_id} navigating to: {url}")
+        logger.info(f"navigate_to (standalone) for agent {context.agent_id} navigating to: {url}")
 
         if not self._is_valid_url(url):
             error_msg = f"Invalid URL format: {url}. Must include scheme (e.g., http, https) and netloc."
-            logger.warning(f"NavigateTo (standalone) validation error for agent {context.agent_id}: {error_msg}")
+            logger.warning(f"navigate_to (standalone) validation error for agent {context.agent_id}: {error_msg}")
             raise ValueError(error_msg)
 
         try:
             await self.initialize()
             if not self.page:
-                 logger.error("Playwright page not initialized in NavigateTo (standalone).")
-                 raise RuntimeError("Playwright page not available for NavigateTo.")
+                 logger.error("Playwright page not initialized in navigate_to (standalone).")
+                 raise RuntimeError("Playwright page not available for navigate_to.")
 
             response = await self.page.goto(url, wait_until="domcontentloaded", timeout=60000) 
             
             if response and response.ok:
                 success_msg = f"Successfully navigated to {url}"
-                logger.info(f"NavigateTo (standalone) for agent {context.agent_id}: {success_msg}")
+                logger.info(f"navigate_to (standalone) for agent {context.agent_id}: {success_msg}")
                 return success_msg
             else:
                 status = response.status if response else "Unknown"
                 failure_msg = f"Navigation to {url} failed with status {status}"
-                logger.warning(f"NavigateTo (standalone) for agent {context.agent_id}: {failure_msg}")
+                logger.warning(f"navigate_to (standalone) for agent {context.agent_id}: {failure_msg}")
                 return failure_msg
         except Exception as e:
-            logger.error(f"Error during NavigateTo (standalone) for URL '{url}', agent {context.agent_id}: {e}", exc_info=True)
-            raise RuntimeError(f"NavigateTo (standalone) failed for URL '{url}': {str(e)}")
+            logger.error(f"Error during navigate_to (standalone) for URL '{url}', agent {context.agent_id}: {e}", exc_info=True)
+            raise RuntimeError(f"navigate_to (standalone) failed for URL '{url}': {str(e)}")
         finally:
             await self.close()
 

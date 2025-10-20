@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-@tool(name="BashExecutor", category=ToolCategory.SYSTEM)
+@tool(name="execute_bash", category=ToolCategory.SYSTEM)
 async def bash_executor(context: Optional['AgentContext'], command: str) -> str:
     """
     Executes bash commands using the '/bin/bash' interpreter.
@@ -25,7 +25,7 @@ async def bash_executor(context: Optional['AgentContext'], command: str) -> str:
     The command is executed in the agent's workspace directory if available.
     """
     if not shutil.which("bash"):
-        error_msg = "'bash' executable not found in system PATH. The BashExecutor tool cannot be used."
+        error_msg = "'bash' executable not found in system PATH. The execute_bash tool cannot be used."
         logger.error(error_msg)
         raise FileNotFoundError(error_msg)
         
@@ -51,7 +51,7 @@ async def bash_executor(context: Optional['AgentContext'], command: str) -> str:
         effective_cwd = tempfile.gettempdir()
         log_cwd_source = f"system temporary directory: {effective_cwd}"
 
-    logger.debug(f"Functional BashExecutor tool executing for '{agent_id_str}': {command} in cwd from {log_cwd_source}")
+    logger.debug(f"Functional execute_bash tool executing for '{agent_id_str}': {command} in cwd from {log_cwd_source}")
 
     try:
         # Explicitly use 'bash -c' for reliable execution

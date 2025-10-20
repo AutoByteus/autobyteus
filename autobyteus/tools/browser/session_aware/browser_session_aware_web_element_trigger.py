@@ -24,11 +24,11 @@ class BrowserSessionAwareWebElementTrigger(BrowserSessionAwareTool):
     
     def __init__(self, config: Optional[ToolConfig] = None):
         super().__init__(config=config)
-        logger.debug("BrowserSessionAwareWebElementTrigger tool initialized.")
+        logger.debug("trigger_web_element (session-aware) tool initialized.")
 
     @classmethod
     def get_name(cls) -> str:
-        return "WebElementTrigger"
+        return "trigger_web_element"
 
     @classmethod
     def get_description(cls) -> str:
@@ -75,7 +75,7 @@ class BrowserSessionAwareWebElementTrigger(BrowserSessionAwareTool):
         webpage_url: str,
         params: Optional[str] = ""
     ) -> str:
-        logger.info(f"WebElementTrigger performing action '{action}' on selector '{css_selector}' for page related to URL '{webpage_url}'. Params: '{params[:50]}...'")
+        logger.info(f"trigger_web_element performing action '{action}' on selector '{css_selector}' for page related to URL '{webpage_url}'. Params: '{params[:50]}...'")
 
         try:
             action_enum = WebElementAction.from_string(action)
@@ -124,7 +124,7 @@ class BrowserSessionAwareWebElementTrigger(BrowserSessionAwareTool):
         else:
             raise ValueError(f"Unsupported action: {action_enum}")
 
-        success_msg = f"The WebElementTrigger action '{action_enum}' on selector '{css_selector}' was executed."
+        success_msg = f"The trigger_web_element action '{action_enum}' on selector '{css_selector}' was executed."
         logger.info(success_msg)
         return success_msg
 

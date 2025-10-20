@@ -62,7 +62,7 @@ class GenerateImageTool(BaseTool):
 
     @classmethod
     def get_name(cls) -> str:
-        return "GenerateImage"
+        return "generate_image"
 
     @classmethod
     def get_description(cls) -> str:
@@ -92,7 +92,7 @@ class GenerateImageTool(BaseTool):
 
     async def _execute(self, context, prompt: str, input_image_urls: Optional[str] = None, generation_config: Optional[dict] = None) -> List[str]:
         model_identifier = _get_configured_model_identifier(self.MODEL_ENV_VAR, self.DEFAULT_MODEL)
-        logger.info(f"GenerateImageTool executing with configured model '{model_identifier}'.")
+        logger.info(f"generate_image executing with configured model '{model_identifier}'.")
         client = None
         try:
             urls_list = None
@@ -125,7 +125,7 @@ class EditImageTool(BaseTool):
 
     @classmethod
     def get_name(cls) -> str:
-        return "EditImage"
+        return "edit_image"
 
     @classmethod
     def get_description(cls) -> str:
@@ -161,7 +161,7 @@ class EditImageTool(BaseTool):
 
     async def _execute(self, context, prompt: str, input_image_urls: str, generation_config: Optional[dict] = None, mask_image_url: Optional[str] = None) -> List[str]:
         model_identifier = _get_configured_model_identifier(self.MODEL_ENV_VAR, self.DEFAULT_MODEL)
-        logger.info(f"EditImageTool executing with configured model '{model_identifier}'.")
+        logger.info(f"edit_image executing with configured model '{model_identifier}'.")
         client = None
         try:
             urls_list = [url.strip() for url in input_image_urls.split(',') if url.strip()]

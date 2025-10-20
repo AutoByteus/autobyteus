@@ -1,6 +1,6 @@
 """
 File: autobyteus/tools/browser/standalone/webpage_reader.py
-This module provides a WebPageReader tool for reading and cleaning HTML content from webpages.
+This module provides a read_webpage tool for reading and cleaning HTML content from webpages.
 """
 
 import logging
@@ -35,15 +35,19 @@ class WebPageReader(BaseTool, UIIntegrator):
                     try:
                         cleaning_mode_to_use = CleaningMode(cleaning_mode_value.upper())
                     except ValueError:
-                        logger.warning(f"Invalid cleaning_mode string '{cleaning_mode_value}' in config for WebPageReader. Using THOROUGH.")
+                        logger.warning(f"Invalid cleaning_mode string '{cleaning_mode_value}' in config for read_webpage. Using THOROUGH.")
                         cleaning_mode_to_use = CleaningMode.THOROUGH
                 elif isinstance(cleaning_mode_value, CleaningMode):
                     cleaning_mode_to_use = cleaning_mode_value
                 else:
-                     logger.warning(f"Invalid type for cleaning_mode in config for WebPageReader. Using THOROUGH.")
+                     logger.warning(f"Invalid type for cleaning_mode in config for read_webpage. Using THOROUGH.")
         
         self.cleaning_mode = cleaning_mode_to_use
-        logger.debug(f"WebPageReader initialized with cleaning_mode: {self.cleaning_mode}")
+        logger.debug(f"read_webpage initialized with cleaning_mode: {self.cleaning_mode}")
+
+    @classmethod
+    def get_name(cls) -> str:
+        return "read_webpage"
 
     @classmethod
     def get_description(cls) -> str:
@@ -63,7 +67,7 @@ class WebPageReader(BaseTool, UIIntegrator):
         
     @classmethod
     def get_config_schema(cls) -> Optional[ParameterSchema]:
-        """Schema for parameters to configure the WebPageReader instance itself."""
+        """Schema for parameters to configure the read_webpage instance itself."""
         schema = ParameterSchema()
         schema.add_parameter(ParameterDefinition(
             name="cleaning_mode",
@@ -76,13 +80,13 @@ class WebPageReader(BaseTool, UIIntegrator):
         return schema
 
     async def _execute(self, context: 'AgentContext', url: str) -> str:
-        logger.info(f"WebPageReader executing for agent {context.agent_id} with URL: '{url}'")
+        logger.info(f"read_webpage executing for agent {context.agent_id} with URL: '{url}'")
 
         try:
             await self.initialize()
             if not self.page:
-                 logger.error("Playwright page not initialized in WebPageReader.")
-                 raise RuntimeError("Playwright page not available for WebPageReader.")
+                 logger.error("Playwright page not initialized in read_webpage.")
+                 raise RuntimeError("Playwright page not available for read_webpage.")
 
             await self.page.goto(url, timeout=60000, wait_until="domcontentloaded")
             page_content = await self.page.content()
@@ -96,6 +100,6 @@ class WebPageReader(BaseTool, UIIntegrator):
 '''
         except Exception as e:
             logger.error(f"Error reading webpage at URL '{url}': {e}", exc_info=True)
-            raise RuntimeError(f"WebPageReader failed for URL '{url}': {str(e)}")
+            raise RuntimeError(f"read_webpage failed for URL '{url}': {str(e)}")
         finally:
             await self.close()

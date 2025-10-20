@@ -43,7 +43,7 @@ def test_tool_state_initialization():
     assert tool.tool_state['last_start_time'] == 'now'
 
 def test_get_name():
-    assert Timer.get_name() == "Timer"
+    assert Timer.get_name() == "start_timer"
 
 def test_get_description():
     desc = Timer.get_description()
@@ -80,7 +80,7 @@ def test_get_argument_schema_for_execution():
 
 @pytest.mark.asyncio
 async def test_execute_missing_duration_arg(sync_timer_instance: Timer, mock_agent_context):
-    with pytest.raises(ValueError, match="Invalid arguments for tool 'Timer'"):
+    with pytest.raises(ValueError, match="Invalid arguments for tool 'start_timer'"):
         await sync_timer_instance.execute(mock_agent_context)
 
 @pytest.mark.asyncio

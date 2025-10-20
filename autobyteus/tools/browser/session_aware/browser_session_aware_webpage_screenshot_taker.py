@@ -32,11 +32,11 @@ class BrowserSessionAwareWebPageScreenshotTaker(BrowserSessionAwareTool):
             if self.image_format not in ["png", "jpeg"]:
                 logger.warning(f"Invalid image_format '{self.image_format}' in config. Defaulting to 'png'.")
                 self.image_format = "png"
-        logger.debug(f"BrowserSessionAwareWebPageScreenshotTaker initialized. Full page: {self.full_page}, Format: {self.image_format}")
+        logger.debug(f"take_webpage_screenshot (session-aware) initialized. Full page: {self.full_page}, Format: {self.image_format}")
 
     @classmethod
     def get_name(cls) -> str: 
-        return "WebPageScreenshotTaker" 
+        return "take_webpage_screenshot" 
 
     @classmethod
     def get_description(cls) -> str:
@@ -87,7 +87,7 @@ class BrowserSessionAwareWebPageScreenshotTaker(BrowserSessionAwareTool):
         file_name: str, 
         webpage_url: str 
     ) -> str: 
-        logger.info(f"BrowserSessionAwareWebPageScreenshotTaker performing action. Saving to '{file_name}'. Current page: {shared_session.page.url}")
+        logger.info(f"take_webpage_screenshot (session-aware) performing action. Saving to '{file_name}'. Current page: {shared_session.page.url}")
 
         output_dir = os.path.dirname(file_name)
         if output_dir: 
