@@ -46,7 +46,7 @@ def mock_team_context() -> AgentTeamContext:
 
 
 def test_get_name(tool: AssignTaskTo):
-    assert tool.get_name() == "AssignTaskTo"
+    assert tool.get_name() == "assign_task_to"
 
 def test_get_description(tool: AssignTaskTo):
     assert "assigns a single new task to a specific team member" in tool.get_description()

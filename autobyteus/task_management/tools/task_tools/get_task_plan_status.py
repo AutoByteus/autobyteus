@@ -20,7 +20,7 @@ class GetTaskPlanStatus(BaseTool):
 
     @classmethod
     def get_name(cls) -> str:
-        return "GetTaskPlanStatus"
+        return "get_task_plan_status"
 
     @classmethod
     def get_description(cls) -> str:
@@ -39,7 +39,7 @@ class GetTaskPlanStatus(BaseTool):
         Executes the tool by fetching the task plan and using a converter to
         generate an LLM-friendly report.
         """
-        logger.info(f"Agent '{context.agent_id}' is executing GetTaskPlanStatus.")
+        logger.info(f"Agent '{context.agent_id}' is executing get_task_plan_status.")
         
         team_context: Optional['AgentTeamContext'] = context.custom_data.get("team_context")
         if not team_context:

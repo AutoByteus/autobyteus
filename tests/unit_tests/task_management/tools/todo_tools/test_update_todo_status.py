@@ -32,7 +32,7 @@ def build_context(agent_id: str = "agent_update_todo", with_list: bool = True) -
 
 
 def test_get_name(tool: UpdateToDoStatus):
-    assert tool.get_name() == "UpdateToDoStatus"
+    assert tool.get_name() == "update_todo_status"
 
 
 def test_get_description(tool: UpdateToDoStatus):

@@ -24,7 +24,7 @@ class UpdateTaskStatus(BaseTool):
 
     @classmethod
     def get_name(cls) -> str:
-        return "UpdateTaskStatus"
+        return "update_task_status"
 
     @classmethod
     def get_description(cls) -> str:
@@ -60,7 +60,7 @@ class UpdateTaskStatus(BaseTool):
 
     async def _execute(self, context: 'AgentContext', task_name: str, status: str, deliverables: Optional[List[Dict[str, Any]]] = None) -> str:
         agent_name = context.config.name
-        log_msg = f"Agent '{agent_name}' is executing UpdateTaskStatus for task '{task_name}' to status '{status}'"
+        log_msg = f"Agent '{agent_name}' is executing update_task_status for task '{task_name}' to status '{status}'"
         if deliverables:
             log_msg += f" with {len(deliverables)} deliverable(s)."
         logger.info(log_msg)
@@ -93,7 +93,7 @@ class UpdateTaskStatus(BaseTool):
             status_enum = TaskStatus(status)
         except ValueError:
             error_msg = f"Invalid status '{status}'. Must be one of: {', '.join([s.value for s in TaskStatus])}."
-            logger.warning(f"Agent '{agent_name}' provided invalid status for UpdateTaskStatus: {status}")
+            logger.warning(f"Agent '{agent_name}' provided invalid status for update_task_status: {status}")
             return f"Error: {error_msg}"
         
         if deliverables:

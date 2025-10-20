@@ -10,7 +10,7 @@ from autobyteus.task_management import InMemoryTaskPlan
 from autobyteus.task_management.schemas import TaskStatusReportSchema, TaskStatusReportItemSchema
 from autobyteus.task_management.deliverable import FileDeliverable
 
-TOOL_NAME = "GetTaskPlanStatus"
+TOOL_NAME = "get_task_plan_status"
 
 @pytest.fixture
 def tool_instance() -> GetTaskPlanStatus:

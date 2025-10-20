@@ -23,7 +23,7 @@ class CreateTask(BaseTool):
 
     @classmethod
     def get_name(cls) -> str:
-        return "CreateTask"
+        return "create_task"
 
     @classmethod
     def get_description(cls) -> str:
@@ -43,7 +43,7 @@ class CreateTask(BaseTool):
         """
         agent_name = context.config.name
         task_name = kwargs.get("task_name", "unnamed task")
-        logger.info(f"Agent '{agent_name}' is executing CreateTask for task '{task_name}'.")
+        logger.info(f"Agent '{agent_name}' is executing create_task for task '{task_name}'.")
 
         team_context: Optional['AgentTeamContext'] = context.custom_data.get("team_context")
         if not team_context:
@@ -61,7 +61,7 @@ class CreateTask(BaseTool):
             task_def_schema = TaskDefinitionSchema(**kwargs)
         except (ValidationError, ValueError) as e:
             error_msg = f"Invalid task definition provided: {e}"
-            logger.warning(f"Agent '{agent_name}' provided an invalid definition for CreateTask: {error_msg}")
+            logger.warning(f"Agent '{agent_name}' provided an invalid definition for create_task: {error_msg}")
             return f"Error: {error_msg}"
 
         new_task = task_plan.add_task(task_def_schema)

@@ -21,7 +21,7 @@ class GetMyTasks(BaseTool):
 
     @classmethod
     def get_name(cls) -> str:
-        return "GetMyTasks"
+        return "get_my_tasks"
 
     @classmethod
     def get_description(cls) -> str:
@@ -41,7 +41,7 @@ class GetMyTasks(BaseTool):
         filtering them for the current agent.
         """
         agent_name = context.config.name
-        logger.info(f"Agent '{agent_name}' is executing GetMyTasks.")
+        logger.info(f"Agent '{agent_name}' is executing get_my_tasks.")
 
         team_context: Optional['AgentTeamContext'] = context.custom_data.get("team_context")
         if not team_context:

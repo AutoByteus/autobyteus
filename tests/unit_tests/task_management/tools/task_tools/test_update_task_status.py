@@ -39,7 +39,7 @@ def agent_context(task_plan: InMemoryTaskPlan) -> Mock:
 
 @pytest.mark.asyncio
 async def test_execute_status_only_success(agent_context: Mock, task_plan: InMemoryTaskPlan):
-    """Tests successful execution of UpdateTaskStatus with only a status update."""
+    """Tests successful execution of update_task_status with only a status update."""
     tool = UpdateTaskStatus()
     task_to_update = "task_a"
     new_status = "in_progress"
@@ -107,7 +107,7 @@ async def test_execute_with_input_from_xml_parser(agent_context: Mock, task_plan
     task_to_update = "task_a"
     
     xml_tool_call = f"""
-    <tool name="UpdateTaskStatus">
+    <tool name="update_task_status">
         <arguments>
             <arg name="task_name">{task_to_update}</arg>
             <arg name="status">completed</arg>

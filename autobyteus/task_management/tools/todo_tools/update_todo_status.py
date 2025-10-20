@@ -27,7 +27,7 @@ class UpdateToDoStatus(BaseTool):
 
     @classmethod
     def get_name(cls) -> str:
-        return "UpdateToDoStatus"
+        return "update_todo_status"
 
     @classmethod
     def get_description(cls) -> str:
@@ -53,7 +53,7 @@ class UpdateToDoStatus(BaseTool):
 
     async def _execute(self, context: 'AgentContext', todo_id: str, status: str) -> str:
         agent_id = context.agent_id
-        logger.info(f"Agent '{agent_id}' is executing UpdateToDoStatus for item '{todo_id}' to status '{status}'.")
+        logger.info(f"Agent '{agent_id}' is executing update_todo_status for item '{todo_id}' to status '{status}'.")
 
         if context.state.todo_list is None:
             return "Error: You do not have a to-do list to update."
@@ -64,7 +64,7 @@ class UpdateToDoStatus(BaseTool):
             status_enum = ToDoStatus(status)
         except ValueError:
             error_msg = f"Invalid status '{status}'. Must be one of: {', '.join([s.value for s in ToDoStatus])}."
-            logger.warning(f"Agent '{agent_id}' provided invalid status for UpdateToDoStatus: {status}")
+            logger.warning(f"Agent '{agent_id}' provided invalid status for update_todo_status: {status}")
             return f"Error: {error_msg}"
 
         if not todo_list.get_todo_by_id(todo_id):
