@@ -32,7 +32,7 @@ def mock_agent_context() -> AgentContext:
 
 
 def test_get_name(tool: CreateToDoList):
-    assert tool.get_name() == "CreateToDoList"
+    assert tool.get_name() == "create_todo_list"
 
 
 def test_get_description(tool: CreateToDoList):

@@ -33,7 +33,7 @@ def test_tool_state_initialization(webpage_reader_tool_default: WebPageReader):
     assert webpage_reader_tool_default.tool_state['last_url_read'] == 'http://b.com'
 
 def test_get_name(webpage_reader_tool_default: WebPageReader):
-    assert webpage_reader_tool_default.get_name() == "WebPageReader"
+    assert webpage_reader_tool_default.get_name() == "read_webpage"
 
 def test_get_description(webpage_reader_tool_default: WebPageReader):
     desc = webpage_reader_tool_default.get_description()
@@ -57,7 +57,7 @@ def test_get_argument_schema_for_execution(webpage_reader_tool_default: WebPageR
 
 @pytest.mark.asyncio
 async def test_execute_missing_url_arg(webpage_reader_tool_default: WebPageReader, mock_agent_context):
-    with pytest.raises(ValueError, match="Invalid arguments for tool 'WebPageReader'"):
+    with pytest.raises(ValueError, match="Invalid arguments for tool 'read_webpage'"):
         await webpage_reader_tool_default.execute(mock_agent_context)
 
 @pytest.mark.asyncio
@@ -128,7 +128,7 @@ async def test_webpage_reader_playwright_error(webpage_reader_tool_default: WebP
          patch.object(webpage_reader_tool_default, 'close', AsyncMock()) as mock_close, \
          patch.object(webpage_reader_tool_default, 'page', new_callable=lambda: mock_playwright_page):
 
-        with pytest.raises(RuntimeError, match="WebPageReader failed for URL .* Playwright goto failed"):
+        with pytest.raises(RuntimeError, match="read_webpage failed for URL .* Playwright goto failed"):
             await webpage_reader_tool_default.execute(mock_agent_context, url=url)
         
         mock_close.assert_called_once()

@@ -6,7 +6,7 @@ from autobyteus.agent.context import AgentContext
 from autobyteus.tools.registry import default_tool_registry
 from autobyteus.tools.tool_state import ToolState
 
-TOOL_NAME_NAVIGATE_TO = "NavigateTo" # Based on class name default
+TOOL_NAME_NAVIGATE_TO = "navigate_to"
 
 @pytest.fixture
 def mock_agent_context_navigate_to():
@@ -104,7 +104,7 @@ async def test_execute_playwright_error(navigate_to_tool_instance: NavigateTo, m
          patch.object(navigate_to_tool_instance, 'close', AsyncMock()) as mock_close, \
          patch.object(navigate_to_tool_instance, 'page', new_callable=lambda: mock_playwright_page):
 
-        with pytest.raises(RuntimeError, match="NavigateTo (standalone) failed for URL .* Playwright goto failed"):
+        with pytest.raises(RuntimeError, match="navigate_to \\(standalone\\) failed for URL .* Playwright goto failed"):
             await navigate_to_tool_instance.execute(mock_agent_context_navigate_to, url=url)
         
         mock_close.assert_called_once()

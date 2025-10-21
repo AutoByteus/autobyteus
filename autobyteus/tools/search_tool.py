@@ -27,17 +27,17 @@ class Search(BaseTool):
             factory = SearchClientFactory()
             self.search_client: SearchClient = factory.create_search_client()
         except ValueError as e:
-            logger.error(f"Failed to initialize Search tool: {e}", exc_info=True)
+            logger.error(f"Failed to initialize search_web tool: {e}", exc_info=True)
             # Re-raise to prevent tool from being used in a misconfigured state.
             raise RuntimeError(
                 "Could not initialize Search tool. Please check your search provider configuration. "
                 f"Error: {e}"
             )
-        logger.debug("Search tool initialized with a configured search client.")
+            logger.debug("search_web tool initialized with a configured search client.")
     
     @classmethod
     def get_name(cls) -> str:
-        return "Search"
+        return "search_web"
 
     @classmethod
     def get_description(cls) -> str:
@@ -73,11 +73,11 @@ class Search(BaseTool):
         return None
 
     async def _execute(self, context: 'AgentContext', query: str, num_results: int = 5) -> str:
-        logger.info(f"Executing Search for agent {context.agent_id} with query: '{query}'")
+        logger.info(f"Executing search_web for agent {context.agent_id} with query: '{query}'")
         
         try:
             return await self.search_client.search(query=query, num_results=num_results)
         except Exception as e:
-            logger.error(f"An unexpected error occurred in Search tool execution: {e}", exc_info=True)
+            logger.error(f"An unexpected error occurred in search_web execution: {e}", exc_info=True)
             # Re-raise to ensure the agent is aware of the failure.
             raise

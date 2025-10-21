@@ -9,7 +9,7 @@ from autobyteus.tools.browser.session_aware.shared_browser_session import Shared
 from autobyteus.tools.tool_state import ToolState
 
 
-TOOL_NAME_ELEMENT_TRIGGER = "WebElementTrigger"
+TOOL_NAME_ELEMENT_TRIGGER = "trigger_web_element"
 
 @pytest.fixture
 def mock_agent_context_trigger():

@@ -31,7 +31,11 @@ class WebPageScreenshotTaker(BaseTool, UIIntegrator):
             if self.image_format not in ["png", "jpeg"]:
                 logger.warning(f"Invalid image_format '{self.image_format}' in config. Defaulting to 'png'.")
                 self.image_format = "png"
-        logger.debug(f"WebPageScreenshotTaker initialized. Full page: {self.full_page}, Format: {self.image_format}")
+        logger.debug(f"take_webpage_screenshot initialized. Full page: {self.full_page}, Format: {self.image_format}")
+
+    @classmethod
+    def get_name(cls) -> str:
+        return "take_webpage_screenshot"
 
     @classmethod
     def get_description(cls) -> str:
@@ -75,7 +79,7 @@ class WebPageScreenshotTaker(BaseTool, UIIntegrator):
         return schema
 
     async def _execute(self, context: 'AgentContext', url: str, file_path: str) -> str: 
-        logger.info(f"WebPageScreenshotTaker for agent {context.agent_id} taking screenshot of '{url}', saving to '{file_path}'.")
+        logger.info(f"take_webpage_screenshot for agent {context.agent_id} taking screenshot of '{url}', saving to '{file_path}'.")
         
         output_dir = os.path.dirname(file_path)
         if output_dir: 
@@ -84,8 +88,8 @@ class WebPageScreenshotTaker(BaseTool, UIIntegrator):
         try:
             await self.initialize() 
             if not self.page:
-                 logger.error("Playwright page not initialized in WebPageScreenshotTaker.")
-                 raise RuntimeError("Playwright page not available for WebPageScreenshotTaker.")
+                 logger.error("Playwright page not initialized in take_webpage_screenshot.")
+                 raise RuntimeError("Playwright page not available for take_webpage_screenshot.")
 
             await self.page.goto(url, wait_until="networkidle", timeout=60000) 
             
@@ -96,6 +100,6 @@ class WebPageScreenshotTaker(BaseTool, UIIntegrator):
             return absolute_file_path
         except Exception as e:
             logger.error(f"Error taking screenshot of URL '{url}': {e}", exc_info=True)
-            raise RuntimeError(f"WebPageScreenshotTaker failed for URL '{url}': {str(e)}")
+            raise RuntimeError(f"take_webpage_screenshot failed for URL '{url}': {str(e)}")
         finally:
             await self.close()

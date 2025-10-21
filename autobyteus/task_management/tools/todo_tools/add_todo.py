@@ -30,7 +30,7 @@ class AddToDo(BaseTool):
 
     @classmethod
     def get_name(cls) -> str:
-        return "AddToDo"
+        return "add_todo"
 
     @classmethod
     def get_description(cls) -> str:
@@ -45,7 +45,7 @@ class AddToDo(BaseTool):
 
     async def _execute(self, context: 'AgentContext', **kwargs: Any) -> str:
         agent_id = context.agent_id
-        logger.info(f"Agent '{agent_id}' is executing AddToDo.")
+        logger.info(f"Agent '{agent_id}' is executing add_todo.")
 
         if context.state.todo_list is None:
             # If no list exists, create one.
@@ -58,7 +58,7 @@ class AddToDo(BaseTool):
             todo_def_schema = ToDoDefinitionSchema(**kwargs)
         except ValidationError as e:
             error_msg = f"Invalid to-do item definition provided: {e}"
-            logger.warning(f"Agent '{agent_id}' provided an invalid definition for AddToDo: {error_msg}")
+            logger.warning(f"Agent '{agent_id}' provided an invalid definition for add_todo: {error_msg}")
             return f"Error: {error_msg}"
 
         # The add_todo method now takes the definition and returns the created ToDo object

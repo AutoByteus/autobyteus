@@ -34,7 +34,7 @@ def mock_team_context_with_board() -> AgentTeamContext:
     return mock_context
 
 def test_get_name(tool: CreateTask):
-    assert tool.get_name() == "CreateTask"
+    assert tool.get_name() == "create_task"
 
 def test_get_description(tool: CreateTask):
     assert "Adds a single new task" in tool.get_description()

@@ -34,7 +34,7 @@ def test_tool_state_initialization(screenshot_taker_tool_default: WebPageScreens
 
 # Definition Tests
 def test_get_name(screenshot_taker_tool_default: WebPageScreenshotTaker):
-    assert screenshot_taker_tool_default.get_name() == "WebPageScreenshotTaker"
+    assert screenshot_taker_tool_default.get_name() == "take_webpage_screenshot"
 
 def test_get_description(screenshot_taker_tool_default: WebPageScreenshotTaker):
     desc = screenshot_taker_tool_default.get_description()
@@ -68,10 +68,10 @@ def test_get_argument_schema_for_execution(screenshot_taker_tool_default: WebPag
 # Execute Tests
 @pytest.mark.asyncio
 async def test_execute_missing_args(screenshot_taker_tool_default: WebPageScreenshotTaker, mock_agent_context_ss):
-    with pytest.raises(ValueError, match="Invalid arguments for tool 'WebPageScreenshotTaker'"):
+    with pytest.raises(ValueError, match="Invalid arguments for tool 'take_webpage_screenshot'"):
         await screenshot_taker_tool_default.execute(mock_agent_context_ss, url="http://example.com") 
 
-    with pytest.raises(ValueError, match="Invalid arguments for tool 'WebPageScreenshotTaker'"):
+    with pytest.raises(ValueError, match="Invalid arguments for tool 'take_webpage_screenshot'"):
         await screenshot_taker_tool_default.execute(mock_agent_context_ss, file_path="test.png") 
 
 @pytest.mark.asyncio
@@ -144,7 +144,7 @@ async def test_webpage_screenshot_taker_playwright_error(screenshot_taker_tool_d
          patch.object(screenshot_taker_tool_default, 'close', AsyncMock()) as mock_close, \
          patch.object(screenshot_taker_tool_default, 'page', new_callable=lambda: mock_playwright_page):
 
-        with pytest.raises(RuntimeError, match="WebPageScreenshotTaker failed for URL .* Playwright screenshot goto failed"):
+        with pytest.raises(RuntimeError, match="take_webpage_screenshot failed for URL .* Playwright screenshot goto failed"):
             await screenshot_taker_tool_default.execute(mock_agent_context_ss, url=url_to_shot, file_path=file_path_arg)
         
         mock_close.assert_called_once()

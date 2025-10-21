@@ -31,7 +31,7 @@ class CreateToDoList(BaseTool):
 
     @classmethod
     def get_name(cls) -> str:
-        return "CreateToDoList"
+        return "create_todo_list"
 
     @classmethod
     def get_description(cls) -> str:
@@ -47,13 +47,13 @@ class CreateToDoList(BaseTool):
 
     async def _execute(self, context: 'AgentContext', **kwargs: Any) -> str:
         agent_id = context.agent_id
-        logger.info(f"Agent '{agent_id}' is executing CreateToDoList.")
+        logger.info(f"Agent '{agent_id}' is executing create_todo_list.")
 
         try:
             todos_def_schema = ToDosDefinitionSchema(**kwargs)
         except ValidationError as e:
             error_msg = f"Invalid to-do list definition provided: {e}"
-            logger.warning(f"Agent '{agent_id}' provided an invalid definition for CreateToDoList: {error_msg}")
+            logger.warning(f"Agent '{agent_id}' provided an invalid definition for create_todo_list: {error_msg}")
             return f"Error: {error_msg}"
 
         # Create a new ToDoList, which overwrites any existing one.

@@ -37,11 +37,11 @@ class BrowserSessionAwareWebPageReader(BrowserSessionAwareTool):
                     cleaning_mode_to_use = cleaning_mode_value
         
         self.cleaning_mode = cleaning_mode_to_use
-        logger.debug(f"BrowserSessionAwareWebPageReader initialized with cleaning_mode: {self.cleaning_mode}")
+        logger.debug(f"read_webpage (session-aware) tool initialized with cleaning_mode: {self.cleaning_mode}")
 
     @classmethod
     def get_name(cls) -> str: 
-        return "WebPageReader"
+        return "read_webpage"
 
     @classmethod
     def get_description(cls) -> str:
@@ -77,7 +77,7 @@ class BrowserSessionAwareWebPageReader(BrowserSessionAwareTool):
         shared_session: SharedBrowserSession,
         webpage_url: str 
     ) -> str: 
-        logger.info(f"BrowserSessionAwareWebPageReader performing action. Current page URL: {shared_session.page.url}, cleaning_mode: {self.cleaning_mode}")
+        logger.info(f"read_webpage (session-aware) performing action. Current page URL: {shared_session.page.url}, cleaning_mode: {self.cleaning_mode}")
         
         try:
             page_content = await shared_session.page.content()

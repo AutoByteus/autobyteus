@@ -24,7 +24,7 @@ class AssignTaskTo(BaseTool):
 
     @classmethod
     def get_name(cls) -> str:
-        return "AssignTaskTo"
+        return "assign_task_to"
 
     @classmethod
     def get_description(cls) -> str:
@@ -46,7 +46,7 @@ class AssignTaskTo(BaseTool):
         agent_name = context.config.name
         task_name = kwargs.get("task_name", "unnamed task")
         assignee_name = kwargs.get("assignee_name")
-        logger.info(f"Agent '{agent_name}' is executing AssignTaskTo for task '{task_name}' assigned to '{assignee_name}'.")
+        logger.info(f"Agent '{agent_name}' is executing assign_task_to for task '{task_name}' assigned to '{assignee_name}'.")
 
         # --- Get Team Context and Task Plan ---
         team_context: Optional['AgentTeamContext'] = context.custom_data.get("team_context")
@@ -66,7 +66,7 @@ class AssignTaskTo(BaseTool):
             task_def_schema = TaskDefinitionSchema(**kwargs)
         except (ValidationError, ValueError) as e:
             error_msg = f"Invalid task definition provided: {e}"
-            logger.warning(f"Agent '{agent_name}' provided an invalid definition for AssignTaskTo: {error_msg}")
+            logger.warning(f"Agent '{agent_name}' provided an invalid definition for assign_task_to: {error_msg}")
             return f"Error: {error_msg}"
 
         # The task plan now handles ID generation and returns the created Task object.

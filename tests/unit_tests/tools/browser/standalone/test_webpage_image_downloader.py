@@ -7,7 +7,7 @@ from autobyteus.agent.context import AgentContext
 from autobyteus.tools.registry import default_tool_registry # Added
 from autobyteus.tools.tool_state import ToolState
 
-TOOL_NAME_IMG_DOWNLOADER = "WebPageImageDownloader"
+TOOL_NAME_IMG_DOWNLOADER = "download_webpage_images"
 
 @pytest.fixture
 def mock_agent_context_img_dl():

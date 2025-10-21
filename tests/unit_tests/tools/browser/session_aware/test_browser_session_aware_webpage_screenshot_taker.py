@@ -9,7 +9,7 @@ from autobyteus.agent.context import AgentContext
 from autobyteus.tools.registry import default_tool_registry
 from autobyteus.tools.tool_state import ToolState
 
-TOOL_NAME_SESSION_SS_TAKER = "WebPageScreenshotTaker" # From tool's get_name()
+TOOL_NAME_SESSION_SS_TAKER = "take_webpage_screenshot"
 
 @pytest.fixture
 def mock_agent_context_session_ss():

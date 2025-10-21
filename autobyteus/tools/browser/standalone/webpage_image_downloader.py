@@ -24,7 +24,11 @@ class WebPageImageDownloader(BaseTool, UIIntegrator):
     def __init__(self, config: Optional[ToolConfig] = None): 
         BaseTool.__init__(self, config=config)
         UIIntegrator.__init__(self)
-        logger.debug("WebPageImageDownloader tool initialized.")
+        logger.debug("download_webpage_images tool initialized.")
+
+    @classmethod
+    def get_name(cls) -> str:
+        return "download_webpage_images"
 
     @classmethod
     def get_description(cls) -> str:
@@ -49,7 +53,7 @@ class WebPageImageDownloader(BaseTool, UIIntegrator):
         return schema
 
     async def _execute(self, context: 'AgentContext', url: str, save_dir: str) -> List[str]: 
-        logger.info(f"WebPageImageDownloader for agent {context.agent_id} downloading images from '{url}' to '{save_dir}'.")
+        logger.info(f"download_webpage_images for agent {context.agent_id} downloading images from '{url}' to '{save_dir}'.")
         
         if not self._is_valid_page_url(url):
             raise ValueError(f"Invalid page URL format: {url}. Must be a full URL (e.g., http/https).")
@@ -60,8 +64,8 @@ class WebPageImageDownloader(BaseTool, UIIntegrator):
         try:
             await self.initialize()
             if not self.page:
-                 logger.error("Playwright page not initialized in WebPageImageDownloader.")
-                 raise RuntimeError("Playwright page not available for WebPageImageDownloader.")
+                 logger.error("Playwright page not initialized in download_webpage_images.")
+                 raise RuntimeError("Playwright page not available for download_webpage_images.")
 
             await self.page.goto(url, wait_until="networkidle", timeout=60000)
             
@@ -104,8 +108,8 @@ class WebPageImageDownloader(BaseTool, UIIntegrator):
             return saved_paths
 
         except Exception as e:
-            logger.error(f"Error in WebPageImageDownloader for URL '{url}': {e}", exc_info=True)
-            raise RuntimeError(f"WebPageImageDownloader failed for URL '{url}': {str(e)}")
+            logger.error(f"Error in download_webpage_images for URL '{url}': {e}", exc_info=True)
+            raise RuntimeError(f"download_webpage_images failed for URL '{url}': {str(e)}")
         finally:
             await self.close()
 

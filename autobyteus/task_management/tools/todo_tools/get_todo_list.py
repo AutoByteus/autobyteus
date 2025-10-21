@@ -18,7 +18,7 @@ class GetToDoList(BaseTool):
 
     @classmethod
     def get_name(cls) -> str:
-        return "GetToDoList"
+        return "get_todo_list"
 
     @classmethod
     def get_description(cls) -> str:
@@ -33,7 +33,7 @@ class GetToDoList(BaseTool):
 
     async def _execute(self, context: 'AgentContext') -> str:
         agent_id = context.agent_id
-        logger.info(f"Agent '{agent_id}' is executing GetToDoList.")
+        logger.info(f"Agent '{agent_id}' is executing get_todo_list.")
 
         if context.state.todo_list is None or not context.state.todo_list.get_all_todos():
             return "Your to-do list is empty."

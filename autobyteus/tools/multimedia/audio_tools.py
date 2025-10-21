@@ -63,7 +63,7 @@ class GenerateSpeechTool(BaseTool):
 
     @classmethod
     def get_name(cls) -> str:
-        return "GenerateSpeech"
+        return "generate_speech"
 
     @classmethod
     def get_description(cls) -> str:
@@ -91,7 +91,7 @@ class GenerateSpeechTool(BaseTool):
 
     async def _execute(self, context, prompt: str, generation_config: Optional[dict] = None) -> List[str]:
         model_identifier = _get_configured_model_identifier(self.MODEL_ENV_VAR, self.DEFAULT_MODEL)
-        logger.info(f"GenerateSpeechTool executing with configured model '{model_identifier}'.")
+        logger.info(f"generate_speech executing with configured model '{model_identifier}'.")
         client = None
         try:
             client = audio_client_factory.create_audio_client(model_identifier=model_identifier)

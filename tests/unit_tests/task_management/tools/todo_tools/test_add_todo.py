@@ -27,7 +27,7 @@ def build_context(agent_id: str = "agent_add_todo", with_list: bool = True) -> A
 
 
 def test_get_name(tool: AddToDo):
-    assert tool.get_name() == "AddToDo"
+    assert tool.get_name() == "add_todo"
 
 
 def test_get_description(tool: AddToDo):

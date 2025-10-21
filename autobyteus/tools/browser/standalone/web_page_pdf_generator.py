@@ -24,7 +24,11 @@ class WebPagePDFGenerator(BaseTool, UIIntegrator):
     def __init__(self, config: Optional[ToolConfig] = None): 
         BaseTool.__init__(self, config=config)
         UIIntegrator.__init__(self)
-        logger.debug("WebPagePDFGenerator (standalone) tool initialized.")
+        logger.debug("generate_webpage_pdf (standalone) tool initialized.")
+
+    @classmethod
+    def get_name(cls) -> str:
+        return "generate_webpage_pdf"
 
     @classmethod
     def get_description(cls) -> str:
@@ -49,7 +53,7 @@ class WebPagePDFGenerator(BaseTool, UIIntegrator):
         return schema
 
     async def _execute(self, context: 'AgentContext', url: str, save_dir: str) -> str: 
-        logger.info(f"WebPagePDFGenerator for agent {context.agent_id} generating PDF for '{url}', saving to directory '{save_dir}'.")
+        logger.info(f"generate_webpage_pdf for agent {context.agent_id} generating PDF for '{url}', saving to directory '{save_dir}'.")
 
         if not self._is_valid_page_url(url):
             raise ValueError(f"Invalid page URL format: {url}. Must be a full URL (e.g., http/https).")
@@ -73,8 +77,8 @@ class WebPagePDFGenerator(BaseTool, UIIntegrator):
         try:
             await self.initialize()
             if not self.page:
-                 logger.error("Playwright page not initialized in WebPagePDFGenerator.")
-                 raise RuntimeError("Playwright page not available for WebPagePDFGenerator.")
+                 logger.error("Playwright page not initialized in generate_webpage_pdf.")
+                 raise RuntimeError("Playwright page not available for generate_webpage_pdf.")
 
             await self.page.goto(url, wait_until="networkidle", timeout=60000)
             
@@ -85,7 +89,7 @@ class WebPagePDFGenerator(BaseTool, UIIntegrator):
             return absolute_file_path
         except Exception as e:
             logger.error(f"Error generating PDF for URL '{url}': {e}", exc_info=True)
-            raise RuntimeError(f"WebPagePDFGenerator failed for URL '{url}': {str(e)}")
+            raise RuntimeError(f"generate_webpage_pdf failed for URL '{url}': {str(e)}")
         finally:
             await self.close() 
 

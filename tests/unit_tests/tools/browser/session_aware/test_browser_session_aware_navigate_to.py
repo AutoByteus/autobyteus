@@ -7,7 +7,7 @@ from autobyteus.agent.context import AgentContext # For mock_agent_context
 from autobyteus.tools.registry import default_tool_registry
 from autobyteus.tools.tool_state import ToolState
 
-TOOL_NAME_NAVIGATE_SESSION = "NavigateTo" # Based on overridden get_name()
+TOOL_NAME_NAVIGATE_SESSION = "navigate_to"
 
 @pytest.fixture
 def mock_agent_context_navigate_session():
@@ -66,7 +66,7 @@ async def test_perform_action_success(
 
     result = await navigate_to_session_tool_instance.perform_action(mock_shared_browser_session, webpage_url=url)
     
-    assert "executed successfully" in result
+    assert "navigate_to command" in result
     mock_shared_browser_session.page.goto.assert_called_once_with(url, wait_until="networkidle", timeout=60000)
 
 @pytest.mark.asyncio
@@ -83,7 +83,7 @@ async def test_perform_action_navigation_fails_status(
 
     result = await navigate_to_session_tool_instance.perform_action(mock_shared_browser_session, webpage_url=url)
     
-    assert f"failed with status 404" in result
+    assert "failed with status 404" in result
 
 @pytest.mark.asyncio
 async def test_perform_action_invalid_url_format(

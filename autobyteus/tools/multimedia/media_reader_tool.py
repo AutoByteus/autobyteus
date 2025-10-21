@@ -21,7 +21,7 @@ class ReadMediaFile(BaseTool):
     the file's content. The tool's result is a structured object that the system
     uses to construct a multimodal prompt, not plain text.
     """
-    TOOL_NAME = "ReadMediaFile"
+    TOOL_NAME = "read_media_file"
     CATEGORY = ToolCategory.MULTIMEDIA
 
     @classmethod

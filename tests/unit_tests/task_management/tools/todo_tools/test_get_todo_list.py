@@ -38,7 +38,7 @@ def build_context(agent_id: str = "agent_get_todos", with_items: bool = True) ->
 
 
 def test_get_name(tool: GetToDoList):
-    assert tool.get_name() == "GetToDoList"
+    assert tool.get_name() == "get_todo_list"
 
 
 def test_get_description(tool: GetToDoList):
