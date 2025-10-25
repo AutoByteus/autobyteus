@@ -47,23 +47,44 @@ async def list_directory(
     formatted with indentation and tree glyphs to represent the hierarchy.
 
     Args:
-        path: The absolute path to the directory to list. Relative paths are not supported.
+        path: The path to the directory to list. Relative paths are resolved against the agent's workspace.
         depth: The maximum directory depth to traverse. Must be > 0.
         limit: The maximum number of entries to return in the output. Must be > 0.
         offset: The 1-indexed entry number to start from, for pagination. Must be > 0.
     """
     # --- 1. Argument Validation ---
-    if not os.path.isabs(path):
-        raise ValueError("path must be an absolute path.")
-    if not Path(path).is_dir():
-        raise FileNotFoundError(f"Directory not found at path: {path}")
+    logger.debug(f"list_directory for agent {context.agent_id}, initial path: {path}")
+
+    final_path: str
+    if os.path.isabs(path):
+        final_path = path
+        logger.debug(f"Path '{path}' is absolute. Using it directly.")
+    else:
+        if not context.workspace:
+            error_msg = f"Relative path '{path}' provided, but no workspace is configured for agent '{context.agent_id}'. A workspace is required to resolve relative paths."
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+
+        base_path = context.workspace.get_base_path()
+        if not base_path or not isinstance(base_path, str):
+            error_msg = f"Agent '{context.agent_id}' has a configured workspace, but it provided an invalid base path ('{base_path}'). Cannot resolve relative path '{path}'."
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+
+        final_path = os.path.join(base_path, path)
+        logger.debug(f"Path '{path}' is relative. Resolved to '{final_path}' using workspace base path '{base_path}'.")
+
+    final_path = os.path.normpath(final_path)
+
+    if not Path(final_path).is_dir():
+        raise FileNotFoundError(f"Directory not found at path: {final_path}")
     if depth <= 0 or limit <= 0 or offset <= 0:
         raise ValueError("depth, limit, and offset must all be greater than zero.")
 
     # --- 2. Asynchronous Traversal ---
     loop = asyncio.get_running_loop()
     all_entries = await loop.run_in_executor(
-        None, _traverse_directory_bfs, Path(path), depth
+        None, _traverse_directory_bfs, Path(final_path), depth
     )
 
     # --- 3. Slicing ---
@@ -73,7 +94,7 @@ async def list_directory(
     sliced_entries = all_entries[start_index:end_index]
 
     # --- 4. Formatting ---
-    output_lines = [f"Absolute path: {path}"]
+    output_lines = [f"Absolute path: {final_path}"]
     
     # To correctly apply tree glyphs, we need to know which entry is the last in its directory
     # This is complex with BFS. A simpler, visually acceptable approach is taken here.

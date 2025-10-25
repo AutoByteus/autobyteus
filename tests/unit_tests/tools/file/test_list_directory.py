@@ -16,7 +16,7 @@ TOOL_NAME_LIST_DIRECTORY = "list_directory"
 
 @pytest.fixture
 def mock_agent_context() -> AgentContext:
-    """Provides a mock AgentContext."""
+    """Provides a mock AgentContext with no workspace by default."""
     mock_context = Mock(spec=AgentContext)
     mock_context.agent_id = "test_agent_list_directory"
     mock_context.workspace = None
@@ -134,6 +134,49 @@ async def test_list_directory_full_depth(list_directory_tool_instance: BaseTool,
     assert result == "\n".join(expected_lines)
 
 @pytest.mark.asyncio
+async def test_list_directory_relative_path_with_workspace(
+    list_directory_tool_instance: BaseTool,
+    mock_agent_context: AgentContext,
+    test_dir_structure: Path
+):
+    """Tests that a relative path is correctly resolved when a workspace is present."""
+    # Set up a mock workspace on the context
+    mock_workspace = Mock()
+    mock_workspace.get_base_path.return_value = str(test_dir_structure)
+    mock_agent_context.workspace = mock_workspace
+
+    # Execute with a relative path "."
+    result = await list_directory_tool_instance.execute(
+        mock_agent_context,
+        path="."
+    )
+    
+    expected_lines = [
+        f"Absolute path: {os.path.normpath(str(test_dir_structure))}",
+        "├─ [file] a.txt",
+        "├─ [dir] sub",
+        "├─ [file] z.txt",
+        "  ├─ [file] b.txt",
+        "  └─ [dir] deep_sub",
+    ]
+    assert result == "\n".join(expected_lines)
+
+    # Execute with a relative path to a subdirectory
+    result_sub = await list_directory_tool_instance.execute(
+        mock_agent_context,
+        path="sub"
+    )
+    
+    sub_path = os.path.normpath(str(test_dir_structure / "sub"))
+    expected_lines_sub = [
+        f"Absolute path: {sub_path}",
+        "├─ [file] b.txt",
+        "├─ [dir] deep_sub",
+        "  └─ [file] c.txt",
+    ]
+    assert result_sub == "\n".join(expected_lines_sub)
+
+@pytest.mark.asyncio
 async def test_list_directory_pagination(list_directory_tool_instance: BaseTool, mock_agent_context: AgentContext, test_dir_structure: Path):
     """Tests the limit and offset parameters for pagination."""
     # First page
@@ -187,8 +230,9 @@ async def test_list_directory_empty_dir(list_directory_tool_instance: BaseTool, 
 @pytest.mark.asyncio
 async def test_list_directory_validation_errors(list_directory_tool_instance: BaseTool, mock_agent_context: AgentContext, test_dir_structure: Path):
     """Tests that validation errors are raised for invalid arguments."""
-    # Relative path
-    with pytest.raises(ValueError, match="path must be an absolute path"):
+    # Relative path without a workspace should fail
+    mock_agent_context.workspace = None
+    with pytest.raises(ValueError, match="no workspace is configured"):
         await list_directory_tool_instance.execute(mock_agent_context, path=".")
 
     # Non-existent path
