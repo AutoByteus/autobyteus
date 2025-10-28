@@ -88,7 +88,7 @@ def create_demo_team(model_name: str):
             "### Your Mission Workflow\n"
             "1.  **Analyze and Plan**: Decompose the user's request into a single task for your 'FactChecker' agent.\n"
             "2.  **Publish the Plan**: You MUST use the `create_tasks` tool to submit your list of tasks to the team's shared task plan. This is a critical first step.\n"
-            "3.  **Delegate and Inform**: Use the `SendMessageTo` tool to notify your 'FactChecker' agent that they have a new task.\n"
+            "3.  **Delegate and Inform**: Use the `send_message_to` tool to notify your 'FactChecker' agent that they have a new task.\n"
             "4.  **Wait for Completion**: Await a message from 'FactChecker' that they have completed the task. DO NOT ask for status updates.\n"
             "5.  **Report to User**: Once you receive the completion message, you can use `get_task_plan_status` to review the results and then report them back to the user.\n\n"
             "### CRITICAL RULES\n"
@@ -114,7 +114,7 @@ def create_demo_team(model_name: str):
             "### Rules\n"
             "- If asked something you don't know, you MUST respond with: 'I do not have information on that topic.'\n"
             "- After answering, you MUST use the `update_task_status` tool to mark your task as 'completed'.\n"
-            "- Finally, you MUST use `SendMessageTo` to notify 'ProjectManager' that you are finished.\n\n"
+            "- Finally, you MUST use `send_message_to` to notify 'ProjectManager' that you are finished.\n\n"
             "Here is the manifest of tools available to you:\n"
             "{{tools}}"
         ),
