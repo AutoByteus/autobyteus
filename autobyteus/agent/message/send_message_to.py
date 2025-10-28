@@ -21,7 +21,7 @@ class SendMessageTo(BaseTool):
     This tool dynamically retrieves the team communication channel from the
     agent's context at runtime.
     """
-    TOOL_NAME = "SendMessageTo"
+    TOOL_NAME = "send_message_to"
     CATEGORY = ToolCategory.AGENT_COMMUNICATION
 
     def __init__(self, config: Optional[ToolConfig] = None):
@@ -30,7 +30,7 @@ class SendMessageTo(BaseTool):
         """
         super().__init__(config=config)
         # The TeamManager is no longer stored as an instance variable.
-        logger.debug("SendMessageTo tool initialized (stateless).")
+        logger.debug("%s tool initialized (stateless).", self.get_name())
 
     # The set_team_manager method has been removed.
 
@@ -81,7 +81,8 @@ class SendMessageTo(BaseTool):
         # --- NEW: Retrieve TeamManager dynamically from context ---
         team_context: Optional['AgentTeamContext'] = context.custom_data.get("team_context")
         if not team_context:
-            error_msg = "Critical error: SendMessageTo tool is not configured for team communication. It can only be used within a managed AgentTeam."
+            error_msg = (f"Critical error: {self.get_name()} tool is not configured for team communication. "
+                         "It can only be used within a managed AgentTeam.")
             logger.error(f"Agent '{context.agent_id}': {error_msg}")
             return f"Error: {error_msg}"
         

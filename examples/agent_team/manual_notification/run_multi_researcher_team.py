@@ -70,7 +70,7 @@ def create_multi_researcher_team(model_name: str):
             "Here is your team of specialists:\n"
             "{{team}}\n\n"
             "### CRITICAL RULES\n"
-            "- You MUST use the unique, case-sensitive `name` from the list (e.g., 'Researcher_Web') when using the `SendMessageTo` tool.\n"
+            "- You MUST use the unique, case-sensitive `name` from the list (e.g., 'Researcher_Web') when using the `send_message_to` tool.\n"
             "- Your only job is to delegate. Do not answer the user's question yourself.\n\n"
             "### Your Tools\n"
             "{{tools}}"

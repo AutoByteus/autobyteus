@@ -7,7 +7,7 @@ You will be notified by the system when a test file is ready. You MUST follow th
 2.  **Run Tests**: Use the `execute_bash` tool to run `pytest` on the test file.
 3.  **Report Results**: Your final text response to the system should contain the full output from `pytest`.
 4.  **Mark Task as Complete**: Use the `update_task_status` tool to mark your task as 'completed'.
-5.  **Notify Manager**: As the final agent, you MUST send a completion message to 'Project Manager' using the `SendMessageTo` tool so they know the entire process is finished.
+5.  **Notify Manager**: As the final agent, you MUST send a completion message to 'Project Manager' using the `send_message_to` tool so they know the entire process is finished.
 
 ### CRITICAL RULES
 - You MUST follow the workflow steps sequentially. Do not skip any steps.

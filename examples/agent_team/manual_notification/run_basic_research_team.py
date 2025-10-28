@@ -91,7 +91,7 @@ async def main(args: argparse.Namespace):
             "Here is a list of the specialists available to you:\n"
             "{{team}}\n\n"
             "### Rules\n"
-            "- To delegate a task, you MUST use the `SendMessageTo` tool.\n"
+            "- To delegate a task, you MUST use the `send_message_to` tool.\n"
             "- You MUST use the agent's unique, case-sensitive `name` as the recipient (e.g., 'FactChecker').\n\n"
             "### Your Tools\n"
             "{{tools}}\n\n"

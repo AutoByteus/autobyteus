@@ -42,7 +42,7 @@ def send_message_tool() -> SendMessageTo:
 # --- Basic Tool Structure Tests ---
 
 def test_get_name(send_message_tool: SendMessageTo):
-    assert send_message_tool.get_name() == "SendMessageTo"
+    assert send_message_tool.get_name() == "send_message_to"
 
 def test_get_description(send_message_tool: SendMessageTo):
     desc = send_message_tool.get_description()
@@ -112,7 +112,7 @@ async def test_execute_failure_without_team_context(
         recipient_name="any", content="any", message_type="any"
     )
     
-    assert "Error: Critical error: SendMessageTo tool is not configured for team communication." in result
+    assert "Error: Critical error: send_message_to tool is not configured for team communication." in result
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("invalid_arg_set", [

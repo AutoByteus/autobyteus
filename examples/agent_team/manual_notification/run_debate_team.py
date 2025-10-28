@@ -81,7 +81,7 @@ def create_debate_team(moderator_model: str, affirmative_model: str, negative_mo
             "5. Conclude the debate.\n\n"
             "### CRITICAL RULES\n"
             "- You must enforce a strict turn-based system. Only communicate with ONE team at a time.\n"
-            "- You MUST use the team's unique, case-sensitive `name` (e.g., 'Team_Affirmative') when using the `SendMessageTo` tool.\n\n"
+            "- You MUST use the team's unique, case-sensitive `name` (e.g., 'Team_Affirmative') when using the `send_message_to` tool.\n\n"
             "### Your Tools\n"
             "{{tools}}"
         ),
@@ -98,7 +98,7 @@ def create_debate_team(moderator_model: str, affirmative_model: str, negative_mo
             "### Your Team\n"
             "{{team}}\n\n"
             "### Rules\n"
-            "- You MUST use the `SendMessageTo` tool to delegate tasks to your team member, using their exact name 'Proponent'.\n\n"
+            "- You MUST use the `send_message_to` tool to delegate tasks to your team member, using their exact name 'Proponent'.\n\n"
             "### Your Tools\n"
             "{{tools}}"
         ),
@@ -120,7 +120,7 @@ def create_debate_team(moderator_model: str, affirmative_model: str, negative_mo
             "### Your Team\n"
             "{{team}}\n\n"
             "### Rules\n"
-            "- You MUST use the `SendMessageTo` tool to delegate tasks to your team member, using their exact name 'Opponent'.\n\n"
+            "- You MUST use the `send_message_to` tool to delegate tasks to your team member, using their exact name 'Opponent'.\n\n"
             "### Your Tools\n"
             "{{tools}}"
         ),
