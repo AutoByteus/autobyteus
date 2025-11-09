@@ -99,7 +99,7 @@ def _python_type_to_json_schema(py_type: Any) -> Optional[Dict[str, Any]]:
     if py_type is float: return {"type": "number"}
     if py_type is bool: return {"type": "boolean"}
     if py_type is dict: return {"type": "object"}
-    if py_type is list: return {"type": "array", "items": True} 
+    if py_type is list: return {"type": "array", "items": {}} # Use empty dict for 'any'
     
     origin_type = get_origin(py_type)
     if origin_type is Union:
@@ -111,8 +111,8 @@ def _python_type_to_json_schema(py_type: Any) -> Optional[Dict[str, Any]]:
         list_args = get_args(py_type)
         if list_args and len(list_args) == 1:
             item_schema = _python_type_to_json_schema(list_args[0])
-            return {"type": "array", "items": item_schema if item_schema else True}
-        return {"type": "array", "items": True} 
+            return {"type": "array", "items": item_schema if item_schema else {}}
+        return {"type": "array", "items": {}} # Use empty dict for 'any'
     if origin_type is Dict or origin_type is dict: return {"type": "object"}
     logger.debug(f"Could not map Python type {py_type} to a simple JSON schema for array items.")
     return None
@@ -141,13 +141,15 @@ def _get_parameter_type_from_hint(py_type: Any, param_name: str) -> Tuple[Parame
         list_args = get_args(actual_type) 
         if list_args and len(list_args) == 1: 
             array_item_js_schema = _python_type_to_json_schema(list_args[0])
-        if not array_item_js_schema: 
-            array_item_js_schema = True 
+        # FIX: For an untyped list, the item schema should be None, not True.
+        # An empty dict `{}` is a valid JSON schema for 'any'.
+        if array_item_js_schema is None:
+             array_item_js_schema = {}
         return param_type_enum, array_item_js_schema
 
     mapped_type = _TYPE_MAPPING.get(actual_type)
     if mapped_type:
-        item_schema_for_array = True if mapped_type == ParameterType.ARRAY else None
+        item_schema_for_array = {} if mapped_type == ParameterType.ARRAY else None
         return mapped_type, item_schema_for_array
 
     logger.warning(f"Unmapped type hint {py_type} (actual_type: {actual_type}) for param '{param_name}'. Defaulting to ParameterType.STRING.")
@@ -232,8 +234,8 @@ def tool(
         tool_def = ToolDefinition(
             name=tool_name,
             description=tool_desc,
-            argument_schema=final_arg_schema,
-            config_schema=config_schema,
+            argument_schema_provider=lambda: final_arg_schema,
+            config_schema_provider=lambda: config_schema,
             custom_factory=factory,
             tool_class=None,
             origin=ToolOrigin.LOCAL,

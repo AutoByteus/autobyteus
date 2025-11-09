@@ -63,6 +63,35 @@ class ToolRegistry(metaclass=SingletonMeta):
             logger.warning(f"Attempted to unregister tool '{name}', but it was not found in the registry.")
             return False
 
+    def reload_tool_schema(self, name: str) -> bool:
+        """
+        Actively reloads the schema for a specific tool by calling its schema provider.
+
+        Args:
+            name: The unique name of the tool to reload the schema for.
+
+        Returns:
+            True if the tool was found and its schema was reloaded, False otherwise.
+        """
+        definition = self.get_tool_definition(name)
+        if definition:
+            definition.reload_cached_schema()
+            return True
+        else:
+            logger.warning(f"Attempted to reload schema for tool '{name}', but it was not found in the registry.")
+            return False
+
+    def reload_all_tool_schemas(self) -> None:
+        """
+        Actively reloads the schemas for all registered tools.
+        """
+        logger.info("Eagerly reloading schemas for all registered tools...")
+        count = 0
+        for definition in self._definitions.values():
+            definition.reload_cached_schema()
+            count += 1
+        logger.info(f"Schemas for {count} tool(s) have been reloaded.")
+
     def get_tool_definition(self, name: str) -> Optional[ToolDefinition]:
         """
         Retrieves the definition for a specific tool name.

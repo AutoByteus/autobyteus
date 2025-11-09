@@ -35,26 +35,8 @@ class ToolMeta(ABCMeta):
                  logger.error(f"Tool class {name} ({tool_name}) must return a valid string from get_description(). Skipping registration.")
                  return
 
-            argument_schema: ParameterSchema = None 
-            try:
-                argument_schema = cls.get_argument_schema() 
-                if argument_schema is not None and not isinstance(argument_schema, ParameterSchema): 
-                    logger.error(f"Tool class {name} ({tool_name}) get_argument_schema() must return a ParameterSchema or None. Got {type(argument_schema)}. Skipping registration.")
-                    return
-            except Exception as e:
-                logger.error(f"Tool class {name} ({tool_name}) failed to provide argument_schema via get_argument_schema(): {e}. Skipping registration.", exc_info=True)
-                return
+            # Note: We do not call the schema methods here. We pass them as providers.
             
-            instantiation_config_schema: ParameterSchema = None 
-            if hasattr(cls, 'get_config_schema'):
-                try:
-                    instantiation_config_schema = cls.get_config_schema()
-                    if instantiation_config_schema is not None and not isinstance(instantiation_config_schema, ParameterSchema): 
-                        logger.warning(f"Tool class {name} ({tool_name}) get_config_schema() returned non-ParameterSchema type: {type(instantiation_config_schema)}. Treating as no config schema.")
-                        instantiation_config_schema = None
-                except Exception as e:
-                    logger.warning(f"Tool class {name} ({tool_name}) has get_config_schema() but it failed: {e}. Assuming no instantiation config.")
-
             # Get category from class attribute, defaulting to "General"
             category_str = getattr(cls, 'CATEGORY', ToolCategory.GENERAL)
             
@@ -64,16 +46,14 @@ class ToolMeta(ABCMeta):
                 description=general_description, 
                 tool_class=cls,
                 custom_factory=None,
-                argument_schema=argument_schema,
-                config_schema=instantiation_config_schema,
+                argument_schema_provider=cls.get_argument_schema,
+                config_schema_provider=cls.get_config_schema,
                 origin=ToolOrigin.LOCAL,
                 category=category_str
             )
             default_tool_registry.register_tool(definition)
             
-            arg_schema_info = f"args: {len(argument_schema) if argument_schema else '0'}"
-            config_info = f"inst_config: {len(instantiation_config_schema) if instantiation_config_schema else '0'}"
-            logger.info(f"Auto-registered tool: '{tool_name}' from class {name} ({arg_schema_info}, {config_info})")
+            logger.info(f"Auto-registered tool: '{tool_name}' from class {name}")
 
         except AttributeError as e:
              logger.error(f"Tool class {name} is missing a required method ({e}). Skipping registration.")

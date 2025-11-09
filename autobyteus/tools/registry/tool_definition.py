@@ -20,18 +20,22 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# A sentinel object to differentiate between a cached value of None and an unset cache.
+_CACHE_NOT_SET = object()
+
 class ToolDefinition:
     """
     Represents the definition of a tool, containing its metadata and the means
     to create an instance. It can generate provider-agnostic usage information on demand.
+    This class now supports dynamic schema generation with caching.
     """
     def __init__(self,
                  name: str,
                  description: str,
-                 argument_schema: Optional['ParameterSchema'],
                  origin: ToolOrigin,
                  category: str,
-                 config_schema: Optional['ParameterSchema'] = None,
+                 argument_schema_provider: Callable[[], Optional['ParameterSchema']],
+                 config_schema_provider: Callable[[], Optional['ParameterSchema']],
                  tool_class: Optional[Type['BaseTool']] = None,
                  custom_factory: Optional[Callable[['ToolConfig'], 'BaseTool']] = None,
                  metadata: Optional[Dict[str, Any]] = None):
@@ -53,10 +57,10 @@ class ToolDefinition:
         if custom_factory and not callable(custom_factory):
             raise TypeError(f"ToolDefinition '{name}' requires a callable for 'custom_factory'.")
 
-        if argument_schema is not None and not isinstance(argument_schema, ParameterSchema):
-             raise TypeError(f"ToolDefinition '{name}' received an invalid 'argument_schema'. Expected ParameterSchema or None.")
-        if config_schema is not None and not isinstance(config_schema, ParameterSchema):
-             raise TypeError(f"ToolDefinition '{name}' received an invalid 'config_schema'. Expected ParameterSchema or None.")
+        if not callable(argument_schema_provider):
+             raise TypeError(f"ToolDefinition '{name}' requires a callable for 'argument_schema_provider'.")
+        if not callable(config_schema_provider):
+             raise TypeError(f"ToolDefinition '{name}' requires a callable for 'config_schema_provider'.")
         if not isinstance(origin, ToolOrigin):
             raise TypeError(f"ToolDefinition '{name}' requires a ToolOrigin for 'origin'. Got {type(origin)}")
         
@@ -66,13 +70,17 @@ class ToolDefinition:
 
         self._name = name
         self._description = description
-        self._argument_schema: Optional['ParameterSchema'] = argument_schema
-        self._config_schema: Optional['ParameterSchema'] = config_schema
         self._tool_class = tool_class
         self._custom_factory = custom_factory
         self._origin = origin
         self._category = category
         self._metadata = metadata or {}
+
+        # Store schema providers and initialize caches
+        self._argument_schema_provider = argument_schema_provider
+        self._config_schema_provider = config_schema_provider
+        self._cached_argument_schema: Any = _CACHE_NOT_SET
+        self._cached_config_schema: Any = _CACHE_NOT_SET
         
         logger.debug(f"ToolDefinition created for tool '{self.name}'.")
 
@@ -85,16 +93,58 @@ class ToolDefinition:
     def tool_class(self) -> Optional[Type['BaseTool']]: return self._tool_class
     @property
     def custom_factory(self) -> Optional[Callable[['ToolConfig'], 'BaseTool']]: return self._custom_factory
+    
     @property
-    def argument_schema(self) -> Optional['ParameterSchema']: return self._argument_schema
+    def argument_schema(self) -> Optional['ParameterSchema']:
+        """On-demand schema generation and caching for argument_schema."""
+        if self._cached_argument_schema is _CACHE_NOT_SET:
+            logger.debug(f"Cache miss for argument_schema of tool '{self.name}'. Generating...")
+            try:
+                self._cached_argument_schema = self._argument_schema_provider()
+            except Exception as e:
+                logger.warning(
+                    f"Failed to generate argument schema for tool '{self.name}' due to an error. "
+                    f"The tool will have no arguments. Error: {e}",
+                    exc_info=True
+                )
+                self._cached_argument_schema = None
+        return self._cached_argument_schema
+
     @property
-    def config_schema(self) -> Optional['ParameterSchema']: return self._config_schema
+    def config_schema(self) -> Optional['ParameterSchema']:
+        """On-demand schema generation and caching for config_schema."""
+        if self._cached_config_schema is _CACHE_NOT_SET:
+            logger.debug(f"Cache miss for config_schema of tool '{self.name}'. Generating...")
+            try:
+                self._cached_config_schema = self._config_schema_provider()
+            except Exception as e:
+                logger.warning(
+                    f"Failed to generate config schema for tool '{self.name}' due to an error. "
+                    f"The tool will have no config. Error: {e}",
+                    exc_info=True
+                )
+                self._cached_config_schema = None
+        return self._cached_config_schema
+        
     @property
     def origin(self) -> ToolOrigin: return self._origin
     @property
     def category(self) -> str: return self._category
     @property
     def metadata(self) -> Dict[str, Any]: return self._metadata
+
+    def reload_cached_schema(self) -> None:
+        """
+        Actively re-generates the schemas from their providers and updates the cache.
+        This is an eager operation.
+        """
+        logger.info(f"Eagerly reloading schema cache for tool '{self.name}'.")
+        self._cached_argument_schema = _CACHE_NOT_SET
+        self._cached_config_schema = _CACHE_NOT_SET
+        # The schemas will be regenerated on the next property access.
+        # To make it fully eager, we can trigger the access here.
+        _ = self.argument_schema
+        _ = self.config_schema
     
     # --- Convenience Schema/Example Generation API (using default formatters) ---
     def get_usage_xml(self, provider: Optional[LLMProvider] = None) -> str:
@@ -132,14 +182,17 @@ class ToolDefinition:
     # --- Other methods ---
     @property
     def has_instantiation_config(self) -> bool:
-        return self._config_schema is not None and len(self._config_schema) > 0
+        # Use the property to access the schema
+        return self.config_schema is not None and len(self.config_schema) > 0
 
     def validate_instantiation_config(self, config_data: Dict[str, Any]) -> tuple[bool, TypingList[str]]:
-        if not self._config_schema:
+        # Use the property to access the schema
+        schema = self.config_schema
+        if not schema:
             if config_data:
                 return False, [f"Tool '{self.name}' does not accept instantiation configuration parameters"]
             return True, []
-        return self._config_schema.validate_config(config_data)
+        return schema.validate_config(config_data)
 
     def __repr__(self) -> str:
         creator_repr = f"class='{self._tool_class.__name__}'" if self._tool_class else "factory=True"

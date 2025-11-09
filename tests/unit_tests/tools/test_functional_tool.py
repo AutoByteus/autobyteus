@@ -1,24 +1,30 @@
 import pytest
 import asyncio
 from unittest.mock import MagicMock, AsyncMock
+import inspect
+from typing import Optional, List, Dict, Any
 
 from autobyteus.tools.functional_tool import FunctionalTool, tool, _parse_signature
-from autobyteus.tools.registry import ToolRegistry, ToolDefinition
+from autobyteus.tools.registry import ToolRegistry, ToolDefinition, default_tool_registry
 from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.agent.context import AgentContext
-from typing import Optional, List, Dict, Any
-import inspect
+from autobyteus.tools.tool_state import ToolState
+from autobyteus.tools.tool_origin import ToolOrigin
+from autobyteus.tools.tool_category import ToolCategory
 
 # --- Fixtures ---
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def clean_registry():
-    """Provides a clean ToolRegistry for each test."""
-    registry = ToolRegistry()
-    original_defs = registry._definitions.copy()
-    registry._definitions.clear()
-    yield registry
-    registry._definitions = original_defs
+    """
+    Ensures the global default_tool_registry is clean for each test by directly
+    manipulating the singleton's class-level dictionary.
+    """
+    original_defs = ToolRegistry._definitions.copy()
+    ToolRegistry._definitions.clear()
+    yield
+    ToolRegistry._definitions.clear()
+    ToolRegistry._definitions.update(original_defs)
 
 @pytest.fixture
 def mock_agent_context():
@@ -55,7 +61,8 @@ async def test_functional_tool_initialization_and_properties():
     assert tool_instance._is_async is True
     assert tool_instance._original_func == mock_func
     assert hasattr(tool_instance, 'tool_state')
-    assert isinstance(tool_instance.tool_state, dict)
+    # FIX: Assert that tool_state is an instance of the ToolState class
+    assert isinstance(tool_instance.tool_state, ToolState)
 
 @pytest.mark.asyncio
 async def test_functional_tool_execute_async_func_with_state(mock_agent_context):
@@ -110,20 +117,27 @@ async def test_functional_tool_execute_sync_func(mock_agent_context):
 
 # --- Tests for @tool Decorator ---
 
-def test_tool_decorator_registers_definition(clean_registry: ToolRegistry):
-    """Tests that the @tool decorator registers a ToolDefinition."""
+def test_tool_decorator_registers_definition():
+    """Tests that the @tool decorator registers a ToolDefinition with a schema provider."""
     
     @tool(name="DecoratedTool")
     def my_decorated_func(p1: str):
         """Docstring for description."""
         pass
     
-    definition = clean_registry.get_tool_definition("DecoratedTool")
+    definition = default_tool_registry.get_tool_definition("DecoratedTool")
     assert isinstance(definition, ToolDefinition)
     assert definition.name == "DecoratedTool"
     assert definition.description == "Docstring for description."
     assert callable(definition.custom_factory)
     assert definition.tool_class is None
+    
+    # ENHANCEMENT: Verify that the provider was stored correctly
+    assert callable(definition._argument_schema_provider)
+    # Access the property to trigger the provider and check the result
+    schema = definition.argument_schema
+    assert isinstance(schema, ParameterSchema)
+    assert schema.get_parameter("p1") is not None
 
 def test_tool_decorator_returns_functional_tool_instance():
     """Tests that the decorator returns a ready-to-use instance."""
@@ -237,4 +251,5 @@ def test_parse_signature_with_collections():
 
     untyped_list_param = schema.get_parameter("p_untyped_list")
     assert untyped_list_param.param_type == ParameterType.ARRAY
-    assert untyped_list_param.array_item_schema is True # Generic array
+    # FIX: Assert that the schema for an untyped list item is an empty dict {}, representing 'any'
+    assert untyped_list_param.array_item_schema == {}

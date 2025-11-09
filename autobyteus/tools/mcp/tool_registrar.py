@@ -59,6 +59,8 @@ class McpToolRegistrar(metaclass=SingletonMeta):
         if server_config.tool_name_prefix:
             registered_name = f"{server_config.tool_name_prefix.rstrip('_')}_{remote_tool.name}"
 
+        # Note: McpToolFactory is now somewhat redundant as it holds static info,
+        # but we keep it for consistency. It creates a GenericMcpTool which needs this static info.
         tool_factory = McpToolFactory(
             server_id=server_config.server_id,
             remote_tool_name=remote_tool.name,
@@ -70,12 +72,13 @@ class McpToolRegistrar(metaclass=SingletonMeta):
         return ToolDefinition(
             name=registered_name,
             description=actual_desc,
-            argument_schema=actual_arg_schema,
+            # Pass schema providers as lambdas to conform to the new constructor
+            argument_schema_provider=lambda: actual_arg_schema,
+            config_schema_provider=lambda: None,
             origin=ToolOrigin.MCP,
             category=server_config.server_id, # Use server_id as the category
             metadata={"mcp_server_id": server_config.server_id}, # Store origin in generic metadata
             custom_factory=tool_factory.create_tool,
-            config_schema=None,
             tool_class=None
         )
 

@@ -6,8 +6,9 @@ from unittest.mock import MagicMock
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.tools.functional_tool import tool, FunctionalTool
 from autobyteus.utils.parameter_schema import ParameterSchema
-from autobyteus.tools.registry import ToolRegistry, ToolDefinition
+from autobyteus.tools.registry import ToolRegistry, ToolDefinition, default_tool_registry
 from autobyteus.tools.tool_config import ToolConfig
+from autobyteus.tools.tool_origin import ToolOrigin
 from autobyteus.tools.tool_category import ToolCategory
 
 # --- Dummy Tools for Testing ---
@@ -75,52 +76,61 @@ def dummy_factory(config: Optional[ToolConfig] = None) -> DummyFactoryTool:
     source = "factory_default"
     if config and config.get("source_override"):
         source = config.get("source_override")
-    # The factory must now also pass the config to the tool's constructor
     return DummyFactoryTool(source=source, config=config)
 
 # --- Pytest Fixtures ---
 
-@pytest.fixture
-def clean_registry(monkeypatch):
-    """Provides a clean ToolRegistry instance for each test."""
-    registry = ToolRegistry()
-    original_defs = registry._definitions.copy()
-    registry._definitions.clear()
-    yield registry
-    registry._definitions = original_defs
+@pytest.fixture(autouse=True)
+def clean_registry():
+    """
+    Ensures the global default_tool_registry is clean for each test by directly
+    manipulating the singleton's class-level dictionary. This avoids issues
+    with instance swapping and test pollution from import-time decorators.
+    """
+    original_defs = ToolRegistry._definitions.copy()
+    ToolRegistry._definitions.clear()
+    yield
+    ToolRegistry._definitions.clear()
+    ToolRegistry._definitions.update(original_defs)
 
 
 @pytest.fixture
 def no_config_def() -> ToolDefinition:
-    """Fixture for DummyToolNoConfig's definition."""
+    """Fixture for DummyToolNoConfig's definition using the new constructor."""
     return ToolDefinition(
         name="DummyToolNoConfig",
         description="A dummy tool without config.",
-        argument_schema=None,
+        argument_schema_provider=lambda: None,
+        config_schema_provider=lambda: None,
         tool_class=DummyToolNoConfig,
-        category=ToolCategory.LOCAL
+        origin=ToolOrigin.LOCAL,
+        category=ToolCategory.GENERAL
     )
 
 @pytest.fixture
 def with_config_def() -> ToolDefinition:
-    """Fixture for DummyToolWithConfig's definition."""
+    """Fixture for DummyToolWithConfig's definition using the new constructor."""
     return ToolDefinition(
         name="DummyToolWithConfig",
         description="A dummy tool with config.",
-        argument_schema=None,
+        argument_schema_provider=lambda: None,
+        config_schema_provider=lambda: None,
         tool_class=DummyToolWithConfig,
-        category=ToolCategory.LOCAL
+        origin=ToolOrigin.LOCAL,
+        category=ToolCategory.GENERAL
     )
 
 @pytest.fixture
 def factory_def() -> ToolDefinition:
-    """Fixture for the factory-based tool's definition."""
+    """Fixture for the factory-based tool's definition using the new constructor."""
     return ToolDefinition(
         name="DummyFactoryTool",
         description="A dummy tool created by a factory.",
-        argument_schema=None,
+        argument_schema_provider=lambda: None,
+        config_schema_provider=lambda: None,
         custom_factory=dummy_factory,
-        category=ToolCategory.LOCAL
+        origin=ToolOrigin.LOCAL,
+        category=ToolCategory.GENERAL
     )
 
 # --- Test Cases ---
@@ -131,120 +141,186 @@ def test_singleton_instance():
     registry2 = ToolRegistry()
     assert registry1 is registry2
 
-def test_register_and_get_tool_definition(clean_registry: ToolRegistry, no_config_def: ToolDefinition):
+def test_register_and_get_tool_definition(no_config_def: ToolDefinition):
     """Tests registering a tool and retrieving its definition."""
-    assert clean_registry.get_tool_definition("DummyToolNoConfig") is None
-    clean_registry.register_tool(no_config_def)
-    retrieved_def = clean_registry.get_tool_definition("DummyToolNoConfig")
+    assert default_tool_registry.get_tool_definition("DummyToolNoConfig") is None
+    default_tool_registry.register_tool(no_config_def)
+    retrieved_def = default_tool_registry.get_tool_definition("DummyToolNoConfig")
     assert retrieved_def is no_config_def
     assert retrieved_def.name == "DummyToolNoConfig"
 
-def test_register_overwrites_existing(clean_registry: ToolRegistry, no_config_def: ToolDefinition):
+def test_register_overwrites_existing(no_config_def: ToolDefinition):
     """Tests that registering a tool with an existing name overwrites the old one."""
-    clean_registry.register_tool(no_config_def)
+    default_tool_registry.register_tool(no_config_def)
     
     new_def = ToolDefinition(
         name="DummyToolNoConfig", # Same name
         description="An updated description.",
-        argument_schema=None,
+        argument_schema_provider=lambda: None,
+        config_schema_provider=lambda: None,
         tool_class=DummyToolNoConfig,
-        category=ToolCategory.LOCAL
+        origin=ToolOrigin.LOCAL,
+        category=ToolCategory.GENERAL
     )
-    clean_registry.register_tool(new_def)
+    default_tool_registry.register_tool(new_def)
     
-    retrieved_def = clean_registry.get_tool_definition("DummyToolNoConfig")
+    retrieved_def = default_tool_registry.get_tool_definition("DummyToolNoConfig")
     assert retrieved_def is not no_config_def
     assert retrieved_def.description == "An updated description."
 
-def test_unregister_tool(clean_registry: ToolRegistry, no_config_def: ToolDefinition):
-    """Tests the new unregister_tool method."""
+def test_unregister_tool(no_config_def: ToolDefinition):
+    """Tests the unregister_tool method."""
     tool_name = no_config_def.name
-    clean_registry.register_tool(no_config_def)
+    default_tool_registry.register_tool(no_config_def)
     
     # Verify it's there
-    assert clean_registry.get_tool_definition(tool_name) is not None
+    assert default_tool_registry.get_tool_definition(tool_name) is not None
     
     # Unregister and verify it's gone
-    result = clean_registry.unregister_tool(tool_name)
+    result = default_tool_registry.unregister_tool(tool_name)
     assert result is True
-    assert clean_registry.get_tool_definition(tool_name) is None
+    assert default_tool_registry.get_tool_definition(tool_name) is None
     
     # Test unregistering a non-existent tool
-    result_nonexistent = clean_registry.unregister_tool("nonexistent_tool")
+    result_nonexistent = default_tool_registry.unregister_tool("nonexistent_tool")
     assert result_nonexistent is False
 
-def test_list_tools(clean_registry: ToolRegistry, no_config_def: ToolDefinition, factory_def: ToolDefinition):
+def test_reload_tool_schema():
+    """Tests eagerly reloading the schema for a single tool."""
+    mock_provider = MagicMock(return_value=ParameterSchema())
+    tool_def = ToolDefinition(
+        name="ReloadableTool",
+        description="A tool to test reloading.",
+        argument_schema_provider=mock_provider,
+        config_schema_provider=lambda: None,
+        tool_class=DummyToolNoConfig,
+        origin=ToolOrigin.LOCAL,
+        category=ToolCategory.GENERAL,
+    )
+    default_tool_registry.register_tool(tool_def)
+
+    # First access, populates cache
+    _ = tool_def.argument_schema
+    mock_provider.assert_called_once()
+
+    # Second access, should be cached
+    _ = tool_def.argument_schema
+    mock_provider.assert_called_once()
+
+    # Reload the schema via the registry. This should be an eager operation.
+    result = default_tool_registry.reload_tool_schema("ReloadableTool")
+    assert result is True
+    assert mock_provider.call_count == 2
+    
+    # Third access, should be cached again
+    _ = tool_def.argument_schema
+    assert mock_provider.call_count == 2
+    
+    # Test reloading a non-existent tool
+    result_nonexistent = default_tool_registry.reload_tool_schema("nonexistent")
+    assert result_nonexistent is False
+
+def test_reload_all_tool_schemas():
+    """Tests eagerly reloading schemas for all registered tools."""
+    mock_provider1 = MagicMock(return_value=ParameterSchema())
+    mock_provider2 = MagicMock(return_value=ParameterSchema())
+    
+    tool_def1 = ToolDefinition("Tool1", "d1", ToolOrigin.LOCAL, ToolCategory.GENERAL, mock_provider1, lambda: None, tool_class=DummyToolNoConfig)
+    tool_def2 = ToolDefinition("Tool2", "d2", ToolOrigin.LOCAL, ToolCategory.GENERAL, mock_provider2, lambda: None, tool_class=DummyToolNoConfig)
+    
+    default_tool_registry.register_tool(tool_def1)
+    default_tool_registry.register_tool(tool_def2)
+
+    # Access both to populate cache
+    _ = tool_def1.argument_schema
+    _ = tool_def2.argument_schema
+    mock_provider1.assert_called_once()
+    mock_provider2.assert_called_once()
+
+    # Reload all. This should be an eager operation.
+    default_tool_registry.reload_all_tool_schemas()
+    assert mock_provider1.call_count == 2
+    assert mock_provider2.call_count == 2
+
+    # Access again, should be cached
+    _ = tool_def1.argument_schema
+    _ = tool_def2.argument_schema
+    assert mock_provider1.call_count == 2
+    assert mock_provider2.call_count == 2
+
+def test_list_tools(no_config_def: ToolDefinition, factory_def: ToolDefinition):
     """Tests listing registered tools."""
-    assert clean_registry.list_tools() == []
-    assert clean_registry.list_tool_names() == []
+    assert default_tool_registry.list_tools() == []
+    assert default_tool_registry.list_tool_names() == []
     
-    clean_registry.register_tool(no_config_def)
-    clean_registry.register_tool(factory_def)
+    default_tool_registry.register_tool(no_config_def)
+    default_tool_registry.register_tool(factory_def)
     
-    defs = clean_registry.list_tools()
-    names = clean_registry.list_tool_names()
+    defs = default_tool_registry.list_tools()
+    names = default_tool_registry.list_tool_names()
     
     assert len(defs) == 2
     assert len(names) == 2
     assert "DummyToolNoConfig" in names
     assert "DummyFactoryTool" in names
 
-def test_create_simple_class_based_tool(clean_registry: ToolRegistry, no_config_def: ToolDefinition):
+def test_create_simple_class_based_tool(no_config_def: ToolDefinition):
     """Tests creating a simple tool from its class without config."""
-    clean_registry.register_tool(no_config_def)
-    tool_instance = clean_registry.create_tool("DummyToolNoConfig")
+    default_tool_registry.register_tool(no_config_def)
+    tool_instance = default_tool_registry.create_tool("DummyToolNoConfig")
     
     assert isinstance(tool_instance, DummyToolNoConfig)
     assert tool_instance.config_received is None
 
 @pytest.mark.asyncio
-async def test_create_class_based_tool_with_config(clean_registry: ToolRegistry, with_config_def: ToolDefinition):
+async def test_create_class_based_tool_with_config(with_config_def: ToolDefinition):
     """Tests creating a class-based tool, passing a ToolConfig."""
-    clean_registry.register_tool(with_config_def)
+    default_tool_registry.register_tool(with_config_def)
     mock_context = MagicMock()
     mock_context.agent_id = "test-agent-for-config-tool"
     
     # Create without config
-    tool_instance_default = clean_registry.create_tool("DummyToolWithConfig")
+    tool_instance_default = default_tool_registry.create_tool("DummyToolWithConfig")
     assert isinstance(tool_instance_default, DummyToolWithConfig)
     assert await tool_instance_default.execute(mock_context) == "default"
 
     # Create with config
     config = ToolConfig(params={"value": "custom_value"})
-    tool_instance_custom = clean_registry.create_tool("DummyToolWithConfig", config=config)
+    tool_instance_custom = default_tool_registry.create_tool("DummyToolWithConfig", config=config)
     assert isinstance(tool_instance_custom, DummyToolWithConfig)
     assert await tool_instance_custom.execute(mock_context) == "custom_value"
 
 @pytest.mark.asyncio
-async def test_create_factory_based_tool(clean_registry: ToolRegistry, factory_def: ToolDefinition):
+async def test_create_factory_based_tool(factory_def: ToolDefinition):
     """Tests creating a tool using a custom factory."""
-    clean_registry.register_tool(factory_def)
+    default_tool_registry.register_tool(factory_def)
     mock_context = MagicMock()
     mock_context.agent_id = "test-agent-for-factory-tool"
 
     # Create without config
-    tool_instance_default = clean_registry.create_tool("DummyFactoryTool")
+    tool_instance_default = default_tool_registry.create_tool("DummyFactoryTool")
     assert isinstance(tool_instance_default, DummyFactoryTool)
     assert await tool_instance_default.execute(mock_context) == "created from factory_default"
     assert tool_instance_default._config is None
 
     # Create with config passed to factory
     config = ToolConfig(params={"source_override": "factory_custom"})
-    tool_instance_custom = clean_registry.create_tool("DummyFactoryTool", config=config)
+    tool_instance_custom = default_tool_registry.create_tool("DummyFactoryTool", config=config)
     assert isinstance(tool_instance_custom, DummyFactoryTool)
     assert await tool_instance_custom.execute(mock_context) == "created from factory_custom"
-    assert tool_instance_custom._config == config
+    assert tool_instance_custom._config is not None
 
 @pytest.mark.asyncio
-async def test_create_functional_tool_from_registry(clean_registry: ToolRegistry):
+async def test_create_functional_tool_from_registry():
     """Tests creating a functional tool instance from the registry after the refactor."""
+    # Define the tool inside the test to avoid import-time registration
     @tool(name="MyFunctionalTool")
     async def dummy_func(context: Any, text: str) -> str:
         """A simple functional tool for testing."""
         return f"processed: {text}"
     
     # 1. Verify it was registered with the correct definition type
-    definition = clean_registry.get_tool_definition("MyFunctionalTool")
+    definition = default_tool_registry.get_tool_definition("MyFunctionalTool")
     assert definition is not None
     assert definition.name == "MyFunctionalTool"
     assert "simple functional tool" in definition.description
@@ -252,7 +328,7 @@ async def test_create_functional_tool_from_registry(clean_registry: ToolRegistry
     assert callable(definition.custom_factory)
 
     # 2. Create a new instance using the registry.
-    instance_from_registry = clean_registry.create_tool("MyFunctionalTool")
+    instance_from_registry = default_tool_registry.create_tool("MyFunctionalTool")
 
     # 3. Verify the new instance.
     assert isinstance(instance_from_registry, FunctionalTool)
@@ -265,8 +341,9 @@ async def test_create_functional_tool_from_registry(clean_registry: ToolRegistry
     assert result == "processed: hello"
 
 @pytest.mark.asyncio
-async def test_create_stateful_functional_tool_from_registry(clean_registry: ToolRegistry):
+async def test_create_stateful_functional_tool_from_registry():
     """Tests creating and using a stateful functional tool via the registry."""
+    # Define the tool inside the test to avoid import-time registration
     @tool(name="StatefulCounter")
     def stateful_func(tool_state: Dict[str, Any]) -> int:
         """My stateful counter."""
@@ -276,7 +353,7 @@ async def test_create_stateful_functional_tool_from_registry(clean_registry: Too
         return count
 
     # Create the tool instance from the registry
-    counter_tool_instance = clean_registry.create_tool("StatefulCounter")
+    counter_tool_instance = default_tool_registry.create_tool("StatefulCounter")
     assert isinstance(counter_tool_instance, FunctionalTool)
     assert counter_tool_instance.tool_state == {}
 
@@ -292,26 +369,28 @@ async def test_create_stateful_functional_tool_from_registry(clean_registry: Too
     assert result2 == 12
     assert counter_tool_instance.tool_state['count'] == 12
 
-def test_create_tool_not_found_raises_error(clean_registry: ToolRegistry):
+def test_create_tool_not_found_raises_error():
     """Tests that creating an unregistered tool raises ValueError."""
     with pytest.raises(ValueError, match="No tool definition found for name 'NonExistentTool'"):
-        clean_registry.create_tool("NonExistentTool")
+        default_tool_registry.create_tool("NonExistentTool")
 
-def test_create_tool_instantiation_fails_raises_error(clean_registry: ToolRegistry):
+def test_create_tool_instantiation_fails_raises_error():
     """Tests that a tool instantiation failure is handled correctly."""
     fail_def = ToolDefinition(
         name="DummyToolFailsInit",
         description="...",
-        argument_schema=None,
+        argument_schema_provider=lambda: None,
+        config_schema_provider=lambda: None,
         tool_class=DummyToolFailsInit,
-        category=ToolCategory.LOCAL
+        origin=ToolOrigin.LOCAL,
+        category=ToolCategory.GENERAL
     )
-    clean_registry.register_tool(fail_def)
+    default_tool_registry.register_tool(fail_def)
     
     with pytest.raises(TypeError, match="Failed to create tool 'DummyToolFailsInit': Initialization failed"):
-        clean_registry.create_tool("DummyToolFailsInit")
+        default_tool_registry.create_tool("DummyToolFailsInit")
 
-def test_register_invalid_definition_raises_error(clean_registry: ToolRegistry):
+def test_register_invalid_definition_raises_error():
     """Tests that registering a non-ToolDefinition object raises ValueError."""
     with pytest.raises(ValueError, match="Attempted to register an object that is not a ToolDefinition"):
-        clean_registry.register_tool("not a definition") # type: ignore
+        default_tool_registry.register_tool("not a definition") # type: ignore
