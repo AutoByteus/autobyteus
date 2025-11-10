@@ -23,7 +23,7 @@ Autobyteus is built with a modular, event-driven architecture designed for exten
 
 ## Key Features
 
-#### 📊 Interactive TUI Dashboard
+#### Interactive TUI Dashboard
 Launch and monitor your agent teams with our built-in Textual-based TUI.
 -   **Hierarchical View**: See the structure of your team, including sub-teams and their agents.
 -   **Real-Time Status**: Agent and team statuses are updated live, showing you who is idle, thinking, or executing a tool.
@@ -34,7 +34,7 @@ Launch and monitor your agent teams with our built-in Textual-based TUI.
 | :---: | :---: |
 | ![Autobyteus Agent Log](docs/images/image_4.png) | ![Autobyteus Task Plan](docs/images/image_3.png) |
 
-#### 🏗️ Fluent Team Building
+#### Fluent Team Building
 Define complex agent and team structures with an intuitive, fluent API. The `AgentTeamBuilder` makes composing your team simple and readable.
 
 ```python
@@ -51,12 +51,12 @@ research_team = (
 )
 ```
 
-#### 🔁 Flexible Tool Formatting (JSON & XML)
+#### Flexible Tool Formatting (JSON & XML)
 Autobyteus intelligently handles tool communication with LLMs while giving you full control.
 -   **Provider-Aware by Default**: The framework automatically generates tool manifests and parses responses in the optimal format for the selected LLM provider (e.g., JSON for OpenAI/Gemini, XML for Anthropic).
 -   **XML Override for Efficiency**: You can set `use_xml_tool_format=True` on an `AgentConfig` or `AgentTeamBuilder` to force the use of XML for tool calls, which can be more efficient and reliable than JSON for complex tool schemas.
 
-#### 📈 Flexible Communication Protocols
+#### Flexible Communication Protocols
 Choose the collaboration pattern that best fits your use case with configurable `TaskNotificationMode`s.
 -   **`AGENT_MANUAL_NOTIFICATION` (Default)**: A traditional approach where a coordinator agent is responsible for creating a plan and then explicitly notifying other agents to begin their work via messages.
 -   **`SYSTEM_EVENT_DRIVEN`**: A more automated approach where the coordinator's only job is to publish a plan to the `TaskPlan`. The framework then monitors the board and automatically notifies agents when their tasks become unblocked, enabling parallel execution and reducing coordinator overhead.
