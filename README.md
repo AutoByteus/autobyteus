@@ -82,9 +82,9 @@ Choose the collaboration pattern that best fits your use case with configurable 
     ```
 
 3.  **For developers:**
-    To install Autobyteus with all development and example dependencies (including the TUI):
+    To install Autobyteus in editable mode with all development tooling:
     ```bash
-    pip install -r requirements-dev.txt
+    pip install -e '.[dev]'
     ```
 
 4.  **Set up Environment Variables:**
@@ -113,17 +113,17 @@ You can see all available models and their identifiers by running an example wit
 
 To build Autobyteus as a distributable package, follow these steps:
 
-1.  Ensure you have the latest version of `setuptools` and `wheel` installed:
+1.  Install the standard Python build frontend (PEP 517 compliant):
     ```
-    pip install --upgrade setuptools wheel
-    ```
-
-2.  Build the distribution packages:
-    ```
-    python setup.py sdist bdist_wheel
+    python -m pip install --upgrade build
     ```
 
-This will create a `dist` directory containing the built `sdist` and `wheel` distributions.
+2.  Build the distribution packages defined in `pyproject.toml`:
+    ```
+    python -m build
+    ```
+
+This will create a `dist` directory containing the `sdist` and `wheel` artifacts.
 
 ## Contributing
 

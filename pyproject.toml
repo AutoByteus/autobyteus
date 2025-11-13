@@ -2,5 +2,82 @@
 requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "autobyteus"
+version = "1.2.2"
+description = "Multi-Agent framework"
+readme = {file = "README.md", content-type = "text/markdown"}
+requires-python = ">=3.8"
+license = {file = "LICENSE"}
+authors = [{name = "Ryan Zheng", email = "ryan.zheng.work@gmail.com"}]
+dependencies = [
+    "aiohttp",
+    "anthropic",
+    "beautifulsoup4",
+    "boto3",
+    "botocore",
+    "brui-core==1.1.0",
+    "certifi==2025.4.26",
+    "cryptography",
+    "google-api-python-client",
+    "google-genai==1.38.0",
+    "httpx",
+    "Jinja2",
+    "mcp[cli]",
+    "mistral_common",
+    "mistralai",
+    "numpy",
+    "ollama",
+    "openai",
+    "requests",
+    "rich",
+    "textual",
+    "tiktoken",
+    "tokenizers",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+]
+
+[project.optional-dependencies]
+dev = [
+    "coverage",
+    "flake8",
+    "numpy",
+    "pre-commit",
+    "black",
+    "isort",
+    "gitpython==3.1.31",
+    "auto-gpt-plugin-template",
+    "mkdocs",
+    "pytest",
+    "asynctest",
+    "pytest-asyncio",
+    "pytest-benchmark",
+    "pytest-cov",
+    "pytest-integration",
+    "pytest-mock",
+    "vcrpy",
+    "pytest-vcr",
+    "load_dotenv",
+]
+
+[project.urls]
+Homepage = "https://github.com/AutoByteus/autobyteus"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+exclude = ["tests", "tests.*"]
+
+[tool.setuptools.package-data]
+autobyteus = ["py.typed", "clients/certificates/cert.pem"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
