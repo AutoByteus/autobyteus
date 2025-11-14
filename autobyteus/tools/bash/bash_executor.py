@@ -5,8 +5,9 @@ import shutil
 import tempfile
 from typing import TYPE_CHECKING, Optional
 
-from autobyteus.tools import tool 
+from autobyteus.tools import tool
 from autobyteus.tools.tool_category import ToolCategory
+from .types import BashExecutionResult
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
@@ -14,13 +15,18 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 @tool(name="execute_bash", category=ToolCategory.SYSTEM)
-async def bash_executor(context: Optional['AgentContext'], command: str) -> str:
+async def bash_executor(context: Optional['AgentContext'], command: str) -> BashExecutionResult:
     """
-    Executes bash commands using the '/bin/bash' interpreter.
-    On success, it returns a formatted string containing the command's standard output (stdout) and/or diagnostic logs.
-    On failure, it raises an exception.
-    - If a command has only stdout, its content is returned directly.
-    - If a command has diagnostic output (from stderr), it will be included and labeled as 'LOGS' in the output.
+    Executes bash commands using the '/bin/bash' interpreter and returns a structured result.
+    This tool does NOT raise an exception for failed commands. Instead, it captures the
+    exit code, stdout, and stderr and returns them in a BashExecutionResult object.
+
+    It is the responsibility of the agent to interpret the result.
+    - An 'exit_code' of 0 typically indicates success.
+    - A non-zero 'exit_code' indicates an error.
+    - 'stdout' contains the standard output of the command.
+    - 'stderr' contains the standard error output, which may include warnings or error messages.
+
     'command' is the bash command string to be executed.
     The command is executed in the agent's workspace directory if available.
     """
@@ -54,7 +60,6 @@ async def bash_executor(context: Optional['AgentContext'], command: str) -> str:
     logger.debug(f"Functional execute_bash tool executing for '{agent_id_str}': {command} in cwd from {log_cwd_source}")
 
     try:
-        # Explicitly use 'bash -c' for reliable execution
         process = await asyncio.create_subprocess_exec(
             'bash', '-c', command,
             stdout=asyncio.subprocess.PIPE,
@@ -67,34 +72,21 @@ async def bash_executor(context: Optional['AgentContext'], command: str) -> str:
         stderr_output = stderr.decode().strip() if stderr else ""
 
         if process.returncode != 0:
-            error_message = stderr_output if stderr_output else "Unknown error"
-            if not error_message and process.returncode != 0:
-                error_message = f"Command failed with exit code {process.returncode} and no stderr output."
-            
-            logger.error(f"Command '{command}' failed with return code {process.returncode}: {error_message}")
-            raise subprocess.CalledProcessError(
-                returncode=process.returncode,
-                cmd=command,
-                output=stdout_output,
-                stderr=error_message
+            logger.warning(
+                f"Command '{command}' completed with non-zero exit code {process.returncode}. "
+                f"Stderr: {stderr_output}"
             )
         
-        # Adaptive return for successful commands to provide maximum context to the agent.
-        if stdout_output and stderr_output:
-            return f"STDOUT:\n{stdout_output}\n\nLOGS:\n{stderr_output}"
-        elif stdout_output:
-            return stdout_output  # Keep it simple for commands with only stdout
-        elif stderr_output:
-            return f"LOGS:\n{stderr_output}"
-        else:
-            return "Command executed successfully with no output."
+        return BashExecutionResult(
+            exit_code=process.returncode,
+            stdout=stdout_output,
+            stderr=stderr_output,
+        )
 
-    except subprocess.CalledProcessError:
-        raise
     except FileNotFoundError:
-        # This can be raised by create_subprocess_exec if 'bash' is not found, despite the initial check.
         logger.error("'bash' executable not found when attempting to execute command. Please ensure it is installed and in the PATH.")
         raise
     except Exception as e: 
-        logger.exception(f"An error occurred while preparing or executing command '{command}': {str(e)}")
+        logger.exception(f"An unexpected error occurred while preparing or executing command '{command}': {str(e)}")
+        # For fundamental errors (not command failures), we still raise
         raise RuntimeError(f"Failed to execute command '{command}': {str(e)}")
