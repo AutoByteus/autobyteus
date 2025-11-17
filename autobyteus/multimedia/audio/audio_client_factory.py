@@ -13,13 +13,51 @@ from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefiniti
 
 logger = logging.getLogger(__name__)
 
-GEMINI_TTS_VOICES = [
-    "Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "Aoede", 
-    "Callirrhoe", "Autonoe", "Enceladus", "Iapetus", "Umbriel", "Algieba", 
-    "Despina", "Erinome", "Algenib", "Rasalgethi", "Laomedeia", "Achernar", 
-    "Alnilam", "Schedar", "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi", 
-    "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat"
+# Enhanced metadata for Google Gemini TTS voices, including gender and description.
+GEMINI_VOICE_DETAILS = {
+    "Zephyr": {"gender": "female", "description": "Bright, Higher pitch"},
+    "Puck": {"gender": "male", "description": "Upbeat, Middle pitch"},
+    "Charon": {"gender": "male", "description": "Informative, Lower pitch"},
+    "Kore": {"gender": "female", "description": "Firm, Middle pitch"},
+    "Fenrir": {"gender": "male", "description": "Excitable, Lower middle pitch"},
+    "Leda": {"gender": "female", "description": "Youthful, Higher pitch"},
+    "Orus": {"gender": "male", "description": "Firm, Lower middle pitch"},
+    "Aoede": {"gender": "female", "description": "Breezy, Middle pitch"},
+    "Callirrhoe": {"gender": "female", "description": "Easy-going, Middle pitch"},
+    "Autonoe": {"gender": "female", "description": "Bright, Middle pitch"},
+    "Enceladus": {"gender": "male", "description": "Breathy, Lower pitch"},
+    "Iapetus": {"gender": "male", "description": "Clear, Lower middle pitch"},
+    "Umbriel": {"gender": "male", "description": "Easy-going, Lower middle pitch"},
+    "Algieba": {"gender": "male", "description": "Smooth, Lower pitch"},
+    "Despina": {"gender": "female", "description": "Smooth, Middle pitch"},
+    "Erinome": {"gender": "female", "description": "Clear, Middle pitch"},
+    "Algenib": {"gender": "male", "description": "Gravelly, Lower pitch"},
+    "Rasalgethi": {"gender": "male", "description": "Informative, Middle pitch"},
+    "Laomedeia": {"gender": "female", "description": "Upbeat, Higher pitch"},
+    "Achernar": {"gender": "female", "description": "Soft, Higher pitch"},
+    "Alnilam": {"gender": "male", "description": "Firm, Lower middle pitch"},
+    "Schedar": {"gender": "male", "description": "Even, Lower middle pitch"},
+    "Gacrux": {"gender": "female", "description": "Mature, Middle pitch"},
+    "Pulcherrima": {"gender": "female", "description": "Forward, Middle pitch"},
+    "Achird": {"gender": "male", "description": "Friendly, Lower middle pitch"},
+    "Zubenelgenubi": {"gender": "male", "description": "Casual, Lower middle pitch"},
+    "Vindemiatrix": {"gender": "female", "description": "Gentle, Middle pitch"},
+    "Sadachbia": {"gender": "male", "description": "Lively, Lower pitch"},
+    "Sadaltager": {"gender": "male", "description": "Knowledgeable, Middle pitch"},
+    "Sulafat": {"gender": "female", "description": "Warm, Middle pitch"},
+}
+
+# The list of voice names, derived from the keys of the details dictionary.
+# This is used for the `enum_values` to maintain compatibility.
+GEMINI_TTS_VOICES = list(GEMINI_VOICE_DETAILS.keys())
+
+# Generate a formatted string of voice metadata to be appended to parameter descriptions.
+_voice_descriptions_list = [
+    f"- {name} ({details['gender']}): {details['description']}"
+    for name, details in GEMINI_VOICE_DETAILS.items()
 ]
+GEMINI_VOICE_METADATA_DESC = "\n\nDetailed Voice Options:\n" + "\n".join(_voice_descriptions_list)
+
 
 OPENAI_TTS_VOICES = [
     "alloy", "ash", "ballad", "coral", "echo", "fable", "onyx",
@@ -64,7 +102,7 @@ class AudioClientFactory(metaclass=SingletonMeta):
             ParameterDefinition(
                 name="voice",
                 param_type=ParameterType.ENUM,
-                description="The voice to assign to this speaker.",
+                description="The voice to assign to this speaker." + GEMINI_VOICE_METADATA_DESC,
                 enum_values=GEMINI_TTS_VOICES,
                 required=True
             )
@@ -84,7 +122,7 @@ class AudioClientFactory(metaclass=SingletonMeta):
                 param_type=ParameterType.ENUM,
                 default_value="Kore",
                 enum_values=GEMINI_TTS_VOICES,
-                description="The voice to use for single-speaker generation."
+                description="The voice to use for single-speaker generation." + GEMINI_VOICE_METADATA_DESC
             ),
             ParameterDefinition(
                 name="style_instructions",
