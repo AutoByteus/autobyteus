@@ -7,7 +7,12 @@ from contextlib import asynccontextmanager
 from autobyteus.utils.singleton import SingletonMeta
 from autobyteus.agent.context import AgentContextRegistry
 from .config_service import McpConfigService
-from .server import BaseManagedMcpServer, StdioManagedMcpServer, HttpManagedMcpServer
+from .server import (
+    BaseManagedMcpServer,
+    StdioManagedMcpServer,
+    HttpManagedMcpServer,
+    WebsocketManagedMcpServer,
+)
 from .types import McpTransportType, McpServerInstanceKey, BaseMcpConfig, StdioMcpServerConfig
 
 logger = logging.getLogger(__name__)
@@ -29,6 +34,8 @@ class McpServerInstanceManager(metaclass=SingletonMeta):
             return StdioManagedMcpServer(server_config)
         elif server_config.transport_type == McpTransportType.STREAMABLE_HTTP:
             return HttpManagedMcpServer(server_config)
+        elif server_config.transport_type == McpTransportType.WEBSOCKET:
+            return WebsocketManagedMcpServer(server_config)
         else:
             raise NotImplementedError(f"No ManagedMcpServer implementation for transport type '{server_config.transport_type}'.")
 

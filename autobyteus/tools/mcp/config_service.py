@@ -9,6 +9,7 @@ from .types import (
     BaseMcpConfig,
     StdioMcpServerConfig,
     StreamableHttpMcpServerConfig,
+    WebsocketMcpServerConfig,
     McpTransportType
 )
 from autobyteus.utils.singleton import SingletonMeta
@@ -49,7 +50,8 @@ class McpConfigService(metaclass=SingletonMeta):
 
         transport_specific_params_key_map = {
             McpTransportType.STDIO: "stdio_params",
-            McpTransportType.STREAMABLE_HTTP: "streamable_http_params"
+            McpTransportType.STREAMABLE_HTTP: "streamable_http_params",
+            McpTransportType.WEBSOCKET: "websocket_params",
         }
 
         if transport_type in transport_specific_params_key_map:
@@ -74,6 +76,8 @@ class McpConfigService(metaclass=SingletonMeta):
                 return StdioMcpServerConfig(**constructor_params)
             elif transport_type == McpTransportType.STREAMABLE_HTTP:
                 return StreamableHttpMcpServerConfig(**constructor_params)
+            elif transport_type == McpTransportType.WEBSOCKET:
+                return WebsocketMcpServerConfig(**constructor_params)
             else:
                 raise ValueError(f"Unsupported McpTransportType '{transport_type}' for server '{server_id}'.")
         except TypeError as e:

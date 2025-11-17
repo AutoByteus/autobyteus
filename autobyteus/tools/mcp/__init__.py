@@ -19,6 +19,7 @@ from .types import (
     BaseMcpConfig,
     StdioMcpServerConfig,
     StreamableHttpMcpServerConfig,
+    WebsocketMcpServerConfig,
     McpTransportType,
     McpServerInstanceKey,
 )
@@ -37,6 +38,7 @@ __all__ = [
     "BaseMcpConfig",
     "StdioMcpServerConfig",
     "StreamableHttpMcpServerConfig",
+    "WebsocketMcpServerConfig",
     "McpTransportType",
     "McpServerInstanceKey",
     # Services and Managers
