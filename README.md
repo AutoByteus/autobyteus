@@ -109,6 +109,28 @@ python autobyteus/examples/agent_team/manual_notification/run_debate_team.py --l
 ```
 You can see all available models and their identifiers by running an example with the `--help-models` flag.
 
+## Testing
+
+### Streamable HTTP MCP integration
+
+Some integration tests rely on the toy streamable MCP server that lives in
+`autobyteus_mcps/streamable_http_mcp_toy`. Start it in a separate terminal
+before running the test, for example:
+
+```bash
+cd autobyteus_mcps/streamable_http_mcp_toy
+python src/streamable_http_mcp_toy/server.py --host 127.0.0.1 --port 8764
+```
+
+With the server running, execute the HTTP transport test:
+
+```bash
+pytest tests/integration_tests/tools/mcp/test_http_managed_server_integration.py
+```
+
+If you bind the server elsewhere, set `STREAMABLE_HTTP_MCP_URL` to the full
+`http://` or `https://` endpoint before running pytest so the test can find it.
+
 ### Building the Library
 
 To build Autobyteus as a distributable package, follow these steps:

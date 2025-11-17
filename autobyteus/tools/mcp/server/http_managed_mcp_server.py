@@ -23,7 +23,7 @@ class HttpManagedMcpServer(BaseManagedMcpServer):
         config = cast(StreamableHttpMcpServerConfig, self._config)
         
         logger.debug(f"Establishing HTTP connection for server '{self.server_id}' to URL: {config.url}")
-        read_stream, write_stream = await self._exit_stack.enter_async_context(
+        read_stream, write_stream, _ = await self._exit_stack.enter_async_context(
             streamablehttp_client(config.url, headers=config.headers)
         )
         session = await self._exit_stack.enter_async_context(ClientSession(read_stream, write_stream))
