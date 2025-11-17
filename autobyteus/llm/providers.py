@@ -16,3 +16,4 @@ class LLMProvider(Enum):
     QWEN = "QWEN"
     LMSTUDIO = "LMSTUDIO"
     ZHIPU = "ZHIPU"
+    BAIDU = "BAIDU"
