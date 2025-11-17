@@ -6,6 +6,7 @@ from .base_processor import BaseLLMResponseProcessor
 from autobyteus.agent.events import PendingToolInvocationEvent
 from autobyteus.agent.tool_invocation import ToolInvocation, ToolInvocationTurn
 from autobyteus.tools.usage.parsers import ProviderAwareToolUsageParser
+from autobyteus.tools.usage.parsers.filesystem_module_usage_parser import FilesystemModuleUsageParser
 from autobyteus.tools.usage.parsers.exceptions import ToolUsageParseException
 
 if TYPE_CHECKING:
@@ -25,6 +26,7 @@ class ProviderAwareToolUsageProcessor(BaseLLMResponseProcessor):
 
     def __init__(self):
         self._parser = ProviderAwareToolUsageParser()
+        self._module_parser = FilesystemModuleUsageParser()
         logger.debug("ProviderAwareToolUsageProcessor initialized.")
 
     @classmethod
@@ -48,11 +50,19 @@ class ProviderAwareToolUsageProcessor(BaseLLMResponseProcessor):
         PendingToolInvocationEvent for each one.
         Propagates ToolUsageParseException if parsing fails.
         """
+        tool_invocations: List[ToolInvocation] = []
+
+        if getattr(context.config, "use_module_protocol", False):
+            try:
+                module_calls = self._module_parser.parse(response)
+                tool_invocations.extend(module_calls)
+            except ToolUsageParseException:
+                raise
+
         try:
-            # Delegate parsing to the high-level parser
-            tool_invocations = self._parser.parse(response, context)
+            remaining_calls = self._parser.parse(response, context)
+            tool_invocations.extend(remaining_calls)
         except ToolUsageParseException:
-            # Re-raise the exception to be caught by the event handler
             raise
 
         if not tool_invocations:

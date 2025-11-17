@@ -66,7 +66,8 @@ class AgentFactory(metaclass=SingletonMeta):
                 logger.warning(f"Agent '{agent_id}': Duplicate tool name '{instance_name}' encountered. The last one will be used.")
             
             tool_instances_dict[instance_name] = tool_instance
-        
+
+
         return tool_instances_dict
 
     def _create_runtime(self, 
