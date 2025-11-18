@@ -76,10 +76,12 @@ async def _websocket_transport(
     # Remove None values so websockets uses library defaults
     connect_kwargs = {key: value for key, value in connect_kwargs.items() if value is not None}
 
+    negotiated_protocols = [str(proto) for proto in connect_kwargs.get("subprotocols", [])]
+
     logger.debug(
         "Connecting to MCP WebSocket %s (subprotocols=%s, origin=%s)",
         config.url,
-        [proto.name for proto in connect_kwargs.get("subprotocols", [])],
+        negotiated_protocols,
         config.origin,
     )
 
