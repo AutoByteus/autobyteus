@@ -10,6 +10,7 @@ class McpTransportType(str, Enum):
     """Enumeration of supported MCP transport types."""
     STDIO = "stdio"
     STREAMABLE_HTTP = "streamable_http"
+    WEBSOCKET = "websocket"
 
 @dataclass(frozen=True)
 class McpServerInstanceKey:
@@ -85,3 +86,63 @@ class StreamableHttpMcpServerConfig(BaseMcpConfig):
             raise ValueError(f"StreamableHttpMcpServerConfig '{self.server_id}' 'token' must be a string if provided.") 
         if not isinstance(self.headers, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in self.headers.items()):
             raise ValueError(f"StreamableHttpMcpServerConfig '{self.server_id}' 'headers' must be a Dict[str, str].")
+
+@dataclass
+class WebsocketMcpServerConfig(BaseMcpConfig):
+    """Configuration parameters for an MCP server using a WebSocket transport."""
+
+    url: Optional[str] = None
+    headers: Dict[str, str] = field(default_factory=dict)
+    subprotocols: List[str] = field(default_factory=list)
+    origin: Optional[str] = None
+    open_timeout: Optional[float] = 10.0
+    ping_interval: Optional[float] = None
+    ping_timeout: Optional[float] = None
+    verify_tls: bool = True
+    ca_file: Optional[str] = None
+    client_cert: Optional[str] = None
+    client_key: Optional[str] = None
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.transport_type = McpTransportType.WEBSOCKET
+
+        if self.url is None or not isinstance(self.url, str) or not self.url.strip():
+            raise ValueError(f"WebsocketMcpServerConfig '{self.server_id}' 'url' must be a non-empty string.")
+
+        normalized_url = self.url.strip().lower()
+        if not (normalized_url.startswith("ws://") or normalized_url.startswith("wss://")):
+            raise ValueError(
+                f"WebsocketMcpServerConfig '{self.server_id}' 'url' must start with ws:// or wss://."
+            )
+
+        if not isinstance(self.headers, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in self.headers.items()):
+            raise ValueError(f"WebsocketMcpServerConfig '{self.server_id}' 'headers' must be a Dict[str, str].")
+
+        if not isinstance(self.subprotocols, list) or not all(isinstance(item, str) for item in self.subprotocols):
+            raise ValueError(f"WebsocketMcpServerConfig '{self.server_id}' 'subprotocols' must be a list of strings.")
+
+        if self.origin is not None and not isinstance(self.origin, str):
+            raise ValueError(f"WebsocketMcpServerConfig '{self.server_id}' 'origin' must be a string if provided.")
+
+        for field_name in ("open_timeout", "ping_interval", "ping_timeout"):
+            value = getattr(self, field_name)
+            if value is not None and (not isinstance(value, (int, float)) or value <= 0):
+                raise ValueError(
+                    f"WebsocketMcpServerConfig '{self.server_id}' '{field_name}' must be a positive number when provided."
+                )
+
+        if not isinstance(self.verify_tls, bool):
+            raise ValueError(f"WebsocketMcpServerConfig '{self.server_id}' 'verify_tls' must be a boolean.")
+
+        for path_field in ("ca_file", "client_cert", "client_key"):
+            path_value = getattr(self, path_field)
+            if path_value is not None and not isinstance(path_value, str):
+                raise ValueError(
+                    f"WebsocketMcpServerConfig '{self.server_id}' '{path_field}' must be a string path when provided."
+                )
+
+        if self.client_key and not self.client_cert:
+            raise ValueError(
+                f"WebsocketMcpServerConfig '{self.server_id}' requires 'client_cert' when 'client_key' is provided."
+            )

@@ -109,6 +109,62 @@ python autobyteus/examples/agent_team/manual_notification/run_debate_team.py --l
 ```
 You can see all available models and their identifiers by running an example with the `--help-models` flag.
 
+## Testing
+
+### Streamable HTTP MCP integration
+
+Some integration tests rely on the toy streamable MCP server that lives in
+`autobyteus_mcps/streamable_http_mcp_toy`. Start it in a separate terminal
+before running the test, for example:
+
+```bash
+cd autobyteus_mcps/streamable_http_mcp_toy
+python src/streamable_http_mcp_toy/server.py --host 127.0.0.1 --port 8764
+```
+
+With the server running, execute the HTTP transport test:
+
+```bash
+pytest tests/integration_tests/tools/mcp/test_http_managed_server_integration.py
+```
+
+If you bind the server elsewhere, set `STREAMABLE_HTTP_MCP_URL` to the full
+`http://` or `https://` endpoint before running pytest so the test can find it.
+
+### Secure WebSocket (WSS) MCP integration
+
+The toy WebSocket MCP server lives in `autobyteus_mcps/wss_mcp_toy`. It exposes
+the same diagnostic tools as the HTTP toy server but requires TLS and an Origin
+header. To exercise the WebSocket transport:
+
+1. In a separate terminal start the toy server:
+
+   ```bash
+   cd autobyteus_mcps/wss_mcp_toy
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -e .
+   ./scripts/generate-dev-cert.sh  # creates certs/dev-cert.pem + certs/dev-key.pem
+   wss-mcp-toy --cert certs/dev-cert.pem --key certs/dev-key.pem --host 127.0.0.1 --port 8765 --allowed-origin https://localhost
+   ```
+
+2. Run the WebSocket transport test (defaults assume the process above is
+   listening on `wss://127.0.0.1:8765/mcp`):
+
+   ```bash
+   pytest tests/integration_tests/tools/mcp/test_websocket_managed_server_integration.py
+   ```
+
+Customize the target URL or TLS behavior via environment variables when
+running pytest:
+
+- `WSS_MCP_URL` – full `ws://` or `wss://` endpoint (default `wss://127.0.0.1:8765/mcp`).
+- `WSS_MCP_ORIGIN` – Origin header value (default `https://localhost`).
+- `WSS_MCP_VERIFY_TLS` – set to `true`/`1` to enforce TLS verification
+  (default `false` for the self-signed dev cert).
+- `WSS_MCP_CA_FILE`, `WSS_MCP_CLIENT_CERT`, `WSS_MCP_CLIENT_KEY` – optional
+  paths if you want to trust a custom CA or present a client certificate.
+
 ### Building the Library
 
 To build Autobyteus as a distributable package, follow these steps:

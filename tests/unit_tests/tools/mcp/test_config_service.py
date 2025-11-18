@@ -10,6 +10,7 @@ from autobyteus.tools.mcp import (
     McpTransportType,
     StdioMcpServerConfig,
     StreamableHttpMcpServerConfig,
+    WebsocketMcpServerConfig,
     BaseMcpConfig
 )
 
@@ -57,6 +58,21 @@ VALID_HTTP_CONFIG_LIST_ITEM = {
     }
 }
 
+VALID_WEBSOCKET_CONFIG_LIST_ITEM = {
+    "server_id": "ws_server_1",
+    "transport_type": "websocket",
+    "enabled": True,
+    "tool_name_prefix": "ws_",
+    "websocket_params": {
+        "url": "wss://localhost:8765/mcp",
+        "headers": {"X-Test": "1"},
+        "subprotocols": ["custom"],
+        "open_timeout": 5,
+        "ping_interval": 15,
+        "verify_tls": False,
+    }
+}
+
 
 @pytest.fixture
 def mcp_config_service() -> McpConfigService:
@@ -86,10 +102,11 @@ def test_load_configs_from_dict(mcp_config_service: McpConfigService):
     configs_data = {
         "stdio_server_1": VALID_STDIO_CONFIG_LIST_ITEM,
         "http_server_1": VALID_HTTP_CONFIG_LIST_ITEM,
+        "ws_server_1": VALID_WEBSOCKET_CONFIG_LIST_ITEM,
     }
     loaded = mcp_config_service.load_configs_from_dict(configs_data)
-    assert len(loaded) == 2
-    assert len(mcp_config_service.get_all_configs()) == 2
+    assert len(loaded) == 3
+    assert len(mcp_config_service.get_all_configs()) == 3
     
     config1 = mcp_config_service.get_config("stdio_server_1")
     assert isinstance(config1, StdioMcpServerConfig)
@@ -99,14 +116,22 @@ def test_load_configs_from_dict(mcp_config_service: McpConfigService):
     assert isinstance(config2, StreamableHttpMcpServerConfig)
     assert config2.url == "http://localhost:9000/stream"
 
+    config3 = mcp_config_service.get_config("ws_server_1")
+    assert isinstance(config3, WebsocketMcpServerConfig)
+    assert config3.url == "wss://localhost:8765/mcp"
+
 def test_load_configs_from_file_with_list(mcp_config_service: McpConfigService, tmp_path):
     """Tests loading from a JSON file containing a list of configs."""
-    file_content = [VALID_STDIO_CONFIG_LIST_ITEM, VALID_HTTP_CONFIG_LIST_ITEM]
+    file_content = [
+        VALID_STDIO_CONFIG_LIST_ITEM,
+        VALID_HTTP_CONFIG_LIST_ITEM,
+        VALID_WEBSOCKET_CONFIG_LIST_ITEM,
+    ]
     config_file = tmp_path / "mcp_config_list.json"
     config_file.write_text(json.dumps(file_content))
 
     loaded = mcp_config_service.load_configs_from_file(str(config_file))
-    assert len(loaded) == 2
+    assert len(loaded) == 3
     
     stdio_conf = mcp_config_service.get_config("stdio_server_1")
     assert isinstance(stdio_conf, StdioMcpServerConfig)
@@ -115,6 +140,10 @@ def test_load_configs_from_file_with_list(mcp_config_service: McpConfigService, 
     http_conf = mcp_config_service.get_config("http_server_1")
     assert isinstance(http_conf, StreamableHttpMcpServerConfig)
     assert http_conf.url == "http://localhost:9000/stream"
+
+    ws_conf = mcp_config_service.get_config("ws_server_1")
+    assert isinstance(ws_conf, WebsocketMcpServerConfig)
+    assert ws_conf.url == "wss://localhost:8765/mcp"
 
 def test_load_configs_from_file_with_dict(mcp_config_service: McpConfigService, tmp_path):
     """Tests loading from a JSON file containing a dictionary of configs."""
@@ -133,6 +162,7 @@ def test_load_configs_from_file_with_dict(mcp_config_service: McpConfigService, 
     ({"myid": {"transport_type": "invalid_type"}}, "Invalid 'transport_type' string 'invalid_type'", "load_configs_from_dict"),
     ({"myid": {"transport_type": "stdio", "stdio_params": {"command": 123}}}, "incompatible parameters for STDIO config", "load_configs_from_dict"),
     ({"myid": {"transport_type": "streamable_http", "streamable_http_params": {}}}, "incompatible parameters for STREAMABLE_HTTP config", "load_configs_from_dict"),
+    ({"myid": {"transport_type": "websocket", "websocket_params": {}}}, "WebsocketMcpServerConfig 'myid' 'url' must be a non-empty string", "load_configs_from_dict"),
 ])
 def test_load_configs_invalid_data_raises_value_error(mcp_config_service: McpConfigService, invalid_data, error_message_match, method_name, tmp_path):
     with pytest.raises(ValueError, match=error_message_match):
