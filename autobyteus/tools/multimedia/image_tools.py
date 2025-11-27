@@ -6,6 +6,7 @@ from autobyteus.tools.base_tool import BaseTool
 from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.tool_category import ToolCategory
 from autobyteus.multimedia.image import image_client_factory, ImageModel, ImageClientFactory
+from autobyteus.multimedia.image.base_image_client import BaseImageClient
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,10 @@ class GenerateImageTool(BaseTool):
     MODEL_ENV_VAR = "DEFAULT_IMAGE_GENERATION_MODEL"
     DEFAULT_MODEL = "gpt-image-1"
 
+    def __init__(self, config=None):
+        super().__init__(config)
+        self._client: Optional[BaseImageClient] = None
+
     @classmethod
     def get_name(cls) -> str:
         return "generate_image"
@@ -93,26 +98,28 @@ class GenerateImageTool(BaseTool):
     async def _execute(self, context, prompt: str, input_image_urls: Optional[str] = None, generation_config: Optional[dict] = None) -> List[str]:
         model_identifier = _get_configured_model_identifier(self.MODEL_ENV_VAR, self.DEFAULT_MODEL)
         logger.info(f"generate_image executing with configured model '{model_identifier}'.")
-        client = None
-        try:
-            urls_list = None
-            if input_image_urls:
-                urls_list = [url.strip() for url in input_image_urls.split(',') if url.strip()]
+        urls_list = None
+        if input_image_urls:
+            urls_list = [url.strip() for url in input_image_urls.split(',') if url.strip()]
 
-            client = image_client_factory.create_image_client(model_identifier=model_identifier)
-            response = await client.generate_image(
-                prompt=prompt, 
-                input_image_urls=urls_list,
-                generation_config=generation_config
-            )
-            
-            if not response.image_urls:
-                raise ValueError("Image generation failed to return any image URLs.")
-            
-            return response.image_urls
-        finally:
-            if client:
-                await client.cleanup()
+        if self._client is None:
+            self._client = image_client_factory.create_image_client(model_identifier=model_identifier)
+
+        response = await self._client.generate_image(
+            prompt=prompt, 
+            input_image_urls=urls_list,
+            generation_config=generation_config
+        )
+        
+        if not response.image_urls:
+            raise ValueError("Image generation failed to return any image URLs.")
+        
+        return response.image_urls
+
+    async def cleanup(self) -> None:
+        if self._client:
+            await self._client.cleanup()
+            self._client = None
 
 
 class EditImageTool(BaseTool):
@@ -122,6 +129,10 @@ class EditImageTool(BaseTool):
     CATEGORY = ToolCategory.MULTIMEDIA
     MODEL_ENV_VAR = "DEFAULT_IMAGE_EDIT_MODEL"
     DEFAULT_MODEL = "gpt-image-1"
+
+    def __init__(self, config=None):
+        super().__init__(config)
+        self._client: Optional[BaseImageClient] = None
 
     @classmethod
     def get_name(cls) -> str:
@@ -162,24 +173,26 @@ class EditImageTool(BaseTool):
     async def _execute(self, context, prompt: str, input_image_urls: str, generation_config: Optional[dict] = None, mask_image_url: Optional[str] = None) -> List[str]:
         model_identifier = _get_configured_model_identifier(self.MODEL_ENV_VAR, self.DEFAULT_MODEL)
         logger.info(f"edit_image executing with configured model '{model_identifier}'.")
-        client = None
-        try:
-            urls_list = [url.strip() for url in input_image_urls.split(',') if url.strip()]
-            if not urls_list:
-                raise ValueError("The 'input_image_urls' parameter cannot be empty.")
+        urls_list = [url.strip() for url in input_image_urls.split(',') if url.strip()]
+        if not urls_list:
+            raise ValueError("The 'input_image_urls' parameter cannot be empty.")
 
-            client = image_client_factory.create_image_client(model_identifier=model_identifier)
-            response = await client.edit_image(
-                prompt=prompt,
-                input_image_urls=urls_list,
-                mask_url=mask_image_url,
-                generation_config=generation_config
-            )
+        if self._client is None:
+            self._client = image_client_factory.create_image_client(model_identifier=model_identifier)
 
-            if not response.image_urls:
-                raise ValueError("Image editing failed to return any image URLs.")
+        response = await self._client.edit_image(
+            prompt=prompt,
+            input_image_urls=urls_list,
+            mask_url=mask_image_url,
+            generation_config=generation_config
+        )
 
-            return response.image_urls
-        finally:
-            if client:
-                await client.cleanup()
+        if not response.image_urls:
+            raise ValueError("Image editing failed to return any image URLs.")
+
+        return response.image_urls
+
+    async def cleanup(self) -> None:
+        if self._client:
+            await self._client.cleanup()
+            self._client = None

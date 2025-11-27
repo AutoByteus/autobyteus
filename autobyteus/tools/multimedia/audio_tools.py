@@ -6,6 +6,7 @@ from autobyteus.tools.base_tool import BaseTool
 from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.tool_category import ToolCategory
 from autobyteus.multimedia.audio import audio_client_factory, AudioModel, AudioClientFactory
+from autobyteus.multimedia.audio.base_audio_client import BaseAudioClient
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,10 @@ class GenerateSpeechTool(BaseTool):
     MODEL_ENV_VAR = "DEFAULT_SPEECH_GENERATION_MODEL"
     DEFAULT_MODEL = "gemini-2.5-flash-tts"
 
+    def __init__(self, config=None):
+        super().__init__(config)
+        self._client: Optional[BaseAudioClient] = None
+
     @classmethod
     def get_name(cls) -> str:
         return "generate_speech"
@@ -92,15 +97,17 @@ class GenerateSpeechTool(BaseTool):
     async def _execute(self, context, prompt: str, generation_config: Optional[dict] = None) -> List[str]:
         model_identifier = _get_configured_model_identifier(self.MODEL_ENV_VAR, self.DEFAULT_MODEL)
         logger.info(f"generate_speech executing with configured model '{model_identifier}'.")
-        client = None
-        try:
-            client = audio_client_factory.create_audio_client(model_identifier=model_identifier)
-            response = await client.generate_speech(prompt=prompt, generation_config=generation_config)
-            
-            if not response.audio_urls:
-                raise ValueError("Speech generation failed to return any audio file paths.")
-            
-            return response.audio_urls
-        finally:
-            if client:
-                await client.cleanup()
+        if self._client is None:
+            self._client = audio_client_factory.create_audio_client(model_identifier=model_identifier)
+
+        response = await self._client.generate_speech(prompt=prompt, generation_config=generation_config)
+
+        if not response.audio_urls:
+            raise ValueError("Speech generation failed to return any audio file paths.")
+
+        return response.audio_urls
+
+    async def cleanup(self) -> None:
+        if self._client:
+            await self._client.cleanup()
+            self._client = None

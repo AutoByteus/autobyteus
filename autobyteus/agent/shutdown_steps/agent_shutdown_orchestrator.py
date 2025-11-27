@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, List, Optional
 from .base_shutdown_step import BaseShutdownStep
 from .llm_instance_cleanup_step import LLMInstanceCleanupStep
 from .mcp_server_cleanup_step import McpServerCleanupStep
+from .tool_cleanup_step import ToolCleanupStep
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
@@ -27,6 +28,7 @@ class AgentShutdownOrchestrator:
         if steps is None:
             self.shutdown_steps: List[BaseShutdownStep] = [
                 LLMInstanceCleanupStep(),
+                ToolCleanupStep(),
                 McpServerCleanupStep(),
             ]
             logger.debug("AgentShutdownOrchestrator initialized with default steps.")
