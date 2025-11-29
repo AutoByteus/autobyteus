@@ -21,7 +21,9 @@ logger = logging.getLogger(__name__)
 class AgentInputEventQueueManager:
     """
     Manages asyncio.Queue instances for events consumed by the AgentRuntime's
-    main event loop. This class focuses solely on queues for internal agent processing.
+    main event loop. Uses per-queue ready buffers plus a deterministic priority
+    order to avoid requeue-induced reordering when multiple queues are ready at
+    the same time.
     """
     def __init__(self, queue_size: int = 0):
         self.user_message_input_queue: asyncio.Queue['UserMessageReceivedEvent'] = asyncio.Queue(maxsize=queue_size)
@@ -81,6 +83,18 @@ class AgentInputEventQueueManager:
         logger.debug(f"Enqueued internal system event: {type(event).__name__}")
 
     async def get_next_input_event(self) -> Optional[Tuple[str, 'BaseEvent']]: # type: ignore[type-var]
+        """
+        Returns the next available event along with its originating queue name.
+
+        Algorithm:
+        1. Serve any buffered items first (buffers keep FIFO per queue).
+        2. If none buffered, await one get() per queue with FIRST_COMPLETED,
+           buffer all completed results (no requeue to the tail), cancel the rest.
+        3. Return the highest-priority buffered item.
+
+        This preserves intra-queue order and avoids the previous bug where
+        re-inserting a ready item to the queue tail could invert tool call order.
+        """
         # 1) Serve any buffered items first (deterministic priority).
         for qname in self._queue_priority:
             buf = self._ready_buffers.get(qname)
