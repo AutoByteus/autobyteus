@@ -2,6 +2,7 @@
 import asyncio
 import logging
 from typing import Any, AsyncIterator, Union, Tuple, Optional, List, TYPE_CHECKING, Dict, Set
+from collections import deque
 
 # Import specific event types for queue annotations where possible
 if TYPE_CHECKING:
@@ -20,7 +21,9 @@ logger = logging.getLogger(__name__)
 class AgentInputEventQueueManager:
     """
     Manages asyncio.Queue instances for events consumed by the AgentRuntime's
-    main event loop. This class focuses solely on queues for internal agent processing.
+    main event loop. Uses per-queue ready buffers plus a deterministic priority
+    order to avoid requeue-induced reordering when multiple queues are ready at
+    the same time.
     """
     def __init__(self, queue_size: int = 0):
         self.user_message_input_queue: asyncio.Queue['UserMessageReceivedEvent'] = asyncio.Queue(maxsize=queue_size)
@@ -37,6 +40,21 @@ class AgentInputEventQueueManager:
             ("tool_result_input_queue", self.tool_result_input_queue),
             ("tool_execution_approval_queue", self.tool_execution_approval_queue),
             ("internal_system_event_queue", self.internal_system_event_queue),
+        ]
+
+        # Buffer of ready items per queue to avoid requeue-induced reordering.
+        self._ready_buffers: Dict[str, deque[Any]] = {
+            name: deque() for name, _ in self._input_queues
+        }
+
+        # Deterministic priority order when multiple queues are ready.
+        self._queue_priority: List[str] = [
+            "user_message_input_queue",
+            "inter_agent_message_input_queue",
+            "tool_invocation_request_queue",
+            "tool_result_input_queue",
+            "tool_execution_approval_queue",
+            "internal_system_event_queue",
         ]
         logger.info("AgentInputEventQueueManager initialized.")
 
@@ -65,7 +83,27 @@ class AgentInputEventQueueManager:
         logger.debug(f"Enqueued internal system event: {type(event).__name__}")
 
     async def get_next_input_event(self) -> Optional[Tuple[str, 'BaseEvent']]: # type: ignore[type-var]
-        # Logger messages will be updated in subsequent steps if needed
+        """
+        Returns the next available event along with its originating queue name.
+
+        Algorithm:
+        1. Serve any buffered items first (buffers keep FIFO per queue).
+        2. If none buffered, await one get() per queue with FIRST_COMPLETED,
+           buffer all completed results (no requeue to the tail), cancel the rest.
+        3. Return the highest-priority buffered item.
+
+        This preserves intra-queue order and avoids the previous bug where
+        re-inserting a ready item to the queue tail could invert tool call order.
+        """
+        # 1) Serve any buffered items first (deterministic priority).
+        for qname in self._queue_priority:
+            buf = self._ready_buffers.get(qname)
+            if buf and buf:
+                event = buf.popleft()
+                logger.debug(f"get_next_input_event: Returning buffered event from {qname}: {type(event).__name__}")
+                return (qname, event)
+
+        # 2) No buffered items; proceed to gather one from live queues.
         logger.debug(f"get_next_input_event: Checking queue sizes before creating tasks...")
         for name, q_obj in self._input_queues:
             if q_obj is not None: # pragma: no cover
@@ -82,9 +120,6 @@ class AgentInputEventQueueManager:
         
         logger.debug(f"get_next_input_event: Created {len(created_tasks)} tasks for queues: {[t.get_name() for t in created_tasks]}. Awaiting asyncio.wait...")
         
-        event_tuple: Optional[Tuple[str, 'BaseEvent']] = None # type: ignore[type-var]
-        done_tasks_from_wait: Set[asyncio.Task] = set()
-        
         try:
             done_tasks_from_wait, pending_tasks_from_wait = await asyncio.wait(
                 created_tasks, return_when=asyncio.FIRST_COMPLETED
@@ -92,37 +127,27 @@ class AgentInputEventQueueManager:
             
             logger.debug(f"get_next_input_event: asyncio.wait returned. Done tasks: {len(done_tasks_from_wait)}, Pending tasks: {len(pending_tasks_from_wait)}.")
             
-            if done_tasks_from_wait: # pragma: no branch
-                for i, task_in_done in enumerate(done_tasks_from_wait): # pragma: no cover
-                    logger.debug(f"get_next_input_event: Processing done task #{i+1} (name: {task_in_done.get_name()})")
-            
+            # Collect all done results into buffers without requeueing
             for task in done_tasks_from_wait:
                 queue_name = task.get_name()
                 try:
-                    event_result: Any = task.result() 
+                    event_result: Any = task.result()
                     logger.debug(f"get_next_input_event: Task for queue '{queue_name}' completed. Result type: {type(event_result).__name__}, Result: {str(event_result)[:100]}")
                     
-                    # Avoid circular import for BaseEvent, assuming it's correctly imported in TYPE_CHECKING context
-                    from autobyteus.agent.events.agent_events import BaseEvent as AgentBaseEvent 
+                    from autobyteus.agent.events.agent_events import BaseEvent as AgentBaseEvent
                     if isinstance(event_result, AgentBaseEvent):
-                        event: 'BaseEvent' = event_result # type: ignore[type-var]
-                        if event_tuple is None: 
-                            event_tuple = (queue_name, event)
-                            logger.debug(f"get_next_input_event: Dequeued event from {queue_name}: {type(event).__name__}")
-                        else: # pragma: no cover
-                            original_queue = next((q for n, q in self._input_queues if n == queue_name), None)
-                            if original_queue:
-                                original_queue.put_nowait(event) 
-                                logger.warning(f"get_next_input_event: Re-queued event from {queue_name} (type {type(event).__name__}) as another event was processed first in the same wait cycle.")
+                        self._ready_buffers[queue_name].append(event_result)
+                        logger.debug(f"get_next_input_event: Buffered event from {queue_name}: {type(event_result).__name__}")
                     else: # pragma: no cover
                         logger.error(f"get_next_input_event: Dequeued item from {queue_name} is not a BaseEvent subclass: {type(event_result)}. Event: {event_result!r}")
 
                 except asyncio.CancelledError: # pragma: no cover
-                     logger.info(f"get_next_input_event: Task for queue {queue_name} (from done set) was cancelled during result processing.")
+                    logger.info(f"get_next_input_event: Task for queue {queue_name} (from done set) was cancelled during result processing.")
                 except Exception as e:  # pragma: no cover
                     logger.error(f"get_next_input_event: Error processing result from task for queue {queue_name} (from done set): {e}", exc_info=True)
             
-            if pending_tasks_from_wait: # pragma: no branch
+            # Cancel pending tasks
+            if pending_tasks_from_wait:
                 logger.debug(f"get_next_input_event: Cancelling {len(pending_tasks_from_wait)} pending tasks from asyncio.wait.")
                 for task_in_pending in pending_tasks_from_wait: # pragma: no cover
                     if not task_in_pending.done():
@@ -160,9 +185,16 @@ class AgentInputEventQueueManager:
             
             logger.debug(f"get_next_input_event: Finished finally block task cleanup.")
 
-        if event_tuple:
-            logger.debug(f"get_next_input_event: Returning event_tuple: {type(event_tuple[1]).__name__ if event_tuple else 'None'}")
-        return event_tuple
+        # After buffering, return the highest-priority ready item (if any)
+        for qname in self._queue_priority:
+            buf = self._ready_buffers.get(qname)
+            if buf and buf:
+                event = buf.popleft()
+                logger.debug(f"get_next_input_event: Returning buffered event from {qname}: {type(event).__name__}")
+                return (qname, event)
+
+        logger.debug("get_next_input_event: No events available after buffering.")
+        return None
 
     def log_remaining_items_at_shutdown(self): # pragma: no cover
         """Logs remaining items in input queues, typically called during shutdown."""
