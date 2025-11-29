@@ -250,6 +250,7 @@ class AutobyteusClient:
         input_image_urls: Optional[List[str]] = None,
         mask_url: Optional[str] = None,
         generation_config: Optional[Dict[str, Any]] = None,
+        session_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Generate or edit an image and return the server response."""
         try:
@@ -259,6 +260,7 @@ class AutobyteusClient:
                 "input_image_urls": input_image_urls or [],
                 "mask_url": mask_url,
                 "generation_config": generation_config or {},
+                "session_id": session_id,
             }
             response = await self.async_client.post(
                 urljoin(self.server_url, "/generate-image"),
@@ -275,6 +277,7 @@ class AutobyteusClient:
         model_name: str,
         prompt: str,
         generation_config: Optional[Dict[str, Any]] = None,
+        session_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Generate speech from text and return the server response."""
         try:
@@ -282,6 +285,7 @@ class AutobyteusClient:
                 "model_name": model_name,
                 "prompt": prompt,
                 "generation_config": generation_config or {},
+                "session_id": session_id,
             }
             response = await self.async_client.post(
                 urljoin(self.server_url, "/generate-speech"),
@@ -294,7 +298,7 @@ class AutobyteusClient:
             raise RuntimeError(str(exc)) from exc
 
     async def cleanup(self, conversation_id: str) -> Dict[str, Any]:
-        """Clean up a conversation."""
+        """Clean up a conversation (LLM)."""
         try:
             response = await self.async_client.post(
                 urljoin(self.server_url, "/cleanup"),
@@ -304,6 +308,32 @@ class AutobyteusClient:
             return response.json()
         except httpx.HTTPError as exc:
             logger.error("Cleanup error: %s", exc)
+            raise RuntimeError(str(exc)) from exc
+
+    async def cleanup_image_session(self, session_id: str) -> Dict[str, Any]:
+        """Clean up an image session."""
+        try:
+            response = await self.async_client.post(
+                urljoin(self.server_url, "/cleanup/image"),
+                json={"session_id": session_id},
+            )
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as exc:
+            logger.error("Image session cleanup error: %s", exc)
+            raise RuntimeError(str(exc)) from exc
+
+    async def cleanup_audio_session(self, session_id: str) -> Dict[str, Any]:
+        """Clean up an audio session."""
+        try:
+            response = await self.async_client.post(
+                urljoin(self.server_url, "/cleanup/audio"),
+                json={"session_id": session_id},
+            )
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as exc:
+            logger.error("Audio session cleanup error: %s", exc)
             raise RuntimeError(str(exc)) from exc
 
     async def close(self) -> None:

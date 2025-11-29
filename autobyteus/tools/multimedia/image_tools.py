@@ -72,9 +72,13 @@ class GenerateImageTool(BaseTool):
     @classmethod
     def get_description(cls) -> str:
         return (
-            "Generates one or more images based on a textual description (prompt) using the system's default image model. "
-            "Can optionally accept reference images to influence the style or content. "
-            "Returns a list of URLs to the generated images upon success."
+            "Generates one or more images based on a textual description (prompt). "
+            "This versatile tool handles both creation from scratch and modification of existing images. "
+            "If 'input_image_urls' are provided, it serves as a powerful editing and variation engine. "
+            "Use cases include: modifying scene elements (e.g., 'add a cat to the sofa'), "
+            "style transfer (e.g., 'turn this photo into an oil painting'), generating variations of a design, "
+            "or preserving a specific composition or background while changing the subject. "
+            "Returns a list of URLs to the generated images."
         )
 
     @classmethod
@@ -141,7 +145,7 @@ class EditImageTool(BaseTool):
     @classmethod
     def get_description(cls) -> str:
         return (
-            "Edits an existing image based on a textual description (prompt) using the system's default image model. "
+            "Edits an existing image based on a textual description (prompt)"
             "A mask can be provided to specify the exact area to edit (inpainting). "
             "Returns a list of URLs to the edited images."
         )

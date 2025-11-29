@@ -1,4 +1,5 @@
 import logging
+import uuid
 from typing import Optional, List, Dict, Any, TYPE_CHECKING
 from autobyteus.clients import AutobyteusClient
 from autobyteus.multimedia.image.base_image_client import BaseImageClient
@@ -13,6 +14,7 @@ logger = logging.getLogger(__name__)
 class AutobyteusImageClient(BaseImageClient):
     """
     An image client that connects to an Autobyteus LLM server instance for image tasks.
+    Maintains a persistent session ID for stateful interactions (e.g. conversational editing).
     """
 
     def __init__(self, model: "ImageModel", config: "MultimediaConfig"):
@@ -21,7 +23,9 @@ class AutobyteusImageClient(BaseImageClient):
             raise ValueError("AutobyteusImageClient requires a host_url in its ImageModel.")
         
         self.autobyteus_client = AutobyteusClient(server_url=model.host_url)
-        logger.info(f"AutobyteusImageClient initialized for model '{self.model.name}' on host '{model.host_url}'.")
+        self.session_id = str(uuid.uuid4())
+        logger.info(f"AutobyteusImageClient initialized for model '{self.model.name}' "
+                    f"on host '{model.host_url}' with session_id '{self.session_id}'.")
 
     async def generate_image(
         self,
@@ -72,7 +76,7 @@ class AutobyteusImageClient(BaseImageClient):
     ) -> ImageGenerationResponse:
         """Internal helper to call the remote server."""
         try:
-            logger.info(f"Sending image generation request for model '{self.model.name}' to {self.model.host_url}")
+            logger.info(f"Sending image generation request for model '{self.model.name}' to {self.model.host_url} (Session: {self.session_id})")
             
             # The model name for the remote server is the `value`, not the unique `model_identifier`
             model_name_for_server = self.model.name
@@ -84,7 +88,8 @@ class AutobyteusImageClient(BaseImageClient):
                 prompt=prompt,
                 input_image_urls=input_image_urls,
                 mask_url=mask_url,
-                generation_config=generation_config
+                generation_config=generation_config,
+                session_id=self.session_id
             )
             
             image_urls = response_data.get("image_urls", [])
@@ -98,7 +103,16 @@ class AutobyteusImageClient(BaseImageClient):
             raise
 
     async def cleanup(self):
-        """Closes the underlying AutobyteusClient."""
+        """
+        Notifies the server to cleanup the session, then closes the underlying HTTP client.
+        """
         if self.autobyteus_client:
-            await self.autobyteus_client.close()
+            try:
+                logger.info(f"Notifying server to cleanup image session '{self.session_id}'...")
+                await self.autobyteus_client.cleanup_image_session(self.session_id)
+            except Exception as e:
+                logger.error(f"Failed to cleanup remote image session '{self.session_id}': {e}")
+            finally:
+                await self.autobyteus_client.close()
+        
         logger.debug("AutobyteusImageClient cleaned up.")
