@@ -38,7 +38,8 @@ class ToolDefinition:
                  config_schema_provider: Callable[[], Optional['ParameterSchema']],
                  tool_class: Optional[Type['BaseTool']] = None,
                  custom_factory: Optional[Callable[['ToolConfig'], 'BaseTool']] = None,
-                 metadata: Optional[Dict[str, Any]] = None):
+                 metadata: Optional[Dict[str, Any]] = None,
+                 description_provider: Optional[Callable[[], str]] = None):
         """
         Initializes the ToolDefinition.
         """
@@ -69,6 +70,19 @@ class ToolDefinition:
             raise ValueError(f"ToolDefinition '{name}' with origin MCP must provide a 'mcp_server_id' in its metadata.")
 
         self._name = name
+        # Prefer an explicit description provider, otherwise derive one from the tool class when available.
+        if description_provider is not None and not callable(description_provider):
+            raise TypeError(f"ToolDefinition '{name}' requires a callable for 'description_provider' if provided.")
+
+        if description_provider:
+            self._description_provider = description_provider
+        elif tool_class is not None and hasattr(tool_class, "get_description") and callable(getattr(tool_class, "get_description")):
+            # Use the tool class' get_description as a dynamic provider by default.
+            self._description_provider = tool_class.get_description
+        else:
+            # Fall back to a static description provider.
+            self._description_provider = lambda: description
+
         self._description = description
         self._tool_class = tool_class
         self._custom_factory = custom_factory
@@ -136,15 +150,42 @@ class ToolDefinition:
     def reload_cached_schema(self) -> None:
         """
         Actively re-generates the schemas from their providers and updates the cache.
-        This is an eager operation.
+        Also refreshes the description if a provider is available. This is an eager operation.
         """
         logger.info(f"Eagerly reloading schema cache for tool '{self.name}'.")
+        self._reload_description()
         self._cached_argument_schema = _CACHE_NOT_SET
         self._cached_config_schema = _CACHE_NOT_SET
         # The schemas will be regenerated on the next property access.
         # To make it fully eager, we can trigger the access here.
         _ = self.argument_schema
         _ = self.config_schema
+
+    def _reload_description(self) -> None:
+        """
+        Refreshes the cached description using the provider if available.
+        """
+        if not self._description_provider:
+            return
+        try:
+            new_description = self._description_provider()
+            if isinstance(new_description, str) and new_description:
+                if new_description != self._description:
+                    logger.info(
+                        f"Description for tool '{self.name}' updated during reload."
+                    )
+                self._description = new_description
+            else:
+                logger.warning(
+                    f"Description provider for tool '{self.name}' returned an invalid value. "
+                    "Keeping existing description."
+                )
+        except Exception as exc:
+            logger.warning(
+                f"Failed to refresh description for tool '{self.name}' during reload: {exc}. "
+                "Keeping existing description.",
+                exc_info=True
+            )
     
     # --- Convenience Schema/Example Generation API (using default formatters) ---
     def get_usage_xml(self, provider: Optional[LLMProvider] = None) -> str:

@@ -52,7 +52,8 @@ class ImageClientFactory(metaclass=SingletonMeta):
             value="gpt-image-1",
             provider=MultimediaProvider.OPENAI,
             client_class=OpenAIImageClient,
-            parameter_schema=gpt_image_1_schema
+            parameter_schema=gpt_image_1_schema,
+            description="A high-quality stateless model. It does not retain conversation history. Each prompt must be a complete description of the desired image."
         )
 
         # Google Imagen Models (via Gemini API)
@@ -61,7 +62,8 @@ class ImageClientFactory(metaclass=SingletonMeta):
             value="imagen-4.0-generate-001",
             provider=MultimediaProvider.GOOGLE,
             client_class=GeminiImageClient,
-            parameter_schema=None # The genai library doesn't expose these as simple params
+            parameter_schema=None, # The genai library doesn't expose these as simple params
+            description="A high-fidelity stateless model. Requires full descriptive prompts for each request."
         )
 
         # Google Gemini Flash Image Model (aka "Nano Banana")
@@ -70,7 +72,8 @@ class ImageClientFactory(metaclass=SingletonMeta):
             value="gemini-2.5-flash-image-preview",
             provider=MultimediaProvider.GOOGLE,
             client_class=GeminiImageClient,
-            parameter_schema=None # Parameters are not exposed for this model via the genai library.
+            parameter_schema=None, # Parameters are not exposed for this model via the genai library.
+            description="A fast, conversational multimodal model. While it generates images, it operates in a stateless mode via this API, requiring complete prompts."
         )
 
         models_to_register = [

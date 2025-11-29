@@ -50,7 +50,8 @@ class ImageModel(metaclass=ImageModelMeta):
         client_class: Type["BaseImageClient"],
         parameter_schema: Optional[Union[Dict[str, Any], ParameterSchema]] = None,
         runtime: MultimediaRuntime = MultimediaRuntime.API,
-        host_url: Optional[str] = None
+        host_url: Optional[str] = None,
+        description: Optional[str] = None
     ):
         self.name = name
         self.value = value
@@ -58,6 +59,7 @@ class ImageModel(metaclass=ImageModelMeta):
         self.client_class = client_class
         self.runtime = runtime
         self.host_url = host_url
+        self.description = description
         
         if isinstance(parameter_schema, dict):
             self.parameter_schema = ParameterSchema.from_dict(parameter_schema)

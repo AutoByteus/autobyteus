@@ -217,6 +217,11 @@ def tool(
         
         final_arg_schema = argument_schema if argument_schema is not None else gen_arg_schema
 
+        def _current_description() -> str:
+            """Recompute the description from the latest docstring/override."""
+            latest_doc = inspect.getdoc(func)
+            return description or (latest_doc.split('\n\n')[0] if latest_doc else f"Functional tool: {tool_name}")
+
         def factory(inst_config: Optional[ToolConfig] = None) -> FunctionalTool:
             return FunctionalTool(
                 original_func=func,
@@ -239,7 +244,8 @@ def tool(
             custom_factory=factory,
             tool_class=None,
             origin=ToolOrigin.LOCAL,
-            category=category
+            category=category,
+            description_provider=_current_description
         )
         default_tool_registry.register_tool(tool_def)
         

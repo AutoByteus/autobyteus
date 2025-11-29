@@ -54,6 +54,30 @@ def test_reload_cached_schema_eagerly_regenerates(sample_tool_def: ToolDefinitio
     _ = sample_tool_def.argument_schema
     assert mock_schema_provider.call_count == 2
 
+def test_reload_cached_schema_refreshes_description():
+    """Tests that reloading also refreshes the description when a provider is available."""
+    schema_provider = MagicMock(return_value=ParameterSchema())
+    description_provider = MagicMock(return_value="New description")
+
+    tool_def = ToolDefinition(
+        name="DescReloadTool",
+        description="Old description",
+        origin=ToolOrigin.LOCAL,
+        category=ToolCategory.GENERAL,
+        argument_schema_provider=schema_provider,
+        config_schema_provider=lambda: None,
+        tool_class=MagicMock,  # Still need a class or factory
+        description_provider=description_provider
+    )
+
+    assert tool_def.description == "Old description"
+
+    tool_def.reload_cached_schema()
+
+    assert tool_def.description == "New description"
+    # Provider should have been called during reload.
+    description_provider.assert_called_once()
+
 def test_get_usage_xml(sample_tool_def: ToolDefinition):
     """Tests the on-demand XML schema generation."""
     with patch('autobyteus.tools.registry.tool_definition.DefaultXmlSchemaFormatter') as MockFormatter:

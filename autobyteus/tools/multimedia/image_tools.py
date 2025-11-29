@@ -53,6 +53,22 @@ def _build_dynamic_image_schema(base_params: List[ParameterDefinition], model_en
     return schema
 
 
+def _get_model_description_suffix(model_env_var: str, default_model: str) -> str:
+    """
+    Fetches the configured model's specific description suffix, if available.
+    """
+    try:
+        model_identifier = _get_configured_model_identifier(model_env_var, default_model)
+        ImageClientFactory.ensure_initialized()
+        model = ImageModel[model_identifier]
+        if model.description:
+            return f"\n\n**MODEL SPECIFIC CAPABILITIES:** {model.description}"
+    except Exception:
+        # Fail gracefully if model lookup fails; rely on base tool description
+        pass
+    return ""
+
+
 class GenerateImageTool(BaseTool):
     """
     An agent tool for generating images from a text prompt using a pre-configured model.
@@ -71,7 +87,7 @@ class GenerateImageTool(BaseTool):
 
     @classmethod
     def get_description(cls) -> str:
-        return (
+        base_desc = (
             "Generates one or more images based on a textual description (prompt). "
             "This versatile tool handles both creation from scratch and modification of existing images. "
             "If 'input_image_urls' are provided, it serves as a powerful editing and variation engine. "
@@ -80,6 +96,8 @@ class GenerateImageTool(BaseTool):
             "or preserving a specific composition or background while changing the subject. "
             "Returns a list of URLs to the generated images."
         )
+        suffix = _get_model_description_suffix(cls.MODEL_ENV_VAR, cls.DEFAULT_MODEL)
+        return f"{base_desc}{suffix}"
 
     @classmethod
     def get_argument_schema(cls) -> Optional[ParameterSchema]:
@@ -144,11 +162,13 @@ class EditImageTool(BaseTool):
 
     @classmethod
     def get_description(cls) -> str:
-        return (
+        base_desc = (
             "Edits an existing image based on a textual description (prompt)"
             "A mask can be provided to specify the exact area to edit (inpainting). "
             "Returns a list of URLs to the edited images."
         )
+        suffix = _get_model_description_suffix(cls.MODEL_ENV_VAR, cls.DEFAULT_MODEL)
+        return f"{base_desc}{suffix}"
 
     @classmethod
     def get_argument_schema(cls) -> Optional[ParameterSchema]:

@@ -71,6 +71,18 @@ class DummyFactoryTool(BaseTool):
     def get_argument_schema(cls) -> Optional[ParameterSchema]: return None
     async def _execute(self, context: Any, **kwargs) -> Any: return f"created from {self.source}"
 
+class DynamicDescriptionTool(BaseTool):
+    """A tool whose description can change at runtime."""
+    desc_text = "Initial description"
+
+    @classmethod
+    def get_name(cls) -> str: return "DynamicDescriptionTool"
+    @classmethod
+    def get_description(cls) -> str: return cls.desc_text
+    @classmethod
+    def get_argument_schema(cls) -> Optional[ParameterSchema]: return None
+    async def _execute(self, context: Any, **kwargs) -> Any: return self.desc_text
+
 def dummy_factory(config: Optional[ToolConfig] = None) -> DummyFactoryTool:
     """Factory function for creating DummyFactoryTool."""
     source = "factory_default"
@@ -220,13 +232,51 @@ def test_reload_tool_schema():
     result_nonexistent = default_tool_registry.reload_tool_schema("nonexistent")
     assert result_nonexistent is False
 
+def test_reload_tool_schema_updates_description():
+    """Tests that reload_tool_schema also refreshes a tool's description."""
+    DynamicDescriptionTool.desc_text = "Initial description"
+    tool_def = ToolDefinition(
+        name=DynamicDescriptionTool.get_name(),
+        description=DynamicDescriptionTool.get_description(),
+        argument_schema_provider=lambda: None,
+        config_schema_provider=lambda: None,
+        tool_class=DynamicDescriptionTool,
+        origin=ToolOrigin.LOCAL,
+        category=ToolCategory.GENERAL,
+    )
+    default_tool_registry.register_tool(tool_def)
+
+    assert tool_def.description == "Initial description"
+
+    # Mutate the class-level description and reload.
+    DynamicDescriptionTool.desc_text = "Updated description"
+    default_tool_registry.reload_tool_schema(DynamicDescriptionTool.get_name())
+
+    assert tool_def.description == "Updated description"
+
 def test_reload_all_tool_schemas():
     """Tests eagerly reloading schemas for all registered tools."""
     mock_provider1 = MagicMock(return_value=ParameterSchema())
     mock_provider2 = MagicMock(return_value=ParameterSchema())
     
-    tool_def1 = ToolDefinition("Tool1", "d1", ToolOrigin.LOCAL, ToolCategory.GENERAL, mock_provider1, lambda: None, tool_class=DummyToolNoConfig)
-    tool_def2 = ToolDefinition("Tool2", "d2", ToolOrigin.LOCAL, ToolCategory.GENERAL, mock_provider2, lambda: None, tool_class=DummyToolNoConfig)
+    tool_def1 = ToolDefinition(
+        name="Tool1",
+        description="d1",
+        origin=ToolOrigin.LOCAL,
+        category=ToolCategory.GENERAL,
+        argument_schema_provider=mock_provider1,
+        config_schema_provider=lambda: None,
+        tool_class=DummyToolNoConfig
+    )
+    tool_def2 = ToolDefinition(
+        name="Tool2",
+        description="d2",
+        origin=ToolOrigin.LOCAL,
+        category=ToolCategory.GENERAL,
+        argument_schema_provider=mock_provider2,
+        config_schema_provider=lambda: None,
+        tool_class=DummyToolNoConfig
+    )
     
     default_tool_registry.register_tool(tool_def1)
     default_tool_registry.register_tool(tool_def2)

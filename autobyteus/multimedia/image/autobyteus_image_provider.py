@@ -86,7 +86,8 @@ class AutobyteusImageModelProvider:
                             client_class=AutobyteusImageClient,
                             runtime=MultimediaRuntime.AUTOBYTEUS,
                             host_url=host_url,
-                            parameter_schema=model_info.get("parameter_schema")
+                            parameter_schema=model_info.get("parameter_schema"),
+                            description=model_info.get("description")
                         )
                         
                         ImageClientFactory.register_model(image_model)
