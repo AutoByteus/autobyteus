@@ -10,6 +10,7 @@ from .anthropic_xml_tool_usage_parser import AnthropicXmlToolUsageParser
 from .default_json_tool_usage_parser import DefaultJsonToolUsageParser
 from .openai_json_tool_usage_parser import OpenAiJsonToolUsageParser
 from .gemini_json_tool_usage_parser import GeminiJsonToolUsageParser
+from .filesystem_module_usage_parser import FilesystemModuleUsageParser
 
 __all__ = [
     "BaseToolUsageParser",
@@ -19,4 +20,5 @@ __all__ = [
     "DefaultJsonToolUsageParser",
     "OpenAiJsonToolUsageParser",
     "GeminiJsonToolUsageParser",
+    "FilesystemModuleUsageParser",
 ]
