@@ -1,6 +1,6 @@
 import os
 import logging
-from typing import Optional, List
+from typing import Optional, List, Dict, Tuple
 
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
@@ -9,6 +9,49 @@ from autobyteus.multimedia.image import image_client_factory, ImageModel, ImageC
 from autobyteus.multimedia.image.base_image_client import BaseImageClient
 
 logger = logging.getLogger(__name__)
+
+
+class _SharedImageClientManager:
+    """
+    Internal manager to share image client instances between tools (e.g., Generate and Edit)
+    WITHIN the same agent instance.
+    
+    It keys clients by (agent_id, model_identifier). This ensures that:
+    1. Multiple tools (Generate/Edit) used by Agent A share the same client (preserving session/context).
+    2. Agent B gets a completely separate client instance, preventing state leakage between agents.
+    """
+    # Key: (agent_id, model_identifier) -> Client Instance
+    _clients: Dict[Tuple[str, str], BaseImageClient] = {}
+    # Key: (agent_id, model_identifier) -> Reference Count
+    _ref_counts: Dict[Tuple[str, str], int] = {}
+
+    @classmethod
+    def get_client(cls, agent_id: str, model_identifier: str) -> BaseImageClient:
+        key = (agent_id, model_identifier)
+        
+        if key not in cls._clients:
+            logger.info(f"SharedImageClientManager: Creating new client for model '{model_identifier}' scoped to agent '{agent_id}'.")
+            cls._clients[key] = image_client_factory.create_image_client(model_identifier=model_identifier)
+            cls._ref_counts[key] = 0
+        
+        cls._ref_counts[key] += 1
+        logger.debug(f"SharedImageClientManager: Client for '{model_identifier}' (Agent: {agent_id}) ref count incremented to {cls._ref_counts[key]}")
+        return cls._clients[key]
+
+    @classmethod
+    async def release_client(cls, agent_id: str, model_identifier: str) -> None:
+        key = (agent_id, model_identifier)
+        
+        if key in cls._ref_counts:
+            cls._ref_counts[key] -= 1
+            logger.debug(f"SharedImageClientManager: Client for '{model_identifier}' (Agent: {agent_id}) ref count decremented to {cls._ref_counts[key]}")
+            
+            if cls._ref_counts[key] <= 0:
+                logger.info(f"SharedImageClientManager: Cleaning up client for '{model_identifier}' (Agent: {agent_id})")
+                client = cls._clients.pop(key, None)
+                del cls._ref_counts[key]
+                if client:
+                    await client.cleanup()
 
 
 def _get_configured_model_identifier(env_var: str, default_model: Optional[str] = None) -> str:
@@ -80,6 +123,7 @@ class GenerateImageTool(BaseTool):
     def __init__(self, config=None):
         super().__init__(config)
         self._client: Optional[BaseImageClient] = None
+        self._model_identifier: Optional[str] = None
 
     @classmethod
     def get_name(cls) -> str:
@@ -91,9 +135,9 @@ class GenerateImageTool(BaseTool):
             "Generates one or more images based on a textual description (prompt). "
             "This versatile tool handles both creation from scratch and modification of existing images. "
             "If 'input_image_urls' are provided, it serves as a powerful editing and variation engine. "
-            "Use cases include: modifying scene elements (e.g., 'add a cat to the sofa'), "
+            "Use cases include: creating or editing posters, modifying scene elements (e.g., 'add a cat to the sofa'), "
             "style transfer (e.g., 'turn this photo into an oil painting'), generating variations of a design, "
-            "or preserving a specific composition or background while changing the subject. "
+            "or any imaging task requiring consistency with an input reference (e.g., preserving a specific composition or background while changing the subject). "
             "Returns a list of URLs to the generated images. "
             "Please refer to the specific capabilities of the configured model below to check if it supports "
             "input images for variations/editing."
@@ -120,15 +164,22 @@ class GenerateImageTool(BaseTool):
         return _build_dynamic_image_schema(base_params, cls.MODEL_ENV_VAR, cls.DEFAULT_MODEL)
 
     async def _execute(self, context, prompt: str, input_image_urls: Optional[str] = None, generation_config: Optional[dict] = None) -> List[str]:
-        model_identifier = _get_configured_model_identifier(self.MODEL_ENV_VAR, self.DEFAULT_MODEL)
-        logger.info(f"generate_image executing with configured model '{model_identifier}'.")
+        # 1. Resolve Model ID
+        if not self._model_identifier:
+             self._model_identifier = _get_configured_model_identifier(self.MODEL_ENV_VAR, self.DEFAULT_MODEL)
+
+        logger.info(f"generate_image executing with configured model '{self._model_identifier}' for agent '{context.agent_id}'.")
+        
+        # 2. Obtain Shared Client (Scoped to Agent ID)
+        if self._client is None:
+            self._client = _SharedImageClientManager.get_client(context.agent_id, self._model_identifier)
+
+        # 3. Process Inputs
         urls_list = None
         if input_image_urls:
             urls_list = [url.strip() for url in input_image_urls.split(',') if url.strip()]
 
-        if self._client is None:
-            self._client = image_client_factory.create_image_client(model_identifier=model_identifier)
-
+        # 4. Execute Generation
         response = await self._client.generate_image(
             prompt=prompt, 
             input_image_urls=urls_list,
@@ -141,8 +192,8 @@ class GenerateImageTool(BaseTool):
         return response.image_urls
 
     async def cleanup(self) -> None:
-        if self._client:
-            await self._client.cleanup()
+        if self._client and self._model_identifier and self.agent_id:
+            await _SharedImageClientManager.release_client(self.agent_id, self._model_identifier)
             self._client = None
 
 
@@ -157,6 +208,7 @@ class EditImageTool(BaseTool):
     def __init__(self, config=None):
         super().__init__(config)
         self._client: Optional[BaseImageClient] = None
+        self._model_identifier: Optional[str] = None
 
     @classmethod
     def get_name(cls) -> str:
@@ -184,28 +236,49 @@ class EditImageTool(BaseTool):
             ParameterDefinition(
                 name="input_image_urls",
                 param_type=ParameterType.STRING,
-                description="A comma-separated string of URLs to the source images that need to be edited. Some models may only use the first URL.",
-                required=True
+                description=(
+                    "A comma-separated string of URLs to the source images to be edited. Logic for providing this:\n"
+                    "1. **Has Context & Image IN Context:** OMIT this. (e.g., conversational model editing its own recent output).\n"
+                    "2. **Has Context & Image NOT in Context:** PROVIDE this. (e.g., conversational model editing a new file/download).\n"
+                    "3. **No Context & Supports Input:** PROVIDE this. (e.g., stateless model, must always see the image).\n"
+                    "4. **No Context & No Input Support:** OMIT this. (Feature unavailable)."
+                ),
+                required=False
             ),
             ParameterDefinition(
                 name="mask_image_url",
                 param_type=ParameterType.STRING,
-                description="Optional. A URL to a mask image (PNG). The transparent areas of this mask define where the input image should be edited.",
+                description=(
+                    "Optional. A URL to a mask image (PNG) for 'inpainting'. "
+                    "In a mask, transparent areas define where the AI should regenerate content based on the prompt, "
+                    "while opaque areas remain protected and unchanged. "
+                    "Use this to target specific objects (e.g., 'replace the dog') without altering the background."
+                ),
                 required=False
             )
         ]
         return _build_dynamic_image_schema(base_params, cls.MODEL_ENV_VAR, cls.DEFAULT_MODEL)
 
-    async def _execute(self, context, prompt: str, input_image_urls: str, generation_config: Optional[dict] = None, mask_image_url: Optional[str] = None) -> List[str]:
-        model_identifier = _get_configured_model_identifier(self.MODEL_ENV_VAR, self.DEFAULT_MODEL)
-        logger.info(f"edit_image executing with configured model '{model_identifier}'.")
-        urls_list = [url.strip() for url in input_image_urls.split(',') if url.strip()]
-        if not urls_list:
-            raise ValueError("The 'input_image_urls' parameter cannot be empty.")
+    async def _execute(self, context, prompt: str, input_image_urls: Optional[str] = None, generation_config: Optional[dict] = None, mask_image_url: Optional[str] = None) -> List[str]:
+        # 1. Resolve Model ID
+        if not self._model_identifier:
+            self._model_identifier = _get_configured_model_identifier(self.MODEL_ENV_VAR, self.DEFAULT_MODEL)
 
+        logger.info(f"edit_image executing with configured model '{self._model_identifier}' for agent '{context.agent_id}'.")
+
+        # 2. Obtain Shared Client (Scoped to Agent ID)
         if self._client is None:
-            self._client = image_client_factory.create_image_client(model_identifier=model_identifier)
+            self._client = _SharedImageClientManager.get_client(context.agent_id, self._model_identifier)
 
+        # 3. Process Inputs
+        urls_list = []
+        if input_image_urls:
+             urls_list = [url.strip() for url in input_image_urls.split(',') if url.strip()]
+        
+        # 4. Execute Edit
+        # Note: If urls_list is empty, we still call edit_image.
+        # Conversational clients will interpret this as a text-only follow-up.
+        # Stateless API clients may throw an error if they enforce input images, which is expected behavior.
         response = await self._client.edit_image(
             prompt=prompt,
             input_image_urls=urls_list,
@@ -219,6 +292,6 @@ class EditImageTool(BaseTool):
         return response.image_urls
 
     async def cleanup(self) -> None:
-        if self._client:
-            await self._client.cleanup()
+        if self._client and self._model_identifier and self.agent_id:
+            await _SharedImageClientManager.release_client(self.agent_id, self._model_identifier)
             self._client = None

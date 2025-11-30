@@ -53,7 +53,12 @@ class ImageClientFactory(metaclass=SingletonMeta):
             provider=MultimediaProvider.OPENAI,
             client_class=OpenAIImageClient,
             parameter_schema=gpt_image_1_schema,
-            description="A high-quality stateless model. It does not retain conversation history. Each prompt must be a complete description of the desired image. Note: For API clients, input image support depends on specific endpoints."
+            description=(
+                "A **stateless (single-turn)** model. "
+                "It uses the standard API which does NOT retain conversation history. "
+                "**Supports input images for EDITING only** (requires a mask for inpainting). "
+                "Does **NOT** support input images for initial text-to-image generation."
+            )
         )
 
         # Google Imagen Models (via Gemini API)
@@ -63,7 +68,11 @@ class ImageClientFactory(metaclass=SingletonMeta):
             provider=MultimediaProvider.GOOGLE,
             client_class=GeminiImageClient,
             parameter_schema=None, # The genai library doesn't expose these as simple params
-            description="A high-fidelity stateless model. Requires full descriptive prompts for each request. It does **not** support input images (text-to-image only)."
+            description=(
+                "A high-fidelity **stateless (single-turn)** model. "
+                "Does **NOT** support input images (text-to-image only). "
+                "Any provided input images will be ignored."
+            )
         )
 
         # Google Gemini Flash Image Model (aka "Nano Banana")
@@ -73,7 +82,11 @@ class ImageClientFactory(metaclass=SingletonMeta):
             provider=MultimediaProvider.GOOGLE,
             client_class=GeminiImageClient,
             parameter_schema=None, # Parameters are not exposed for this model via the genai library.
-            description="A fast, conversational multimodal model. While it generates images, it operates in a stateless mode via this API, requiring complete prompts. It **supports input images**."
+            description=(
+                "A fast, **conversational (multi-turn)** multimodal model. "
+                "It supports context retention, allowing edits to previous images without re-uploading. "
+                "It also **supports input images** for new generations or edits."
+            )
         )
 
         models_to_register = [
