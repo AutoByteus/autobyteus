@@ -94,7 +94,9 @@ class GenerateImageTool(BaseTool):
             "Use cases include: modifying scene elements (e.g., 'add a cat to the sofa'), "
             "style transfer (e.g., 'turn this photo into an oil painting'), generating variations of a design, "
             "or preserving a specific composition or background while changing the subject. "
-            "Returns a list of URLs to the generated images."
+            "Returns a list of URLs to the generated images. "
+            "Please refer to the specific capabilities of the configured model below to check if it supports "
+            "input images for variations/editing."
         )
         suffix = _get_model_description_suffix(cls.MODEL_ENV_VAR, cls.DEFAULT_MODEL)
         return f"{base_desc}{suffix}"
