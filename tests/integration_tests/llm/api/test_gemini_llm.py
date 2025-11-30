@@ -1,5 +1,4 @@
 import pytest
-import asyncio
 import os
 from autobyteus.llm.api.gemini_llm import GeminiLLM
 from autobyteus.llm.models import LLMModel
@@ -8,17 +7,45 @@ from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.user_message import LLMUserMessage
 
+PLACEHOLDER_VALUES = {
+    "YOUR_GEMINI_API_KEY",
+    "YOUR_VERTEX_AI_PROJECT",
+    "YOUR_VERTEX_AI_LOCATION",
+}
+
+
+def _is_missing(value: str) -> bool:
+    return not value or value in PLACEHOLDER_VALUES
+
 @pytest.fixture
 def set_gemini_env(monkeypatch):
-    monkeypatch.setenv("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", "YOUR_GEMINI_API_KEY"))
+    """Ensure credentials are present for either Vertex AI or API-key mode.
+
+    Priority matches initialize_gemini_client(): Vertex first, then API key.
+    Skips the test suite cleanly if nothing usable is configured (via .env.test).
+    """
+
+    vertex_project = os.getenv("VERTEX_AI_PROJECT")
+    vertex_location = os.getenv("VERTEX_AI_LOCATION")
+    api_key = os.getenv("GEMINI_API_KEY")
+
+    if not _is_missing(vertex_project) and not _is_missing(vertex_location):
+        monkeypatch.setenv("VERTEX_AI_PROJECT", vertex_project)
+        monkeypatch.setenv("VERTEX_AI_LOCATION", vertex_location)
+        return "vertex"
+
+    if not _is_missing(api_key):
+        monkeypatch.setenv("GEMINI_API_KEY", api_key)
+        return "api_key"
+
+    pytest.skip(
+        "Gemini credentials not set. Provide VERTEX_AI_PROJECT & VERTEX_AI_LOCATION "
+        "for Vertex AI or GEMINI_API_KEY for API-key mode in .env.test"
+    )
 
 @pytest.fixture
 def gemini_llm(set_gemini_env):
-    gemini_api_key = os.getenv("GEMINI_API_KEY")
-    if not gemini_api_key or gemini_api_key == "YOUR_GEMINI_API_KEY":
-        pytest.skip("Gemini API key not set. Skipping GeminiLLM tests.")
-    
-    return GeminiLLM(model=LLMModel['gemini-2.5-flash'], llm_config=LLMConfig())
+    return GeminiLLM(model=LLMModel['gemini-2.5-pro'], llm_config=LLMConfig())
 
 @pytest.mark.asyncio
 async def test_gemini_llm_response(gemini_llm):

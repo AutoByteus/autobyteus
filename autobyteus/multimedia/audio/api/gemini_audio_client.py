@@ -9,6 +9,7 @@ from google.genai import types as genai_types
 
 from autobyteus.multimedia.audio.base_audio_client import BaseAudioClient
 from autobyteus.multimedia.utils.response_types import SpeechGenerationResponse
+from autobyteus.utils.gemini_helper import initialize_gemini_client
 
 if TYPE_CHECKING:
     from autobyteus.multimedia.audio.audio_model import AudioModel
@@ -41,17 +42,15 @@ class GeminiAudioClient(BaseAudioClient):
     An audio client that uses Google's Gemini models for audio tasks.
 
     **Setup Requirements:**
-    1.  **Authentication:** Set the `GEMINI_API_KEY` environment variable with your API key.
+    1.  **AI Studio Mode:** Set `GEMINI_API_KEY`.
+    2.  **Vertex AI Mode:** Set `VERTEX_AI_PROJECT` and `VERTEX_AI_LOCATION`.
     """
 
     def __init__(self, model: "AudioModel", config: "MultimediaConfig"):
         super().__init__(model, config)
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError("Please set the GEMINI_API_KEY environment variable.")
-
+        
         try:
-            self.client = genai.Client()
+            self.client = initialize_gemini_client()
             self.async_client = self.client.aio
             logger.info(f"GeminiAudioClient initialized for model '{self.model.name}'.")
         except Exception as e:
@@ -126,6 +125,7 @@ class GeminiAudioClient(BaseAudioClient):
                 )
 
             # The google-genai library's TTS endpoint uses a synchronous call.
+            # FIX: Ensure no 'models/' prefix is used here.
             resp = self.client.models.generate_content(
                 model=self.model.value,
                 contents=final_prompt,

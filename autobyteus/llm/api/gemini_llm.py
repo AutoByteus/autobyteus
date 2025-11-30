@@ -10,6 +10,7 @@ from autobyteus.llm.utils.messages import MessageRole, Message
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 from autobyteus.llm.user_message import LLMUserMessage
+from autobyteus.utils.gemini_helper import initialize_gemini_client
 
 logger = logging.getLogger(__name__)
 
@@ -37,20 +38,14 @@ class GeminiLLM(BaseLLM):
             llm_config = LLMConfig()
             
         super().__init__(model=model, llm_config=llm_config)
-        self.client = self.initialize()
-        self.async_client = self.client.aio
-
-    @classmethod
-    def initialize(cls) -> genai.client.Client:
-        api_key = os.environ.get("GEMINI_API_KEY")
-        if not api_key:
-            logger.error("GEMINI_API_KEY environment variable is not set.")
-            raise ValueError("GEMINI_API_KEY environment variable is not set.")
+        
         try:
-            return genai.Client()
+            self.client = initialize_gemini_client()
+            self.async_client = self.client.aio
         except Exception as e:
-            logger.error(f"Failed to initialize Gemini client: {str(e)}")
-            raise ValueError(f"Failed to initialize Gemini client: {str(e)}")
+            # Re-raise or handle initialization errors specifically for the LLM context if needed
+            logger.error(f"Failed to initialize Gemini LLM: {str(e)}")
+            raise
 
     def _get_generation_config(self) -> genai_types.GenerateContentConfig:
         """Builds the generation config, handling special cases like 'thinking'."""
@@ -76,8 +71,9 @@ class GeminiLLM(BaseLLM):
             history = _format_gemini_history(self.messages)
             generation_config = self._get_generation_config()
 
+            # FIX: Removed 'models/' prefix to support Vertex AI
             response = await self.async_client.models.generate_content(
-                model=f"models/{self.model.value}",
+                model=self.model.value,
                 contents=history,
                 config=generation_config,
             )
@@ -107,8 +103,9 @@ class GeminiLLM(BaseLLM):
             history = _format_gemini_history(self.messages)
             generation_config = self._get_generation_config()
 
+            # FIX: Removed 'models/' prefix to support Vertex AI
             response_stream = await self.async_client.models.generate_content_stream(
-                model=f"models/{self.model.value}",
+                model=self.model.value,
                 contents=history,
                 config=generation_config,
             )

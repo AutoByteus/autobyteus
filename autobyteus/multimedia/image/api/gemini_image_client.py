@@ -9,6 +9,7 @@ import requests
 from autobyteus.multimedia.image.base_image_client import BaseImageClient
 from autobyteus.multimedia.utils.response_types import ImageGenerationResponse
 from autobyteus.multimedia.utils.api_utils import load_image_from_url
+from autobyteus.utils.gemini_helper import initialize_gemini_client
 
 if TYPE_CHECKING:
     from autobyteus.multimedia.image.image_model import ImageModel
@@ -21,17 +22,15 @@ class GeminiImageClient(BaseImageClient):
     An image client that uses Google's Gemini models for image generation tasks.
 
     **Setup Requirements:**
-    1.  **Authentication:** Set the `GEMINI_API_KEY` environment variable with your API key.
+    1.  **AI Studio Mode:** Set `GEMINI_API_KEY`.
+    2.  **Vertex AI Mode:** Set `VERTEX_AI_PROJECT` and `VERTEX_AI_LOCATION`.
     """
 
     def __init__(self, model: "ImageModel", config: "MultimediaConfig"):
         super().__init__(model, config)
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError("Please set the GEMINI_API_KEY environment variable.")
         
         try:
-            self.client = genai.Client()
+            self.client = initialize_gemini_client()
             self.async_client = self.client.aio
             logger.info(f"GeminiImageClient initialized for model '{self.model.name}'.")
         except Exception as e:
@@ -63,7 +62,9 @@ class GeminiImageClient(BaseImageClient):
             # Note: The google-genai library uses the synchronous client for the `.generate_content` method on a model
             # even in an async context, as there isn't a direct async equivalent exposed for this specific call on the model object.
             # We use the top-level async client for other potential future calls if the library API changes.
-            model_instance = self.client.get_generative_model(model_name=f"models/{self.model.value}")
+            
+            # FIX: Removed 'models/' prefix from model_name to support Vertex AI
+            model_instance = self.client.get_generative_model(model_name=self.model.value)
             response = await model_instance.generate_content_async(contents=content)
 
 
