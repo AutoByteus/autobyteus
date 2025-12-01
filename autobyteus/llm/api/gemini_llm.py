@@ -10,7 +10,8 @@ from autobyteus.llm.utils.messages import MessageRole, Message
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 from autobyteus.llm.user_message import LLMUserMessage
-from autobyteus.utils.gemini_helper import initialize_gemini_client
+from autobyteus.utils.gemini_helper import initialize_gemini_client_with_runtime
+from autobyteus.utils.gemini_model_mapping import resolve_model_for_runtime
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,7 @@ class GeminiLLM(BaseLLM):
         super().__init__(model=model, llm_config=llm_config)
         
         try:
-            self.client = initialize_gemini_client()
+            self.client, self.runtime_info = initialize_gemini_client_with_runtime()
             self.async_client = self.client.aio
         except Exception as e:
             # Re-raise or handle initialization errors specifically for the LLM context if needed
@@ -72,8 +73,13 @@ class GeminiLLM(BaseLLM):
             generation_config = self._get_generation_config()
 
             # FIX: Removed 'models/' prefix to support Vertex AI
+            runtime_adjusted_model = resolve_model_for_runtime(
+                self.model.value,
+                modality="llm",
+                runtime=getattr(self, "runtime_info", None) and self.runtime_info.runtime,
+            )
             response = await self.async_client.models.generate_content(
-                model=self.model.value,
+                model=runtime_adjusted_model,
                 contents=history,
                 config=generation_config,
             )
@@ -104,8 +110,13 @@ class GeminiLLM(BaseLLM):
             generation_config = self._get_generation_config()
 
             # FIX: Removed 'models/' prefix to support Vertex AI
+            runtime_adjusted_model = resolve_model_for_runtime(
+                self.model.value,
+                modality="llm",
+                runtime=getattr(self, "runtime_info", None) and self.runtime_info.runtime,
+            )
             response_stream = await self.async_client.models.generate_content_stream(
-                model=self.model.value,
+                model=runtime_adjusted_model,
                 contents=history,
                 config=generation_config,
             )

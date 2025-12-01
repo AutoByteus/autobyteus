@@ -28,9 +28,10 @@ class DownloadMediaTool(BaseTool):
     @classmethod
     def get_description(cls) -> str:
         return (
-            "Downloads various media files (e.g., images like PNG/JPG, documents like PDF, audio like MP3/WAV) "
-            "from a direct URL and saves them locally. It intelligently determines the correct file extension "
-            "based on the content type. Returns the absolute path to the downloaded file."
+            "Download a media file (image/PDF/audio/etc.) from a direct URL and save it locally. "
+            "The tool picks the correct file extension from the HTTP Content-Type header (or falls back to the URL). "
+            "Files are saved to the agent workspace if you give a relative folder (preferred), or to your default "
+            "Downloads directory when no folder is provided. Returns the absolute path of the saved file."
         )
 
     @classmethod
@@ -63,7 +64,20 @@ class DownloadMediaTool(BaseTool):
                 # Security: prevent path traversal attacks.
                 if ".." in folder:
                     raise ValueError("Security error: 'folder' path cannot contain '..'.")
-                destination_dir = os.path.abspath(folder)
+                if not os.path.isabs(folder):
+                    workspace = context.workspace
+                    # Prefer workspace base path when available to keep downloads inside the agent's sandbox.
+                    if workspace and hasattr(workspace, "get_base_path") and callable(getattr(workspace, "get_base_path")):
+                        base_path = os.path.abspath(workspace.get_base_path())
+                        destination_dir = os.path.abspath(os.path.join(base_path, folder))
+                        # Ensure resolved path stays within workspace
+                        if os.path.commonpath([base_path]) != os.path.commonpath([base_path, destination_dir]):
+                            raise ValueError(f"Security error: 'folder' resolves outside workspace: {destination_dir}")
+                    else:
+                        # Fallback: resolve relative folder under the default download directory
+                        destination_dir = os.path.abspath(os.path.join(get_default_download_folder(), folder))
+                else:
+                    destination_dir = os.path.abspath(folder)
             else:
                 destination_dir = get_default_download_folder()
             

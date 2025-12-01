@@ -9,7 +9,8 @@ from google.genai import types as genai_types
 
 from autobyteus.multimedia.audio.base_audio_client import BaseAudioClient
 from autobyteus.multimedia.utils.response_types import SpeechGenerationResponse
-from autobyteus.utils.gemini_helper import initialize_gemini_client
+from autobyteus.utils.gemini_helper import initialize_gemini_client_with_runtime
+from autobyteus.utils.gemini_model_mapping import resolve_model_for_runtime
 
 if TYPE_CHECKING:
     from autobyteus.multimedia.audio.audio_model import AudioModel
@@ -50,7 +51,7 @@ class GeminiAudioClient(BaseAudioClient):
         super().__init__(model, config)
         
         try:
-            self.client = initialize_gemini_client()
+            self.client, self.runtime_info = initialize_gemini_client_with_runtime()
             self.async_client = self.client.aio
             logger.info(f"GeminiAudioClient initialized for model '{self.model.name}'.")
         except Exception as e:
@@ -69,8 +70,6 @@ class GeminiAudioClient(BaseAudioClient):
         multi-speaker, and style-controlled generation.
         """
         try:
-            logger.info(f"Generating speech with Gemini TTS model '{self.model.value}'...")
-            
             final_config = self.config.to_dict().copy()
             if generation_config:
                 final_config.update(generation_config)
@@ -126,8 +125,18 @@ class GeminiAudioClient(BaseAudioClient):
 
             # The google-genai library's TTS endpoint uses a synchronous call.
             # FIX: Ensure no 'models/' prefix is used here.
+            runtime_adjusted_model = resolve_model_for_runtime(
+                self.model.value,
+                modality="tts",
+                runtime=getattr(self, "runtime_info", None) and self.runtime_info.runtime,
+            )
+            logger.info(
+                "Generating speech with Gemini TTS model '%s' (requested '%s').",
+                runtime_adjusted_model,
+                self.model.value,
+                )
             resp = self.client.models.generate_content(
-                model=self.model.value,
+                model=runtime_adjusted_model,
                 contents=final_prompt,
                 config=genai_types.GenerateContentConfig(
                     response_modalities=["AUDIO"],

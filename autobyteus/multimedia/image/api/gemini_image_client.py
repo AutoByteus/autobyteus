@@ -9,7 +9,8 @@ import requests
 from autobyteus.multimedia.image.base_image_client import BaseImageClient
 from autobyteus.multimedia.utils.response_types import ImageGenerationResponse
 from autobyteus.multimedia.utils.api_utils import load_image_from_url
-from autobyteus.utils.gemini_helper import initialize_gemini_client
+from autobyteus.utils.gemini_helper import initialize_gemini_client_with_runtime
+from autobyteus.utils.gemini_model_mapping import resolve_model_for_runtime
 
 if TYPE_CHECKING:
     from autobyteus.multimedia.image.image_model import ImageModel
@@ -30,7 +31,7 @@ class GeminiImageClient(BaseImageClient):
         super().__init__(model, config)
         
         try:
-            self.client = initialize_gemini_client()
+            self.client, self.runtime_info = initialize_gemini_client_with_runtime()
             self.async_client = self.client.aio
             logger.info(f"GeminiImageClient initialized for model '{self.model.name}'.")
         except Exception as e:
@@ -64,7 +65,18 @@ class GeminiImageClient(BaseImageClient):
             # We use the top-level async client for other potential future calls if the library API changes.
             
             # FIX: Removed 'models/' prefix from model_name to support Vertex AI
-            model_instance = self.client.get_generative_model(model_name=self.model.value)
+            runtime_adjusted_model = resolve_model_for_runtime(
+                self.model.value,
+                modality="image",
+                runtime=getattr(self, "runtime_info", None) and self.runtime_info.runtime,
+            )
+            if runtime_adjusted_model != self.model.value:
+                logger.info(
+                    "Using runtime-adjusted Gemini image model '%s' (requested '%s').",
+                    runtime_adjusted_model,
+                    self.model.value,
+                )
+            model_instance = self.client.get_generative_model(model_name=runtime_adjusted_model)
             response = await model_instance.generate_content_async(contents=content)
 
 

@@ -21,7 +21,7 @@ def _is_missing(value: str) -> bool:
 def set_gemini_env(monkeypatch):
     """Ensure credentials are present for either Vertex AI or API-key mode.
 
-    Priority matches initialize_gemini_client(): Vertex first, then API key.
+    Priority matches initialize_gemini_client_with_runtime(): Vertex first, then API key.
     Skips the test suite cleanly if nothing usable is configured (via .env.test).
     """
 
