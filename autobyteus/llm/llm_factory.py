@@ -52,28 +52,45 @@ class LLMFactory(metaclass=SingletonMeta):
         """Initializes the registry with built-in models and discovers runtime models."""
         # Hardcoded direct-API models. Runtime defaults to API.
         supported_models = [
-            # OPENAI Provider Models
+            # OPENAI Provider Models (latest generation only)
             LLMModel(
-                name="gpt-4o",
-                value="gpt-4o",
+                name="gpt-5.1",
+                value="gpt-5.1",
                 provider=LLMProvider.OPENAI,
                 llm_class=OpenAILLM,
-                canonical_name="gpt-4o",
+                canonical_name="gpt-5.1",
                 default_config=LLMConfig(
-                    rate_limit=40, 
-                    token_limit=8192,
-                    pricing_config=TokenPricingConfig(2.50, 10.00)
+                    pricing_config=TokenPricingConfig(1.25, 10.00)
                 )
             ),
             LLMModel(
-                name="gpt-5",
-                value="gpt-5",
+                name="gpt-5.1-chat-latest",
+                value="gpt-5.1-chat-latest",
                 provider=LLMProvider.OPENAI,
                 llm_class=OpenAILLM,
-                canonical_name="gpt-5",
+                canonical_name="gpt-5.1-chat-latest",
                 default_config=LLMConfig(
-                    uses_max_completion_tokens=True,
                     pricing_config=TokenPricingConfig(1.25, 10.00)
+                )
+            ),
+            LLMModel(
+                name="gpt-5.1-codex",
+                value="gpt-5.1-codex",
+                provider=LLMProvider.OPENAI,
+                llm_class=OpenAILLM,
+                canonical_name="gpt-5.1-codex",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(1.25, 10.00)
+                )
+            ),
+            LLMModel(
+                name="gpt-5.1-codex-mini",
+                value="gpt-5.1-codex-mini",
+                provider=LLMProvider.OPENAI,
+                llm_class=OpenAILLM,
+                canonical_name="gpt-5.1-codex-mini",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(0.25, 2.00)
                 )
             ),
             LLMModel(
@@ -83,7 +100,6 @@ class LLMFactory(metaclass=SingletonMeta):
                 llm_class=OpenAILLM,
                 canonical_name="gpt-5-mini",
                 default_config=LLMConfig(
-                    uses_max_completion_tokens=True,
                     pricing_config=TokenPricingConfig(0.25, 2.00)
                 )
             ),
@@ -94,74 +110,7 @@ class LLMFactory(metaclass=SingletonMeta):
                 llm_class=OpenAILLM,
                 canonical_name="gpt-5-nano",
                 default_config=LLMConfig(
-                    uses_max_completion_tokens=True,
                     pricing_config=TokenPricingConfig(0.05, 0.40)
-                )
-            ),
-            LLMModel(
-                name="gpt-5-chat-latest",
-                value="gpt-5-chat-latest",
-                provider=LLMProvider.OPENAI,
-                llm_class=OpenAILLM,
-                canonical_name="gpt-5-chat-latest",
-                default_config=LLMConfig(
-                    uses_max_completion_tokens=True,
-                    pricing_config=TokenPricingConfig(1.25, 10.00)
-                )
-            ),
-            LLMModel(
-                name="gpt-4.1",
-                value="gpt-4.1",
-                provider=LLMProvider.OPENAI,
-                llm_class=OpenAILLM,
-                canonical_name="gpt-4.1",
-                default_config=LLMConfig(
-                    uses_max_completion_tokens=True,
-                    pricing_config=TokenPricingConfig(2.00, 8.00)
-                )
-            ),
-            LLMModel(
-                name="gpt-4.1-mini",
-                value="gpt-4.1-mini",
-                provider=LLMProvider.OPENAI,
-                llm_class=OpenAILLM,
-                canonical_name="gpt-4.1-mini",
-                default_config=LLMConfig(
-                    uses_max_completion_tokens=True,
-                    pricing_config=TokenPricingConfig(0.40, 1.60)
-                )
-            ),
-            LLMModel(
-                name="gpt-4.1-nano",
-                value="gpt-4.1-nano",
-                provider=LLMProvider.OPENAI,
-                llm_class=OpenAILLM,
-                canonical_name="gpt-4.1-nano",
-                default_config=LLMConfig(
-                    uses_max_completion_tokens=True,
-                    pricing_config=TokenPricingConfig(0.10, 0.40)
-                )
-            ),
-            LLMModel(
-                name="o3",
-                value="o3",
-                provider=LLMProvider.OPENAI,
-                llm_class=OpenAILLM,
-                canonical_name="o3",
-                default_config=LLMConfig(
-                    uses_max_completion_tokens=True,
-                    pricing_config=TokenPricingConfig(15.00, 60.00)
-                )
-            ),
-            LLMModel(
-                name="o4-mini",
-                value="o4-mini",
-                provider=LLMProvider.OPENAI,
-                llm_class=OpenAILLM,
-                canonical_name="o4-mini",
-                default_config=LLMConfig(
-                    uses_max_completion_tokens=True,
-                    pricing_config=TokenPricingConfig(1.0, 4.00)
                 )
             ),
             # MISTRAL Provider Models
@@ -175,67 +124,96 @@ class LLMFactory(metaclass=SingletonMeta):
                     pricing_config=TokenPricingConfig(2.00, 6.00)
                 )
             ),
+            # GROK Provider Models (latest only)
+            LLMModel(
+                name="grok-4-1-fast-reasoning",
+                value="grok-4-1-fast-reasoning",
+                provider=LLMProvider.GROK,
+                llm_class=GrokLLM,
+                canonical_name="grok-4-1-fast-reasoning",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(0.20, 0.60)
+                )
+            ),
+            LLMModel(
+                name="grok-4-1-fast-non-reasoning",
+                value="grok-4-1-fast-non-reasoning",
+                provider=LLMProvider.GROK,
+                llm_class=GrokLLM,
+                canonical_name="grok-4-1-fast-non-reasoning",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(0.20, 0.60)
+                )
+            ),
+            LLMModel(
+                name="grok-code-fast-1",
+                value="grok-code-fast-1",
+                provider=LLMProvider.GROK,
+                llm_class=GrokLLM,
+                canonical_name="grok-code-fast-1",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(0.60, 1.50)
+                )
+            ),
             # ANTHROPIC Provider Models
             LLMModel(
-                name="claude-4-opus",
-                value="claude-opus-4-20250514",
+                name="claude-4.5-opus",
+                value="claude-opus-4-5-20251101",
                 provider=LLMProvider.ANTHROPIC,
                 llm_class=ClaudeLLM,
-                canonical_name="claude-4-opus",
+                canonical_name="claude-4.5-opus",
                 default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(15.00, 75.00)
+                    pricing_config=TokenPricingConfig(5.00, 25.00)
                 )
             ),
             LLMModel(
-                name="claude-4.1-opus",
-                value="claude-opus-4-1-20250805",
+                name="claude-4.5-sonnet",
+                value="claude-sonnet-4-5-20250929",
                 provider=LLMProvider.ANTHROPIC,
                 llm_class=ClaudeLLM,
-                canonical_name="claude-4.1-opus",
-                default_config=LLMConfig(
-                    # NOTE: Pricing is assumed to be the same as claude-4-opus
-                    pricing_config=TokenPricingConfig(15.00, 75.00)
-                )
-            ),
-            LLMModel(
-                name="claude-4-sonnet",
-                value="claude-sonnet-4-20250514",
-                provider=LLMProvider.ANTHROPIC,
-                llm_class=ClaudeLLM,
-                canonical_name="claude-4-sonnet",
+                canonical_name="claude-4.5-sonnet",
                 default_config=LLMConfig(
                     pricing_config=TokenPricingConfig(3.00, 15.00)
                 )
             ),
             LLMModel(
-                name="bedrock-claude-4-opus",
-                value="anthropic.claude-opus-4-20250514-v1:0",
+                name="claude-4.5-haiku",
+                value="claude-haiku-4-5-20251001",
                 provider=LLMProvider.ANTHROPIC,
-                llm_class=BedrockLLM,
-                canonical_name="claude-4-opus",
+                llm_class=ClaudeLLM,
+                canonical_name="claude-4.5-haiku",
                 default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(15.00, 75.00)
+                    pricing_config=TokenPricingConfig(1.00, 5.00)
                 )
             ),
             LLMModel(
-                name="bedrock-claude-4.1-opus",
-                value="anthropic.claude-opus-4-1-20250805-v1:0",
+                name="bedrock-claude-4.5-opus",
+                value="anthropic.claude-opus-4-5-20251101-v1:0",
                 provider=LLMProvider.ANTHROPIC,
                 llm_class=BedrockLLM,
-                canonical_name="claude-4.1-opus",
+                canonical_name="claude-4.5-opus",
                 default_config=LLMConfig(
-                    # NOTE: Pricing is assumed to be the same as claude-4-opus
-                    pricing_config=TokenPricingConfig(15.00, 75.00)
+                    pricing_config=TokenPricingConfig(5.00, 25.00)
                 )
             ),
             LLMModel(
-                name="bedrock-claude-4-sonnet",
-                value="anthropic.claude-sonnet-4-20250514-v1:0",
+                name="bedrock-claude-4.5-sonnet",
+                value="anthropic.claude-sonnet-4-5-20250929-v1:0",
                 provider=LLMProvider.ANTHROPIC,
                 llm_class=BedrockLLM,
-                canonical_name="claude-4-sonnet",
+                canonical_name="claude-4.5-sonnet",
                 default_config=LLMConfig(
                     pricing_config=TokenPricingConfig(3.00, 15.00)
+                )
+            ),
+            LLMModel(
+                name="bedrock-claude-4.5-haiku",
+                value="anthropic.claude-haiku-4-5-20251001-v1:0",
+                provider=LLMProvider.ANTHROPIC,
+                llm_class=BedrockLLM,
+                canonical_name="claude-4.5-haiku",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(1.00, 5.00)
                 )
             ),
             # DEEPSEEK Provider Models

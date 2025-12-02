@@ -55,7 +55,6 @@ class LLMConfig:
     frequency_penalty: Optional[float] = None
     presence_penalty: Optional[float] = None
     stop_sequences: Optional[List] = None
-    uses_max_completion_tokens: bool = False
     extra_params: Dict[str, Any] = field(default_factory=dict)
     pricing_config: TokenPricingConfig = field(default_factory=TokenPricingConfig)
 
@@ -107,7 +106,7 @@ class LLMConfig:
         known_fields = {
             'rate_limit', 'token_limit', 'system_message', 'temperature', 
             'max_tokens', 'top_p', 'frequency_penalty', 'presence_penalty', 
-            'stop_sequences', 'uses_max_completion_tokens', 'extra_params', 
+            'stop_sequences', 'extra_params', 
             'pricing_config'
         }
         
@@ -123,7 +122,6 @@ class LLMConfig:
             frequency_penalty=init_kwargs.get('frequency_penalty'),
             presence_penalty=init_kwargs.get('presence_penalty'),
             stop_sequences=init_kwargs.get('stop_sequences'),
-            uses_max_completion_tokens=init_kwargs.get('uses_max_completion_tokens', False),
             extra_params=init_kwargs.get('extra_params', {}),
             pricing_config=pricing_config_data 
         )
@@ -174,16 +172,8 @@ class LLMConfig:
         for f_info in fields(override_config):
             override_value = getattr(override_config, f_info.name)
             
-            # Special handling for booleans where we want to merge if it's not the default
-            # For `uses_max_completion_tokens`, the default is False, so `if override_value:` is fine
-            is_boolean_field = f_info.type == bool
-            
-            # Standard check for None, but also merge if it's a non-default boolean
             if override_value is not None:
-                # For uses_max_completion_tokens, `False` is a valid override value, but `None` is not
-                if is_boolean_field and override_value is False and getattr(self, f_info.name) is True:
-                     setattr(self, f_info.name, override_value)
-                elif f_info.name == 'pricing_config':
+                if f_info.name == 'pricing_config':
                     if not isinstance(self.pricing_config, TokenPricingConfig):
                         self.pricing_config = TokenPricingConfig()
                     

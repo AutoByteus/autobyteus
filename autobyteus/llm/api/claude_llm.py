@@ -15,13 +15,14 @@ logger = logging.getLogger(__name__)
 class ClaudeLLM(BaseLLM):
     def __init__(self, model: LLMModel = None, llm_config: LLMConfig = None):
         if model is None:
-            model = LLMModel['claude-4-sonnet']
+            model = LLMModel['claude-4.5-sonnet']
         if llm_config is None:
             llm_config = LLMConfig()
             
         super().__init__(model=model, llm_config=llm_config)
         self.client = self.initialize()
-        self.max_tokens = 8000
+        # Claude Sonnet 4.5 currently allows up to ~8k output tokens; let config override.
+        self.max_tokens = llm_config.max_tokens if llm_config.max_tokens is not None else 8192
     
     @classmethod
     def initialize(cls):
@@ -37,8 +38,30 @@ class ClaudeLLM(BaseLLM):
             raise ValueError(f"Failed to initialize Anthropic client: {str(e)}")
     
     def _get_non_system_messages(self) -> List[Dict]:
-        # NOTE: This will need to be updated to handle multimodal messages for Claude
-        return [msg.to_dict() for msg in self.messages if msg.role != MessageRole.SYSTEM]
+        """
+        Convert internal Message objects into the shape expected by
+        Anthropic's messages API.
+
+        Only `role` and `content` are accepted for text-only requests; any
+        additional keys (e.g., reasoning_content, image_urls) must be
+        omitted or the API will reject the payload with 400 errors like:
+        `messages.0.reasoning_content: Extra inputs are not permitted`.
+        """
+        formatted_messages: List[Dict] = []
+
+        for msg in self.messages:
+            if msg.role == MessageRole.SYSTEM:
+                continue
+
+            # Anthropic accepts the content as a plain string for text calls.
+            formatted_messages.append(
+                {
+                    "role": msg.role.value,
+                    "content": msg.content or "",
+                }
+            )
+
+        return formatted_messages
     
     def _create_token_usage(self, input_tokens: int, output_tokens: int) -> TokenUsage:
         return TokenUsage(

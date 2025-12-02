@@ -10,7 +10,7 @@ class GrokLLM(OpenAICompatibleLLM):
     def __init__(self, model: LLMModel = None, llm_config: LLMConfig = None):
         # Provide defaults if not specified
         if model is None:
-            model = LLMModel['grok-2-1212']
+            model = LLMModel['grok-4-1-fast-reasoning']
         if llm_config is None:
             llm_config = LLMConfig()
             

@@ -24,7 +24,7 @@ def openai_llm(set_openai_env):
     openai_api_key = os.getenv("OPENAI_API_KEY")
     if not openai_api_key or openai_api_key == "YOUR_OPENAI_API_KEY":
         pytest.skip("OpenAI API key not set. Skipping OpenAILLM image tests.")
-    return OpenAILLM(model=LLMModel['gpt-4o'], llm_config=LLMConfig())
+    return OpenAILLM(model=LLMModel['gpt-5.1'])
 
 @pytest.fixture
 def multiple_test_images(tmp_path):

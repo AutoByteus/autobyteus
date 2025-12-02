@@ -61,11 +61,19 @@ class OpenAICompatibleLLM(BaseLLM, ABC):
     def __init__(
         self,
         model: LLMModel,
-        llm_config: LLMConfig,
         api_key_env_var: str,
         base_url: str,
+        llm_config: Optional[LLMConfig] = None,
         api_key_default: Optional[str] = None
     ):
+        model_default_config = model.default_config if hasattr(model, "default_config") else None
+        if model_default_config:
+            effective_config = LLMConfig.from_dict(model_default_config.to_dict())
+            if llm_config:
+                effective_config.merge_with(llm_config)
+        else:
+            effective_config = llm_config or LLMConfig()
+
         api_key = os.getenv(api_key_env_var)
         if not api_key:
             if api_key_default:
@@ -78,8 +86,9 @@ class OpenAICompatibleLLM(BaseLLM, ABC):
         self.client = OpenAI(api_key=api_key, base_url=base_url)
         logger.info(f"Initialized OpenAI compatible client with base_url: {base_url}")
         
-        super().__init__(model=model, llm_config=llm_config)
-        self.max_tokens = 8000
+        super().__init__(model=model, llm_config=effective_config)
+        # Respect user/configured limit; let provider default if unspecified.
+        self.max_tokens = effective_config.max_tokens
 
     def _create_token_usage(self, usage_data: Optional[CompletionUsage]) -> Optional[TokenUsage]:
         if not usage_data:
@@ -104,10 +113,9 @@ class OpenAICompatibleLLM(BaseLLM, ABC):
                 "messages": formatted_messages,
             }
 
-            if self.config.uses_max_completion_tokens:
+            if self.max_tokens is not None:
+                # For OpenAI-compatible APIs, prefer max_completion_tokens; legacy max_tokens removed.
                 params["max_completion_tokens"] = self.max_tokens
-            else:
-                params["max_tokens"] = self.max_tokens
 
             response = self.client.chat.completions.create(**params)
             full_message = response.choices[0].message
@@ -159,10 +167,8 @@ class OpenAICompatibleLLM(BaseLLM, ABC):
                 "stream_options": {"include_usage": True},
             }
 
-            if self.config.uses_max_completion_tokens:
+            if self.max_tokens is not None:
                 params["max_completion_tokens"] = self.max_tokens
-            else:
-                params["max_tokens"] = self.max_tokens
 
             stream = self.client.chat.completions.create(**params)
 
