@@ -15,7 +15,6 @@ class OllamaProviderResolver:
     KEYWORD_PROVIDER_MAP = [
         (['gpt'], LLMProvider.OPENAI),
         (['gemma', 'gemini'], LLMProvider.GEMINI),
-        (['llama'], LLMProvider.GROQ),
         (['mistral'], LLMProvider.MISTRAL),
         (['deepseek'], LLMProvider.DEEPSEEK),
         (['qwen'], LLMProvider.QWEN),
