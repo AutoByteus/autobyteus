@@ -66,6 +66,13 @@ class SystemTaskNotificationData(BaseStreamPayload):
     sender_id: str
     content: str
 
+# NEW PAYLOAD: Inter-agent message surfaced to UI
+class InterAgentMessageData(BaseStreamPayload):
+    sender_agent_id: str
+    recipient_role_name: str
+    content: str
+    message_type: str
+
 class ToDoItemData(BaseStreamPayload):
     description: str
     todo_id: str
@@ -87,6 +94,7 @@ StreamDataPayload = Union[
     ToolInvocationApprovalRequestedData,
     ToolInvocationAutoExecutingData,
     SystemTaskNotificationData, # NEW
+    InterAgentMessageData, # NEW
     ToDoListUpdateData,
     EmptyData
 ]
@@ -198,6 +206,15 @@ def create_tool_invocation_auto_executing_data(auto_exec_data_dict: Any) -> Tool
     if isinstance(auto_exec_data_dict, dict):
         return ToolInvocationAutoExecutingData(**auto_exec_data_dict)
     raise ValueError(f"Cannot create ToolInvocationAutoExecutingData from {type(auto_exec_data_dict)}")
+
+def create_inter_agent_message_data(msg_data: Any) -> InterAgentMessageData:
+    if isinstance(msg_data, dict):
+        required_keys = ["sender_agent_id", "recipient_role_name", "content", "message_type"]
+        missing = [k for k in required_keys if k not in msg_data]
+        if missing:
+            raise ValueError(f"InterAgentMessageData missing keys: {missing}")
+        return InterAgentMessageData(**msg_data)
+    raise ValueError(f"Cannot create InterAgentMessageData from {type(msg_data)}")
 
 # NEW FACTORY FUNCTION
 def create_system_task_notification_data(notification_data_dict: Any) -> SystemTaskNotificationData:

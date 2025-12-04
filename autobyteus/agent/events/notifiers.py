@@ -117,6 +117,10 @@ class AgentExternalEventNotifier(EventEmitter):
         """Notifies that the agent has received a system-generated task notification."""
         self._emit_event(EventType.AGENT_DATA_SYSTEM_TASK_NOTIFICATION_RECEIVED, payload_content=notification_data)
 
+    def notify_agent_data_inter_agent_message_received(self, message_data: Dict[str, Any]):
+        """Notifies that the agent has received a message from another agent."""
+        self._emit_event(EventType.AGENT_DATA_INTER_AGENT_MESSAGE_RECEIVED, payload_content=message_data)
+
     def notify_agent_data_todo_list_updated(self, todo_list: List[Dict[str, Any]]):
         """Notifies that the agent's ToDo list has been updated."""
         self._emit_event(EventType.AGENT_DATA_TODO_LIST_UPDATED, payload_content={"todos": todo_list})

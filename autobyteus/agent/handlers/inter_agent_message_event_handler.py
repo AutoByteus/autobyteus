@@ -48,6 +48,16 @@ class InterAgentMessageReceivedEventHandler(AgentEventHandler):
             f"'{inter_agent_msg.sender_agent_id}', type '{inter_agent_msg.message_type.value}'. "
             f"Content: '{inter_agent_msg.content}'"
         )
+
+        # Surface this inter-agent message to external subscribers (UI, etc.)
+        if context.phase_manager and context.phase_manager.notifier:
+            notifier: 'AgentExternalEventNotifier' = context.phase_manager.notifier
+            notifier.notify_agent_data_inter_agent_message_received({
+                "sender_agent_id": inter_agent_msg.sender_agent_id,
+                "recipient_role_name": inter_agent_msg.recipient_role_name,
+                "content": inter_agent_msg.content,
+                "message_type": inter_agent_msg.message_type.value,
+            })
         
         content_for_llm = (
             f"You have received a message from another agent.\n"

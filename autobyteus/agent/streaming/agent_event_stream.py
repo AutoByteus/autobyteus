@@ -17,6 +17,7 @@ from autobyteus.agent.streaming.stream_event_payloads import (
     create_tool_invocation_approval_requested_data,
     create_tool_invocation_auto_executing_data,
     create_system_task_notification_data, # NEW
+    create_inter_agent_message_data, # NEW
     create_todo_list_update_data,
     AssistantChunkData,
     AssistantCompleteResponseData,
@@ -26,6 +27,7 @@ from autobyteus.agent.streaming.stream_event_payloads import (
     ToolInvocationAutoExecutingData,
     ErrorEventData,
     SystemTaskNotificationData, # NEW
+    InterAgentMessageData, # NEW
     ToDoListUpdateData,
     EmptyData,
     StreamDataPayload,
@@ -109,6 +111,9 @@ class AgentEventStream(EventEmitter):
             elif event_type == EventType.AGENT_DATA_SYSTEM_TASK_NOTIFICATION_RECEIVED:
                 typed_payload_for_stream_event = create_system_task_notification_data(payload)
                 stream_event_type_for_generic_stream = StreamEventType.SYSTEM_TASK_NOTIFICATION
+            elif event_type == EventType.AGENT_DATA_INTER_AGENT_MESSAGE_RECEIVED:
+                typed_payload_for_stream_event = create_inter_agent_message_data(payload)
+                stream_event_type_for_generic_stream = StreamEventType.INTER_AGENT_MESSAGE
             elif event_type == EventType.AGENT_DATA_TODO_LIST_UPDATED:
                 typed_payload_for_stream_event = create_todo_list_update_data(payload)
                 stream_event_type_for_generic_stream = StreamEventType.AGENT_TODO_LIST_UPDATE
