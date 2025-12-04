@@ -81,7 +81,8 @@ class ImageModel(metaclass=ImageModelMeta):
         """Returns the unique identifier for the model."""
         if self.runtime == MultimediaRuntime.AUTOBYTEUS and self.host_url:
             try:
-                host = urlparse(self.host_url).hostname
+                parsed = urlparse(self.host_url)
+                host = parsed.netloc or parsed.hostname or self.host_url
                 return f"{self.name}@{host}"
             except Exception:
                 return f"{self.name}@{self.host_url}" # Fallback
