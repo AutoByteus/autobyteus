@@ -25,7 +25,7 @@ class AgentTeamRuntimeState:
     current_phase: AgentTeamOperationalPhase = AgentTeamOperationalPhase.UNINITIALIZED
     
     # State populated by bootstrap steps
-    prepared_coordinator_prompt: Optional[str] = None
+    prepared_agent_prompts: Dict[str, str] = field(default_factory=dict)
     final_agent_configs: Dict[str, 'AgentConfig'] = field(default_factory=dict)
 
     # Core services

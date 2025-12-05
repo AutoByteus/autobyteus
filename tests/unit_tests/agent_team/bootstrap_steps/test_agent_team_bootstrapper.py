@@ -31,7 +31,7 @@ def test_bootstrapper_initialization_default(caplog):
     with patch('autobyteus.agent_team.bootstrap_steps.agent_team_bootstrapper.AgentTeamRuntimeQueueInitializationStep') as mock_q_init, \
          patch('autobyteus.agent_team.bootstrap_steps.agent_team_bootstrapper.TeamContextInitializationStep') as mock_ctx_init, \
          patch('autobyteus.agent_team.bootstrap_steps.agent_team_bootstrapper.TaskNotifierInitializationStep') as mock_notifier_init, \
-         patch('autobyteus.agent_team.bootstrap_steps.agent_team_bootstrapper.CoordinatorPromptPreparationStep') as mock_prompt_prep, \
+         patch('autobyteus.agent_team.bootstrap_steps.agent_team_bootstrapper.TeamManifestInjectionStep') as mock_prompt_prep, \
          patch('autobyteus.agent_team.bootstrap_steps.agent_team_bootstrapper.AgentConfigurationPreparationStep') as mock_config_prep, \
          patch('autobyteus.agent_team.bootstrap_steps.agent_team_bootstrapper.CoordinatorInitializationStep') as mock_coord_init:
         

@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 
 from autobyteus.agent_team.bootstrap_steps.base_agent_team_bootstrap_step import BaseAgentTeamBootstrapStep
 from autobyteus.agent.context import AgentConfig
-from autobyteus.agent.message.send_message_to import SendMessageTo
 
 if TYPE_CHECKING:
     from autobyteus.agent_team.context.agent_team_context import AgentTeamContext
@@ -28,8 +27,6 @@ class AgentConfigurationPreparationStep(BaseAgentTeamBootstrapStep):
             return False
 
         try:
-            coordinator_node_config = context.config.coordinator_node
-            
             for node_config_wrapper in context.config.nodes:
                 # This step only configures direct agent members, not sub-teams.
                 if node_config_wrapper.is_sub_team:
@@ -63,12 +60,12 @@ class AgentConfigurationPreparationStep(BaseAgentTeamBootstrapStep):
                 # The user is now fully responsible for defining all tools an agent needs
                 # in its AgentConfig. The framework no longer implicitly injects SendMessageTo.
                 
-                # If this is the coordinator, apply the prompt that was prepared in the previous step.
-                if node_config_wrapper == coordinator_node_config:
-                    coordinator_prompt = context.state.prepared_coordinator_prompt
-                    if coordinator_prompt:
-                        final_config.system_prompt = coordinator_prompt
-                        logger.info(f"Team '{team_id}': Applied dynamic prompt to coordinator '{unique_name}'.")
+                # Apply any pre-prepared prompt for this agent (including coordinator).
+                prepared_prompts = context.state.prepared_agent_prompts
+                prepared_prompt = prepared_prompts.get(unique_name)
+                if prepared_prompt:
+                    final_config.system_prompt = prepared_prompt
+                    logger.info(f"Team '{team_id}': Applied dynamic prompt to agent '{unique_name}'.")
 
                 # Store the final, ready-to-use config in the team's state
                 context.state.final_agent_configs[unique_name] = final_config

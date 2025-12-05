@@ -55,9 +55,12 @@ async def test_execute_prepares_final_configs_correctly(
     )
     _rebuild_context_with_new_config(agent_team_context, new_team_config)
 
-    # Set up a prepared prompt for the coordinator
-    prepared_prompt = "This is the special coordinator prompt."
-    agent_team_context.state.prepared_coordinator_prompt = prepared_prompt
+    # Set up prepared prompts for both agents
+    prepared_prompts = {
+        coordinator_node.name: "This is the special coordinator prompt.",
+        member_node.name: "Member prompt",
+    }
+    agent_team_context.state.prepared_agent_prompts = prepared_prompts
 
     # --- Act ---
     success = await config_prep_step.execute(agent_team_context, agent_team_context.phase_manager)
@@ -81,7 +84,7 @@ async def test_execute_prepares_final_configs_correctly(
     assert len(coord_tool_names) == 2
     
     # Check that the special prompt was applied
-    assert coord_config.system_prompt == prepared_prompt
+    assert coord_config.system_prompt == prepared_prompts[coordinator_node.name]
     
     # Check that team context was injected
     assert coord_config.initial_custom_data["team_context"] is agent_team_context
@@ -93,6 +96,9 @@ async def test_execute_prepares_final_configs_correctly(
 
     # Check that the member's tool list is empty, as defined by the user
     assert len(member_config.tools) == 0
+
+    # Check that the member prompt was applied
+    assert member_config.system_prompt == prepared_prompts[member_node.name]
 
     # Check that team context was injected
     assert member_config.initial_custom_data["team_context"] is agent_team_context
