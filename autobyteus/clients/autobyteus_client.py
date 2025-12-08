@@ -102,6 +102,30 @@ class AutobyteusClient:
 
         logger.info("Initialized Autobyteus client with server URL: %s", self.server_url)
 
+    @staticmethod
+    def _wrap_http_error(exc: httpx.HTTPStatusError) -> RuntimeError:
+        """
+        Produce a RuntimeError that preserves status code and server-provided details.
+        """
+        response = exc.response
+        detail: str = ""
+        # Prefer JSON "detail" if present
+        try:
+            json_body = response.json()
+            detail = json_body.get("detail") or json.dumps(json_body)
+        except Exception:
+            # Fall back to raw text
+            detail = response.text
+
+        message = f"HTTP {response.status_code} {response.reason_phrase}"
+        if detail:
+            message = f"{message}: {detail}"
+        else:
+            message = f"{message}: {exc}"
+        err = RuntimeError(message)
+        err.__cause__ = exc
+        return err
+
     async def get_available_llm_models(self) -> Dict[str, Any]:
         """Async discovery of available LLM models."""
         try:
@@ -110,6 +134,9 @@ class AutobyteusClient:
             )
             response.raise_for_status()
             return response.json()
+        except httpx.HTTPStatusError as exc:
+            logger.error("Async LLM model fetch error: %s", exc)
+            raise self._wrap_http_error(exc)
         except httpx.HTTPError as exc:
             logger.error("Async LLM model fetch error: %s", exc)
             raise RuntimeError(str(exc)) from exc
@@ -120,6 +147,9 @@ class AutobyteusClient:
             response = self.sync_client.get(urljoin(self.server_url, "/models/llm"))
             response.raise_for_status()
             return response.json()
+        except httpx.HTTPStatusError as exc:
+            logger.error("Sync LLM model fetch error: %s", exc)
+            raise self._wrap_http_error(exc)
         except httpx.HTTPError as exc:
             logger.error("Sync LLM model fetch error: %s", exc)
             raise RuntimeError(str(exc)) from exc
@@ -132,6 +162,9 @@ class AutobyteusClient:
             )
             response.raise_for_status()
             return response.json()
+        except httpx.HTTPStatusError as exc:
+            logger.error("Async image model fetch error: %s", exc)
+            raise self._wrap_http_error(exc)
         except httpx.HTTPError as exc:
             logger.error("Async image model fetch error: %s", exc)
             raise RuntimeError(str(exc)) from exc
@@ -144,6 +177,9 @@ class AutobyteusClient:
             )
             response.raise_for_status()
             return response.json()
+        except httpx.HTTPStatusError as exc:
+            logger.error("Sync image model fetch error: %s", exc)
+            raise self._wrap_http_error(exc)
         except httpx.HTTPError as exc:
             logger.error("Sync image model fetch error: %s", exc)
             raise RuntimeError(str(exc)) from exc
@@ -156,6 +192,9 @@ class AutobyteusClient:
             )
             response.raise_for_status()
             return response.json()
+        except httpx.HTTPStatusError as exc:
+            logger.error("Async audio model fetch error: %s", exc)
+            raise self._wrap_http_error(exc)
         except httpx.HTTPError as exc:
             logger.error("Async audio model fetch error: %s", exc)
             raise RuntimeError(str(exc)) from exc
@@ -168,6 +207,9 @@ class AutobyteusClient:
             )
             response.raise_for_status()
             return response.json()
+        except httpx.HTTPStatusError as exc:
+            logger.error("Sync audio model fetch error: %s", exc)
+            raise self._wrap_http_error(exc)
         except httpx.HTTPError as exc:
             logger.error("Sync audio model fetch error: %s", exc)
             raise RuntimeError(str(exc)) from exc
@@ -197,6 +239,9 @@ class AutobyteusClient:
             )
             response.raise_for_status()
             return response.json()
+        except httpx.HTTPStatusError as exc:
+            logger.error("Error sending message: %s", exc)
+            raise self._wrap_http_error(exc)
         except httpx.HTTPError as exc:
             logger.error("Error sending message: %s", exc)
             raise RuntimeError(str(exc)) from exc
@@ -239,6 +284,9 @@ class AutobyteusClient:
                             logger.error("Failed to parse stream chunk: %s", exc)
                             raise RuntimeError("Invalid stream response format") from exc
 
+        except httpx.HTTPStatusError as exc:
+            logger.error("Stream error: %s", exc)
+            raise self._wrap_http_error(exc)
         except httpx.HTTPError as exc:
             logger.error("Stream error: %s", exc)
             raise RuntimeError(str(exc)) from exc
@@ -268,6 +316,9 @@ class AutobyteusClient:
             )
             response.raise_for_status()
             return response.json()
+        except httpx.HTTPStatusError as exc:
+            logger.error("Error generating image: %s", exc)
+            raise self._wrap_http_error(exc)
         except httpx.HTTPError as exc:
             logger.error("Error generating image: %s", exc)
             raise RuntimeError(str(exc)) from exc
@@ -293,6 +344,9 @@ class AutobyteusClient:
             )
             response.raise_for_status()
             return response.json()
+        except httpx.HTTPStatusError as exc:
+            logger.error("Error generating speech: %s", exc)
+            raise self._wrap_http_error(exc)
         except httpx.HTTPError as exc:
             logger.error("Error generating speech: %s", exc)
             raise RuntimeError(str(exc)) from exc
@@ -306,6 +360,9 @@ class AutobyteusClient:
             )
             response.raise_for_status()
             return response.json()
+        except httpx.HTTPStatusError as exc:
+            logger.error("Cleanup error: %s", exc)
+            raise self._wrap_http_error(exc)
         except httpx.HTTPError as exc:
             logger.error("Cleanup error: %s", exc)
             raise RuntimeError(str(exc)) from exc
@@ -319,6 +376,9 @@ class AutobyteusClient:
             )
             response.raise_for_status()
             return response.json()
+        except httpx.HTTPStatusError as exc:
+            logger.error("Image session cleanup error: %s", exc)
+            raise self._wrap_http_error(exc)
         except httpx.HTTPError as exc:
             logger.error("Image session cleanup error: %s", exc)
             raise RuntimeError(str(exc)) from exc
@@ -332,6 +392,9 @@ class AutobyteusClient:
             )
             response.raise_for_status()
             return response.json()
+        except httpx.HTTPStatusError as exc:
+            logger.error("Audio session cleanup error: %s", exc)
+            raise self._wrap_http_error(exc)
         except httpx.HTTPError as exc:
             logger.error("Audio session cleanup error: %s", exc)
             raise RuntimeError(str(exc)) from exc

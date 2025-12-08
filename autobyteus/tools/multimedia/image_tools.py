@@ -1,6 +1,6 @@
 import os
 import logging
-from typing import Optional, List, Dict, Tuple
+from typing import Optional, List, Dict, Tuple, Any
 
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
@@ -159,11 +159,26 @@ class GenerateImageTool(BaseTool):
                 param_type=ParameterType.STRING,
                 description="Optional. A comma-separated string of URLs to reference images. The generated image will try to match the style or content of these images.",
                 required=False
+            ),
+            ParameterDefinition(
+                name="output_filename",
+                param_type=ParameterType.STRING,
+                description=(
+                    "Required. Base filename (no extension) to apply to the generated image when stored by downstream processors."
+                ),
+                required=True
             )
         ]
         return _build_dynamic_image_schema(base_params, cls.MODEL_ENV_VAR, cls.DEFAULT_MODEL)
 
-    async def _execute(self, context, prompt: str, input_image_urls: Optional[str] = None, generation_config: Optional[dict] = None) -> List[str]:
+    async def _execute(
+        self,
+        context,
+        prompt: str,
+        input_image_urls: Optional[str] = None,
+        generation_config: Optional[dict] = None,
+        output_filename: Optional[str] = None,
+    ) -> Any:
         # 1. Resolve Model ID
         if not self._model_identifier:
              self._model_identifier = _get_configured_model_identifier(self.MODEL_ENV_VAR, self.DEFAULT_MODEL)
@@ -179,17 +194,23 @@ class GenerateImageTool(BaseTool):
         if input_image_urls:
             urls_list = [url.strip() for url in input_image_urls.split(',') if url.strip()]
 
-        # 4. Execute Generation
+        # 4. Execute Generation (client enforces single image where applicable)
         response = await self._client.generate_image(
             prompt=prompt, 
             input_image_urls=urls_list,
             generation_config=generation_config
         )
-        
+
         if not response.image_urls:
             raise ValueError("Image generation failed to return any image URLs.")
-        
-        return response.image_urls
+
+        first_url = response.image_urls[0]
+
+        if not output_filename:
+            raise ValueError("output_filename is required but was not provided.")
+
+        stem = os.path.splitext(output_filename.strip())[0]
+        return {"url": first_url, "filename": stem}
 
     async def cleanup(self) -> None:
         if self._client and self._model_identifier and self.agent_id:
@@ -246,6 +267,14 @@ class EditImageTool(BaseTool):
                 required=False
             ),
             ParameterDefinition(
+                name="output_filename",
+                param_type=ParameterType.STRING,
+                description=(
+                    "Required. Base filename (no extension) to apply to the edited image when stored by downstream processors."
+                ),
+                required=True
+            ),
+            ParameterDefinition(
                 name="mask_image_url",
                 param_type=ParameterType.STRING,
                 description=(
@@ -255,11 +284,19 @@ class EditImageTool(BaseTool):
                     "Use this to target specific objects (e.g., 'replace the dog') without altering the background."
                 ),
                 required=False
-            )
+            ),
         ]
         return _build_dynamic_image_schema(base_params, cls.MODEL_ENV_VAR, cls.DEFAULT_MODEL)
 
-    async def _execute(self, context, prompt: str, input_image_urls: Optional[str] = None, generation_config: Optional[dict] = None, mask_image_url: Optional[str] = None) -> List[str]:
+    async def _execute(
+        self,
+        context,
+        prompt: str,
+        input_image_urls: Optional[str] = None,
+        output_filename: Optional[str] = None,
+        generation_config: Optional[dict] = None,
+        mask_image_url: Optional[str] = None,
+    ) -> Any:
         # 1. Resolve Model ID
         if not self._model_identifier:
             self._model_identifier = _get_configured_model_identifier(self.MODEL_ENV_VAR, self.DEFAULT_MODEL)
@@ -289,7 +326,12 @@ class EditImageTool(BaseTool):
         if not response.image_urls:
             raise ValueError("Image editing failed to return any image URLs.")
 
-        return response.image_urls
+        if not output_filename:
+            raise ValueError("output_filename is required but was not provided.")
+
+        first_url = response.image_urls[0]
+        stem = os.path.splitext(output_filename.strip())[0]
+        return {"url": first_url, "filename": stem}
 
     async def cleanup(self) -> None:
         if self._client and self._model_identifier and self.agent_id:

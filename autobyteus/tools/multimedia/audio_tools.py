@@ -1,6 +1,6 @@
 import os
 import logging
-from typing import Optional, List
+from typing import Optional, List, Any
 
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
@@ -90,11 +90,25 @@ class GenerateSpeechTool(BaseTool):
                     "Example: 'Joe: Hello Jane.\\nJane: Hi Joe, how are you?'"
                 ),
                 required=True
+            ),
+            ParameterDefinition(
+                name="output_filename",
+                param_type=ParameterType.STRING,
+                description=(
+                    "Required. Base filename (no extension) to apply to the generated audio when stored by downstream processors."
+                ),
+                required=True
             )
         ]
         return _build_dynamic_audio_schema(base_params, cls.MODEL_ENV_VAR, cls.DEFAULT_MODEL)
 
-    async def _execute(self, context, prompt: str, generation_config: Optional[dict] = None) -> List[str]:
+    async def _execute(
+        self,
+        context,
+        prompt: str,
+        generation_config: Optional[dict] = None,
+        output_filename: Optional[str] = None,
+    ) -> Any:
         model_identifier = _get_configured_model_identifier(self.MODEL_ENV_VAR, self.DEFAULT_MODEL)
         logger.info(f"generate_speech executing with configured model '{model_identifier}'.")
         if self._client is None:
@@ -105,7 +119,13 @@ class GenerateSpeechTool(BaseTool):
         if not response.audio_urls:
             raise ValueError("Speech generation failed to return any audio file paths.")
 
-        return response.audio_urls
+        first_url = response.audio_urls[0]
+
+        if not output_filename:
+            raise ValueError("output_filename is required but was not provided.")
+
+        stem = os.path.splitext(output_filename.strip())[0]
+        return {"url": first_url, "filename": stem}
 
     async def cleanup(self) -> None:
         if self._client:

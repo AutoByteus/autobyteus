@@ -52,11 +52,13 @@ class OpenAIImageClient(BaseImageClient):
             final_config = self.config.to_dict().copy()
             if generation_config:
                 final_config.update(generation_config)
+            # Always request a single image for simplicity
+            final_config["n"] = 1
 
             response = self.client.images.generate(
                 model=image_model,
                 prompt=prompt,
-                n=final_config.get("n", 1),
+                n=1,
                 size=final_config.get("size", "1024x1024"),
                 quality=final_config.get("quality", "standard"),
                 style=final_config.get("style", "vivid"),
@@ -104,6 +106,8 @@ class OpenAIImageClient(BaseImageClient):
             final_config = self.config.to_dict().copy()
             if generation_config:
                 final_config.update(generation_config)
+            # Always request a single edited image
+            final_config["n"] = 1
 
             with open(source_image_url, "rb") as image_file:
                 mask_file = open(mask_url, "rb") if mask_url else None
