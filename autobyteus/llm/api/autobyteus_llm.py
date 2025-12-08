@@ -54,7 +54,6 @@ class AutobyteusLLM(BaseLLM):
             )
         except Exception as e:
             logger.error(f"Error processing message: {str(e)}")
-            await self._handle_error_cleanup()
             raise
 
     async def _stream_user_message_to_llm(
@@ -104,20 +103,15 @@ class AutobyteusLLM(BaseLLM):
             self.add_assistant_message(complete_response)
         except Exception as e:
             logger.error(f"Error streaming message: {str(e)}")
-            await self._handle_error_cleanup()
             raise
 
     async def cleanup(self):
+        """
+        Clean up the remote conversation. The owning agent controls the HTTP
+        client lifecycle.
+        """
         try:
             await self.client.cleanup(self.conversation_id)
             await super().cleanup()
         except Exception as e:
             logger.error(f"Error during cleanup: {str(e)}")
-        finally:
-            await self.client.close()
-
-    async def _handle_error_cleanup(self):
-        try:
-            await self.cleanup()
-        except Exception as cleanup_error:
-            logger.error(f"Error during error cleanup: {str(cleanup_error)}")
