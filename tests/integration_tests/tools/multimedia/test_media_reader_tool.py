@@ -109,7 +109,7 @@ async def test_read_media_file_relative_path_success(workspace_with_image):
     # Use a relative path from the workspace root
     relative_path = image_path.name
     
-    result = await tool._execute(context, file_path=relative_path)
+    result = await tool.execute(context, file_path=relative_path)
 
     assert isinstance(result, ContextFile)
     assert result.uri == str(image_path.resolve())
@@ -129,7 +129,7 @@ async def test_read_media_file_absolute_path_success(workspace_with_image):
     # Use the absolute path
     absolute_path = str(image_path.resolve())
     
-    result = await tool._execute(context, file_path=absolute_path)
+    result = await tool.execute(context, file_path=absolute_path)
 
     assert isinstance(result, ContextFile)
     assert result.uri == absolute_path
@@ -146,7 +146,7 @@ async def test_read_media_file_not_found(workspace_with_image):
     context = workspace_with_image["context"]
 
     with pytest.raises(FileNotFoundError) as excinfo:
-        await tool._execute(context, file_path="non_existent_file.jpg")
+        await tool.execute(context, file_path="non_existent_file.jpg")
     
     assert "does not exist" in str(excinfo.value)
     logger.info("Correctly raised FileNotFoundError for non-existent file.")
@@ -163,7 +163,7 @@ async def test_read_media_file_path_traversal_security(workspace_with_image):
     malicious_path = "../some_other_file.txt"
 
     with pytest.raises(ValueError) as excinfo:
-        await tool._execute(context, file_path=malicious_path)
+        await tool.execute(context, file_path=malicious_path)
 
     assert "attempts to access files outside the agent's workspace" in str(excinfo.value)
     logger.info("Correctly raised ValueError for path traversal attempt.")

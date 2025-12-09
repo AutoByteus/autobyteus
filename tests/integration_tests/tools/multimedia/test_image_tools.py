@@ -158,3 +158,27 @@ async def test_edit_image_tool_execute():
     
     # Verify that a new image was created
     assert edited_image_url != original_image_url
+
+
+@pytest.mark.asyncio
+async def test_edit_image_tool_with_remote_image():
+    """
+    Edits a remote reference image by overlaying text. Uses the public execute API.
+    """
+    edit_tool = EditImageTool()
+    context = SimpleNamespace(agent_id="test-agent")
+    prompt = "Add the word 'Serenity' in white text across the center of the stone."
+    remote_image_url = "http://192.168.2.124:29695/rest/files/images/smooth_stone_ref.jpg"
+
+    result = await edit_tool.execute(
+        context,
+        prompt=prompt,
+        input_image_urls=remote_image_url,
+        generation_config={},
+        output_filename="stone_text.png"
+    )
+
+    assert isinstance(result, dict)
+    edited_url = result["url"]
+    assert isinstance(edited_url, str)
+    assert edited_url.startswith("https://") or edited_url.startswith("data:")
