@@ -181,7 +181,7 @@ class GenerateImageTool(BaseTool):
     ) -> Any:
         # 1. Resolve Model ID
         if not self._model_identifier:
-             self._model_identifier = _get_configured_model_identifier(self.MODEL_ENV_VAR, self.DEFAULT_MODEL)
+            self._model_identifier = _get_configured_model_identifier(self.MODEL_ENV_VAR, self.DEFAULT_MODEL)
 
         logger.info(f"generate_image executing with configured model '{self._model_identifier}' for agent '{context.agent_id}'.")
         

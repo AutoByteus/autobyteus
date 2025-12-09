@@ -1,5 +1,6 @@
 import pytest
 import os
+from types import SimpleNamespace
 from autobyteus.tools.multimedia.image_tools import GenerateImageTool, EditImageTool, _get_configured_model_identifier
 from autobyteus.utils.parameter_schema import ParameterType, ParameterSchema, ParameterDefinition
 
@@ -60,14 +61,12 @@ async def test_generate_image_tool_execute():
     """Tests a successful execution of the GenerateImageTool."""
     tool = GenerateImageTool()
     prompt = "A majestic lion standing on a rock at sunset, cartoon style"
-    
-    result = await tool._execute(context={}, prompt=prompt, generation_config={})
+    context = SimpleNamespace(agent_id="test-agent")
+    result = await tool.execute(context, prompt=prompt, generation_config={}, output_filename="lion.png")
 
-    assert isinstance(result, list)
-    assert len(result) > 0
-    for url in result:
-        assert isinstance(url, str)
-        assert url.startswith("https://") or url.startswith("data:")
+    assert isinstance(result, dict)
+    assert result["url"].startswith("https://") or result["url"].startswith("data:")
+    assert result["filename"] == "lion"
 
 @pytest.mark.asyncio
 async def test_generate_image_with_reference_tool_execute():
@@ -77,12 +76,10 @@ async def test_generate_image_with_reference_tool_execute():
     # Step 1: Generate a base image to use as a reference.
     tool = GenerateImageTool()
     base_prompt = "A simple, black and white, comic book style ink drawing of a superhero's face."
-    
-    base_urls = await tool._execute(context={}, prompt=base_prompt, generation_config={})
-    assert isinstance(base_urls, list)
-    assert len(base_urls) > 0
-    reference_url = base_urls[0]
-    assert isinstance(reference_url, str)
+    context = SimpleNamespace(agent_id="test-agent")
+
+    base_result = await tool.execute(context, prompt=base_prompt, generation_config={}, output_filename="base.png")
+    reference_url = base_result["url"]
     print(f"Generated reference image URL: {reference_url}")
 
     # Step 2: Generate a new image using the first one as a reference.
@@ -91,17 +88,15 @@ async def test_generate_image_with_reference_tool_execute():
     # The test verifies the tool passes the parameter correctly.
     new_prompt = "A full-color comic book style image of Batman fighting the Joker, in the same art style as the reference image."
     
-    new_urls = await tool._execute(
-        context={},
+    new_result = await tool.execute(
+        context,
         prompt=new_prompt,
         input_image_urls=reference_url,
-        generation_config={}
+        generation_config={},
+        output_filename="new.png"
     )
 
-    assert isinstance(new_urls, list)
-    assert len(new_urls) > 0
-    new_url = new_urls[0]
-    assert isinstance(new_url, str)
+    new_url = new_result["url"]
     assert new_url != reference_url
     assert new_url.startswith("https://") or new_url.startswith("data:")
 
@@ -136,33 +131,30 @@ async def test_edit_image_tool_execute():
     # Step 1: Generate an initial image
     generate_tool = GenerateImageTool()
     generate_prompt = "A simple monarch butterfly on a white background, cartoon style"
-    
-    generated_urls = await generate_tool._execute(
-        context={}, 
+    context = SimpleNamespace(agent_id="test-agent")
+
+    generated_result = await generate_tool.execute(
+        context, 
         prompt=generate_prompt, 
-        generation_config={}
+        generation_config={},
+        output_filename="butterfly.png"
     )
 
-    assert isinstance(generated_urls, list)
-    assert len(generated_urls) > 0
-    original_image_url = generated_urls[0]
-    assert isinstance(original_image_url, str)
+    original_image_url = generated_result["url"]
     print(f"Generated image URL for editing: {original_image_url}")
     # Step 2: Edit the generated image
     edit_tool = EditImageTool()
     edit_prompt = "Add a tiny party hat on the butterfly's head"
-    
-    edited_urls = await edit_tool._execute(
-        context={}, 
+
+    edited_result = await edit_tool.execute(
+        context, 
         prompt=edit_prompt, 
         input_image_urls=original_image_url, 
-        generation_config={}
+        generation_config={},
+        output_filename="butterfly_hat.png"
     )
 
-    assert isinstance(edited_urls, list)
-    assert len(edited_urls) > 0
-    edited_image_url = edited_urls[0]
-    assert isinstance(edited_image_url, str)
+    edited_image_url = edited_result["url"]
     
     # Verify that a new image was created
     assert edited_image_url != original_image_url

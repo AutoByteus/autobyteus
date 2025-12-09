@@ -2,6 +2,7 @@ import pytest
 import os
 from pathlib import Path
 import logging
+from types import SimpleNamespace
 
 from autobyteus.tools.multimedia.audio_tools import GenerateSpeechTool, _get_configured_model_identifier
 from autobyteus.utils.parameter_schema import ParameterType, ParameterSchema, ParameterDefinition
@@ -82,30 +83,29 @@ async def test_generate_speech_tool_execute_single_speaker():
     """Tests a successful single-speaker execution of the GenerateSpeechTool."""
     tool = GenerateSpeechTool()
     prompt = "This is a test of the single-speaker speech generation tool."
-    
-    result_paths = []
+    context = SimpleNamespace(agent_id="test-agent")
+
+    result_path = None
     try:
-        result_paths = await tool._execute(context={}, prompt=prompt)
-        
-        assert isinstance(result_paths, list)
-        assert len(result_paths) > 0
-        
-        file_path_str = result_paths[0]
-        assert isinstance(file_path_str, str)
+        result = await tool.execute(context, prompt=prompt, output_filename="single_speaker.wav")
+
+        assert isinstance(result, dict)
+        file_path_str = result["url"]
         assert file_path_str.endswith(".wav")
-        
+
         file_path = Path(file_path_str)
         assert file_path.exists()
         assert file_path.stat().st_size > 1000  # Check that file is not empty
+        result_path = file_path_str
         
     finally:
         # Cleanup the generated file(s)
-        for path_str in result_paths:
+        if result_path:
             try:
-                if os.path.exists(path_str):
-                    os.remove(path_str)
+                if os.path.exists(result_path):
+                    os.remove(result_path)
             except Exception as e:
-                logger.warning(f"Could not clean up test file {path_str}: {e}")
+                logger.warning(f"Could not clean up test file {result_path}: {e}")
 
 @pytest.mark.asyncio
 async def test_generate_speech_tool_execute_multi_speaker():
@@ -122,30 +122,30 @@ async def test_generate_speech_tool_execute_multi_speaker():
         "style_instructions": "Speak in a clear, conversational tone."
     }
     
-    result_paths = []
+    context = SimpleNamespace(agent_id="test-agent")
+    result_path = None
     try:
-        result_paths = await tool._execute(
-            context={}, 
+        result = await tool.execute(
+            context,
             prompt=prompt, 
-            generation_config=generation_config
+            generation_config=generation_config,
+            output_filename="multi_speaker.wav"
         )
-        
-        assert isinstance(result_paths, list)
-        assert len(result_paths) > 0
-        
-        file_path_str = result_paths[0]
-        assert isinstance(file_path_str, str)
+
+        assert isinstance(result, dict)
+        file_path_str = result["url"]
         assert file_path_str.endswith(".wav")
-        
+
         file_path = Path(file_path_str)
         assert file_path.exists()
         assert file_path.stat().st_size > 1000  # Check that file is not empty
+        result_path = file_path_str
         
     finally:
         # Cleanup the generated file(s)
-        for path_str in result_paths:
+        if result_path:
             try:
-                if os.path.exists(path_str):
-                    os.remove(path_str)
+                if os.path.exists(result_path):
+                    os.remove(result_path)
             except Exception as e:
-                logger.warning(f"Could not clean up test file {path_str}: {e}")
+                logger.warning(f"Could not clean up test file {result_path}: {e}")
