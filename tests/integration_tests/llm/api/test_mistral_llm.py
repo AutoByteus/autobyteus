@@ -20,7 +20,7 @@ def mistral_llm(set_mistral_env):
     mistral_api_key = os.getenv("MISTRAL_API_KEY")
     if not mistral_api_key or mistral_api_key == "YOUR_MISTRAL_API_KEY":
         pytest.skip("Mistral API key not set. Skipping MistralLLM tests.")
-    return MistralLLM(model=LLMModel['mistral-large'], llm_config=LLMConfig())
+    return MistralLLM(model=LLMModel['devstral-2'], llm_config=LLMConfig())
 
 @pytest.mark.asyncio
 async def test_mistral_llm_response(mistral_llm):

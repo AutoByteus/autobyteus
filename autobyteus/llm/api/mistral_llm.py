@@ -70,7 +70,10 @@ class MistralLLM(BaseLLM):
             llm_config = LLMConfig()
             
         super().__init__(model=model, llm_config=llm_config)
-        self.http_client = httpx.AsyncClient()
+        # Let the SDK manage its own HTTP client. Passing a raw httpx client
+        # does not satisfy the SDK's HttpClient protocol and raises an
+        # AssertionError during construction (observed in tests). Rely on the
+        # internal client instead.
         self.client: Mistral = self._initialize()
         logger.info(f"MistralLLM initialized with model: {self.model}")
 
@@ -80,7 +83,7 @@ class MistralLLM(BaseLLM):
             logger.error("MISTRAL_API_KEY environment variable is not set")
             raise ValueError("MISTRAL_API_KEY environment variable is not set.")
         try:
-            return Mistral(api_key=mistral_api_key, client=self.http_client)
+            return Mistral(api_key=mistral_api_key)
         except Exception as e:
             logger.error(f"Failed to initialize Mistral client: {str(e)}")
             raise ValueError(f"Failed to initialize Mistral client: {str(e)}")
@@ -134,7 +137,8 @@ class MistralLLM(BaseLLM):
         try:
             mistral_messages = await _format_mistral_messages(self.messages)
 
-            stream = self.client.chat.stream_async(
+            # stream_async is an async function returning an async iterator.
+            stream = await self.client.chat.stream_async(
                 model=self.model.value,
                 messages=mistral_messages,
                 temperature=self.config.temperature,
@@ -142,11 +146,21 @@ class MistralLLM(BaseLLM):
                 top_p=self.config.top_p,
             )
 
-            async for chunk in stream:
+            async for event in stream:
+                chunk = event.data  # CompletionChunk
                 if chunk.choices and chunk.choices[0].delta.content is not None:
-                    token = chunk.choices[0].delta.content
+                    token_content = chunk.choices[0].delta.content
+
+                    # content may be a string or a structured part list; normalize to str
+                    if isinstance(token_content, list):
+                        token = "".join(
+                            part.get("text", "") if isinstance(part, dict) else str(part)
+                            for part in token_content
+                        )
+                    else:
+                        token = str(token_content)
+
                     accumulated_message += token
-                    
                     yield ChunkResponse(content=token, is_complete=False)
 
                 if hasattr(chunk, 'usage') and chunk.usage:
@@ -166,6 +180,4 @@ class MistralLLM(BaseLLM):
     
     async def cleanup(self):
         logger.debug("Cleaning up MistralLLM instance")
-        if self.http_client and not self.http_client.is_closed:
-            await self.http_client.aclose()
         await super().cleanup()

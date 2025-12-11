@@ -124,6 +124,17 @@ class LLMFactory(metaclass=SingletonMeta):
                     pricing_config=TokenPricingConfig(2.00, 6.00)
                 )
             ),
+            LLMModel(
+                name="devstral-2",
+                value="devstral-2512",
+                provider=LLMProvider.MISTRAL,
+                llm_class=MistralLLM,
+                canonical_name="devstral-2",
+                default_config=LLMConfig(
+                    # Pricing from Mistral launch: $0.40 input / $2.00 output per MTokens.
+                    pricing_config=TokenPricingConfig(0.40, 2.00)
+                )
+            ),
             # GROK Provider Models (latest only)
             LLMModel(
                 name="grok-4-1-fast-reasoning",
