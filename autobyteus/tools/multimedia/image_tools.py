@@ -134,7 +134,7 @@ class GenerateImageTool(BaseTool):
         base_desc = (
             "Generates one or more images based on a textual description (prompt). "
             "This versatile tool handles both creation from scratch and modification of existing images. "
-            "If 'input_image_urls' are provided, it serves as a powerful editing and variation engine. "
+            "If 'input_images' are provided, it serves as a powerful editing and variation engine. "
             "Use cases include: creating or editing posters, modifying scene elements (e.g., 'add a cat to the sofa'), "
             "style transfer (e.g., 'turn this photo into an oil painting'), generating variations of a design, "
             "or any imaging task requiring consistency with an input reference (e.g., preserving a specific composition or background while changing the subject). "
@@ -155,9 +155,9 @@ class GenerateImageTool(BaseTool):
                 required=True
             ),
             ParameterDefinition(
-                name="input_image_urls",
+                name="input_images",
                 param_type=ParameterType.STRING,
-                description="Optional. A comma-separated string of URLs to reference images. The generated image will try to match the style or content of these images.",
+                description="Optional. A comma-separated string of image locations (URLs or file paths).",
                 required=False
             ),
             ParameterDefinition(
@@ -175,7 +175,7 @@ class GenerateImageTool(BaseTool):
         self,
         context,
         prompt: str,
-        input_image_urls: Optional[str] = None,
+        input_images: Optional[str] = None,
         generation_config: Optional[dict] = None,
         output_filename: Optional[str] = None,
     ) -> Any:
@@ -191,8 +191,8 @@ class GenerateImageTool(BaseTool):
 
         # 3. Process Inputs
         urls_list = None
-        if input_image_urls:
-            urls_list = [url.strip() for url in input_image_urls.split(',') if url.strip()]
+        if input_images:
+            urls_list = [url.strip() for url in input_images.split(',') if url.strip()]
 
         # 4. Execute Generation (client enforces single image where applicable)
         response = await self._client.generate_image(
@@ -255,14 +255,14 @@ class EditImageTool(BaseTool):
                 required=True
             ),
             ParameterDefinition(
-                name="input_image_urls",
+                name="input_images",
                 param_type=ParameterType.STRING,
                 description=(
-                    "A comma-separated string of URLs to the source images to be edited. Logic for providing this:\n"
-                    "1. **Has Context & Image IN Context:** OMIT this. (e.g., conversational model editing its own recent output).\n"
-                    "2. **Has Context & Image NOT in Context:** PROVIDE this. (e.g., conversational model editing a new file/download).\n"
-                    "3. **No Context & Supports Input:** PROVIDE this. (e.g., stateless model, must always see the image).\n"
-                    "4. **No Context & No Input Support:** OMIT this. (Feature unavailable)."
+                    "A comma-separated string of image locations (URLs or file paths) to be edited. Logic for providing this:\n"
+                    "1. **Has Context & Image IN Context:** OMIT.\n"
+                    "2. **Has Context & Image NOT in Context:** PROVIDE.\n"
+                    "3. **No Context & Supports Input:** PROVIDE.\n"
+                    "4. **No Context & No Input Support:** OMIT."
                 ),
                 required=False
             ),
@@ -275,13 +275,11 @@ class EditImageTool(BaseTool):
                 required=True
             ),
             ParameterDefinition(
-                name="mask_image_url",
+                name="mask_image",
                 param_type=ParameterType.STRING,
                 description=(
-                    "Optional. A URL to a mask image (PNG) for 'inpainting'. "
-                    "In a mask, transparent areas define where the AI should regenerate content based on the prompt, "
-                    "while opaque areas remain protected and unchanged. "
-                    "Use this to target specific objects (e.g., 'replace the dog') without altering the background."
+                    "Optional. Path or URL to a mask image (PNG) for inpainting. "
+                    "Transparent areas are regenerated; opaque areas stay unchanged."
                 ),
                 required=False
             ),
@@ -292,10 +290,10 @@ class EditImageTool(BaseTool):
         self,
         context,
         prompt: str,
-        input_image_urls: Optional[str] = None,
+        input_images: Optional[str] = None,
         output_filename: Optional[str] = None,
         generation_config: Optional[dict] = None,
-        mask_image_url: Optional[str] = None,
+        mask_image: Optional[str] = None,
     ) -> Any:
         # 1. Resolve Model ID
         if not self._model_identifier:
@@ -309,8 +307,8 @@ class EditImageTool(BaseTool):
 
         # 3. Process Inputs
         urls_list = []
-        if input_image_urls:
-             urls_list = [url.strip() for url in input_image_urls.split(',') if url.strip()]
+        if input_images:
+             urls_list = [url.strip() for url in input_images.split(',') if url.strip()]
         
         # 4. Execute Edit
         # Note: If urls_list is empty, we still call edit_image.
@@ -319,7 +317,7 @@ class EditImageTool(BaseTool):
         response = await self._client.edit_image(
             prompt=prompt,
             input_image_urls=urls_list,
-            mask_url=mask_image_url,
+            mask_url=mask_image,
             generation_config=generation_config
         )
 

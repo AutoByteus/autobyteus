@@ -36,7 +36,7 @@ def test_generate_image_tool_dynamic_schema():
     params_dict = {p.name: p for p in schema.parameters}
 
     assert "prompt" in params_dict
-    assert "input_image_urls" in params_dict
+    assert "input_images" in params_dict
     assert "generation_config" in params_dict
     
     config_param = params_dict["generation_config"]
@@ -91,7 +91,7 @@ async def test_generate_image_with_reference_tool_execute():
     new_result = await tool.execute(
         context,
         prompt=new_prompt,
-        input_image_urls=reference_url,
+        input_images=reference_url,
         generation_config={},
         output_filename="new.png"
     )
@@ -109,8 +109,8 @@ def test_edit_image_tool_dynamic_schema():
     params_dict = {p.name: p for p in schema.parameters}
 
     assert "prompt" in params_dict
-    assert "input_image_urls" in params_dict
-    assert "mask_image_url" in params_dict
+    assert "input_images" in params_dict
+    assert "mask_image" in params_dict
     assert "generation_config" in params_dict
     
     config_param = params_dict["generation_config"]
@@ -149,7 +149,7 @@ async def test_edit_image_tool_execute():
     edited_result = await edit_tool.execute(
         context, 
         prompt=edit_prompt, 
-        input_image_urls=original_image_url, 
+        input_images=original_image_url, 
         generation_config={},
         output_filename="butterfly_hat.png"
     )
@@ -173,7 +173,7 @@ async def test_edit_image_tool_with_remote_image():
     result = await edit_tool.execute(
         context,
         prompt=prompt,
-        input_image_urls=remote_image_url,
+        input_images=remote_image_url,
         generation_config={},
         output_filename="stone_text.png"
     )

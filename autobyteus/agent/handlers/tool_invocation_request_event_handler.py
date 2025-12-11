@@ -46,6 +46,23 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
             except Exception as e_notify:
                 logger.error(f"Agent '{agent_id}': Error notifying tool auto-execution: {e_notify}", exc_info=True)
         
+        # Run tool invocation preprocessors (if any) before execution
+        processors = context.config.tool_invocation_preprocessors
+        if processors:
+            sorted_processors = sorted(processors, key=lambda p: p.get_order())
+            for processor in sorted_processors:
+                try:
+                    tool_invocation = await processor.process(tool_invocation, context)
+                    tool_name = tool_invocation.name
+                    arguments = tool_invocation.arguments
+                    invocation_id = tool_invocation.id
+                except Exception as e:
+                    error_message = f"Error in tool invocation preprocessor '{processor.get_name()}' for tool '{tool_name}': {e}"
+                    logger.error(f"Agent '{agent_id}': {error_message}", exc_info=True)
+                    result_event = ToolResultEvent(tool_name=tool_name, result=None, error=error_message, tool_invocation_id=invocation_id)
+                    await context.input_event_queues.enqueue_tool_result(result_event)
+                    return
+
         logger.info(f"Agent '{agent_id}' executing tool directly: '{tool_name}' (ID: {invocation_id}) with args: {arguments}")
         
         try:

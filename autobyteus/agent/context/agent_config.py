@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from autobyteus.tools.base_tool import BaseTool
     from autobyteus.agent.input_processor import BaseAgentUserInputMessageProcessor
     from autobyteus.agent.tool_execution_result_processor import BaseToolExecutionResultProcessor
+    from autobyteus.agent.tool_invocation_preprocessor import BaseToolInvocationPreprocessor
     from autobyteus.llm.base_llm import BaseLLM
     from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
     from autobyteus.agent.hooks.base_phase_hook import BasePhaseHook
@@ -42,6 +43,7 @@ class AgentConfig:
                  llm_response_processors: Optional[List['BaseLLMResponseProcessor']] = None,
                  system_prompt_processors: Optional[List['BaseSystemPromptProcessor']] = None,
                  tool_execution_result_processors: Optional[List['BaseToolExecutionResultProcessor']] = None,
+                 tool_invocation_preprocessors: Optional[List['BaseToolInvocationPreprocessor']] = None,
                  workspace: Optional['BaseAgentWorkspace'] = None,
                  phase_hooks: Optional[List['BasePhaseHook']] = None,
                  initial_custom_data: Optional[Dict[str, Any]] = None):
@@ -82,6 +84,7 @@ class AgentConfig:
         self.llm_response_processors = llm_response_processors if llm_response_processors is not None else list(self.DEFAULT_LLM_RESPONSE_PROCESSORS)
         self.system_prompt_processors = system_prompt_processors if system_prompt_processors is not None else list(self.DEFAULT_SYSTEM_PROMPT_PROCESSORS)
         self.tool_execution_result_processors = tool_execution_result_processors or []
+        self.tool_invocation_preprocessors = tool_invocation_preprocessors or []
         self.phase_hooks = phase_hooks or []
         self.initial_custom_data = initial_custom_data
 
@@ -107,6 +110,7 @@ class AgentConfig:
             llm_response_processors=self.llm_response_processors.copy(), # Shallow copy the list
             system_prompt_processors=self.system_prompt_processors.copy(), # Shallow copy the list
             tool_execution_result_processors=self.tool_execution_result_processors.copy(), # Shallow copy the list
+            tool_invocation_preprocessors=self.tool_invocation_preprocessors.copy(),
             workspace=self.workspace,  # Pass by reference, do not copy
             phase_hooks=self.phase_hooks.copy(), # Shallow copy the list
             initial_custom_data=copy.deepcopy(self.initial_custom_data) # Deep copy for simple data
