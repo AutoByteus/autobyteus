@@ -44,6 +44,10 @@ class ToolInvocationPreprocessorRegistry(metaclass=SingletonMeta):
     def list_preprocessor_names(self) -> List[str]:
         return list(self._definitions.keys())
 
+    # Backwards-compatible alias used by some services
+    def get_processor(self, name: str) -> Optional['BaseToolInvocationPreprocessor']:
+        return self.get_preprocessor(name)
+
     def get_ordered_processor_options(self) -> List[ProcessorOption]:
         definitions = list(self._definitions.values())
         sorted_defs = sorted(definitions, key=lambda d: d.processor_class.get_order())
@@ -54,4 +58,3 @@ class ToolInvocationPreprocessorRegistry(metaclass=SingletonMeta):
 
 
 default_tool_invocation_preprocessor_registry = ToolInvocationPreprocessorRegistry()
-
