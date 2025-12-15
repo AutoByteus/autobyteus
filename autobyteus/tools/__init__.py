@@ -24,7 +24,11 @@ from .bash.bash_executor import bash_executor
 from .file.read_file import read_file
 from .file.write_file import write_file
 from .file.edit_file import edit_file
-from .file.search_files import search_files
+try:
+    from .file.search_files import search_files
+except ModuleNotFoundError as import_err:
+    logger.warning("search_files tool unavailable: %s", import_err)
+    search_files = None
 from .file.list_directory import list_directory
 
 # General Class-based tools
@@ -36,18 +40,18 @@ except ModuleNotFoundError as import_err:
 from .timer import Timer
 try:
     from .multimedia.image_tools import GenerateImageTool, EditImageTool
-except ModuleNotFoundError as import_err:
+except (ModuleNotFoundError, ImportError) as import_err:
     logger.warning("Image tools not available: %s", import_err)
     GenerateImageTool = None
     EditImageTool = None
 try:
     from .multimedia.media_reader_tool import ReadMediaFile
-except ModuleNotFoundError as import_err:
+except (ModuleNotFoundError, ImportError) as import_err:
     logger.warning("Media reader tool not available: %s", import_err)
     ReadMediaFile = None
 try:
     from autobyteus.multimedia.download_media_tool import DownloadMediaTool
-except ModuleNotFoundError as import_err:
+except (ModuleNotFoundError, ImportError) as import_err:
     logger.warning("Download media tool not available: %s", import_err)
     DownloadMediaTool = None
 

@@ -4,7 +4,11 @@ import copy
 from typing import List, Optional, Union, Tuple, TYPE_CHECKING, Dict, Any
 
 # Correctly import the new master processor and the base class
-from autobyteus.agent.system_prompt_processor import ToolManifestInjectorProcessor, BaseSystemPromptProcessor
+from autobyteus.agent.system_prompt_processor import (
+    ToolManifestInjectorProcessor,
+    SkillInjectorProcessor,
+    BaseSystemPromptProcessor,
+)
 from autobyteus.agent.llm_response_processor import ProviderAwareToolUsageProcessor, BaseLLMResponseProcessor
 
 
@@ -28,7 +32,7 @@ class AgentConfig:
     # Use the new ProviderAwareToolUsageProcessor as the default
     DEFAULT_LLM_RESPONSE_PROCESSORS = [ProviderAwareToolUsageProcessor()]
     # Use the new, single, unified processor as the default
-    DEFAULT_SYSTEM_PROMPT_PROCESSORS = [ToolManifestInjectorProcessor()]
+    DEFAULT_SYSTEM_PROMPT_PROCESSORS = [SkillInjectorProcessor(), ToolManifestInjectorProcessor()]
 
     def __init__(self,
                  name: str,
@@ -46,7 +50,8 @@ class AgentConfig:
                  tool_invocation_preprocessors: Optional[List['BaseToolInvocationPreprocessor']] = None,
                  workspace: Optional['BaseAgentWorkspace'] = None,
                  phase_hooks: Optional[List['BasePhaseHook']] = None,
-                 initial_custom_data: Optional[Dict[str, Any]] = None):
+                 initial_custom_data: Optional[Dict[str, Any]] = None,
+                 skill_file_paths: Optional[List[str]] = None):
         """
         Initializes the AgentConfig.
 
@@ -87,6 +92,8 @@ class AgentConfig:
         self.tool_invocation_preprocessors = tool_invocation_preprocessors or []
         self.phase_hooks = phase_hooks or []
         self.initial_custom_data = initial_custom_data
+        self.skill_file_paths = skill_file_paths or []
+        self.use_module_protocol = bool(self.skill_file_paths)
 
         logger.debug(f"AgentConfig created for name '{self.name}', role '{self.role}'. XML tool format override: {self.use_xml_tool_format}")
 
@@ -113,7 +120,8 @@ class AgentConfig:
             tool_invocation_preprocessors=self.tool_invocation_preprocessors.copy(),
             workspace=self.workspace,  # Pass by reference, do not copy
             phase_hooks=self.phase_hooks.copy(), # Shallow copy the list
-            initial_custom_data=copy.deepcopy(self.initial_custom_data) # Deep copy for simple data
+            initial_custom_data=copy.deepcopy(self.initial_custom_data), # Deep copy for simple data
+            skill_file_paths=self.skill_file_paths.copy(),
         )
 
     def __repr__(self) -> str:

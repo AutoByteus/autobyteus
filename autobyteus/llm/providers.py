@@ -14,3 +14,5 @@ class LLMProvider(Enum):
     LMSTUDIO = "LMSTUDIO"
     ZHIPU = "ZHIPU"
     BAIDU = "BAIDU"
+    LING = "LING"
+
