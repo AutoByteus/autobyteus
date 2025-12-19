@@ -1,3 +1,4 @@
+import logging
 import tiktoken
 from typing import List, TYPE_CHECKING
 from autobyteus.llm.token_counter.base_token_counter import BaseTokenCounter
@@ -6,6 +7,8 @@ from autobyteus.llm.utils.messages import Message
 
 if TYPE_CHECKING:
     from autobyteus.llm.base_llm import BaseLLM
+
+logger = logging.getLogger(__name__)
 
 class OpenAITokenCounter(BaseTokenCounter):
     """
@@ -17,8 +20,24 @@ class OpenAITokenCounter(BaseTokenCounter):
         try:
             self.encoding = tiktoken.encoding_for_model(model.value)
         except Exception:
-            # fallback if model_name is not recognized
-            self.encoding = tiktoken.get_encoding("cl100k_base")
+            # If the specific model is unknown, fall back to the widely available
+            # cl100k_base encoding. tiktoken bundles this file; it loads locally
+            # without needing network access.
+            try:
+                logger.warning(
+                    "tiktoken encoding_for_model failed for '%s'; falling back to cl100k_base (approximate token counts).",
+                    model.value,
+                )
+                self.encoding = tiktoken.get_encoding("cl100k_base")
+            except Exception:
+                # As a last resort (e.g., stripped-down wheels), degrade gracefully
+                # with a naive whitespace encoder so tests can still execute offline.
+                logger.warning(
+                    "tiktoken cl100k_base unavailable; using whitespace token counting for model '%s' (very approximate).",
+                    model.value,
+                )
+                self.encoding = None
+        self._encode = self.encoding.encode if self.encoding else (lambda text: text.split() if text else [])
 
     def convert_to_internal_format(self, messages: List[Message]) -> List[str]:
         """
@@ -51,7 +70,7 @@ class OpenAITokenCounter(BaseTokenCounter):
         processed_messages = self.convert_to_internal_format(messages)
         total_tokens = 0
         for processed_message in processed_messages:
-            total_tokens += len(self.encoding.encode(processed_message))
+            total_tokens += len(self._encode(processed_message))
         return total_tokens
 
     def count_output_tokens(self, message: Message) -> int:
@@ -67,7 +86,7 @@ class OpenAITokenCounter(BaseTokenCounter):
         if not message.content:
             return 0
         processed_message = f"<im_start>{message.role.value}\n{message.content}\n<im_end>"
-        return len(self.encoding.encode(processed_message))
+        return len(self._encode(processed_message))
 
     def count_tokens(self, text: str) -> int:
         """
@@ -81,4 +100,4 @@ class OpenAITokenCounter(BaseTokenCounter):
         """
         if not text:
             return 0
-        return len(self.encoding.encode(text))
+        return len(self._encode(text))
