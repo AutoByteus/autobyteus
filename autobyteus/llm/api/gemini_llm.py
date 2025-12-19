@@ -34,7 +34,8 @@ class GeminiLLM(BaseLLM):
         }
         
         if model is None:
-            model = LLMModel['gemini-2.5-flash']
+            # Default to the latest low-latency Gemini LLM.
+            model = LLMModel['gemini-3-flash-preview']
         if llm_config is None:
             llm_config = LLMConfig()
             

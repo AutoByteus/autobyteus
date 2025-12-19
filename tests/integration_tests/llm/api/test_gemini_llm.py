@@ -45,7 +45,8 @@ def set_gemini_env(monkeypatch):
 
 @pytest.fixture
 def gemini_llm(set_gemini_env):
-    return GeminiLLM(model=LLMModel['gemini-2.5-pro'], llm_config=LLMConfig())
+    # Use latest low-latency Gemini 3 Flash preview for coverage.
+    return GeminiLLM(model=LLMModel['gemini-3-flash-preview'], llm_config=LLMConfig())
 
 @pytest.mark.asyncio
 async def test_gemini_llm_response(gemini_llm):

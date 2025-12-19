@@ -11,15 +11,15 @@ def set_openai_env():
         pytest.skip("OPENAI_API_KEY environment variable not set. Skipping OpenAI image tests.")
 
 @pytest.fixture
-def gpt_image_1_client(set_openai_env):
-    """Provides a gpt-image-1 client from the factory."""
-    return image_client_factory.create_image_client("gpt-image-1")
+def gpt_image_15_client(set_openai_env):
+    """Provides a gpt-image-1.5 client from the factory."""
+    return image_client_factory.create_image_client("gpt-image-1.5")
 
 @pytest.mark.asyncio
-async def test_openai_generate_image(gpt_image_1_client):
-    """Tests successful image generation with a gpt-image-1 model."""
+async def test_openai_generate_image(gpt_image_15_client):
+    """Tests successful image generation with a gpt-image-1.5 model."""
     prompt = "A cute capybara wearing a top hat"
-    response = await gpt_image_1_client.generate_image(prompt)
+    response = await gpt_image_15_client.generate_image(prompt)
 
     assert isinstance(response, ImageGenerationResponse)
     assert isinstance(response.image_urls, list)
@@ -28,11 +28,11 @@ async def test_openai_generate_image(gpt_image_1_client):
     assert response.revised_prompt is not None
 
 @pytest.mark.asyncio
-async def test_openai_generate_image_with_input_image_warning(gpt_image_1_client, caplog):
+async def test_openai_generate_image_with_input_image_warning(gpt_image_15_client, caplog):
     """Tests that a warning is logged when input_image_urls are provided to the generate endpoint."""
     prompt = "A photo of a cat"
     with caplog.at_level(logging.WARNING):
-        response = await gpt_image_1_client.generate_image(prompt, input_image_urls=["dummy_path.jpg"])
+        response = await gpt_image_15_client.generate_image(prompt, input_image_urls=["dummy_path.jpg"])
 
         assert isinstance(response, ImageGenerationResponse)
         assert len(response.image_urls) > 0

@@ -11,8 +11,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Maps Developer API model names to their Vertex AI equivalents by modality.
-# Only TTS currently diverges; LLM and image names are aligned today (Dec 1, 2025),
-# but slots are kept for clarity and future-proofing.
+# As of Dec 18, 2025 the public LLM and image IDs are aligned across runtimes,
+# while some TTS variants still differ.
 _MODEL_RUNTIME_MAP = {
     "tts": {
         "gemini-2.5-flash-preview-tts": {
@@ -26,8 +26,26 @@ _MODEL_RUNTIME_MAP = {
     },
     # For LLM & image the names are currently uniform across runtimes,
     # but the structure is ready should Google introduce divergent aliases.
-    "llm": {},
-    "image": {},
+    "llm": {
+        "gemini-3-pro-preview": {
+            "vertex": "gemini-3-pro-preview",
+            "api_key": "gemini-3-pro-preview",
+        },
+        "gemini-3-flash-preview": {
+            "vertex": "gemini-3-flash-preview",
+            "api_key": "gemini-3-flash-preview",
+        },
+    },
+    "image": {
+        "gemini-3-pro-image-preview": {
+            "vertex": "gemini-3-pro-image-preview",
+            "api_key": "gemini-3-pro-image-preview",
+        },
+        "gemini-2.5-flash-image": {
+            "vertex": "gemini-2.5-flash-image",
+            "api_key": "gemini-2.5-flash-image",
+        },
+    },
 }
 
 
@@ -41,8 +59,6 @@ def resolve_model_for_runtime(model_value: str, modality: str, *, runtime: str |
     """
     if not runtime:
         return model_value
-    if not runtime:
-        return model_value
 
     modality_map = _MODEL_RUNTIME_MAP.get(modality, {})
     runtime_map = modality_map.get(model_value)
@@ -50,17 +66,6 @@ def resolve_model_for_runtime(model_value: str, modality: str, *, runtime: str |
         mapped = runtime_map[runtime]
         if mapped != model_value:
             logger.info("Adjusting Gemini model for runtime '%s': '%s' -> '%s'", runtime, model_value, mapped)
-        return mapped
-
-    # Fallback: if we're on Vertex and the name contains "-preview", drop it.
-    if runtime == "vertex" and "-preview" in model_value:
-        mapped = model_value.replace("-preview", "")
-        logger.info(
-            "Adjusting Gemini model for runtime '%s' by removing '-preview': '%s' -> '%s'",
-            runtime,
-            model_value,
-            mapped,
-        )
         return mapped
 
     return model_value

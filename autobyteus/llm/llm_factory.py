@@ -255,33 +255,25 @@ class LLMFactory(metaclass=SingletonMeta):
             ),
             # GEMINI Provider Models
             LLMModel(
-                name="gemini-2.5-pro",
-                value="gemini-2.5-pro",
+                name="gemini-3-pro-preview",
+                value="gemini-3-pro-preview",
                 provider=LLMProvider.GEMINI,
                 llm_class=GeminiLLM,
-                canonical_name="gemini-2.5-pro",
+                canonical_name="gemini-3-pro",
                 default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(2.50, 15.00)
+                    # Pricing from Gemini 3 Pro preview launch (per 1M tokens).
+                    pricing_config=TokenPricingConfig(2.00, 12.00)
                 )
             ),
             LLMModel(
-                name="gemini-2.5-flash",
-                value="gemini-2.5-flash",
+                name="gemini-3-flash-preview",
+                value="gemini-3-flash-preview",
                 provider=LLMProvider.GEMINI,
                 llm_class=GeminiLLM,
-                canonical_name="gemini-2.5-flash",
+                canonical_name="gemini-3-flash",
                 default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(0.30, 2.50)
-                )
-            ),
-            LLMModel(
-                name="gemini-2.5-flash-lite",
-                value="gemini-2.5-flash-lite",
-                provider=LLMProvider.GEMINI,
-                llm_class=GeminiLLM,
-                canonical_name="gemini-2.5-flash-lite",
-                default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(0.10, 0.40)
+                    # Pricing from Gemini 3 Flash preview launch (per 1M tokens).
+                    pricing_config=TokenPricingConfig(0.50, 3.00)
                 )
             ),
             # KIMI Provider Models

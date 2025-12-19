@@ -21,7 +21,7 @@ from autobyteus.multimedia.image.image_client_factory import ImageClientFactory
 
 def _get_gemini_model():
     ImageClientFactory.ensure_initialized()
-    return ImageClientFactory._models_by_identifier["gemini-2.5-flash-image-preview"]
+    return ImageClientFactory._models_by_identifier["gemini-2.5-flash-image"]
 
 
 class DummyResponsePart:
@@ -81,7 +81,7 @@ async def test_generate_image_returns_data_uri(monkeypatch):
     result = await client.generate_image(prompt="draw a cat")
 
     assert result.image_urls[0].startswith("data:image/png;base64,")
-    assert capture["model_name"] == "gemini-2.5-flash-image-preview"
+    assert capture["model_name"] == "gemini-2.5-flash-image"
     # contents should include the prompt only (no input images supplied)
     assert capture["contents"] == ["draw a cat"]
 

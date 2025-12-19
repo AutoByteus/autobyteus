@@ -40,24 +40,22 @@ class ImageClientFactory(metaclass=SingletonMeta):
         """Initializes the registry with built-in image models and discovers remote ones."""
         
         # OpenAI Models
-        gpt_image_1_schema = ParameterSchema(parameters=[
+        gpt_image_15_schema = ParameterSchema(parameters=[
             ParameterDefinition(name="n", param_type=ParameterType.INTEGER, default_value=1, enum_values=[1], description="The number of images to generate."),
             ParameterDefinition(name="size", param_type=ParameterType.ENUM, default_value="1024x1024", enum_values=["1024x1024", "1792x1024", "1024x1792"], description="The size of the generated images."),
             ParameterDefinition(name="quality", param_type=ParameterType.ENUM, default_value="hd", enum_values=["standard", "hd"], description="The quality of the image that will be generated."),
             ParameterDefinition(name="style", param_type=ParameterType.ENUM, default_value="vivid", enum_values=["vivid", "natural"], description="The style of the generated images.")
         ])
 
-        gpt_image_1_model = ImageModel(
-            name="gpt-image-1",
-            value="gpt-image-1",
+        gpt_image_15_model = ImageModel(
+            name="gpt-image-1.5",
+            value="gpt-image-1.5",
             provider=MultimediaProvider.OPENAI,
             client_class=OpenAIImageClient,
-            parameter_schema=gpt_image_1_schema,
+            parameter_schema=gpt_image_15_schema,
             description=(
-                "A **stateless (single-turn)** model. "
-                "It uses the standard API which does NOT retain conversation history. "
-                "**Supports input images for EDITING only** (requires a mask for inpainting). "
-                "Does **NOT** support input images for initial text-to-image generation."
+                "OpenAI's latest **stateless (single-turn)** image model with faster renders, improved text rendering, "
+                "and higher fidelity edits. Same API surface as gpt-image-1."
             )
         )
 
@@ -75,24 +73,37 @@ class ImageClientFactory(metaclass=SingletonMeta):
             )
         )
 
-        # Google Gemini Flash Image Model (aka "Nano Banana")
+        # Google Gemini 2.5 Flash Image (legacy, still widely available)
         gemini_flash_image_model = ImageModel(
-            name="gemini-2.5-flash-image-preview",
-            value="gemini-2.5-flash-image-preview",
+            name="gemini-2.5-flash-image",
+            value="gemini-2.5-flash-image",
             provider=MultimediaProvider.GOOGLE,
             client_class=GeminiImageClient,
-            parameter_schema=None, # Parameters are not exposed for this model via the genai library.
+            parameter_schema=None,  # Parameters handled by genai library
             description=(
-                "A fast, **conversational (multi-turn)** multimodal model. "
-                "It supports context retention, allowing edits to previous images without re-uploading. "
-                "It also **supports input images** for new generations or edits."
+                "Fast **conversational (multi-turn)** multimodal image model. "
+                "Supports context retention and input images for edits/variations."
+            )
+        )
+
+        # Google Gemini 3 Pro Image (aka "Nano Banana Pro")
+        gemini_pro_image_model = ImageModel(
+            name="gemini-3-pro-image-preview",
+            value="gemini-3-pro-image-preview",
+            provider=MultimediaProvider.GOOGLE,
+            client_class=GeminiImageClient,
+            parameter_schema=None,  # genai library handles options internally
+            description=(
+                "High-quality **conversational (multi-turn)** image model for complex edits and 4K renders. "
+                "Supports up to 14 reference images, advanced text rendering, and thinking mode."
             )
         )
 
         models_to_register = [
-            gpt_image_1_model,
+            gpt_image_15_model,
             imagen_model,
             gemini_flash_image_model,
+            gemini_pro_image_model,
         ]
         
         for model in models_to_register:

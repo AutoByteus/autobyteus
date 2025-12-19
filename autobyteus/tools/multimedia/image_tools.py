@@ -118,7 +118,7 @@ class GenerateImageTool(BaseTool):
     """
     CATEGORY = ToolCategory.MULTIMEDIA
     MODEL_ENV_VAR = "DEFAULT_IMAGE_GENERATION_MODEL"
-    DEFAULT_MODEL = "gpt-image-1"
+    DEFAULT_MODEL = "gpt-image-1.5"
 
     def __init__(self, config=None):
         super().__init__(config)
@@ -224,7 +224,7 @@ class EditImageTool(BaseTool):
     """
     CATEGORY = ToolCategory.MULTIMEDIA
     MODEL_ENV_VAR = "DEFAULT_IMAGE_EDIT_MODEL"
-    DEFAULT_MODEL = "gpt-image-1"
+    DEFAULT_MODEL = "gpt-image-1.5"
 
     def __init__(self, config=None):
         super().__init__(config)
