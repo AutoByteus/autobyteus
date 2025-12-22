@@ -1,10 +1,7 @@
 import logging
 import base64
-import os
 from typing import Optional, List, Dict, Any, TYPE_CHECKING
-from google import genai
-from PIL import Image
-import requests
+from google.genai import types as genai_types
 
 from autobyteus.multimedia.image.base_image_client import BaseImageClient
 from autobyteus.multimedia.utils.response_types import ImageGenerationResponse
@@ -60,9 +57,17 @@ class GeminiImageClient(BaseImageClient):
                     except Exception as e:
                         logger.error(f"Skipping image at '{url}' due to loading error: {e}")
 
-            # Note: The google-genai library uses the synchronous client for the `.generate_content` method on a model
-            # even in an async context, as there isn't a direct async equivalent exposed for this specific call on the model object.
-            # We use the top-level async client for other potential future calls if the library API changes.
+            config_dict: Dict[str, Any] = {}
+            if self.config and self.config.params:
+                config_dict.update(self.config.params)
+            if generation_config:
+                config_dict.update(generation_config)
+            if "response_modalities" not in config_dict:
+                if getattr(self, "runtime_info", None) and self.runtime_info.runtime == "vertex":
+                    config_dict["response_modalities"] = ["TEXT", "IMAGE"]
+                else:
+                    config_dict["response_modalities"] = ["IMAGE"]
+            config = genai_types.GenerateContentConfig(**config_dict)
             
             # FIX: Removed 'models/' prefix from model_name to support Vertex AI
             runtime_adjusted_model = resolve_model_for_runtime(
@@ -76,13 +81,16 @@ class GeminiImageClient(BaseImageClient):
                     runtime_adjusted_model,
                     self.model.value,
                 )
-            model_instance = self.client.get_generative_model(model_name=runtime_adjusted_model)
-            response = await model_instance.generate_content_async(contents=content)
+            response = await self.async_client.models.generate_content(
+                model=runtime_adjusted_model,
+                contents=content,
+                config=config,
+            )
 
 
             image_urls = []
-            for part in response.parts:
-                if part.inline_data and "image" in part.inline_data.mime_type:
+            for part in response.parts or []:
+                if part.inline_data and part.inline_data.mime_type and "image" in part.inline_data.mime_type:
                     image_bytes = part.inline_data.data
                     base64_image = base64.b64encode(image_bytes).decode("utf-8")
                     data_uri = f"data:{part.inline_data.mime_type};base64,{base64_image}"
@@ -90,7 +98,7 @@ class GeminiImageClient(BaseImageClient):
             
             if not image_urls:
                 # Check for a safety-related refusal to generate content
-                if response.prompt_feedback.block_reason:
+                if response.prompt_feedback and response.prompt_feedback.block_reason:
                     reason = response.prompt_feedback.block_reason.name
                     logger.error(f"Image generation blocked due to safety settings. Reason: {reason}")
                     raise ValueError(f"Image generation failed due to safety settings: {reason}")

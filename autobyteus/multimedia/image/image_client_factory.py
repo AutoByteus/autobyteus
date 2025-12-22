@@ -43,8 +43,7 @@ class ImageClientFactory(metaclass=SingletonMeta):
         gpt_image_15_schema = ParameterSchema(parameters=[
             ParameterDefinition(name="n", param_type=ParameterType.INTEGER, default_value=1, enum_values=[1], description="The number of images to generate."),
             ParameterDefinition(name="size", param_type=ParameterType.ENUM, default_value="1024x1024", enum_values=["1024x1024", "1792x1024", "1024x1792"], description="The size of the generated images."),
-            ParameterDefinition(name="quality", param_type=ParameterType.ENUM, default_value="hd", enum_values=["standard", "hd"], description="The quality of the image that will be generated."),
-            ParameterDefinition(name="style", param_type=ParameterType.ENUM, default_value="vivid", enum_values=["vivid", "natural"], description="The style of the generated images.")
+            ParameterDefinition(name="quality", param_type=ParameterType.ENUM, default_value="auto", enum_values=["auto", "low", "medium", "high"], description="The quality of the image that will be generated.")
         ])
 
         gpt_image_15_model = ImageModel(

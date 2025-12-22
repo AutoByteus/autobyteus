@@ -40,14 +40,15 @@ class DummyResponse:
         self.prompt_feedback = DummyPromptFeedback(block_reason=block_reason)
 
 
-class DummyModelInstance:
+class DummyAsyncModels:
     def __init__(self, response: DummyResponse, capture):
         self._response = response
         self._capture = capture
 
-    async def generate_content_async(self, contents):
-        # record contents for assertions if needed
+    async def generate_content(self, model, contents, config=None):
+        self._capture["model"] = model
         self._capture["contents"] = contents
+        self._capture["config"] = config
         return self._response
 
 
@@ -55,11 +56,7 @@ class DummyClient:
     def __init__(self, response: DummyResponse, capture):
         self._response = response
         self._capture = capture
-        self.aio = MagicMock()
-
-    def get_generative_model(self, model_name: str):
-        self._capture["model_name"] = model_name
-        return DummyModelInstance(self._response, self._capture)
+        self.aio = SimpleNamespace(models=DummyAsyncModels(response, capture))
 
 
 @pytest.mark.asyncio
@@ -81,7 +78,7 @@ async def test_generate_image_returns_data_uri(monkeypatch):
     result = await client.generate_image(prompt="draw a cat")
 
     assert result.image_urls[0].startswith("data:image/png;base64,")
-    assert capture["model_name"] == "gemini-2.5-flash-image"
+    assert capture["model"] == "gemini-2.5-flash-image"
     # contents should include the prompt only (no input images supplied)
     assert capture["contents"] == ["draw a cat"]
 
@@ -105,7 +102,7 @@ async def test_generate_image_adjusts_model_for_vertex_runtime(monkeypatch):
 
     await client.generate_image(prompt="hi")
 
-    assert capture["model_name"] == "resolved-model-name"
+    assert capture["model"] == "resolved-model-name"
     assert capture["resolved_runtime"] == "vertex"
 
 

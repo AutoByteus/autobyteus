@@ -1,5 +1,6 @@
 import pytest
 import os
+from pathlib import Path
 from types import SimpleNamespace
 from autobyteus.tools.multimedia.image_tools import GenerateImageTool, EditImageTool, _get_configured_model_identifier
 from autobyteus.utils.parameter_schema import ParameterType, ParameterSchema, ParameterDefinition
@@ -10,6 +11,12 @@ def check_api_keys():
         pytest.skip("OPENAI_API_KEY not set.")
     if not os.getenv("GEMINI_API_KEY"):
         pytest.skip("GEMINI_API_KEY not set.")
+
+@pytest.fixture(autouse=True)
+def fix_models(monkeypatch):
+    """Force valid model names for integration tests."""
+    monkeypatch.setenv("DEFAULT_IMAGE_GENERATION_MODEL", "gemini-2.5-flash-image")
+    monkeypatch.setenv("DEFAULT_IMAGE_EDIT_MODEL", "gemini-2.5-flash-image")
 
 @pytest.mark.parametrize("env_var", ["DEFAULT_IMAGE_GENERATION_MODEL", "DEFAULT_IMAGE_EDIT_MODEL"])
 def test_get_configured_model_identifier_success(monkeypatch, env_var):
@@ -53,52 +60,55 @@ def test_generate_image_tool_dynamic_schema():
     assert "1792x1024" in size_param.enum_values
 
     assert isinstance(quality_param, ParameterDefinition)
-    assert quality_param.default_value == "hd"
+    assert quality_param.default_value == "auto"
+    assert "high" in quality_param.enum_values
 
 
 @pytest.mark.asyncio
-async def test_generate_image_tool_execute():
+async def test_generate_image_tool_execute(tmp_path):
     """Tests a successful execution of the GenerateImageTool."""
     tool = GenerateImageTool()
     prompt = "A majestic lion standing on a rock at sunset, cartoon style"
-    context = SimpleNamespace(agent_id="test-agent")
-    result = await tool.execute(context, prompt=prompt, generation_config={}, output_filename="lion.png")
+    context = SimpleNamespace(agent_id="test-agent", workspace_root=tmp_path)
+    result = await tool.execute(context, prompt=prompt, generation_config={}, output_file_path="lion.png")
 
     assert isinstance(result, dict)
-    assert result["url"].startswith("https://") or result["url"].startswith("data:")
-    assert result["filename"] == "lion"
+    assert "file_path" in result
+    saved_path = Path(result["file_path"])
+    assert saved_path.exists()
+    assert saved_path.name == "lion.png"
 
 @pytest.mark.asyncio
-async def test_generate_image_with_reference_tool_execute():
+async def test_generate_image_with_reference_tool_execute(tmp_path):
     """
     Tests generating an image using another generated image as a style reference.
     """
     # Step 1: Generate a base image to use as a reference.
     tool = GenerateImageTool()
-    base_prompt = "A simple, black and white, comic book style ink drawing of a superhero's face."
-    context = SimpleNamespace(agent_id="test-agent")
+    base_prompt = "A simple black and white ink drawing of a smiling robot head."
+    context = SimpleNamespace(agent_id="test-agent", workspace_root=tmp_path)
 
-    base_result = await tool.execute(context, prompt=base_prompt, generation_config={}, output_filename="base.png")
-    reference_url = base_result["url"]
-    print(f"Generated reference image URL: {reference_url}")
+    base_result = await tool.execute(context, prompt=base_prompt, generation_config={}, output_file_path="base.png")
+    reference_path = base_result["file_path"]
+    print(f"Generated reference image path: {reference_path}")
 
     # Step 2: Generate a new image using the first one as a reference.
     # Note: This heavily depends on the model's ability to interpret image inputs.
     # For Gemini, this works well. For DALL-E 3 via the images.generate API, it's ignored.
     # The test verifies the tool passes the parameter correctly.
-    new_prompt = "A full-color comic book style image of Batman fighting the Joker, in the same art style as the reference image."
+    new_prompt = "A full-color comic book style image of a friendly robot, in the same art style as the reference image."
     
     new_result = await tool.execute(
         context,
         prompt=new_prompt,
-        input_images=reference_url,
+        input_images=reference_path,
         generation_config={},
-        output_filename="new.png"
+        output_file_path="new.png"
     )
 
-    new_url = new_result["url"]
-    assert new_url != reference_url
-    assert new_url.startswith("https://") or new_url.startswith("data:")
+    new_path = new_result["file_path"]
+    assert new_path != reference_path
+    assert Path(new_path).exists()
 
 
 def test_edit_image_tool_dynamic_schema():
@@ -124,24 +134,24 @@ def test_edit_image_tool_dynamic_schema():
     assert size_param.default_value == "1024x1024"
 
 @pytest.mark.asyncio
-async def test_edit_image_tool_execute():
+async def test_edit_image_tool_execute(tmp_path):
     """
     Tests a successful end-to-end execution of generating and then editing an image.
     """
     # Step 1: Generate an initial image
     generate_tool = GenerateImageTool()
     generate_prompt = "A simple monarch butterfly on a white background, cartoon style"
-    context = SimpleNamespace(agent_id="test-agent")
+    context = SimpleNamespace(agent_id="test-agent", workspace_root=tmp_path)
 
     generated_result = await generate_tool.execute(
         context, 
         prompt=generate_prompt, 
         generation_config={},
-        output_filename="butterfly.png"
+        output_file_path="butterfly.png"
     )
 
-    original_image_url = generated_result["url"]
-    print(f"Generated image URL for editing: {original_image_url}")
+    original_image_path = generated_result["file_path"]
+    print(f"Generated image path for editing: {original_image_path}")
     # Step 2: Edit the generated image
     edit_tool = EditImageTool()
     edit_prompt = "Add a tiny party hat on the butterfly's head"
@@ -149,24 +159,25 @@ async def test_edit_image_tool_execute():
     edited_result = await edit_tool.execute(
         context, 
         prompt=edit_prompt, 
-        input_images=original_image_url, 
+        input_images=original_image_path, 
         generation_config={},
-        output_filename="butterfly_hat.png"
+        output_file_path="butterfly_hat.png"
     )
 
-    edited_image_url = edited_result["url"]
+    edited_image_path = edited_result["file_path"]
     
     # Verify that a new image was created
-    assert edited_image_url != original_image_url
+    assert edited_image_path != original_image_path
+    assert Path(edited_image_path).exists()
 
 
 @pytest.mark.asyncio
-async def test_edit_image_tool_with_remote_image():
+async def test_edit_image_tool_with_remote_image(tmp_path):
     """
     Edits a remote reference image by overlaying text. Uses the public execute API.
     """
     edit_tool = EditImageTool()
-    context = SimpleNamespace(agent_id="test-agent")
+    context = SimpleNamespace(agent_id="test-agent", workspace_root=tmp_path)
     prompt = "Add the word 'Serenity' in white text across the center of the stone."
     remote_image_url = "http://192.168.2.124:29695/rest/files/images/smooth_stone_ref.jpg"
 
@@ -175,10 +186,9 @@ async def test_edit_image_tool_with_remote_image():
         prompt=prompt,
         input_images=remote_image_url,
         generation_config={},
-        output_filename="stone_text.png"
+        output_file_path="stone_text.png"
     )
 
     assert isinstance(result, dict)
-    edited_url = result["url"]
-    assert isinstance(edited_url, str)
-    assert edited_url.startswith("https://") or edited_url.startswith("data:")
+    edited_path = result["file_path"]
+    assert Path(edited_path).exists()

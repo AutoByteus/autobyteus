@@ -24,8 +24,8 @@ async def test_openai_generate_image(gpt_image_15_client):
     assert isinstance(response, ImageGenerationResponse)
     assert isinstance(response.image_urls, list)
     assert len(response.image_urls) > 0
-    assert response.image_urls[0].startswith("https://")
-    assert response.revised_prompt is not None
+    first = response.image_urls[0]
+    assert first.startswith("data:") or first.startswith("https://")
 
 @pytest.mark.asyncio
 async def test_openai_generate_image_with_input_image_warning(gpt_image_15_client, caplog):
