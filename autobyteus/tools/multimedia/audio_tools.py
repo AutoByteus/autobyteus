@@ -1,12 +1,15 @@
 import os
 import logging
 from typing import Optional, List, Any
+from pathlib import Path
 
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.tool_category import ToolCategory
 from autobyteus.multimedia.audio import audio_client_factory, AudioModel, AudioClientFactory
 from autobyteus.multimedia.audio.base_audio_client import BaseAudioClient
+from autobyteus.utils.download_utils import download_file_from_url
+from autobyteus.utils.file_utils import resolve_safe_path
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +58,6 @@ def _build_dynamic_audio_schema(base_params: List[ParameterDefinition], model_en
 
 class GenerateSpeechTool(BaseTool):
     """
-
     An agent tool for generating speech from text using a Text-to-Speech (TTS) model.
     """
     CATEGORY = ToolCategory.MULTIMEDIA
@@ -74,7 +76,7 @@ class GenerateSpeechTool(BaseTool):
     def get_description(cls) -> str:
         return (
             "Generates spoken audio from text using the system's default Text-to-Speech (TTS) model. "
-            "Returns a list of local file paths to the generated audio files (.wav) upon success."
+            "Saves the generated audio file (.wav or .mp3) to the specified local file path and returns the path."
         )
 
     @classmethod
@@ -87,15 +89,16 @@ class GenerateSpeechTool(BaseTool):
                     "The text to be converted into spoken audio. For multi-speaker mode, you must format the prompt "
                     "with speaker labels that match the speakers defined in 'speaker_mapping'. "
                     "CRITICAL: Each speaker's dialogue MUST be on a new line. "
-                    "Example: 'Joe: Hello Jane.\\nJane: Hi Joe, how are you?'"
+                    "Example: 'Joe: Hello Jane.\nJane: Hi Joe, how are you?'"
                 ),
                 required=True
             ),
             ParameterDefinition(
-                name="output_filename",
+                name="output_file_path",
                 param_type=ParameterType.STRING,
                 description=(
-                    "Required. Base filename (no extension) to apply to the generated audio when stored by downstream processors."
+                    "Required. The local file path (relative to workspace) where the generated audio should be saved. "
+                    "Example: 'assets/audio/speech.wav'"
                 ),
                 required=True
             )
@@ -106,8 +109,8 @@ class GenerateSpeechTool(BaseTool):
         self,
         context,
         prompt: str,
+        output_file_path: str,
         generation_config: Optional[dict] = None,
-        output_filename: Optional[str] = None,
     ) -> Any:
         model_identifier = _get_configured_model_identifier(self.MODEL_ENV_VAR, self.DEFAULT_MODEL)
         logger.info(f"generate_speech executing with configured model '{model_identifier}'.")
@@ -121,11 +124,14 @@ class GenerateSpeechTool(BaseTool):
 
         first_url = response.audio_urls[0]
 
-        if not output_filename:
-            raise ValueError("output_filename is required but was not provided.")
+        if not output_file_path:
+            raise ValueError("output_file_path is required but was not provided.")
 
-        stem = os.path.splitext(output_filename.strip())[0]
-        return {"url": first_url, "filename": stem}
+        # Save to File
+        resolved_path = resolve_safe_path(output_file_path, context.workspace_root)
+        await download_file_from_url(first_url, resolved_path)
+
+        return {"file_path": str(resolved_path)}
 
     async def cleanup(self) -> None:
         if self._client:

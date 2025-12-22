@@ -1,12 +1,15 @@
 import os
 import logging
 from typing import Optional, List, Dict, Tuple, Any
+from pathlib import Path
 
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 from autobyteus.tools.tool_category import ToolCategory
 from autobyteus.multimedia.image import image_client_factory, ImageModel, ImageClientFactory
 from autobyteus.multimedia.image.base_image_client import BaseImageClient
+from autobyteus.utils.download_utils import download_file_from_url
+from autobyteus.utils.file_utils import resolve_safe_path
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +141,7 @@ class GenerateImageTool(BaseTool):
             "Use cases include: creating or editing posters, modifying scene elements (e.g., 'add a cat to the sofa'), "
             "style transfer (e.g., 'turn this photo into an oil painting'), generating variations of a design, "
             "or any imaging task requiring consistency with an input reference (e.g., preserving a specific composition or background while changing the subject). "
-            "Returns a list of URLs to the generated images. "
+            "Saves the generated image to the specified local file path and returns the path. "
             "Please refer to the specific capabilities of the configured model below to check if it supports "
             "input images for variations/editing."
         )
@@ -161,10 +164,11 @@ class GenerateImageTool(BaseTool):
                 required=False
             ),
             ParameterDefinition(
-                name="output_filename",
+                name="output_file_path",
                 param_type=ParameterType.STRING,
                 description=(
-                    "Required. Base filename (no extension) to apply to the generated image when stored by downstream processors."
+                    "Required. The local file path (relative to workspace) where the generated image should be saved. "
+                    "Example: 'assets/images/result.png'"
                 ),
                 required=True
             )
@@ -175,9 +179,9 @@ class GenerateImageTool(BaseTool):
         self,
         context,
         prompt: str,
+        output_file_path: str,
         input_images: Optional[str] = None,
         generation_config: Optional[dict] = None,
-        output_filename: Optional[str] = None,
     ) -> Any:
         # 1. Resolve Model ID
         if not self._model_identifier:
@@ -206,11 +210,14 @@ class GenerateImageTool(BaseTool):
 
         first_url = response.image_urls[0]
 
-        if not output_filename:
-            raise ValueError("output_filename is required but was not provided.")
+        if not output_file_path:
+            raise ValueError("output_file_path is required but was not provided.")
 
-        stem = os.path.splitext(output_filename.strip())[0]
-        return {"url": first_url, "filename": stem}
+        # 5. Save to File
+        resolved_path = resolve_safe_path(output_file_path, context.workspace_root)
+        await download_file_from_url(first_url, resolved_path)
+
+        return {"file_path": str(resolved_path)}
 
     async def cleanup(self) -> None:
         if self._client and self._model_identifier and self.agent_id:
@@ -240,7 +247,7 @@ class EditImageTool(BaseTool):
         base_desc = (
             "Edits an existing image based on a textual description (prompt)"
             "A mask can be provided to specify the exact area to edit (inpainting). "
-            "Returns a list of URLs to the edited images."
+            "Saves the edited image to the specified local file path and returns the path."
         )
         suffix = _get_model_description_suffix(cls.MODEL_ENV_VAR, cls.DEFAULT_MODEL)
         return f"{base_desc}{suffix}"
@@ -267,10 +274,11 @@ class EditImageTool(BaseTool):
                 required=False
             ),
             ParameterDefinition(
-                name="output_filename",
+                name="output_file_path",
                 param_type=ParameterType.STRING,
                 description=(
-                    "Required. Base filename (no extension) to apply to the edited image when stored by downstream processors."
+                    "Required. The local file path (relative to workspace) where the edited image should be saved. "
+                    "Example: 'assets/images/edited_result.png'"
                 ),
                 required=True
             ),
@@ -290,8 +298,8 @@ class EditImageTool(BaseTool):
         self,
         context,
         prompt: str,
+        output_file_path: str,
         input_images: Optional[str] = None,
-        output_filename: Optional[str] = None,
         generation_config: Optional[dict] = None,
         mask_image: Optional[str] = None,
     ) -> Any:
@@ -324,12 +332,16 @@ class EditImageTool(BaseTool):
         if not response.image_urls:
             raise ValueError("Image editing failed to return any image URLs.")
 
-        if not output_filename:
-            raise ValueError("output_filename is required but was not provided.")
+        if not output_file_path:
+            raise ValueError("output_file_path is required but was not provided.")
 
         first_url = response.image_urls[0]
-        stem = os.path.splitext(output_filename.strip())[0]
-        return {"url": first_url, "filename": stem}
+        
+        # 5. Save to File
+        resolved_path = resolve_safe_path(output_file_path, context.workspace_root)
+        await download_file_from_url(first_url, resolved_path)
+
+        return {"file_path": str(resolved_path)}
 
     async def cleanup(self) -> None:
         if self._client and self._model_identifier and self.agent_id:

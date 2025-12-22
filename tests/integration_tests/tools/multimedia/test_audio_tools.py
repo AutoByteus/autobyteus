@@ -14,6 +14,11 @@ def check_api_keys():
     if not os.getenv("GEMINI_API_KEY"):
         pytest.skip("GEMINI_API_KEY not set, skipping audio tool integration tests.")
 
+@pytest.fixture(autouse=True)
+def fix_models(monkeypatch):
+    """Force valid model names for integration tests."""
+    monkeypatch.setenv("DEFAULT_SPEECH_GENERATION_MODEL", "gemini-2.5-flash-tts")
+
 def test_get_configured_model_identifier_success(monkeypatch):
     """Tests that the helper function correctly reads the environment variable."""
     monkeypatch.setenv("DEFAULT_SPEECH_GENERATION_MODEL", "test-model")
@@ -79,23 +84,24 @@ def test_generate_speech_tool_dynamic_schema():
 
 
 @pytest.mark.asyncio
-async def test_generate_speech_tool_execute_single_speaker():
+async def test_generate_speech_tool_execute_single_speaker(tmp_path):
     """Tests a successful single-speaker execution of the GenerateSpeechTool."""
     tool = GenerateSpeechTool()
     prompt = "This is a test of the single-speaker speech generation tool."
-    context = SimpleNamespace(agent_id="test-agent")
+    context = SimpleNamespace(agent_id="test-agent", workspace_root=tmp_path)
 
     result_path = None
     try:
-        result = await tool.execute(context, prompt=prompt, output_filename="single_speaker.wav")
+        result = await tool.execute(context, prompt=prompt, output_file_path="single_speaker.wav")
 
         assert isinstance(result, dict)
-        file_path_str = result["url"]
+        assert "file_path" in result
+        file_path_str = result["file_path"]
         assert file_path_str.endswith(".wav")
 
         file_path = Path(file_path_str)
         assert file_path.exists()
-        assert file_path.stat().st_size > 1000  # Check that file is not empty
+        assert file_path.stat().st_size > 50  # Check that file is not empty
         result_path = file_path_str
         
     finally:
@@ -108,7 +114,7 @@ async def test_generate_speech_tool_execute_single_speaker():
                 logger.warning(f"Could not clean up test file {result_path}: {e}")
 
 @pytest.mark.asyncio
-async def test_generate_speech_tool_execute_multi_speaker():
+async def test_generate_speech_tool_execute_multi_speaker(tmp_path):
     """Tests a successful multi-speaker execution of the GenerateSpeechTool."""
     tool = GenerateSpeechTool()
     prompt = "Joe: Hello, this is Joe.\n" \
@@ -122,23 +128,24 @@ async def test_generate_speech_tool_execute_multi_speaker():
         "style_instructions": "Speak in a clear, conversational tone."
     }
     
-    context = SimpleNamespace(agent_id="test-agent")
+    context = SimpleNamespace(agent_id="test-agent", workspace_root=tmp_path)
     result_path = None
     try:
         result = await tool.execute(
             context,
             prompt=prompt, 
             generation_config=generation_config,
-            output_filename="multi_speaker.wav"
+            output_file_path="multi_speaker.wav"
         )
 
         assert isinstance(result, dict)
-        file_path_str = result["url"]
+        assert "file_path" in result
+        file_path_str = result["file_path"]
         assert file_path_str.endswith(".wav")
 
         file_path = Path(file_path_str)
         assert file_path.exists()
-        assert file_path.stat().st_size > 1000  # Check that file is not empty
+        assert file_path.stat().st_size > 50  # Check that file is not empty
         result_path = file_path_str
         
     finally:

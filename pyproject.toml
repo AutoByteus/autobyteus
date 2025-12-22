@@ -7,7 +7,7 @@ name = "autobyteus"
 version = "1.2.2"
 description = "Multi-Agent framework"
 readme = {file = "README.md", content-type = "text/markdown"}
-requires-python = ">=3.8"
+requires-python = ">=3.11,<3.12"
 license = {file = "LICENSE"}
 authors = [{name = "Ryan Zheng", email = "ryan.zheng.work@gmail.com"}]
 dependencies = [
@@ -20,7 +20,7 @@ dependencies = [
     "certifi==2025.4.26",
     "cryptography",
     "google-api-python-client",
-    "google-genai==1.38.0",
+    "google-genai==1.52.0",
     "httpx",
     "Jinja2",
     "mcp[cli]",
@@ -40,13 +40,12 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
 ]
 
 [project.optional-dependencies]
 dev = [
+    "build",
     "coverage",
     "flake8",
     "numpy",
@@ -82,3 +81,8 @@ autobyteus = ["py.typed", "clients/certificates/cert.pem"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "build>=1.3.0",
+]

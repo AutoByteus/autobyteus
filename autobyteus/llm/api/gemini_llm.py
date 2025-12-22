@@ -1,8 +1,6 @@
 import logging
-from typing import Dict, Optional, List, AsyncGenerator, Any
-from google import genai
+from typing import Dict, List, AsyncGenerator, Any
 from google.genai import types as genai_types
-import os
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.llm_config import LLMConfig

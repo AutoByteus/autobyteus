@@ -63,7 +63,7 @@ Choose the collaboration pattern that best fits your use case with configurable 
 
 ## Requirements
 
--   **Python Version**: Python 3.11 is the recommended and tested version for this project. Using newer versions of Python may result in dependency conflicts when installing the required packages. For a stable and tested environment, please use Python 3.11.
+-   **Python Version**: Python 3.11.x is the supported version for this project (>=3.11,<3.12). Using other versions may cause dependency conflicts.
 
 ## Getting Started
 
@@ -75,17 +75,20 @@ Choose the collaboration pattern that best fits your use case with configurable 
     cd autobyteus
     ```
 
-2.  **For users:**
-    To install Autobyteus and its core dependencies:
+2.  **Create a local `uv` environment (recommended):**
     ```bash
-    pip install .
+    uv venv .venv --python 3.11
     ```
 
-3.  **For developers:**
-    To install Autobyteus in editable mode with all development tooling:
-    ```bash
-    pip install -e '.[dev]'
-    ```
+3.  **Install dependencies:**
+    - **For users:**
+      ```bash
+      uv sync
+      ```
+    - **For developers:**
+      ```bash
+      uv sync --extra dev
+      ```
 
 4.  **Set up Environment Variables:**
     Create a `.env` file in the root of the project and add your LLM provider API keys:
@@ -125,7 +128,7 @@ python src/streamable_http_mcp_toy/server.py --host 127.0.0.1 --port 8764
 With the server running, execute the HTTP transport test:
 
 ```bash
-pytest tests/integration_tests/tools/mcp/test_http_managed_server_integration.py
+uv run python -m pytest tests/integration_tests/tools/mcp/test_http_managed_server_integration.py
 ```
 
 If you bind the server elsewhere, set `STREAMABLE_HTTP_MCP_URL` to the full
@@ -152,7 +155,7 @@ header. To exercise the WebSocket transport:
    listening on `wss://127.0.0.1:8765/mcp`):
 
    ```bash
-   pytest tests/integration_tests/tools/mcp/test_websocket_managed_server_integration.py
+   uv run python -m pytest tests/integration_tests/tools/mcp/test_websocket_managed_server_integration.py
    ```
 
 Customize the target URL or TLS behavior via environment variables when
@@ -169,14 +172,14 @@ running pytest:
 
 To build Autobyteus as a distributable package, follow these steps:
 
-1.  Install the standard Python build frontend (PEP 517 compliant):
-    ```
-    python -m pip install --upgrade build
+1.  Ensure dev dependencies are installed:
+    ```bash
+    uv sync --extra dev
     ```
 
 2.  Build the distribution packages defined in `pyproject.toml`:
     ```
-    python -m build
+    uv run python -m build
     ```
 
 This will create a `dist` directory containing the `sdist` and `wheel` artifacts.
