@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 from .bash.bash_executor import bash_executor
 from .file.read_file import read_file
 from .file.write_file import write_file
-from .file.edit_file import edit_file
+from .file.patch_file import patch_file
 from .file.search_files import search_files
 from .file.list_directory import list_directory
 
@@ -95,7 +95,7 @@ __all__ = [
     "bash_executor",
     "read_file",
     "write_file",
-    "edit_file",
+    "patch_file",
     "search_files",
     "list_directory",
 

@@ -21,7 +21,7 @@ def _resolve_file_path(context: 'AgentContext', path: str) -> str:
     """Resolves an absolute path for the given input, using the agent workspace when needed."""
     if os.path.isabs(path):
         final_path = path
-        logger.debug("edit_file: provided path '%s' is absolute.", path)
+        logger.debug("patch_file: provided path '%s' is absolute.", path)
     else:
         if not context.workspace:
             error_msg = ("Relative path '%s' provided, but no workspace is configured for agent '%s'. "
@@ -35,10 +35,10 @@ def _resolve_file_path(context: 'AgentContext', path: str) -> str:
             logger.error(error_msg, context.agent_id, base_path, path)
             raise ValueError(error_msg % (context.agent_id, base_path, path))
         final_path = os.path.join(base_path, path)
-        logger.debug("edit_file: resolved relative path '%s' against workspace base '%s' to '%s'.", path, base_path, final_path)
+        logger.debug("patch_file: resolved relative path '%s' against workspace base '%s' to '%s'.", path, base_path, final_path)
 
     normalized_path = os.path.normpath(final_path)
-    logger.debug("edit_file: normalized path to '%s'.", normalized_path)
+    logger.debug("patch_file: normalized path to '%s'.", normalized_path)
     return normalized_path
 
 
@@ -56,7 +56,7 @@ def _apply_unified_diff(original_lines: List[str], patch: str) -> List[str]:
         line = patch_lines[line_idx]
 
         if line.startswith('---') or line.startswith('+++'):
-            logger.debug("edit_file: skipping diff header line '%s'.", line.strip())
+            logger.debug("patch_file: skipping diff header line '%s'.", line.strip())
             line_idx += 1
             continue
 
@@ -75,7 +75,7 @@ def _apply_unified_diff(original_lines: List[str], patch: str) -> List[str]:
         old_count = int(match.group('old_count') or '1')
         new_start = int(match.group('new_start'))
         new_count = int(match.group('new_count') or '1')
-        logger.debug("edit_file: processing hunk old_start=%s old_count=%s new_start=%s new_count=%s.",
+        logger.debug("patch_file: processing hunk old_start=%s old_count=%s new_start=%s new_count=%s.",
                      old_start, old_count, new_start, new_count)
 
         target_idx = old_start - 1 if old_start > 0 else 0
@@ -152,29 +152,24 @@ def _apply_unified_diff(original_lines: List[str], patch: str) -> List[str]:
     return patched_lines
 
 
-@tool(name="edit_file", category=ToolCategory.FILE_SYSTEM)
-async def edit_file(context: 'AgentContext', path: str, patch: str, create_if_missing: bool = False) -> str:
+@tool(name="patch_file", category=ToolCategory.FILE_SYSTEM)
+async def patch_file(context: 'AgentContext', path: str, patch: str) -> str:
     """Applies a unified diff patch to update a text file without overwriting unrelated content.
 
     Args:
         path: Path to the target file. Relative paths are resolved against the agent workspace when available.
         patch: Unified diff patch describing the edits to apply.
-        create_if_missing: When True, allows applying a patch that introduces content to a non-existent file.
 
     Raises:
-        FileNotFoundError: If the file does not exist and create_if_missing is False.
+        FileNotFoundError: If the file does not exist.
         PatchApplicationError: If the patch content cannot be applied cleanly.
         IOError: If file reading or writing fails.
     """
-    logger.debug("edit_file: requested edit for agent '%s' on path '%s'.", context.agent_id, path)
+    logger.debug("patch_file: requested patch for agent '%s' on path '%s'.", context.agent_id, path)
     final_path = _resolve_file_path(context, path)
 
-    dir_path = os.path.dirname(final_path)
-    if dir_path and not os.path.exists(dir_path) and create_if_missing:
-        os.makedirs(dir_path, exist_ok=True)
-
     file_exists = os.path.exists(final_path)
-    if not file_exists and not create_if_missing:
+    if not file_exists:
         raise FileNotFoundError(f"The file at resolved path {final_path} does not exist.")
 
     try:
@@ -190,11 +185,11 @@ async def edit_file(context: 'AgentContext', path: str, patch: str, create_if_mi
         with open(final_path, 'w', encoding='utf-8') as destination:
             destination.writelines(patched_lines)
 
-        logger.info("edit_file: successfully applied patch to '%s'.", final_path)
-        return f"File edited successfully at {final_path}"
+        logger.info("patch_file: successfully applied patch to '%s'.", final_path)
+        return f"File patched successfully at {final_path}"
     except PatchApplicationError as patch_err:
-        logger.error("edit_file: failed to apply patch to '%s': %s", final_path, patch_err, exc_info=True)
+        logger.error("patch_file: failed to apply patch to '%s': %s", final_path, patch_err, exc_info=True)
         raise patch_err
     except Exception as exc:  # pragma: no cover - general safeguard
-        logger.error("edit_file: unexpected error while editing '%s': %s", final_path, exc, exc_info=True)
-        raise IOError(f"Could not edit file at '{final_path}': {exc}")
+        logger.error("patch_file: unexpected error while patching '%s': %s", final_path, exc, exc_info=True)
+        raise IOError(f"Could not patch file at '{final_path}': {exc}")

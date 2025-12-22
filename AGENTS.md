@@ -19,3 +19,6 @@
 - Never call plain `pytest` in automation; it is brittle with PATH and editor-driven launches.
 - If a tool auto-generates a `pytest` command, rewrite it to `python -m pytest` with the env’s Python to avoid future surprises.
 - Refactors: avoid leaving unused/backward-compatibility shims or dead code. Prefer clean, current implementations over preserving legacy branches unless explicitly required.
+
+
+aXOn-po2343ering-HI
