@@ -116,6 +116,8 @@ class OpenAICompatibleLLM(BaseLLM, ABC):
             if self.max_tokens is not None:
                 # For OpenAI-compatible APIs, prefer max_completion_tokens; legacy max_tokens removed.
                 params["max_completion_tokens"] = self.max_tokens
+            if self.config.extra_params:
+                params.update(self.config.extra_params)
 
             response = self.client.chat.completions.create(**params)
             full_message = response.choices[0].message
@@ -169,6 +171,8 @@ class OpenAICompatibleLLM(BaseLLM, ABC):
 
             if self.max_tokens is not None:
                 params["max_completion_tokens"] = self.max_tokens
+            if self.config.extra_params:
+                params.update(self.config.extra_params)
 
             stream = self.client.chat.completions.create(**params)
 
