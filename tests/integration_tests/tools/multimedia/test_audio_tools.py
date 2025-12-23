@@ -9,6 +9,15 @@ from autobyteus.utils.parameter_schema import ParameterType, ParameterSchema, Pa
 
 logger = logging.getLogger(__name__)
 
+class _MockWorkspace:
+    def __init__(self, base_path: Path):
+        self._base_path = base_path
+
+    def get_base_path(self) -> str:
+        return str(self._base_path)
+
+def _is_vertex_runtime() -> bool:
+    return bool(os.getenv("VERTEX_AI_PROJECT") and os.getenv("VERTEX_AI_LOCATION"))
 @pytest.fixture(scope="module", autouse=True)
 def check_api_keys():
     if not os.getenv("GEMINI_API_KEY"):
@@ -88,7 +97,7 @@ async def test_generate_speech_tool_execute_single_speaker(tmp_path):
     """Tests a successful single-speaker execution of the GenerateSpeechTool."""
     tool = GenerateSpeechTool()
     prompt = "This is a test of the single-speaker speech generation tool."
-    context = SimpleNamespace(agent_id="test-agent", workspace_root=tmp_path)
+    context = SimpleNamespace(agent_id="test-agent", workspace=_MockWorkspace(tmp_path))
 
     result_path = None
     try:
@@ -116,6 +125,8 @@ async def test_generate_speech_tool_execute_single_speaker(tmp_path):
 @pytest.mark.asyncio
 async def test_generate_speech_tool_execute_multi_speaker(tmp_path):
     """Tests a successful multi-speaker execution of the GenerateSpeechTool."""
+    if _is_vertex_runtime():
+        pytest.skip("Gemini multi-speaker TTS is not supported in Vertex AI runtime.")
     tool = GenerateSpeechTool()
     prompt = "Joe: Hello, this is Joe.\n" \
              "Jane: And this is Jane, testing the multi-speaker functionality."
@@ -128,7 +139,7 @@ async def test_generate_speech_tool_execute_multi_speaker(tmp_path):
         "style_instructions": "Speak in a clear, conversational tone."
     }
     
-    context = SimpleNamespace(agent_id="test-agent", workspace_root=tmp_path)
+    context = SimpleNamespace(agent_id="test-agent", workspace=_MockWorkspace(tmp_path))
     result_path = None
     try:
         result = await tool.execute(

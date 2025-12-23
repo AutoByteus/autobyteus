@@ -19,11 +19,22 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+_AUDIO_TEMP_DIR = "/tmp/autobyteus_audio"
+
+_AUDIO_MIME_EXTENSION_MAP = {
+    "audio/wav": "wav",
+    "audio/x-wav": "wav",
+    "audio/mpeg": "mp3",
+    "audio/mp3": "mp3",
+    "audio/ogg": "ogg",
+    "audio/webm": "webm",
+}
+
+
 def _save_audio_bytes_to_wav(pcm_bytes: bytes, channels=1, rate=24000, sample_width=2) -> str:
     """Saves PCM audio bytes to a temporary WAV file and returns the path."""
-    temp_dir = "/tmp/autobyteus_audio"
-    os.makedirs(temp_dir, exist_ok=True)
-    file_path = os.path.join(temp_dir, f"{uuid.uuid4()}.wav")
+    os.makedirs(_AUDIO_TEMP_DIR, exist_ok=True)
+    file_path = os.path.join(_AUDIO_TEMP_DIR, f"{uuid.uuid4()}.wav")
     
     try:
         with wave.open(file_path, "wb") as wf:
@@ -36,6 +47,48 @@ def _save_audio_bytes_to_wav(pcm_bytes: bytes, channels=1, rate=24000, sample_wi
     except Exception as e:
         logger.error(f"Failed to save audio to WAV file at {file_path}: {e}")
         raise
+
+
+def _save_audio_bytes(audio_bytes: bytes, extension: Optional[str]) -> str:
+    """Saves audio bytes to a temporary file and returns the path."""
+    os.makedirs(_AUDIO_TEMP_DIR, exist_ok=True)
+    suffix = (extension or "bin").lstrip(".")
+    file_path = os.path.join(_AUDIO_TEMP_DIR, f"{uuid.uuid4()}.{suffix}")
+    try:
+        with open(file_path, "wb") as audio_file:
+            audio_file.write(audio_bytes)
+        logger.info(f"Successfully saved generated audio to {file_path}")
+        return file_path
+    except Exception as e:
+        logger.error(f"Failed to save audio to file at {file_path}: {e}")
+        raise
+
+
+def _parse_mime_type(mime_type: Optional[str]) -> tuple[str, Dict[str, str]]:
+    if not mime_type:
+        return "", {}
+    parts = [part.strip() for part in mime_type.split(";") if part.strip()]
+    base = parts[0].lower() if parts else ""
+    params: Dict[str, str] = {}
+    for part in parts[1:]:
+        if "=" in part:
+            key, value = part.split("=", 1)
+            params[key.strip().lower()] = value.strip()
+    return base, params
+
+
+def _coerce_audio_bytes(audio_data: Any) -> bytes:
+    if audio_data is None:
+        return b""
+    if isinstance(audio_data, bytes):
+        return audio_data
+    if isinstance(audio_data, bytearray):
+        return bytes(audio_data)
+    if isinstance(audio_data, memoryview):
+        return audio_data.tobytes()
+    if isinstance(audio_data, str):
+        return base64.b64decode(audio_data)
+    return bytes(audio_data)
 
 
 class GeminiAudioClient(BaseAudioClient):
@@ -144,10 +197,40 @@ class GeminiAudioClient(BaseAudioClient):
                 ),
             )
             
-            audio_b64 = resp.candidates[0].content.parts[0].inline_data.data
-            audio_pcm = base64.b64decode(audio_b64)
-            
-            audio_path = _save_audio_bytes_to_wav(audio_pcm)
+            part = resp.candidates[0].content.parts[0]
+            inline_data = part.inline_data
+            if not inline_data or not inline_data.data:
+                raise ValueError("Gemini TTS response did not include audio data.")
+
+            mime_type, mime_params = _parse_mime_type(inline_data.mime_type)
+            audio_bytes = _coerce_audio_bytes(inline_data.data)
+            if not audio_bytes:
+                raise ValueError("Gemini TTS returned empty audio data.")
+
+            logger.info(
+                "Received Gemini TTS audio payload (mime_type='%s', bytes=%d).",
+                mime_type or "unknown",
+                len(audio_bytes),
+            )
+
+            if not mime_type or mime_type.startswith("audio/pcm") or mime_type == "audio/l16":
+                rate = 24000
+                channels = 1
+                if "rate" in mime_params:
+                    try:
+                        rate = int(mime_params["rate"])
+                    except ValueError:
+                        logger.warning("Invalid sample rate in mime_type '%s'; using default 24000.", inline_data.mime_type)
+                if "channels" in mime_params:
+                    try:
+                        channels = int(mime_params["channels"])
+                    except ValueError:
+                        logger.warning("Invalid channel count in mime_type '%s'; using default 1.", inline_data.mime_type)
+
+                audio_path = _save_audio_bytes_to_wav(audio_bytes, channels=channels, rate=rate, sample_width=2)
+            else:
+                extension = _AUDIO_MIME_EXTENSION_MAP.get(mime_type, "bin")
+                audio_path = _save_audio_bytes(audio_bytes, extension)
 
             return SpeechGenerationResponse(audio_urls=[audio_path])
 

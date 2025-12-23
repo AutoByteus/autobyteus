@@ -5,6 +5,13 @@ from types import SimpleNamespace
 from autobyteus.tools.multimedia.image_tools import GenerateImageTool, EditImageTool, _get_configured_model_identifier
 from autobyteus.utils.parameter_schema import ParameterType, ParameterSchema, ParameterDefinition
 
+class _MockWorkspace:
+    def __init__(self, base_path: Path):
+        self._base_path = base_path
+
+    def get_base_path(self) -> str:
+        return str(self._base_path)
+
 @pytest.fixture(scope="module", autouse=True)
 def check_api_keys():
     if not os.getenv("OPENAI_API_KEY"):
@@ -69,7 +76,7 @@ async def test_generate_image_tool_execute(tmp_path):
     """Tests a successful execution of the GenerateImageTool."""
     tool = GenerateImageTool()
     prompt = "A majestic lion standing on a rock at sunset, cartoon style"
-    context = SimpleNamespace(agent_id="test-agent", workspace_root=tmp_path)
+    context = SimpleNamespace(agent_id="test-agent", workspace=_MockWorkspace(tmp_path))
     result = await tool.execute(context, prompt=prompt, generation_config={}, output_file_path="lion.png")
 
     assert isinstance(result, dict)
@@ -86,7 +93,7 @@ async def test_generate_image_with_reference_tool_execute(tmp_path):
     # Step 1: Generate a base image to use as a reference.
     tool = GenerateImageTool()
     base_prompt = "A simple black and white ink drawing of a smiling robot head."
-    context = SimpleNamespace(agent_id="test-agent", workspace_root=tmp_path)
+    context = SimpleNamespace(agent_id="test-agent", workspace=_MockWorkspace(tmp_path))
 
     base_result = await tool.execute(context, prompt=base_prompt, generation_config={}, output_file_path="base.png")
     reference_path = base_result["file_path"]
@@ -141,7 +148,7 @@ async def test_edit_image_tool_execute(tmp_path):
     # Step 1: Generate an initial image
     generate_tool = GenerateImageTool()
     generate_prompt = "A simple monarch butterfly on a white background, cartoon style"
-    context = SimpleNamespace(agent_id="test-agent", workspace_root=tmp_path)
+    context = SimpleNamespace(agent_id="test-agent", workspace=_MockWorkspace(tmp_path))
 
     generated_result = await generate_tool.execute(
         context, 
@@ -177,7 +184,7 @@ async def test_edit_image_tool_with_remote_image(tmp_path):
     Edits a remote reference image by overlaying text. Uses the public execute API.
     """
     edit_tool = EditImageTool()
-    context = SimpleNamespace(agent_id="test-agent", workspace_root=tmp_path)
+    context = SimpleNamespace(agent_id="test-agent", workspace=_MockWorkspace(tmp_path))
     prompt = "Add the word 'Serenity' in white text across the center of the stone."
     remote_image_url = "http://192.168.2.124:29695/rest/files/images/smooth_stone_ref.jpg"
 
