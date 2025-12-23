@@ -15,7 +15,7 @@ Autobyteus is built with a modular, event-driven architecture designed for exten
 -   **Pluggable Processors & Hooks**: The framework provides a chain of extension points to inject custom logic at every major step of an agent's reasoning loop. This architecture powers features like flexible tool format parsing. You can customize behavior by implementing:
     -   **`InputProcessors`**: To modify or enrich user messages *before* they are sent to the LLM.
     -   **`LLMResponseProcessors`**: To parse the LLM's raw output and extract structured actions, such as tool calls.
-    -   **`ToolExecutionResultProcessors`**: To modify the result from a tool *before* it is sent back to the LLM for the next step of reasoning.
+    -   **`ToolExecutionResultProcessors` (Tool Result Processors)**: To modify the result from a tool *before* it is sent back to the LLM for the next step of reasoning (e.g., formatting, summarization, artifact extraction).
     -   **`PhaseHooks`**: To run custom code on specific agent lifecycle transitions (e.g., when an agent becomes `IDLE`).
 -   **Context-Aware Tooling**: Tools are first-class citizens that receive the agent's full `AgentContext` during execution. This allows tools to be deeply integrated with the agent's state, configuration, and workspace, enabling more intelligent and powerful actions.
 -   **Tool Approval Flow**: The framework has native support for human-in-the-loop workflows. By setting `auto_execute_tools=False` in the agent's configuration, the agent will pause before executing a tool, emit an event requesting permission, and wait for external approval before proceeding.
