@@ -3,9 +3,35 @@ import aiohttp
 import base64
 import shutil
 import os
+import ssl
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+SSL_VERIFY_ENV_VAR = "AUTOBYTEUS_DOWNLOAD_VERIFY_SSL"
+SSL_CERT_FILE_ENV_VAR = "AUTOBYTEUS_DOWNLOAD_SSL_CERT_FILE"
+
+
+def _resolve_ssl_param() -> bool | ssl.SSLContext:
+    """
+    Resolve SSL verification behavior for downloads.
+
+    - If AUTOBYTEUS_DOWNLOAD_SSL_CERT_FILE is set, use it as CA file.
+    - Else if AUTOBYTEUS_DOWNLOAD_VERIFY_SSL is truthy, verify using system CAs.
+    - Else (default), disable verification to allow self-signed certs.
+    """
+    cert_path = os.getenv(SSL_CERT_FILE_ENV_VAR)
+    if cert_path:
+        cert_file = Path(cert_path)
+        if not cert_file.is_file():
+            raise IOError(f"SSL cert file not found: {cert_file}")
+        return ssl.create_default_context(cafile=str(cert_file))
+
+    verify_env = os.getenv(SSL_VERIFY_ENV_VAR)
+    if verify_env and verify_env.strip().lower() in {"1", "true", "yes", "on"}:
+        return True
+    return False
+
 
 async def download_file_from_url(url: str, file_path: Path) -> None:
     """
@@ -57,8 +83,9 @@ async def download_file_from_url(url: str, file_path: Path) -> None:
                 raise IOError(f"File copy error: {e}")
 
         # Handle HTTP URL
+        ssl_param = _resolve_ssl_param()
         async with aiohttp.ClientSession() as session:
-            async with session.get(url) as response:
+            async with session.get(url, ssl=ssl_param) as response:
                 if response.status != 200:
                     raise IOError(f"Failed to download from {url}: HTTP {response.status}")
                 

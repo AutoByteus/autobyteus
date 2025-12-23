@@ -13,6 +13,26 @@ from autobyteus.utils.file_utils import resolve_safe_path
 
 logger = logging.getLogger(__name__)
 
+def _get_workspace_root(context) -> str:
+    if not context.workspace:
+        error_msg = (
+            f"Relative path provided, but no workspace is configured for agent '{context.agent_id}'. "
+            "A workspace is required to resolve relative paths."
+        )
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+
+    base_path = context.workspace.get_base_path()
+    if not base_path or not isinstance(base_path, str):
+        error_msg = (
+            f"Agent '{context.agent_id}' has a configured workspace, but it provided an invalid base path "
+            f"('{base_path}'). Cannot resolve relative paths."
+        )
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+
+    return base_path
+
 
 class _SharedImageClientManager:
     """
@@ -214,7 +234,7 @@ class GenerateImageTool(BaseTool):
             raise ValueError("output_file_path is required but was not provided.")
 
         # 5. Save to File
-        resolved_path = resolve_safe_path(output_file_path, context.workspace_root)
+        resolved_path = resolve_safe_path(output_file_path, _get_workspace_root(context))
         await download_file_from_url(first_url, resolved_path)
 
         return {"file_path": str(resolved_path)}
@@ -338,7 +358,7 @@ class EditImageTool(BaseTool):
         first_url = response.image_urls[0]
         
         # 5. Save to File
-        resolved_path = resolve_safe_path(output_file_path, context.workspace_root)
+        resolved_path = resolve_safe_path(output_file_path, _get_workspace_root(context))
         await download_file_from_url(first_url, resolved_path)
 
         return {"file_path": str(resolved_path)}
