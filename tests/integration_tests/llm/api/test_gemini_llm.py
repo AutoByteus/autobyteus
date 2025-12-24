@@ -119,3 +119,20 @@ async def test_gemini_stream_user_message(gemini_llm):
     assert gemini_llm.messages[2].content == complete_response
 
     await gemini_llm.cleanup()
+
+@pytest.mark.asyncio
+async def test_gemini_multimodal_image(gemini_llm):
+    """Test sending an image to Gemini."""
+    image_path = os.path.abspath("image.png")
+    # Ensure image exists
+    if not os.path.exists(image_path):
+        pytest.skip(f"Image not found at {image_path}")
+
+    user_message = LLMUserMessage(
+        content="Describe this image.",
+        image_urls=[image_path]
+    )
+    response = await gemini_llm.send_user_message(user_message)
+    assert isinstance(response, CompleteResponse)
+    print(f"\nResponse content: {response.content}\n")
+    assert len(response.content) > 0

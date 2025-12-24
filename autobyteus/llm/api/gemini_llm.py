@@ -1,4 +1,7 @@
 import logging
+import base64
+import asyncio
+import mimetypes
 from typing import Dict, List, AsyncGenerator, Any
 from google.genai import types as genai_types
 from autobyteus.llm.models import LLMModel
@@ -10,19 +13,48 @@ from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 from autobyteus.llm.user_message import LLMUserMessage
 from autobyteus.utils.gemini_helper import initialize_gemini_client_with_runtime
 from autobyteus.utils.gemini_model_mapping import resolve_model_for_runtime
+from autobyteus.llm.utils.media_payload_formatter import image_source_to_base64, get_mime_type
 
 logger = logging.getLogger(__name__)
 
-def _format_gemini_history(messages: List[Message]) -> List[Dict[str, Any]]:
+async def _format_gemini_history(messages: List[Message]) -> List[Dict[str, Any]]:
     """Formats internal message history for the Gemini API."""
     history = []
     # System message is handled separately in the new API
     for msg in messages:
         if msg.role in [MessageRole.USER, MessageRole.ASSISTANT]:
-            # NOTE: This history conversion will need to be updated for multimodal messages
             role = 'model' if msg.role == MessageRole.ASSISTANT else 'user'
-            # The `parts` must be a list of dictionaries (Part objects), not a list of strings.
-            history.append({"role": role, "parts": [{"text": msg.content}]})
+            parts = []
+            
+            # Text content
+            if msg.content:
+                parts.append({"text": msg.content})
+            
+            # Process media (Images, Audio, Video)
+            # Currently leveraging image_source_to_base64 which handles local images and URLs.
+            # TODO: Add dedicated support for Audio/Video local file reading if strict validation is needed,
+            # though URLs usually work if supported by the fetcher.
+            media_urls = msg.image_urls + msg.audio_urls + msg.video_urls
+            
+            for url in media_urls:
+                try:
+                    # Fetch/Read data as base64
+                    b64_data = await image_source_to_base64(url)
+                    # Decode to bytes for Gemini SDK
+                    data_bytes = base64.b64decode(b64_data)
+                    
+                    # Determine MIME type
+                    mime_type, _ = mimetypes.guess_type(url)
+                    if not mime_type:
+                        # Default fallback
+                        mime_type = get_mime_type(url)
+                    
+                    parts.append(genai_types.Part.from_bytes(data=data_bytes, mime_type=mime_type))
+                except Exception as e:
+                    logger.error(f"Failed to process media content {url}: {e}")
+            
+            if parts:
+                history.append({"role": role, "parts": parts})
     return history
 
 class GeminiLLM(BaseLLM):
@@ -68,7 +100,7 @@ class GeminiLLM(BaseLLM):
         self.add_user_message(user_message)
         
         try:
-            history = _format_gemini_history(self.messages)
+            history = await _format_gemini_history(self.messages)
             generation_config = self._get_generation_config()
 
             # FIX: Removed 'models/' prefix to support Vertex AI
@@ -105,7 +137,7 @@ class GeminiLLM(BaseLLM):
         complete_response = ""
         
         try:
-            history = _format_gemini_history(self.messages)
+            history = await _format_gemini_history(self.messages)
             generation_config = self._get_generation_config()
 
             # FIX: Removed 'models/' prefix to support Vertex AI
