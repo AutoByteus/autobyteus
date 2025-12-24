@@ -10,7 +10,7 @@ import asyncio
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.utils.llm_config import LLMConfig
-from autobyteus.llm.utils.media_payload_formatter import image_source_to_base64, create_data_uri, get_mime_type, is_valid_image_path
+from autobyteus.llm.utils.media_payload_formatter import media_source_to_base64, create_data_uri, get_mime_type, is_valid_media_path
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 from autobyteus.llm.user_message import LLMUserMessage
@@ -32,14 +32,14 @@ async def _format_openai_history(messages: List[Message]) -> List[Dict[str, Any]
             if msg.image_urls:
                 for url in msg.image_urls:
                     # Create an async task for each image to process them concurrently
-                    image_tasks.append(image_source_to_base64(url))
+                    image_tasks.append(media_source_to_base64(url))
             
             try:
                 base64_images = await asyncio.gather(*image_tasks)
                 for i, b64_image in enumerate(base64_images):
                     original_url = msg.image_urls[i]
                     # Determine mime type from original path if possible, otherwise default
-                    mime_type = get_mime_type(original_url) if is_valid_image_path(original_url) else "image/jpeg"
+                    mime_type = get_mime_type(original_url) if is_valid_media_path(original_url) else "image/jpeg"
                     content_parts.append(create_data_uri(mime_type, b64_image))
             except Exception as e:
                 logger.error(f"Error processing one or more images: {e}")

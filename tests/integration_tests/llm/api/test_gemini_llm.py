@@ -136,3 +136,35 @@ async def test_gemini_multimodal_image(gemini_llm):
     assert isinstance(response, CompleteResponse)
     print(f"\nResponse content: {response.content}\n")
     assert len(response.content) > 0
+
+@pytest.mark.asyncio
+async def test_gemini_multimodal_audio(gemini_llm):
+    """Test sending audio to Gemini."""
+    audio_path = os.path.abspath("tests/data/test_audio.mp3")
+    if not os.path.exists(audio_path):
+        pytest.skip(f"Audio file not found at {audio_path}")
+
+    user_message = LLMUserMessage(
+        content="Describe this audio.",
+        audio_urls=[audio_path]
+    )
+    response = await gemini_llm.send_user_message(user_message)
+    assert isinstance(response, CompleteResponse)
+    print(f"\nAudio Response content: {response.content}\n")
+    assert len(response.content) > 0
+
+@pytest.mark.asyncio
+async def test_gemini_multimodal_video(gemini_llm):
+    """Test sending video to Gemini."""
+    video_path = os.path.abspath("tests/data/test_video.mp4")
+    if not os.path.exists(video_path):
+        pytest.skip(f"Video file not found at {video_path}")
+
+    user_message = LLMUserMessage(
+        content="Describe this video.",
+        video_urls=[video_path]
+    )
+    response = await gemini_llm.send_user_message(user_message)
+    assert isinstance(response, CompleteResponse)
+    print(f"\nVideo Response content: {response.content}\n")
+    assert len(response.content) > 0

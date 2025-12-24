@@ -11,7 +11,7 @@ from autobyteus.llm.utils.llm_config import LLMConfig
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 from autobyteus.llm.user_message import LLMUserMessage
-from autobyteus.llm.utils.media_payload_formatter import image_source_to_base64, get_mime_type, is_valid_image_path
+from autobyteus.llm.utils.media_payload_formatter import media_source_to_base64, get_mime_type, is_valid_media_path
 
 logger = logging.getLogger(__name__)
 
@@ -30,12 +30,12 @@ async def _format_mistral_messages(messages: List[Message]) -> List[Dict[str, An
             if msg.content:
                 content_parts.append({"type": "text", "text": msg.content})
 
-            image_tasks = [image_source_to_base64(url) for url in msg.image_urls]
+            image_tasks = [media_source_to_base64(url) for url in msg.image_urls]
             try:
                 base64_images = await asyncio.gather(*image_tasks)
                 for i, b64_image in enumerate(base64_images):
                     original_url = msg.image_urls[i]
-                    mime_type = get_mime_type(original_url) if is_valid_image_path(original_url) else "image/jpeg"
+                    mime_type = get_mime_type(original_url) if is_valid_media_path(original_url) else "image/jpeg"
                     data_uri = f"data:{mime_type};base64,{b64_image}"
                     
                     # Mistral's format for image parts

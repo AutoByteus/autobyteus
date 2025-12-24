@@ -8,7 +8,7 @@ from autobyteus.llm.utils.messages import Message
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 from autobyteus.llm.user_message import LLMUserMessage
-from autobyteus.llm.utils.media_payload_formatter import image_source_to_base64
+from autobyteus.llm.utils.media_payload_formatter import media_source_to_base64
 import logging
 import asyncio
 import httpx
@@ -40,7 +40,7 @@ class OllamaLLM(BaseLLM):
             if msg.image_urls:
                 try:
                     # Concurrently process all images using the centralized utility
-                    image_tasks = [image_source_to_base64(url) for url in msg.image_urls]
+                    image_tasks = [media_source_to_base64(url) for url in msg.image_urls]
                     prepared_base64_images = await asyncio.gather(*image_tasks)
                     if prepared_base64_images:
                         # FIX: Wrap each base64 string in the official ollama.Image object

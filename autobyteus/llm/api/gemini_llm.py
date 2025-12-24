@@ -13,7 +13,7 @@ from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 from autobyteus.llm.user_message import LLMUserMessage
 from autobyteus.utils.gemini_helper import initialize_gemini_client_with_runtime
 from autobyteus.utils.gemini_model_mapping import resolve_model_for_runtime
-from autobyteus.llm.utils.media_payload_formatter import image_source_to_base64, get_mime_type
+from autobyteus.llm.utils.media_payload_formatter import media_source_to_base64, get_mime_type
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ async def _format_gemini_history(messages: List[Message]) -> List[Dict[str, Any]
                 parts.append({"text": msg.content})
             
             # Process media (Images, Audio, Video)
-            # Currently leveraging image_source_to_base64 which handles local images and URLs.
+            # Currently leveraging media_source_to_base64 which handles local images and URLs.
             # TODO: Add dedicated support for Audio/Video local file reading if strict validation is needed,
             # though URLs usually work if supported by the fetcher.
             media_urls = msg.image_urls + msg.audio_urls + msg.video_urls
@@ -39,7 +39,7 @@ async def _format_gemini_history(messages: List[Message]) -> List[Dict[str, Any]
             for url in media_urls:
                 try:
                     # Fetch/Read data as base64
-                    b64_data = await image_source_to_base64(url)
+                    b64_data = await media_source_to_base64(url)
                     # Decode to bytes for Gemini SDK
                     data_bytes = base64.b64decode(b64_data)
                     
