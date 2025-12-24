@@ -14,3 +14,4 @@ class LLMProvider(Enum):
     LMSTUDIO = "LMSTUDIO"
     ZHIPU = "ZHIPU"
     BAIDU = "BAIDU"
+    MINIMAX = "MINIMAX"

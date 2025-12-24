@@ -19,6 +19,7 @@ from autobyteus.llm.api.grok_llm import GrokLLM
 from autobyteus.llm.api.kimi_llm import KimiLLM
 from autobyteus.llm.api.qwen_llm import QwenLLM
 from autobyteus.llm.api.zhipu_llm import ZhipuLLM
+from autobyteus.llm.api.minimax_llm import MinimaxLLM
 from autobyteus.llm.ollama_provider import OllamaModelProvider
 from autobyteus.llm.lmstudio_provider import LMStudioModelProvider
 from autobyteus.utils.singleton import SingletonMeta
@@ -383,6 +384,17 @@ class LLMFactory(metaclass=SingletonMeta):
                 default_config=LLMConfig(
                     pricing_config=TokenPricingConfig(13.8, 13.8),
                     extra_params={ "extra_body": { "thinking": { "type": "enabled" } } }
+                )
+            ),
+            # MINIMAX Provider Models
+            LLMModel(
+                name="minimax-m2.1",
+                value="MiniMax-M2.1",
+                provider=LLMProvider.MINIMAX,
+                llm_class=MinimaxLLM,
+                canonical_name="minimax-m2.1",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(0.15, 0.45)
                 )
             ),
         ]
