@@ -24,6 +24,7 @@ from .bash.bash_executor import bash_executor
 from .file.read_file import read_file
 from .file.write_file import write_file
 from .file.patch_file import patch_file
+from .skill.load_skill import load_skill
 
 # General Class-based tools
 try:
@@ -94,6 +95,7 @@ __all__ = [
     "read_file",
     "write_file",
     "patch_file",
+    "load_skill",
 
     # Re-exported general class-based tools
     "Search",

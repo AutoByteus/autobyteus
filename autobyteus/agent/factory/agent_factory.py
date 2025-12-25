@@ -69,11 +69,36 @@ class AgentFactory(metaclass=SingletonMeta):
         
         return tool_instances_dict
 
+    def _prepare_skills(self, agent_id: str, config: AgentConfig):
+        """
+        Registers skills from paths and ensures all skill names are valid.
+        """
+        from autobyteus.skills.registry import SkillRegistry
+        import os
+
+        registry = SkillRegistry()
+        updated_skills = []
+        for skill_item in config.skills:
+            # Check if it's a path (absolute or relative to current working directory)
+            if os.path.isabs(skill_item) or os.path.exists(skill_item):
+                try:
+                    skill = registry.register_skill_from_path(skill_item)
+                    updated_skills.append(skill.name)
+                except Exception as e:
+                    logger.error(f"Agent '{agent_id}': Failed to register skill from path '{skill_item}': {e}")
+            else:
+                updated_skills.append(skill_item)
+        
+        config.skills = updated_skills
+
     def _create_runtime(self, 
                         agent_id: str, 
                         config: AgentConfig
                         ) -> 'AgentRuntime': 
         from autobyteus.agent.runtime.agent_runtime import AgentRuntime 
+
+        # Prepare skills (resolve paths to names and register them)
+        self._prepare_skills(agent_id, config)
 
         # The workspace and initial custom data are now passed directly from the config to the state.
         runtime_state = AgentRuntimeState(

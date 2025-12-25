@@ -6,9 +6,11 @@ from .base_processor import BaseSystemPromptProcessor
 
 # Import concrete processors here to make them easily accessible for instantiation
 from .tool_manifest_injector_processor import ToolManifestInjectorProcessor
+from .available_skills_processor import AvailableSkillsProcessor
 
 
 __all__ = [
     "BaseSystemPromptProcessor",
     "ToolManifestInjectorProcessor",
+    "AvailableSkillsProcessor",
 ]
