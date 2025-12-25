@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import Mock
 
 import autobyteus.tools.file.patch_file  # Ensure registration side-effects
+import autobyteus.tools.file.read_file
 
 from autobyteus.tools.registry import default_tool_registry
 from autobyteus.tools.base_tool import BaseTool
@@ -98,3 +99,41 @@ async def test_missing_file_raises_error(file_patch_tool_instance: BaseTool, moc
             path=str(target_path),
             patch=patch,
         )
+
+@pytest.fixture
+def file_reader_tool_instance(mock_agent_context_file_ops) -> BaseTool:
+    tool_instance = default_tool_registry.create_tool("read_file")
+    tool_instance.set_agent_id(mock_agent_context_file_ops.agent_id)
+    return tool_instance
+
+@pytest.mark.asyncio
+async def test_read_then_patch_flow(file_patch_tool_instance: BaseTool, file_reader_tool_instance: BaseTool, mock_agent_context_file_ops, tmp_path):
+    # 1. Setup file
+    file_path = tmp_path / "flow_test.txt"
+    file_path.write_text("line1\nline2\n", encoding='utf-8')
+    
+    # 2. Read file (Simulate LLM reading it)
+    content = await file_reader_tool_instance.execute(
+        mock_agent_context_file_ops, 
+        path=str(file_path)
+    )
+    # Verify we got line numbers
+    assert content == "1: line1\n2: line2\n"
+    
+    # 3. Patch file (LLM generates standard diff based on understanding)
+    # Note: The patch itself uses clean context lines (standard unified diff format), 
+    # effectively stripping the line numbers seen in the read step.
+    patch = """@@ -1,2 +1,2 @@
+ line1
+-line2
++line2 modified
+"""
+    result = await file_patch_tool_instance.execute(
+        mock_agent_context_file_ops,
+        path=str(file_path),
+        patch=patch
+    )
+    
+    # 4. Verify
+    assert result == f"File patched successfully at {file_path}"
+    assert file_path.read_text(encoding='utf-8') == "line1\nline2 modified\n"

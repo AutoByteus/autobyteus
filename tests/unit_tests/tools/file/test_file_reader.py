@@ -110,7 +110,7 @@ def test_file_reader_tool_usage_json_output():
 @pytest.mark.asyncio
 async def test_read_file_content_functional(file_reader_tool_instance: BaseTool, test_file_for_reader: str, mock_agent_context_file_ops: AgentContext):
     content = await file_reader_tool_instance.execute(mock_agent_context_file_ops, path=str(test_file_for_reader))
-    assert content == "Test Content with Ümlauts for read_file"
+    assert content == "1: Test Content with Ümlauts for read_file"
 
 @pytest.mark.asyncio
 async def test_read_file_with_line_range_functional(tmp_path, file_reader_tool_instance: BaseTool, mock_agent_context_file_ops: AgentContext):
@@ -161,7 +161,7 @@ async def test_read_relative_path_functional(tmp_path, file_reader_tool_instance
         f.write("Relative path content for read_file")
     
     content = await file_reader_tool_instance.execute(mock_agent_context_file_ops, path=file_path_str)
-    assert content == "Relative path content for read_file"
+    assert content == "1: Relative path content for read_file"
     os.chdir(original_cwd)
 
 @pytest.mark.asyncio

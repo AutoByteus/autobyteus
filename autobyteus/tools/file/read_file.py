@@ -19,7 +19,7 @@ async def read_file(
 ) -> str:
     """
     Reads content from a specified file. Supports optional 1-based inclusive line ranges via start_line/end_line.
-    When a line range is provided, each returned line is prefixed with its line number.
+    Each returned line is prefixed with its line number.
     'path' is the path to the file. If relative, it must be resolved against a configured agent workspace.
     Raises ValueError if a relative path is given without a valid workspace or if line range arguments are invalid.
     Raises FileNotFoundError if the file does not exist.
@@ -61,19 +61,16 @@ async def read_file(
         
     try:
         with open(final_path, 'r', encoding='utf-8') as file:
-            if start_line is None and end_line is None:
-                content = file.read()
-            else:
-                selected_lines = []
-                for line_no, line in enumerate(file, start=1):
-                    if start_line is not None and line_no < start_line:
-                        continue
-                    if end_line is not None and line_no > end_line:
-                        break
-                    line_text = line.rstrip('\n')
-                    line_suffix = '\n' if line.endswith('\n') else ''
-                    selected_lines.append(f"{line_no}: {line_text}{line_suffix}")
-                content = ''.join(selected_lines)
+            selected_lines = []
+            for line_no, line in enumerate(file, start=1):
+                if start_line is not None and line_no < start_line:
+                    continue
+                if end_line is not None and line_no > end_line:
+                    break
+                line_text = line.rstrip('\n')
+                line_suffix = '\n' if line.endswith('\n') else ''
+                selected_lines.append(f"{line_no}: {line_text}{line_suffix}")
+            content = ''.join(selected_lines)
         logger.info(f"File successfully read from '{final_path}' for agent '{context.agent_id}'.")
         return content
     except Exception as e:
