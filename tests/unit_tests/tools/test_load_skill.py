@@ -47,8 +47,9 @@ async def test_load_skill_by_name(load_skill_tool_instance: BaseTool, mock_agent
     
     result = await load_skill_tool_instance.execute(mock_agent_context, skill_name="test_skill")
     
-    assert 'name="test_skill"' in result
-    assert f'path="{temp_skill_path}"' in result
+    assert "## Skill: test_skill" in result
+    assert f"Root Path: {temp_skill_path}" in result
+    assert "CRITICAL: Path Resolution" in result
     assert "Body of the skill." in result
 
 @pytest.mark.asyncio
@@ -56,8 +57,9 @@ async def test_load_skill_by_path(load_skill_tool_instance: BaseTool, mock_agent
     # Load directly by path without pre-registering
     result = await load_skill_tool_instance.execute(mock_agent_context, skill_name=temp_skill_path)
     
-    assert 'name="test_skill"' in result
-    assert f'path="{temp_skill_path}"' in result
+    assert "## Skill: test_skill" in result
+    assert f"Root Path: {temp_skill_path}" in result
+    assert "CRITICAL: Path Resolution" in result
     assert "Body of the skill." in result
 
 @pytest.mark.asyncio

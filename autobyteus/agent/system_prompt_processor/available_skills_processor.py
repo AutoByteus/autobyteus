@@ -37,9 +37,18 @@ class AvailableSkillsProcessor(BaseSystemPromptProcessor):
         for skill in all_skills:
             if skill.name in preloaded_skills_names:
                 preloaded_sections.append(
-                    f"""<skill_context name="{skill.name}" path="{skill.root_path}">
-{skill.content}
-</skill_context>""")
+                    f"""## Skill: {skill.name}
+Root Path: {skill.root_path}
+
+> **CRITICAL: Path Resolution When Using Tools**
+> 
+> This skill uses relative paths. When using any tool that requires a file path,
+> you MUST first construct the full absolute path by combining the Root Path above
+> with the relative path from the skill instructions.
+> 
+> **Example:** Root Path + `./scripts/format.sh` = `{skill.root_path}/scripts/format.sh`
+
+{skill.content}""")
             else:
                 available_summaries.append(f"- {skill.name}: {skill.description}")
 

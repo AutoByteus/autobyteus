@@ -55,7 +55,8 @@ class TestAgentSkillsIntegration:
         assert "## Agent Skills" in system_prompt
         assert "Preloaded Skills" in system_prompt
         assert "Java Map Body" in system_prompt
-        assert f'path="{temp_skill_dir}"' in system_prompt
+        assert f"Root Path: {temp_skill_dir}" in system_prompt
+        assert "CRITICAL: Path Resolution" in system_prompt
         # Also verify the skill name was resolved
         assert "java_expert" in context.config.skills
 

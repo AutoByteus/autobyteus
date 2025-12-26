@@ -19,7 +19,7 @@ async def load_skill(context: 'AgentContext', skill_name: str) -> str:
         skill_name: The registered name of the skill (e.g., 'java_expert') or a path to a skill directory.
     
     Returns:
-        A XML-style context block containing the skill's map and its absolute root path.
+        A formatted context block containing the skill's map, its absolute root path, and path resolution guidance.
     """
     logger.debug(f"Tool 'load_skill' called for skill: {skill_name}")
     registry = SkillRegistry()
@@ -36,6 +36,15 @@ async def load_skill(context: 'AgentContext', skill_name: str) -> str:
             raise ValueError(error_msg)
 
     logger.info(f"Skill '{skill.name}' successfully loaded.")
-    return f"""<skill_context name="{skill.name}" path="{skill.root_path}">
-{skill.content}
-</skill_context>"""
+    return f"""## Skill: {skill.name}
+Root Path: {skill.root_path}
+
+> **CRITICAL: Path Resolution When Using Tools**
+> 
+> This skill uses relative paths. When using any tool that requires a file path,
+> you MUST first construct the full absolute path by combining the Root Path above
+> with the relative path from the skill instructions.
+> 
+> **Example:** Root Path + `./scripts/format.sh` = `{skill.root_path}/scripts/format.sh`
+
+{skill.content}"""

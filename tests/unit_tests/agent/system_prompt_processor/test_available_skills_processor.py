@@ -54,6 +54,7 @@ class TestAvailableSkillsProcessor:
         result = processor.process("Original", {}, "test_agent", mock_context)
         
         assert "Preloaded Skills" in result
-        assert 'name="preloaded"' in result
+        assert "## Skill: preloaded" in result
+        assert "Root Path: /path" in result
+        assert "CRITICAL: Path Resolution" in result
         assert "FULL_BODY" in result
-        assert "/path" in result
