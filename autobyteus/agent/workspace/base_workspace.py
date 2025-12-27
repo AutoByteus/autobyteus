@@ -2,9 +2,7 @@
 import logging
 import uuid
 from abc import ABC, abstractmethod
-from typing import Optional, Any, Dict, TYPE_CHECKING
-from autobyteus.utils.parameter_schema import ParameterSchema
-from autobyteus.agent.workspace.workspace_meta import WorkspaceMeta
+from typing import Optional, TYPE_CHECKING
 from autobyteus.agent.workspace.workspace_config import WorkspaceConfig
 
 if TYPE_CHECKING:
@@ -12,13 +10,13 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-class BaseAgentWorkspace(ABC, metaclass=WorkspaceMeta):
+class BaseAgentWorkspace(ABC):
     """
     Abstract base class for an agent's workspace or working environment.
 
     A workspace is a passive data container that describes an agent's operating
-    environment (e.g., a local directory, SSH connection details). It does not
-    implement active operations itself; that is the responsibility of Tools.
+    environment (e.g., a local directory). It does not implement active operations
+    itself; that is the responsibility of Tools.
     """
 
     def __init__(self, config: Optional[WorkspaceConfig] = None):
@@ -26,7 +24,7 @@ class BaseAgentWorkspace(ABC, metaclass=WorkspaceMeta):
         Initializes the BaseAgentWorkspace.
 
         Args:
-            config: Optional configuration for the workspace (e.g., base path, credentials).
+            config: Optional configuration for the workspace (e.g., base path).
         """
         self._config: WorkspaceConfig = config or WorkspaceConfig()
         self.context: Optional['AgentContext'] = None
@@ -68,25 +66,6 @@ class BaseAgentWorkspace(ABC, metaclass=WorkspaceMeta):
         """
         return self.workspace_id
 
-    # --- Methods for self-description ---
-
-    @classmethod
-    @abstractmethod
-    def get_workspace_type_name(cls) -> str:
-        """Returns the unique, machine-readable type name for this workspace (e.g., 'local_workspace')."""
-        pass
-    
-    @classmethod
-    @abstractmethod
-    def get_description(cls) -> str:
-        """Returns a user-friendly description of this workspace type."""
-        pass
-    
-    @classmethod
-    @abstractmethod
-    def get_config_schema(cls) -> ParameterSchema:
-        """Returns the ParameterSchema defining the configuration arguments needed to create an instance of this workspace."""
-        pass
-
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} workspace_id='{self.workspace_id}' agent_id='{self.agent_id or 'N/A'}>"
+
