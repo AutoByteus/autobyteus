@@ -31,13 +31,18 @@ class AvailableSkillsProcessor(BaseSystemPromptProcessor):
         # Preloaded skills from config
         preloaded_skills_names = getattr(context.config, 'skills', [])
         
-        preloaded_sections = []
-        available_summaries = []
+        # Build catalog (table of contents) for all skills
+        catalog_entries = []
+        detailed_sections = []
 
         for skill in all_skills:
+            # Every skill goes in the catalog
+            catalog_entries.append(f"- **{skill.name}**: {skill.description}")
+            
+            # Preloaded skills also get detailed content
             if skill.name in preloaded_skills_names:
-                preloaded_sections.append(
-                    f"""## Skill: {skill.name}
+                detailed_sections.append(
+                    f"""### {skill.name}
 Root Path: {skill.root_path}
 
 > **CRITICAL: Path Resolution When Using Tools**
@@ -49,19 +54,19 @@ Root Path: {skill.root_path}
 > **Example:** Root Path + `./scripts/format.sh` = `{skill.root_path}/scripts/format.sh`
 
 {skill.content}""")
-            else:
-                available_summaries.append(f"- {skill.name}: {skill.description}")
 
+        # Build the skills block
         skills_block = "\n\n## Agent Skills\n"
         
-        if preloaded_sections:
-            skills_block += "### Preloaded Skills (Immediate Context)\n"
-            skills_block += "\n".join(preloaded_sections) + "\n"
+        # Catalog section (like table of contents)
+        skills_block += "### Skill Catalog\n"
+        skills_block += "\n".join(catalog_entries) + "\n"
+        skills_block += "\nTo load a skill not shown in detail below, use the `load_skill` tool.\n"
+        
+        # Detailed content section (like reading specific chapters)
+        if detailed_sections:
+            skills_block += "\n### Skill Details\n"
+            skills_block += "\n".join(detailed_sections) + "\n"
 
-        if available_summaries:
-            skills_block += "### Available Skills (Load on demand using 'load_skill')\n"
-            skills_block += "If you need one of these skills, use the 'load_skill' tool to retrieve its detailed map and assets.\n"
-            skills_block += "\n".join(available_summaries) + "\n"
-
-        logger.info(f"Agent '{agent_id}': Injected {len(preloaded_sections)} preloaded and {len(available_summaries)} available skill(s) into system prompt.")
+        logger.info(f"Agent '{agent_id}': Injected {len(catalog_entries)} skills in catalog, {len(detailed_sections)} with details.")
         return system_prompt + skills_block
