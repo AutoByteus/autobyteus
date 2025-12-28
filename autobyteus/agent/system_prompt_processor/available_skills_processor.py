@@ -42,25 +42,8 @@ class AvailableSkillsProcessor(BaseSystemPromptProcessor):
             # Preloaded skills also get detailed content
             if skill.name in preloaded_skills_names:
                 detailed_sections.append(
-                    f"""### {skill.name}
-Root Path: {skill.root_path}
-
-> **CRITICAL: Path Resolution Required for Skill Files**
-> 
-> Skill instructions use relative paths (e.g., `./scripts/run.sh` or `scripts/run.sh`) to refer to internal files.
-> However, standard tools resolve relative paths against the User's Workspace, not this skill directory.
-> 
-> When using ANY file from this skill, you MUST convert its path to ABSOLUTE:
-> `Root Path` + `Relative Path` = `Absolute Path`
-> 
-> **Examples:**
-> 1. Root Path: `{skill.root_path}`
->    Relative: `./scripts/run.sh`
->    Result: `{skill.root_path}/scripts/run.sh`
-> 
-> 2. Root Path: `{skill.root_path}`
->    Relative: `scripts/run.sh`
->    Result: `{skill.root_path}/scripts/run.sh`
+                    f"""#### {skill.name}
+**Root Path:** `{skill.root_path}`
 
 {skill.content}""")
 
@@ -72,9 +55,33 @@ Root Path: {skill.root_path}
         skills_block += "\n".join(catalog_entries) + "\n"
         skills_block += "\nTo load a skill not shown in detail below, use the `load_skill` tool.\n"
         
+        # Critical rules section (applies to ALL skills)
+        if detailed_sections:
+            skills_block += """
+### Critical Rules for Using Skills
+
+> **Path Resolution Required for Skill Files**
+> 
+> Skill instructions use relative paths (e.g., `./scripts/run.sh` or `scripts/run.sh`) to refer to internal files.
+> However, standard tools resolve relative paths against the User's Workspace, not the skill directory.
+> 
+> When using ANY file from a skill, you MUST convert its path to ABSOLUTE:
+> `Root Path` + `Relative Path` = `Absolute Path`
+> 
+> **Examples:**
+> 1. Root Path: `/path/to/skill`
+>    Relative: `./scripts/run.sh`
+>    Result: `/path/to/skill/scripts/run.sh`
+> 
+> 2. Root Path: `/path/to/skill`
+>    Relative: `scripts/run.sh`
+>    Result: `/path/to/skill/scripts/run.sh`
+
+"""
+        
         # Detailed content section (like reading specific chapters)
         if detailed_sections:
-            skills_block += "\n### Skill Details\n"
+            skills_block += "### Skill Details\n"
             skills_block += "\n".join(detailed_sections) + "\n"
 
         logger.info(f"Agent '{agent_id}': Injected {len(catalog_entries)} skills in catalog, {len(detailed_sections)} with details.")

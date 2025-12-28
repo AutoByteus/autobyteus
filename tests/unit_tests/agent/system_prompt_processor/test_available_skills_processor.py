@@ -53,8 +53,9 @@ class TestAvailableSkillsProcessor:
         processor = AvailableSkillsProcessor()
         result = processor.process("Original", {}, "test_agent", mock_context)
         
-        assert "Root Path: /path" in result
-        assert "CRITICAL: Path Resolution Required for Skill Files" in result
+        assert "**Root Path:** `/path`" in result
+        assert "### Critical Rules for Using Skills" in result
         assert "standard tools resolve relative paths against the User's Workspace" in result
-        assert "Result: `/path/scripts/run.sh`" in result
+        assert "Relative: `./scripts/run.sh`" in result
+        assert "Relative: `scripts/run.sh`" in result
         assert "FULL_BODY" in result
