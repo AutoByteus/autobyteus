@@ -45,13 +45,22 @@ class AvailableSkillsProcessor(BaseSystemPromptProcessor):
                     f"""### {skill.name}
 Root Path: {skill.root_path}
 
-> **CRITICAL: Path Resolution When Using Tools**
+> **CRITICAL: Path Resolution Required for Skill Files**
 > 
-> This skill uses relative paths. When using any tool that requires a file path,
-> you MUST first construct the full absolute path by combining the Root Path above
-> with the relative path from the skill instructions.
+> Skill instructions use relative paths (e.g., `./scripts/run.sh` or `scripts/run.sh`) to refer to internal files.
+> However, standard tools resolve relative paths against the User's Workspace, not this skill directory.
 > 
-> **Example:** Root Path + `./scripts/format.sh` = `{skill.root_path}/scripts/format.sh`
+> When using ANY file from this skill, you MUST convert its path to ABSOLUTE:
+> `Root Path` + `Relative Path` = `Absolute Path`
+> 
+> **Examples:**
+> 1. Root Path: `{skill.root_path}`
+>    Relative: `./scripts/run.sh`
+>    Result: `{skill.root_path}/scripts/run.sh`
+> 
+> 2. Root Path: `{skill.root_path}`
+>    Relative: `scripts/run.sh`
+>    Result: `{skill.root_path}/scripts/run.sh`
 
 {skill.content}""")
 

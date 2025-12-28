@@ -38,8 +38,8 @@ class TestAvailableSkillsProcessor:
         
         assert "Original" in result
         assert "## Agent Skills" in result
-        assert "Available Skills" in result
-        assert "- test_skill: desc" in result
+        assert "Skill Catalog" in result
+        assert "- **test_skill**: desc" in result
         assert "body" not in result
 
     def test_process_with_preloaded_skill(self, mock_context):
@@ -53,8 +53,8 @@ class TestAvailableSkillsProcessor:
         processor = AvailableSkillsProcessor()
         result = processor.process("Original", {}, "test_agent", mock_context)
         
-        assert "Preloaded Skills" in result
-        assert "## Skill: preloaded" in result
         assert "Root Path: /path" in result
-        assert "CRITICAL: Path Resolution" in result
+        assert "CRITICAL: Path Resolution Required for Skill Files" in result
+        assert "standard tools resolve relative paths against the User's Workspace" in result
+        assert "Result: `/path/scripts/run.sh`" in result
         assert "FULL_BODY" in result
