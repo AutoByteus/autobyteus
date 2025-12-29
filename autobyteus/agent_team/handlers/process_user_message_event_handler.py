@@ -15,13 +15,13 @@ logger = logging.getLogger(__name__)
 class ProcessUserMessageEventHandler(BaseAgentTeamEventHandler):
     """Handles user messages by routing them to the specified target agent or sub-team."""
     async def handle(self, event: ProcessUserMessageEvent, context: 'AgentTeamContext') -> None:
-        await context.phase_manager.notify_processing_started()
+        await context.status_manager.notify_processing_started()
         
         team_manager = context.team_manager
         if not team_manager:
             msg = f"Team '{context.team_id}': TeamManager not found. Cannot route message."
             logger.error(msg)
-            await context.phase_manager.notify_error_occurred(msg, "TeamManager is not initialized.")
+            await context.status_manager.notify_error_occurred(msg, "TeamManager is not initialized.")
             return
 
         try:
@@ -29,7 +29,7 @@ class ProcessUserMessageEventHandler(BaseAgentTeamEventHandler):
         except Exception as e:
             msg = f"Team '{context.team_id}': Node '{event.target_agent_name}' not found or failed to start. Cannot route message. Error: {e}"
             logger.error(msg, exc_info=True)
-            await context.phase_manager.notify_error_occurred(msg, f"Node '{event.target_agent_name}' not found or failed to start.")
+            await context.status_manager.notify_error_occurred(msg, f"Node '{event.target_agent_name}' not found or failed to start.")
             return
 
         if isinstance(target_node, Agent):
@@ -41,6 +41,6 @@ class ProcessUserMessageEventHandler(BaseAgentTeamEventHandler):
         else:
             msg = f"Target node '{event.target_agent_name}' is of an unsupported type: {type(target_node).__name__}"
             logger.error(f"Team '{context.team_id}': {msg}")
-            await context.phase_manager.notify_error_occurred(msg, "")
+            await context.status_manager.notify_error_occurred(msg, "")
 
-        await context.phase_manager.notify_processing_complete_and_idle()
+        await context.status_manager.notify_processing_complete_and_idle()

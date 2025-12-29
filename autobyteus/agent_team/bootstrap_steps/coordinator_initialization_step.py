@@ -6,7 +6,7 @@ from autobyteus.agent_team.bootstrap_steps.base_agent_team_bootstrap_step import
 
 if TYPE_CHECKING:
     from autobyteus.agent_team.context.agent_team_context import AgentTeamContext
-    from autobyteus.agent_team.phases.agent_team_phase_manager import AgentTeamPhaseManager
+    from autobyteus.agent_team.status.agent_team_status_manager import AgentTeamStatusManager
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ class CoordinatorInitializationStep(BaseAgentTeamBootstrapStep):
     using the TeamManager. This ensures the coordinator is ready before the
     agent team becomes idle.
     """
-    async def execute(self, context: 'AgentTeamContext', phase_manager: 'AgentTeamPhaseManager') -> bool:
+    async def execute(self, context: 'AgentTeamContext', status_manager: 'AgentTeamStatusManager') -> bool:
         team_id = context.team_id
         logger.info(f"Team '{team_id}': Executing CoordinatorInitializationStep.")
         

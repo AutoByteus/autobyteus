@@ -46,6 +46,6 @@ async def test_handle_agent_not_found(handler: ToolApprovalTeamEventHandler, eve
 
     await handler.handle(event, agent_team_context)
 
-    agent_team_context.phase_manager.notify_error_occurred.assert_awaited_once()
-    error_msg = agent_team_context.phase_manager.notify_error_occurred.call_args.args[0]
-    assert f"Target agent '{event.agent_name}' for approval not found" in error_msg
+    agent_team_context.status_manager.notify_error_occurred.assert_awaited_once()
+    error_msg = agent_team_context.status_manager.notify_error_occurred.call_args.args[0]
+    assert f"Target node '{event.agent_name}' for approval is not an agent" in error_msg

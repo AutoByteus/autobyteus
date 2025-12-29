@@ -7,7 +7,7 @@ from autobyteus.agent.context import AgentConfig
 
 if TYPE_CHECKING:
     from autobyteus.agent_team.context.agent_team_context import AgentTeamContext
-    from autobyteus.agent_team.phases.agent_team_phase_manager import AgentTeamPhaseManager
+    from autobyteus.agent_team.status.agent_team_status_manager import AgentTeamStatusManager
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ class AgentConfigurationPreparationStep(BaseAgentTeamBootstrapStep):
     agent in the team. It injects team-specific context, applies team-level
     settings like tool format overrides, and prepares the final coordinator prompt.
     """
-    async def execute(self, context: 'AgentTeamContext', phase_manager: 'AgentTeamPhaseManager') -> bool:
+    async def execute(self, context: 'AgentTeamContext', status_manager: 'AgentTeamStatusManager') -> bool:
         team_id = context.team_id
         logger.info(f"Team '{team_id}': Executing AgentConfigurationPreparationStep to prepare all agent configurations.")
         

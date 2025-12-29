@@ -13,7 +13,7 @@ from autobyteus.agent_team.context import (
     AgentTeamContext,
     TeamManager,
 )
-from autobyteus.agent_team.phases.agent_team_phase_manager import AgentTeamPhaseManager
+from autobyteus.agent_team.status.agent_team_status_manager import AgentTeamStatusManager
 from autobyteus.agent_team.events.agent_team_input_event_queue_manager import AgentTeamInputEventQueueManager
 from autobyteus.agent_team.streaming.agent_team_event_notifier import AgentTeamExternalEventNotifier
 from autobyteus.llm.base_llm import BaseLLM
@@ -91,25 +91,25 @@ def mock_team_manager():
     return manager
 
 @pytest.fixture
-def mock_agent_team_phase_manager():
-    """Provides a self-contained, mocked AgentTeamPhaseManager with async methods."""
+def mock_agent_team_status_manager():
+    """Provides a self-contained, mocked AgentTeamStatusManager with async methods."""
     notifier_mock = AsyncMock(spec=AgentTeamExternalEventNotifier)
     for attr_name in dir(AgentTeamExternalEventNotifier):
         if attr_name.startswith("notify_"):
             setattr(notifier_mock, attr_name, MagicMock())
 
-    manager = MagicMock(spec=AgentTeamPhaseManager)
+    manager = MagicMock(spec=AgentTeamStatusManager)
     manager.notifier = notifier_mock
-    for attr_name in dir(AgentTeamPhaseManager):
+    for attr_name in dir(AgentTeamStatusManager):
         if attr_name.startswith("notify_"):
             setattr(manager, attr_name, AsyncMock())
     return manager
 
 @pytest.fixture
-def agent_team_context(sample_agent_team_config, agent_team_runtime_state, mock_agent_team_event_queue_manager, mock_team_manager, mock_agent_team_phase_manager):
+def agent_team_context(sample_agent_team_config, agent_team_runtime_state, mock_agent_team_event_queue_manager, mock_team_manager, mock_agent_team_status_manager):
     """
     Provides a fully-composed and linked AgentTeamContext ready for use in tests.
-    Any test that requests this fixture will have a context with a phase manager.
+    Any test that requests this fixture will have a context with a status manager.
     """
     context = AgentTeamContext(
         team_id=agent_team_runtime_state.team_id,
@@ -119,8 +119,8 @@ def agent_team_context(sample_agent_team_config, agent_team_runtime_state, mock_
     # Simulate a post-bootstrap state:
     context.state.input_event_queues = mock_agent_team_event_queue_manager
     context.state.team_manager = mock_team_manager
-    # Link the mock phase manager, ensuring context.phase_manager is always available.
-    context.state.phase_manager_ref = mock_agent_team_phase_manager
+    # Link the mock status manager, ensuring context.status_manager is always available.
+    context.state.status_manager_ref = mock_agent_team_status_manager
     return context
 
 @pytest.fixture

@@ -4,9 +4,9 @@ from typing import Optional, Dict, Any, TYPE_CHECKING
 
 from autobyteus.events.event_emitter import EventEmitter
 from autobyteus.events.event_types import EventType
-from autobyteus.agent_team.phases.agent_team_operational_phase import AgentTeamOperationalPhase
+from autobyteus.agent_team.status.agent_team_status import AgentTeamStatus
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent
-from .agent_team_stream_events import AgentTeamStreamEvent, AgentEventRebroadcastPayload, AgentTeamPhaseTransitionData, SubTeamEventRebroadcastPayload
+from .agent_team_stream_events import AgentTeamStreamEvent, AgentEventRebroadcastPayload, AgentTeamStatusTransitionData, SubTeamEventRebroadcastPayload
 from autobyteus.task_management.events import BaseTaskPlanEvent
 
 if TYPE_CHECKING:
@@ -32,14 +32,14 @@ class AgentTeamExternalEventNotifier(EventEmitter):
         """
         self.emit(EventType.TEAM_STREAM_EVENT, payload=event)
 
-    def notify_phase_change(self, new_phase: AgentTeamOperationalPhase, old_phase: Optional[AgentTeamOperationalPhase], extra_data: Optional[Dict[str, Any]] = None):
+    def notify_status_change(self, new_status: AgentTeamStatus, old_status: Optional[AgentTeamStatus], extra_data: Optional[Dict[str, Any]] = None):
         """
-        Notifies of an agent team phase transition by creating and emitting a
+        Notifies of an agent team status transition by creating and emitting a
         'TEAM' sourced event.
         """
-        payload_dict = { "new_phase": new_phase, "old_phase": old_phase, "error_message": extra_data.get("error_message") if extra_data else None }
+        payload_dict = { "new_status": new_status, "old_status": old_status, "error_message": extra_data.get("error_message") if extra_data else None }
         filtered_payload_dict = {k: v for k, v in payload_dict.items() if v is not None}
-        event = AgentTeamStreamEvent(team_id=self.team_id, event_source_type="TEAM", data=AgentTeamPhaseTransitionData(**filtered_payload_dict))
+        event = AgentTeamStreamEvent(team_id=self.team_id, event_source_type="TEAM", data=AgentTeamStatusTransitionData(**filtered_payload_dict))
         self._emit_event(event)
     
     def publish_agent_event(self, agent_name: str, agent_event: AgentStreamEvent):

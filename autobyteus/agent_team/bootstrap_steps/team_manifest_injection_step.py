@@ -12,7 +12,7 @@ from autobyteus.agent_team.context import AgentTeamConfig
 
 if TYPE_CHECKING:
     from autobyteus.agent_team.context.agent_team_context import AgentTeamContext
-    from autobyteus.agent_team.phases.agent_team_phase_manager import AgentTeamPhaseManager
+    from autobyteus.agent_team.status.agent_team_status_manager import AgentTeamStatusManager
 
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ class TeamManifestInjectionStep(BaseAgentTeamBootstrapStep):
     stored in `context.state.prepared_agent_prompts` for later application.
     """
 
-    async def execute(self, context: 'AgentTeamContext', phase_manager: 'AgentTeamPhaseManager') -> bool:
+    async def execute(self, context: 'AgentTeamContext', status_manager: 'AgentTeamStatusManager') -> bool:
         team_id = context.team_id
         logger.info(f"Team '{team_id}': Executing TeamManifestInjectionStep.")
 

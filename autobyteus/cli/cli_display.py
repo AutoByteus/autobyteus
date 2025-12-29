@@ -4,14 +4,14 @@ import sys
 from typing import Optional, List, Dict, Any
 import json 
 
-from autobyteus.agent.phases.phase_enum import AgentOperationalPhase
+from autobyteus.agent.status.status_enum import AgentStatus
 from autobyteus.agent.streaming.stream_events import StreamEvent, StreamEventType
 from autobyteus.agent.streaming.stream_event_payloads import (
     AssistantChunkData,
     AssistantCompleteResponseData,
     ToolInvocationApprovalRequestedData,
     ToolInteractionLogEntryData,
-    AgentOperationalPhaseTransitionData,
+    AgentStatusTransitionData,
     ErrorEventData,
     ToolInvocationAutoExecutingData,
 )
@@ -175,24 +175,24 @@ class InteractiveCLIDisplay:
                     f"[Tool Log ({event.data.tool_name} | {event.data.tool_invocation_id})]: {event.data.log_entry}"
                 )
 
-        elif event.event_type == StreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION and isinstance(event.data, AgentOperationalPhaseTransitionData):
-            if event.data.new_phase == AgentOperationalPhase.EXECUTING_TOOL:
+        elif event.event_type == StreamEventType.AGENT_STATUS_TRANSITION and isinstance(event.data, AgentStatusTransitionData):
+            if event.data.new_status == AgentStatus.EXECUTING_TOOL:
                 tool_name = event.data.tool_name or "a tool"
                 sys.stdout.write(f"Agent: Waiting for tool '{tool_name}' to complete...\n")
                 sys.stdout.flush()
                 self.current_line_empty = True
                 self.agent_has_spoken_this_turn = True
-            elif event.data.new_phase == AgentOperationalPhase.BOOTSTRAPPING:
+            elif event.data.new_status == AgentStatus.BOOTSTRAPPING:
                 logger.info("[Agent is initializing...]")
-            elif event.data.new_phase == AgentOperationalPhase.TOOL_DENIED:
+            elif event.data.new_status == AgentStatus.TOOL_DENIED:
                 tool_name = event.data.tool_name or "a tool"
                 logger.info(f"[Tool '{tool_name}' was denied by user. Agent is reconsidering.]")
             else:
-                phase_msg = f"[Agent Status: {event.data.new_phase.value}"
+                status_msg = f"[Agent Status: {event.data.new_status.value}"
                 if event.data.tool_name:
-                    phase_msg += f" ({event.data.tool_name})"
-                phase_msg += "]"
-                logger.info(phase_msg)
+                    status_msg += f" ({event.data.tool_name})"
+                status_msg += "]"
+                logger.info(status_msg)
 
         elif event.event_type == StreamEventType.ERROR_EVENT and isinstance(event.data, ErrorEventData):
             logger.error(f"[Error: {event.data.message} (Source: {event.data.source})]")

@@ -7,7 +7,7 @@ from autobyteus.agent_team.streaming.agent_team_event_stream import AgentTeamEve
 from autobyteus.agent_team.streaming.agent_team_stream_events import AgentTeamStreamEvent
 from autobyteus.events.event_types import EventType
 from autobyteus.agent_team.agent_team import AgentTeam
-from autobyteus.agent_team.phases import AgentTeamOperationalPhase
+from autobyteus.agent_team.status import AgentTeamStatus
 from autobyteus.agent.streaming.stream_events import StreamEventType
 
 pytestmark = pytest.mark.asyncio
@@ -54,8 +54,8 @@ async def test_stream_initialization(mock_team):
 
 async def test_handle_event_queues_correct_event(stream: AgentTeamEventStream):
     """Tests that the handler correctly filters and queues events for its team."""
-    correct_event = AgentTeamStreamEvent(team_id=stream.team_id, event_source_type="TEAM", data={"new_phase": AgentTeamOperationalPhase.IDLE})
-    wrong_event = AgentTeamStreamEvent(team_id="some-other-team", event_source_type="TEAM", data={"new_phase": AgentTeamOperationalPhase.IDLE})
+    correct_event = AgentTeamStreamEvent(team_id=stream.team_id, event_source_type="TEAM", data={"new_status": AgentTeamStatus.IDLE})
+    wrong_event = AgentTeamStreamEvent(team_id="some-other-team", event_source_type="TEAM", data={"new_status": AgentTeamStatus.IDLE})
     
     stream._handle_event(payload=correct_event)
     stream._handle_event(payload=wrong_event)
@@ -68,7 +68,7 @@ async def test_all_events_stream_and_close(stream: AgentTeamEventStream, mock_te
     event1 = AgentTeamStreamEvent(
         team_id=stream.team_id,
         event_source_type="TEAM",
-        data={"new_phase": AgentTeamOperationalPhase.IDLE}
+        data={"new_status": AgentTeamStatus.IDLE}
     )
     event2 = AgentTeamStreamEvent(
         team_id=stream.team_id,

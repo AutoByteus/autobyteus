@@ -8,7 +8,7 @@ from autobyteus.events.event_types import EventType
 
 if TYPE_CHECKING:
     from autobyteus.agent_team.context.agent_team_context import AgentTeamContext
-    from autobyteus.agent_team.phases.agent_team_phase_manager import AgentTeamPhaseManager
+    from autobyteus.agent_team.status.agent_team_status_manager import AgentTeamStatusManager
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ class TeamContextInitializationStep(BaseAgentTeamBootstrapStep):
     Bootstrap step to initialize shared team context components, such as the
     TaskPlan, and bridges its events to the team's notifier.
     """
-    async def execute(self, context: 'AgentTeamContext', phase_manager: 'AgentTeamPhaseManager') -> bool:
+    async def execute(self, context: 'AgentTeamContext', status_manager: 'AgentTeamStatusManager') -> bool:
         team_id = context.team_id
         logger.info(f"Team '{team_id}': Executing TeamContextInitializationStep.")
         try:
@@ -26,7 +26,7 @@ class TeamContextInitializationStep(BaseAgentTeamBootstrapStep):
                 context.state.task_plan = task_plan
                 logger.info(f"Team '{team_id}': TaskPlan initialized and attached to team state.")
 
-                notifier = phase_manager.notifier
+                notifier = status_manager.notifier
                 if notifier:
                     # The notifier, a long-lived component, subscribes to events
                     # from the task_plan, another long-lived component.
@@ -34,7 +34,7 @@ class TeamContextInitializationStep(BaseAgentTeamBootstrapStep):
                     notifier.subscribe_from(sender=task_plan, event=EventType.TASK_PLAN_STATUS_UPDATED, listener=notifier.handle_and_publish_task_plan_event)
                     logger.info(f"Team '{team_id}': Successfully bridged TaskPlan events to the team notifier.")
                 else:
-                    logger.warning(f"Team '{team_id}': Notifier not found in PhaseManager. Cannot bridge TaskPlan events.")
+                    logger.warning(f"Team '{team_id}': Notifier not found in StatusManager. Cannot bridge TaskPlan events.")
 
             else:
                 logger.warning(f"Team '{team_id}': TaskPlan already exists. Skipping initialization.")

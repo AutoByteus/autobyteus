@@ -9,7 +9,8 @@ from autobyteus.agent.streaming.agent_event_stream import AgentEventStream
 from autobyteus.agent_team.streaming.agent_team_event_notifier import AgentTeamExternalEventNotifier
 from autobyteus.agent.streaming.stream_events import StreamEvent, StreamEventType
 from autobyteus.agent.agent import Agent
-from autobyteus.agent.phases import AgentOperationalPhase
+from autobyteus.agent.status.status_enum import AgentStatus
+from autobyteus.agent_team.status.agent_team_status import AgentTeamStatus
 
 pytestmark = pytest.mark.asyncio
 
@@ -58,7 +59,7 @@ async def test_bridge_forwards_events(bridge: AgentEventBridge, mock_agent_event
     event2 = StreamEvent(
         agent_id="a1",
         event_type=StreamEventType.AGENT_IDLE,
-        data={"new_phase": AgentOperationalPhase.IDLE}
+        data={"new_status": AgentStatus.IDLE}
     )
 
     # Put events onto the stream's queue

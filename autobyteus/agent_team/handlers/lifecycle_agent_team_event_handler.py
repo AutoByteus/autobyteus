@@ -14,14 +14,14 @@ class LifecycleAgentTeamEventHandler(BaseAgentTeamEventHandler):
     """Logs various lifecycle events for an agent team."""
     async def handle(self, event: BaseAgentTeamEvent, context: 'AgentTeamContext') -> None:
         team_id = context.team_id
-        current_phase = context.state.current_phase.value
+        current_status = context.state.current_status.value
 
         if isinstance(event, AgentTeamReadyEvent):
-            logger.info(f"Team '{team_id}' Logged AgentTeamReadyEvent. Current phase: {current_phase}")
+            logger.info(f"Team '{team_id}' Logged AgentTeamReadyEvent. Current status: {current_status}")
         elif isinstance(event, AgentTeamErrorEvent):
             logger.error(
                 f"Team '{team_id}' Logged AgentTeamErrorEvent: {event.error_message}. "
-                f"Details: {event.exception_details}. Current phase: {current_phase}"
+                f"Details: {event.exception_details}. Current status: {current_status}"
             )
         else:
             logger.warning(f"LifecycleAgentTeamEventHandler received unhandled event type: {type(event).__name__}")

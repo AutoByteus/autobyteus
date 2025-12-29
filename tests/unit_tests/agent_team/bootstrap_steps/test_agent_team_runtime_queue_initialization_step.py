@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 from autobyteus.agent_team.bootstrap_steps.agent_team_runtime_queue_initialization_step import AgentTeamRuntimeQueueInitializationStep
 from autobyteus.agent_team.events.agent_team_input_event_queue_manager import AgentTeamInputEventQueueManager
 from autobyteus.agent_team.context import AgentTeamContext
-from autobyteus.agent_team.phases.agent_team_phase_manager import AgentTeamPhaseManager
+from autobyteus.agent_team.status.agent_team_status_manager import AgentTeamStatusManager
 
 @pytest.fixture
 def queue_init_step():
@@ -35,7 +35,7 @@ async def test_execute_success(
         mock_queue_manager_class
     )
     
-    success = await queue_init_step.execute(agent_team_context, agent_team_context.phase_manager)
+    success = await queue_init_step.execute(agent_team_context, agent_team_context.status_manager)
 
     assert success is True
     
@@ -67,7 +67,7 @@ async def test_execute_failure_on_instantiation(
     )
 
     with caplog.at_level(logging.ERROR):
-        success = await queue_init_step.execute(agent_team_context, agent_team_context.phase_manager)
+        success = await queue_init_step.execute(agent_team_context, agent_team_context.status_manager)
 
     assert success is False
     

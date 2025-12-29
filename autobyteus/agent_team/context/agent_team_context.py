@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from autobyteus.agent_team.context.agent_team_config import AgentTeamConfig
     from autobyteus.agent_team.context.agent_team_runtime_state import AgentTeamRuntimeState
     from autobyteus.agent.agent import Agent
-    from autobyteus.agent_team.phases.agent_team_phase_manager import AgentTeamPhaseManager
+    from autobyteus.agent_team.status.agent_team_status_manager import AgentTeamStatusManager
     from autobyteus.agent_team.context.team_manager import TeamManager
     from autobyteus.agent_team.streaming.agent_event_multiplexer import AgentEventMultiplexer
     from autobyteus.agent.context import AgentConfig
@@ -49,8 +49,8 @@ class AgentTeamContext:
         return None
 
     @property
-    def phase_manager(self) -> Optional['AgentTeamPhaseManager']:
-        return self.state.phase_manager_ref
+    def status_manager(self) -> Optional['AgentTeamStatusManager']:
+        return self.state.status_manager_ref
 
     @property
     def team_manager(self) -> Optional['TeamManager']:

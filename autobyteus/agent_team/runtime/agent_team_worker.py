@@ -19,8 +19,8 @@ class AgentTeamWorker:
     """Encapsulates the core event processing loop for an agent team."""
     def __init__(self, context: 'AgentTeamContext', event_handler_registry: 'AgentTeamEventHandlerRegistry'):
         self.context = context
-        self.phase_manager = self.context.phase_manager
-        self.event_dispatcher = AgentTeamEventDispatcher(event_handler_registry, self.phase_manager)
+        self.status_manager = self.context.status_manager
+        self.event_dispatcher = AgentTeamEventDispatcher(event_handler_registry, self.status_manager)
         
         self._thread_pool_manager = AgentThreadPoolManager()
         self._thread_future: Optional[concurrent.futures.Future] = None
@@ -70,7 +70,7 @@ class AgentTeamWorker:
 
     async def async_run(self):
         bootstrapper = AgentTeamBootstrapper()
-        if not await bootstrapper.run(self.context, self.phase_manager):
+        if not await bootstrapper.run(self.context, self.status_manager):
             logger.critical(f"Team '{self.context.team_id}' failed to initialize. Shutting down.")
             return
 

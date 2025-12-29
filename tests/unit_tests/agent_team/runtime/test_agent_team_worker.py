@@ -50,7 +50,7 @@ async def test_worker_initialization(agent_team_worker: AgentTeamWorker, agent_t
     assert agent_team_worker.context is agent_team_context
     assert agent_team_worker.event_dispatcher is mock_agent_team_dispatcher
     assert not agent_team_worker.is_alive
-    assert agent_team_worker.phase_manager is agent_team_context.phase_manager
+    assert agent_team_worker.status_manager is agent_team_context.status_manager
 
 @pytest.mark.asyncio
 async def test_worker_start_and_stop_cycle(agent_team_worker: AgentTeamWorker):
@@ -93,7 +93,7 @@ async def test_async_run_initialization_delegates_to_bootstrapper(agent_team_wor
         await agent_team_worker.async_run()
 
         mock_bootstrapper_class.assert_called_once_with()
-        mock_bootstrapper_instance.run.assert_awaited_once_with(agent_team_context, agent_team_context.phase_manager)
+        mock_bootstrapper_instance.run.assert_awaited_once_with(agent_team_context, agent_team_context.status_manager)
 
 @pytest.mark.asyncio
 async def test_async_run_handles_bootstrap_failure(agent_team_worker: AgentTeamWorker, agent_team_context: AgentTeamContext):
@@ -105,26 +105,40 @@ async def test_async_run_handles_bootstrap_failure(agent_team_worker: AgentTeamW
         await agent_team_worker.async_run()
 
         mock_bootstrapper_class.assert_called_once()
-        mock_bootstrapper_instance.run.assert_awaited_once_with(agent_team_context, agent_team_context.phase_manager)
+        mock_bootstrapper_instance.run.assert_awaited_once_with(agent_team_context, agent_team_context.status_manager)
         # The event loop should not have been entered, so no calls to get events.
         agent_team_context.state.input_event_queues.user_message_queue.get.assert_not_called()
 
 @pytest.mark.asyncio
 async def test_worker_processes_event(agent_team_worker: AgentTeamWorker, agent_team_context: AgentTeamContext, mock_agent_team_dispatcher: AsyncMock):
     """Test that the worker can process an event from its queue."""
+    test_event = ProcessUserMessageEvent(user_message=MagicMock(), target_agent_name="Coordinator")
+    
+    # Configure user_message_queue.get() to return the test event first, then block
+    user_call_count = 0
+    async def mock_user_queue_get():
+        nonlocal user_call_count
+        user_call_count += 1
+        if user_call_count == 1:
+            return test_event
+        # After first call, block so worker can be stopped cleanly
+        await asyncio.sleep(100)
+    
+    # Configure internal_system_event_queue.get() to always block (never return first)
+    async def mock_system_queue_get():
+        await asyncio.sleep(100)
+        
+    agent_team_context.state.input_event_queues.user_message_queue.get = mock_user_queue_get
+    agent_team_context.state.input_event_queues.internal_system_event_queue.get = mock_system_queue_get
+    
     with patch('autobyteus.agent_team.runtime.agent_team_worker.AgentTeamBootstrapper') as MockBootstrapper:
-        MockBootstrapper.return_value.run.return_value = True
+        MockBootstrapper.return_value.run = AsyncMock(return_value=True)
         
         agent_team_worker.start()
-        await asyncio.sleep(0.1) # Give worker time to start up
+        await asyncio.sleep(0.3) # Give worker time to process event
         assert agent_team_worker.is_alive
-
-        test_event = ProcessUserMessageEvent(user_message=MagicMock(), target_agent_name="Coordinator")
         
-        await agent_team_context.state.input_event_queues.user_message_queue.put(test_event)
-        
-        await asyncio.sleep(0.2)
-        
+        # Verify dispatch was called with our event
         mock_agent_team_dispatcher.dispatch.assert_awaited_with(test_event, agent_team_context)
 
         await agent_team_worker.stop()
@@ -136,7 +150,7 @@ async def test_worker_shutdown_delegates_to_orchestrator(agent_team_worker: Agen
     
     with patch('autobyteus.agent_team.runtime.agent_team_worker.AgentTeamShutdownOrchestrator', return_value=mock_shutdown_orchestrator):
         with patch('autobyteus.agent_team.runtime.agent_team_worker.AgentTeamBootstrapper') as MockBootstrapper:
-            MockBootstrapper.return_value.run.return_value = True
+            MockBootstrapper.return_value.run = AsyncMock(return_value=True)
             
             agent_team_worker.start()
             await asyncio.sleep(0.1)

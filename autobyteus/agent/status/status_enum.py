@@ -1,10 +1,10 @@
 # file: autobyteus/autobyteus/agent/context/phases/phase_enum.py
 from enum import Enum
 
-class AgentOperationalPhase(str, Enum):
+class AgentStatus(str, Enum):
     """
-    Defines the fine-grained operational phases of an agent.
-    This is the single source of truth for an agent's current state of operation.
+    Defines the possible operational statuses of an agent.
+    Renamed from AgentOperationalPhase.
     """
     UNINITIALIZED = "uninitialized"            # Agent object created, but runtime not started or fully set up.
     BOOTSTRAPPING = "bootstrapping"            # Agent is running its internal initialization/bootstrap sequence.
@@ -29,21 +29,21 @@ class AgentOperationalPhase(str, Enum):
     def is_initializing(self) -> bool:
         """Checks if the agent is in any of the initializing phases."""
         return self in [
-            AgentOperationalPhase.BOOTSTRAPPING,
+            AgentStatus.BOOTSTRAPPING,
         ]
 
     def is_processing(self) -> bool:
         """Checks if the agent is in any active processing phase (post-initialization, pre-shutdown)."""
         return self in [
-            AgentOperationalPhase.PROCESSING_USER_INPUT,
-            AgentOperationalPhase.AWAITING_LLM_RESPONSE,
-            AgentOperationalPhase.ANALYZING_LLM_RESPONSE,
-            AgentOperationalPhase.AWAITING_TOOL_APPROVAL,
-            AgentOperationalPhase.TOOL_DENIED,
-            AgentOperationalPhase.EXECUTING_TOOL,
-            AgentOperationalPhase.PROCESSING_TOOL_RESULT,
+            AgentStatus.PROCESSING_USER_INPUT,
+            AgentStatus.AWAITING_LLM_RESPONSE,
+            AgentStatus.ANALYZING_LLM_RESPONSE,
+            AgentStatus.AWAITING_TOOL_APPROVAL,
+            AgentStatus.TOOL_DENIED,
+            AgentStatus.EXECUTING_TOOL,
+            AgentStatus.PROCESSING_TOOL_RESULT,
         ]
     
     def is_terminal(self) -> bool:
         """Checks if the phase is a terminal state (shutdown or error)."""
-        return self in [AgentOperationalPhase.SHUTDOWN_COMPLETE, AgentOperationalPhase.ERROR]
+        return self in [AgentStatus.SHUTDOWN_COMPLETE, AgentStatus.ERROR]

@@ -12,9 +12,14 @@ async def test_submit_event_enqueues_correctly(MockWorker, agent_team_context):
     """Tests that submit_event routes different events to the correct queue."""
     mock_worker_instance = MockWorker.return_value
     # Mock the schedule_coroutine to immediately run the coro
-    async def run_coro_immediately(coro_factory):
-        await coro_factory()
-        return MagicMock() # Return a mock future
+    import concurrent.futures
+    def run_coro_immediately(coro_factory):
+        # Schedule the coroutine execution on the loop
+        asyncio.create_task(coro_factory())
+        # Return a done Future to satisfy asyncio.wrap_future
+        f = concurrent.futures.Future()
+        f.set_result(None)
+        return f
     mock_worker_instance.schedule_coroutine.side_effect = run_coro_immediately
 
     registry = MagicMock()

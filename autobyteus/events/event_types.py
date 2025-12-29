@@ -13,20 +13,20 @@ class EventType(Enum):
     SHARED_BROWSER_SESSION_CREATED = "shared_browser_session_created" # Added for session-aware tools
     CREATE_SHARED_SESSION = "create_shared_session" # Added for session-aware tools
 
-    # --- Agent Phase Transitions ---
-    AGENT_PHASE_UNINITIALIZED_ENTERED = "agent_phase_uninitialized_entered"
-    AGENT_PHASE_BOOTSTRAPPING_STARTED = "agent_phase_bootstrapping_started"
-    AGENT_PHASE_IDLE_ENTERED = "agent_phase_idle_entered"
-    AGENT_PHASE_PROCESSING_USER_INPUT_STARTED = "agent_phase_processing_user_input_started"
-    AGENT_PHASE_AWAITING_LLM_RESPONSE_STARTED = "agent_phase_awaiting_llm_response_started"
-    AGENT_PHASE_ANALYZING_LLM_RESPONSE_STARTED = "agent_phase_analyzing_llm_response_started"
-    AGENT_PHASE_AWAITING_TOOL_APPROVAL_STARTED = "agent_phase_awaiting_tool_approval_started" 
-    AGENT_PHASE_TOOL_DENIED_STARTED = "agent_phase_tool_denied_started"
-    AGENT_PHASE_EXECUTING_TOOL_STARTED = "agent_phase_executing_tool_started"
-    AGENT_PHASE_PROCESSING_TOOL_RESULT_STARTED = "agent_phase_processing_tool_result_started"
-    AGENT_PHASE_SHUTTING_DOWN_STARTED = "agent_phase_shutting_down_started"
-    AGENT_PHASE_SHUTDOWN_COMPLETED = "agent_phase_shutdown_completed"
-    AGENT_PHASE_ERROR_ENTERED = "agent_phase_error_entered" 
+    # --- Agent Status Transitions ---
+    AGENT_STATUS_UNINITIALIZED_ENTERED = "agent_status_uninitialized_entered"
+    AGENT_STATUS_BOOTSTRAPPING_STARTED = "agent_status_bootstrapping_started"
+    AGENT_STATUS_IDLE_ENTERED = "agent_status_idle_entered"
+    AGENT_STATUS_PROCESSING_USER_INPUT_STARTED = "agent_status_processing_user_input_started"
+    AGENT_STATUS_AWAITING_LLM_RESPONSE_STARTED = "agent_status_awaiting_llm_response_started"
+    AGENT_STATUS_ANALYZING_LLM_RESPONSE_STARTED = "agent_status_analyzing_llm_response_started"
+    AGENT_STATUS_AWAITING_TOOL_APPROVAL_STARTED = "agent_status_awaiting_tool_approval_started" 
+    AGENT_STATUS_TOOL_DENIED_STARTED = "agent_status_tool_denied_started"
+    AGENT_STATUS_EXECUTING_TOOL_STARTED = "agent_status_executing_tool_started"
+    AGENT_STATUS_PROCESSING_TOOL_RESULT_STARTED = "agent_status_processing_tool_result_started"
+    AGENT_STATUS_SHUTTING_DOWN_STARTED = "agent_status_shutting_down_started"
+    AGENT_STATUS_SHUTDOWN_COMPLETED = "agent_status_shutdown_completed"
+    AGENT_STATUS_ERROR_ENTERED = "agent_status_error_entered" 
 
     # --- Agent Data Outputs ---
     AGENT_DATA_ASSISTANT_CHUNK = "agent_data_assistant_chunk" 

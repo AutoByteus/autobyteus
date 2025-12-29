@@ -1,7 +1,7 @@
 # file: autobyteus/autobyteus/agent_team/streaming/agent_team_stream_event_payloads.py
 from typing import Optional, Any
 from pydantic import BaseModel, Field
-from autobyteus.agent_team.phases.agent_team_operational_phase import AgentTeamOperationalPhase
+from autobyteus.agent_team.status.agent_team_status import AgentTeamStatus
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent
 from autobyteus.task_management.events import TasksCreatedEvent, TaskStatusUpdatedEvent
 # Need to use a forward reference string to avoid circular import at runtime
@@ -13,9 +13,9 @@ if TYPE_CHECKING:
 class BaseTeamSpecificPayload(BaseModel):
     pass
 
-class AgentTeamPhaseTransitionData(BaseTeamSpecificPayload):
-    new_phase: AgentTeamOperationalPhase
-    old_phase: Optional[AgentTeamOperationalPhase] = None
+class AgentTeamStatusTransitionData(BaseTeamSpecificPayload):
+    new_status: AgentTeamStatus
+    old_status: Optional[AgentTeamStatus] = None
     error_message: Optional[str] = None
 
 # --- Payload for events originating from the "AGENT" source ---

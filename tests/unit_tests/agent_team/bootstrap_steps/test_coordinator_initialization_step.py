@@ -22,7 +22,7 @@ async def test_execute_success(
     mock_team_manager.ensure_coordinator_is_ready = AsyncMock(return_value=MagicMock(spec=Agent))
     coordinator_name = agent_team_context.config.coordinator_node.name
 
-    success = await coord_init_step.execute(agent_team_context, agent_team_context.phase_manager)
+    success = await coord_init_step.execute(agent_team_context, agent_team_context.status_manager)
 
     assert success is True
     mock_team_manager.ensure_coordinator_is_ready.assert_awaited_once_with(coordinator_name)
@@ -37,7 +37,7 @@ async def test_execute_failure_if_team_manager_missing(
     """
     agent_team_context.state.team_manager = None
 
-    success = await coord_init_step.execute(agent_team_context, agent_team_context.phase_manager)
+    success = await coord_init_step.execute(agent_team_context, agent_team_context.status_manager)
 
     assert success is False
 
@@ -52,6 +52,6 @@ async def test_execute_failure_if_coordinator_creation_fails(
     mock_team_manager = agent_team_context.team_manager
     mock_team_manager.ensure_coordinator_is_ready = AsyncMock(side_effect=ValueError("Config not found"))
 
-    success = await coord_init_step.execute(agent_team_context, agent_team_context.phase_manager)
+    success = await coord_init_step.execute(agent_team_context, agent_team_context.status_manager)
 
     assert success is False
