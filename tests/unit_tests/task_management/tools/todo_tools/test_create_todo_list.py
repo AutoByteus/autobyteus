@@ -22,8 +22,8 @@ def mock_agent_context() -> AgentContext:
     context = Mock(spec=AgentContext)
     context.agent_id = "agent_create_todos"
     context.custom_data = {}
-    context.phase_manager = Mock()
-    context.phase_manager.notifier = Mock()
+    context.status_manager = Mock()
+    context.status_manager.notifier = Mock()
 
     state = Mock(spec=AgentRuntimeState)
     state.todo_list = None

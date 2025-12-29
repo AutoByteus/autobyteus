@@ -1,5 +1,5 @@
 
-# file: autobyteus/autobyteus/agent/phases/manager.py
+# file: autobyteus/autobyteus/agent/status/manager.py
 import asyncio
 import logging
 from typing import TYPE_CHECKING, Optional, Dict, Any, List
@@ -21,7 +21,7 @@ class AgentStatusManager:
     Manages the operational status of an agent.
     Responsible for executing state transitions, running lifecycle processors,
     and notifying external listeners.
-    Renamed from AgentPhaseManager.
+    Renamed from the legacy manager.
     """
     @property
     def notifier(self) -> 'AgentExternalEventNotifier':
@@ -46,7 +46,7 @@ class AgentStatusManager:
         """
         from autobyteus.agent.lifecycle import LifecycleEvent
         
-        # Map phase transitions to lifecycle events
+        # Map status transitions to lifecycle events
         lifecycle_event = None
         if old_status == AgentStatus.BOOTSTRAPPING and new_status == AgentStatus.IDLE:
             lifecycle_event = LifecycleEvent.AGENT_READY
@@ -122,8 +122,8 @@ class AgentStatusManager:
             logger.error(f"AgentStatusManager for '{self.context.agent_id}': Notifier method '{notify_method_name}' not found or not callable on {type(self.notifier).__name__}.")
 
     @status_transition(
-        source_phases=[AgentStatus.SHUTDOWN_COMPLETE, AgentStatus.ERROR],
-        target_phase=AgentStatus.UNINITIALIZED,
+        source_statuses=[AgentStatus.SHUTDOWN_COMPLETE, AgentStatus.ERROR],
+        target_status=AgentStatus.UNINITIALIZED,
         description="Triggered when the agent runtime is started or restarted after being in a terminal state."
     )
     async def notify_runtime_starting_and_uninitialized(self) -> None:
@@ -132,19 +132,19 @@ class AgentStatusManager:
         elif self.context.current_status.is_terminal():
              await self._transition_status(AgentStatus.UNINITIALIZED, "notify_status_uninitialized_entered")
         else:
-            logger.warning(f"Agent '{self.context.agent_id}' notify_runtime_starting_and_uninitialized called in unexpected phase: {self.context.current_status.value}")
+            logger.warning(f"Agent '{self.context.agent_id}' notify_runtime_starting_and_uninitialized called in unexpected status: {self.context.current_status.value}")
 
     @status_transition(
-        source_phases=[AgentStatus.UNINITIALIZED],
-        target_phase=AgentStatus.BOOTSTRAPPING,
+        source_statuses=[AgentStatus.UNINITIALIZED],
+        target_status=AgentStatus.BOOTSTRAPPING,
         description="Occurs when the agent's internal bootstrapping process begins."
     )
     async def notify_bootstrapping_started(self) -> None:
         await self._transition_status(AgentStatus.BOOTSTRAPPING, "notify_status_bootstrapping_started")
 
     @status_transition(
-        source_phases=[AgentStatus.BOOTSTRAPPING],
-        target_phase=AgentStatus.IDLE,
+        source_statuses=[AgentStatus.BOOTSTRAPPING],
+        target_status=AgentStatus.IDLE,
         description="Occurs when the agent successfully completes bootstrapping and is ready for input."
     )
     async def notify_initialization_complete(self) -> None:
@@ -152,15 +152,15 @@ class AgentStatusManager:
             # This will now be a BOOTSTRAPPING -> IDLE transition
             await self._transition_status(AgentStatus.IDLE, "notify_status_idle_entered")
         else:
-            logger.warning(f"Agent '{self.context.agent_id}' notify_initialization_complete called in unexpected phase: {self.context.current_status.value}")
+            logger.warning(f"Agent '{self.context.agent_id}' notify_initialization_complete called in unexpected status: {self.context.current_status.value}")
 
     @status_transition(
-        source_phases=[
+        source_statuses=[
             AgentStatus.IDLE, AgentStatus.ANALYZING_LLM_RESPONSE,
             AgentStatus.PROCESSING_TOOL_RESULT, AgentStatus.EXECUTING_TOOL,
             AgentStatus.TOOL_DENIED
         ],
-        target_phase=AgentStatus.PROCESSING_USER_INPUT,
+        target_status=AgentStatus.PROCESSING_USER_INPUT,
         description="Fires when the agent begins processing a new user message or inter-agent message."
     )
     async def notify_processing_input_started(self, trigger_info: Optional[str] = None) -> None:
@@ -168,37 +168,37 @@ class AgentStatusManager:
             data = {"trigger_info": trigger_info} if trigger_info else {}
             await self._transition_status(AgentStatus.PROCESSING_USER_INPUT, "notify_status_processing_user_input_started", additional_data=data)
         elif self.context.current_status == AgentStatus.PROCESSING_USER_INPUT:
-             logger.debug(f"Agent '{self.context.agent_id}' already in PROCESSING_USER_INPUT phase.")
+             logger.debug(f"Agent '{self.context.agent_id}' already in PROCESSING_USER_INPUT status.")
         else:
-             logger.warning(f"Agent '{self.context.agent_id}' notify_processing_input_started called in unexpected phase: {self.context.current_status.value}")
+             logger.warning(f"Agent '{self.context.agent_id}' notify_processing_input_started called in unexpected status: {self.context.current_status.value}")
 
     @status_transition(
-        source_phases=[AgentStatus.PROCESSING_USER_INPUT, AgentStatus.PROCESSING_TOOL_RESULT],
-        target_phase=AgentStatus.AWAITING_LLM_RESPONSE,
+        source_statuses=[AgentStatus.PROCESSING_USER_INPUT, AgentStatus.PROCESSING_TOOL_RESULT],
+        target_status=AgentStatus.AWAITING_LLM_RESPONSE,
         description="Occurs just before the agent makes a call to the LLM."
     )
     async def notify_awaiting_llm_response(self) -> None:
         await self._transition_status(AgentStatus.AWAITING_LLM_RESPONSE, "notify_status_awaiting_llm_response_started")
 
     @status_transition(
-        source_phases=[AgentStatus.AWAITING_LLM_RESPONSE],
-        target_phase=AgentStatus.ANALYZING_LLM_RESPONSE,
+        source_statuses=[AgentStatus.AWAITING_LLM_RESPONSE],
+        target_status=AgentStatus.ANALYZING_LLM_RESPONSE,
         description="Occurs after the agent has received a complete response from the LLM and begins to analyze it."
     )
     async def notify_analyzing_llm_response(self) -> None:
         await self._transition_status(AgentStatus.ANALYZING_LLM_RESPONSE, "notify_status_analyzing_llm_response_started")
 
     @status_transition(
-        source_phases=[AgentStatus.ANALYZING_LLM_RESPONSE],
-        target_phase=AgentStatus.AWAITING_TOOL_APPROVAL,
+        source_statuses=[AgentStatus.ANALYZING_LLM_RESPONSE],
+        target_status=AgentStatus.AWAITING_TOOL_APPROVAL,
         description="Occurs if the agent proposes a tool use that requires manual user approval."
     )
     async def notify_tool_execution_pending_approval(self, tool_invocation: 'ToolInvocation') -> None:
         await self._transition_status(AgentStatus.AWAITING_TOOL_APPROVAL, "notify_status_awaiting_tool_approval_started")
 
     @status_transition(
-        source_phases=[AgentStatus.AWAITING_TOOL_APPROVAL],
-        target_phase=AgentStatus.EXECUTING_TOOL,
+        source_statuses=[AgentStatus.AWAITING_TOOL_APPROVAL],
+        target_status=AgentStatus.EXECUTING_TOOL,
         description="Occurs after a pending tool use has been approved and is about to be executed."
     )
     async def notify_tool_execution_resumed_after_approval(self, approved: bool, tool_name: Optional[str]) -> None:
@@ -209,8 +209,8 @@ class AgentStatusManager:
             await self.notify_tool_denied(tool_name)
 
     @status_transition(
-        source_phases=[AgentStatus.AWAITING_TOOL_APPROVAL],
-        target_phase=AgentStatus.TOOL_DENIED,
+        source_statuses=[AgentStatus.AWAITING_TOOL_APPROVAL],
+        target_status=AgentStatus.TOOL_DENIED,
         description="Occurs after a pending tool use has been denied by the user."
     )
     async def notify_tool_denied(self, tool_name: Optional[str]) -> None:
@@ -222,27 +222,27 @@ class AgentStatusManager:
         )
 
     @status_transition(
-        source_phases=[AgentStatus.ANALYZING_LLM_RESPONSE],
-        target_phase=AgentStatus.EXECUTING_TOOL,
+        source_statuses=[AgentStatus.ANALYZING_LLM_RESPONSE],
+        target_status=AgentStatus.EXECUTING_TOOL,
         description="Occurs when an agent with auto-approval executes a tool."
     )
     async def notify_tool_execution_started(self, tool_name: str) -> None:
         await self._transition_status(AgentStatus.EXECUTING_TOOL, "notify_status_executing_tool_started", additional_data={"tool_name": tool_name})
 
     @status_transition(
-        source_phases=[AgentStatus.EXECUTING_TOOL],
-        target_phase=AgentStatus.PROCESSING_TOOL_RESULT,
+        source_statuses=[AgentStatus.EXECUTING_TOOL],
+        target_status=AgentStatus.PROCESSING_TOOL_RESULT,
         description="Fires after a tool has finished executing and the agent begins processing its result."
     )
     async def notify_processing_tool_result(self, tool_name: str) -> None:
         await self._transition_status(AgentStatus.PROCESSING_TOOL_RESULT, "notify_status_processing_tool_result_started", additional_data={"tool_name": tool_name})
 
     @status_transition(
-        source_phases=[
+        source_statuses=[
             AgentStatus.PROCESSING_USER_INPUT, AgentStatus.ANALYZING_LLM_RESPONSE,
             AgentStatus.PROCESSING_TOOL_RESULT
         ],
-        target_phase=AgentStatus.IDLE,
+        target_status=AgentStatus.IDLE,
         description="Occurs when an agent completes a processing cycle and is waiting for new input."
     )
     async def notify_processing_complete_and_idle(self) -> None:
@@ -251,17 +251,17 @@ class AgentStatusManager:
         elif self.context.current_status == AgentStatus.IDLE:
             logger.debug(f"Agent '{self.context.agent_id}' processing complete, already IDLE.")
         else:
-            logger.warning(f"Agent '{self.context.agent_id}' notify_processing_complete_and_idle called in unexpected phase: {self.context.current_status.value}")
+            logger.warning(f"Agent '{self.context.agent_id}' notify_processing_complete_and_idle called in unexpected status: {self.context.current_status.value}")
 
     @status_transition(
-        source_phases=[
+        source_statuses=[
             AgentStatus.UNINITIALIZED, AgentStatus.BOOTSTRAPPING, AgentStatus.IDLE,
             AgentStatus.PROCESSING_USER_INPUT, AgentStatus.AWAITING_LLM_RESPONSE,
             AgentStatus.ANALYZING_LLM_RESPONSE, AgentStatus.AWAITING_TOOL_APPROVAL,
             AgentStatus.TOOL_DENIED, AgentStatus.EXECUTING_TOOL,
             AgentStatus.PROCESSING_TOOL_RESULT, AgentStatus.SHUTTING_DOWN
         ],
-        target_phase=AgentStatus.ERROR,
+        target_status=AgentStatus.ERROR,
         description="A catch-all transition that can occur from any non-terminal state if an unrecoverable error happens."
     )
     async def notify_error_occurred(self, error_message: str, error_details: Optional[str] = None) -> None:
@@ -269,33 +269,33 @@ class AgentStatusManager:
             data = {"error_message": error_message, "error_details": error_details}
             await self._transition_status(AgentStatus.ERROR, "notify_status_error_entered", additional_data=data)
         else:
-            logger.debug(f"Agent '{self.context.agent_id}' already in ERROR phase when another error notified: {error_message}")
+            logger.debug(f"Agent '{self.context.agent_id}' already in ERROR status when another error notified: {error_message}")
 
     @status_transition(
-        source_phases=[
+        source_statuses=[
             AgentStatus.UNINITIALIZED, AgentStatus.BOOTSTRAPPING, AgentStatus.IDLE,
             AgentStatus.PROCESSING_USER_INPUT, AgentStatus.AWAITING_LLM_RESPONSE,
             AgentStatus.ANALYZING_LLM_RESPONSE, AgentStatus.AWAITING_TOOL_APPROVAL,
             AgentStatus.TOOL_DENIED, AgentStatus.EXECUTING_TOOL,
             AgentStatus.PROCESSING_TOOL_RESULT
         ],
-        target_phase=AgentStatus.SHUTTING_DOWN,
+        target_status=AgentStatus.SHUTTING_DOWN,
         description="Fires when the agent begins its graceful shutdown sequence."
     )
     async def notify_shutdown_initiated(self) -> None:
         if not self.context.current_status.is_terminal():
              await self._transition_status(AgentStatus.SHUTTING_DOWN, "notify_status_shutting_down_started")
         else:
-            logger.debug(f"Agent '{self.context.agent_id}' shutdown initiated but already in a terminal phase: {self.context.current_status.value}")
+            logger.debug(f"Agent '{self.context.agent_id}' shutdown initiated but already in a terminal status: {self.context.current_status.value}")
 
     @status_transition(
-        source_phases=[AgentStatus.SHUTTING_DOWN],
-        target_phase=AgentStatus.SHUTDOWN_COMPLETE,
+        source_statuses=[AgentStatus.SHUTTING_DOWN],
+        target_status=AgentStatus.SHUTDOWN_COMPLETE,
         description="The final transition when the agent has successfully shut down and released its resources."
     )
     async def notify_final_shutdown_complete(self) -> None:
-        final_phase = AgentStatus.ERROR if self.context.current_status == AgentStatus.ERROR else AgentStatus.SHUTDOWN_COMPLETE
-        if final_phase == AgentStatus.ERROR:
+        final_status = AgentStatus.ERROR if self.context.current_status == AgentStatus.ERROR else AgentStatus.SHUTDOWN_COMPLETE
+        if final_status == AgentStatus.ERROR:
             await self._transition_status(AgentStatus.ERROR, "notify_status_error_entered", additional_data={"error_message": "Shutdown completed with agent in error state."})
         else:
             await self._transition_status(AgentStatus.SHUTDOWN_COMPLETE, "notify_status_shutdown_completed")

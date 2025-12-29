@@ -6,7 +6,7 @@ from autobyteus.agent.status.status_enum import AgentStatus
 from autobyteus.agent_team.status.agent_team_status import AgentTeamStatus
 from autobyteus.task_management.base_task_plan import TaskStatus
 
-AGENT_PHASE_ICONS: Dict[AgentStatus, str] = {
+AGENT_STATUS_ICONS: Dict[AgentStatus, str] = {
     AgentStatus.UNINITIALIZED: "⚪",
     AgentStatus.BOOTSTRAPPING: "⏳",
     AgentStatus.IDLE: "🟢",
@@ -55,6 +55,6 @@ ASSISTANT_ICON = "🤖"
 TOOL_ICON = "🛠️"
 PROMPT_ICON = "❓"
 ERROR_ICON = "💥"
-PHASE_ICON = "🔄"
+STATUS_ICON = "🔄"
 LOG_ICON = "📄"
 SYSTEM_TASK_ICON = "📥" # NEW

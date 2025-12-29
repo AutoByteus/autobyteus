@@ -1,7 +1,7 @@
 # file: autobyteus/autobyteus/workflow/streaming/workflow_stream_event_payloads.py
 from typing import Optional, Any
 from pydantic import BaseModel, Field
-from autobyteus.workflow.phases.workflow_status import WorkflowStatus
+from autobyteus.workflow.status.workflow_status import WorkflowStatus
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent
 # Need to use a forward reference string to avoid circular import at runtime
 from typing import TYPE_CHECKING

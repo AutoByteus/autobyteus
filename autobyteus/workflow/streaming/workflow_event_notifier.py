@@ -4,7 +4,7 @@ from typing import Optional, Dict, Any, TYPE_CHECKING
 
 from autobyteus.events.event_emitter import EventEmitter
 from autobyteus.events.event_types import EventType
-from autobyteus.workflow.phases.workflow_status import WorkflowStatus
+from autobyteus.workflow.status.workflow_status import WorkflowStatus
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent
 from .workflow_stream_events import WorkflowStreamEvent, AgentEventRebroadcastPayload, WorkflowStatusTransitionData, SubWorkflowEventRebroadcastPayload
 
@@ -35,7 +35,7 @@ class WorkflowExternalEventNotifier(EventEmitter):
 
     def notify_status_change(self, new_status: WorkflowStatus, old_status: Optional[WorkflowStatus], extra_data: Optional[Dict[str, Any]] = None):
         """
-        Notifies of a workflow phase transition by creating and emitting a
+        Notifies of a workflow status transition by creating and emitting a
         'WORKFLOW' sourced event.
         """
         payload_dict = {

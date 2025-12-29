@@ -14,7 +14,7 @@ from textual.widgets import Input, Static, Button
 from textual.containers import VerticalScroll, Horizontal
 
 from autobyteus.agent.status.status_enum import AgentStatus
-from autobyteus.workflow.phases.workflow_status import WorkflowStatus
+from autobyteus.workflow.status.workflow_status import WorkflowStatus
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent, StreamEventType as AgentStreamEventType
 from autobyteus.agent.streaming.stream_event_payloads import (
     AgentStatusTransitionData, AssistantChunkData, AssistantCompleteResponseData,
@@ -138,22 +138,22 @@ class FocusPane(Static):
         node_type_str = node_type.replace("_", " ").capitalize()
 
         title_icon = DEFAULT_ICON
-        phase_str = ""
+        status_str = ""
 
         if node_type == 'agent':
             title_icon = AGENT_ICON
             status = agent_statuses.get(node_name, AgentStatus.UNINITIALIZED)
-            phase_str = f" (Status: {status.value})"
+            status_str = f" (Status: {status.value})"
         elif node_type == 'subworkflow':
             title_icon = SUB_WORKFLOW_ICON
             status = workflow_statuses.get(node_name, WorkflowStatus.UNINITIALIZED)
-            phase_str = f" (Status: {status.value})"
+            status_str = f" (Status: {status.value})"
         elif node_type == 'workflow':
             title_icon = WORKFLOW_ICON
             status = workflow_statuses.get(node_name, WorkflowStatus.UNINITIALIZED)
-            phase_str = f" (Status: {status.value})"
+            status_str = f" (Status: {status.value})"
 
-        self.query_one("#focus-pane-title").update(f"{title_icon} {node_type_str}: [bold]{node_name}[/bold]{phase_str}")
+        self.query_one("#focus-pane-title").update(f"{title_icon} {node_type_str}: [bold]{node_name}[/bold]{status_str}")
         
     def update_current_node_status(self, all_agent_statuses: Dict, all_workflow_statuses: Dict):
         """A lightweight method to only update the title with the latest status."""
@@ -198,12 +198,12 @@ class FocusPane(Static):
         log_container = self.query_one("#focus-pane-log-container")
         
         status = all_workflow_statuses.get(node_data['name'], WorkflowStatus.UNINITIALIZED)
-        phase_icon = WORKFLOW_STATUS_ICONS.get(status, DEFAULT_ICON)
+        status_icon = WORKFLOW_STATUS_ICONS.get(status, DEFAULT_ICON)
         info_text = Text()
         info_text.append(f"Name: {node_data['name']}\n", style="bold")
         if node_data.get('role'):
             info_text.append(f"Role: {node_data['role']}\n")
-        info_text.append(f"Status: {phase_icon} {status.value}")
+        info_text.append(f"Status: {status_icon} {status.value}")
         await log_container.mount(Static(Panel(info_text, title="Workflow Info", border_style="green", title_align="left")))
 
         children_data = node_data.get("children", {})

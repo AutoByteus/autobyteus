@@ -1,11 +1,10 @@
-# file: autobyteus/examples/discover_phase_transitions.py
+# file: autobyteus/examples/discover_status_transitions.py
 """
-This example script demonstrates how to use the PhaseTransitionDiscoverer
-to programmatically find all valid phase transitions within the agent lifecycle.
+This example script demonstrates how to use the StatusTransitionDiscoverer
+to programmatically find all valid status transitions within the agent lifecycle.
 
-This is useful for developers who want to create their own BasePhaseHook
-subclasses, as it provides a definitive list of the source and target phases
-they can hook into.
+This is useful for developers who want to create their own lifecycle processors,
+as it provides a definitive list of the source and target statuses they can hook into.
 """
 import sys
 from pathlib import Path
@@ -18,22 +17,22 @@ if str(PACKAGE_ROOT) not in sys.path:
     sys.path.insert(0, str(PACKAGE_ROOT))
 
 try:
-    from autobyteus.agent.phases import PhaseTransitionDiscoverer, PhaseTransitionInfo
+    from autobyteus.agent.status import StatusTransitionDiscoverer, StatusTransitionInfo
 except ImportError as e:
     print(f"Error importing autobyteus components: {e}", file=sys.stderr)
     print("Please ensure that the autobyteus library is installed and accessible.", file=sys.stderr)
     sys.exit(1)
 
 
-def _prepare_table_data(transitions: List[PhaseTransitionInfo]) -> List[Dict[str, str]]:
+def _prepare_table_data(transitions: List[StatusTransitionInfo]) -> List[Dict[str, str]]:
     """Transforms transition info objects into a list of dictionaries for printing."""
     table_data = []
     for t in transitions:
-        from_str = "\n".join([p.value for p in t.source_phases])
+        from_str = "\n".join([s.value for s in t.source_statuses])
         table_data.append({
             "From": from_str,
-            "To": t.target_phase.value,
-            "Trigger": f"AgentPhaseManager.{t.triggering_method}()",
+            "To": t.target_status.value,
+            "Trigger": f"AgentStatusManager.{t.triggering_method}()",
             "Description": t.description,
         })
     return table_data
@@ -82,12 +81,12 @@ def _print_as_table(data: List[Dict[str, str]]):
 
 def main():
     """
-    Discovers and prints all available agent phase transitions.
+    Discovers and prints all available agent status transitions.
     """
-    print("--- Discovering all available agent phase transitions ---")
+    print("--- Discovering all available agent status transitions ---")
     print("This table shows every possible transition you can create a custom hook for.\n")
 
-    all_transitions = PhaseTransitionDiscoverer.discover()
+    all_transitions = StatusTransitionDiscoverer.get_all_transitions()
 
     if not all_transitions:
         print("No transitions were discovered. This is unexpected.")

@@ -78,8 +78,8 @@ class AgentBootstrapper:
         logger.info(f"Agent '{agent_id}': All bootstrap steps completed successfully. Enqueuing AgentReadyEvent.")
         # After successful bootstrapping, enqueue the ready event.
         if context.state.input_event_queues:
-            if status_manager.current_status != AgentStatus.ERROR:
-                 status_manager.transition_to(AgentStatus.IDLE)
+            if context.current_status != AgentStatus.ERROR:
+                await status_manager.notify_initialization_complete()
             await context.state.input_event_queues.enqueue_internal_system_event(AgentReadyEvent())
         else: # pragma: no cover
             # Should not happen if AgentRuntimeQueueInitializationStep is present and successful

@@ -86,7 +86,7 @@ class AgentRuntimeState:
         return invocation
     
     def __repr__(self) -> str:
-        # phase_repr removed or renamed
+        # status_repr removed or renamed
         llm_status = "Initialized" if self.llm_instance else "Not Initialized"
         tools_status = f"{len(self.tool_instances)} Initialized" if self.tool_instances is not None else "Not Initialized"
         input_queues_status = "Initialized" if self.input_event_queues else "Not Initialized"

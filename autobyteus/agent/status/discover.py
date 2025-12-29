@@ -34,8 +34,8 @@ class StatusTransitionDiscoverer:
             if isinstance(info, StatusTransitionInfo):
                 transitions.append(info)
                 
-        # Sort for deterministic output (e.g. by target phase value)
-        transitions.sort(key=lambda t: t.target_phase.value)
+        # Sort for deterministic output (e.g. by target status value)
+        transitions.sort(key=lambda t: t.target_status.value)
         
         cls._cached_transitions = transitions
         logger.info(f"Discovered and cached {len(transitions)} status transitions.")

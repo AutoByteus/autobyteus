@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 from autobyteus.workflow.bootstrap_steps.workflow_runtime_queue_initialization_step import WorkflowRuntimeQueueInitializationStep
 from autobyteus.workflow.events.workflow_input_event_queue_manager import WorkflowInputEventQueueManager
 from autobyteus.workflow.context import WorkflowContext
-from autobyteus.workflow.phases.workflow_phase_manager import WorkflowPhaseManager
+from autobyteus.workflow.status.workflow_status_manager import WorkflowStatusManager
 
 @pytest.fixture
 def queue_init_step():
@@ -35,7 +35,7 @@ async def test_execute_success(
         mock_queue_manager_class
     )
     
-    success = await queue_init_step.execute(workflow_context, workflow_context.phase_manager)
+    success = await queue_init_step.execute(workflow_context, workflow_context.status_manager)
 
     assert success is True
     
@@ -67,7 +67,7 @@ async def test_execute_failure_on_instantiation(
     )
 
     with caplog.at_level(logging.ERROR):
-        success = await queue_init_step.execute(workflow_context, workflow_context.phase_manager)
+        success = await queue_init_step.execute(workflow_context, workflow_context.status_manager)
 
     assert success is False
     

@@ -4,7 +4,7 @@ from enum import Enum
 class EventType(Enum): 
     """
     Defines the types of events that can be emitted by EventEmitters within the system.
-    Uses prefixes like AGENT_PHASE_, AGENT_DATA_, AGENT_REQUEST_, AGENT_ERROR_ for clarity.
+    Uses prefixes like AGENT_STATUS_, AGENT_DATA_, AGENT_REQUEST_, AGENT_ERROR_ for clarity.
     """
     # --- Non-Agent specific events ---
     WEIBO_POST_COMPLETED = "weibo_post_completed" # Example, keep as is
@@ -42,11 +42,14 @@ class EventType(Enum):
     AGENT_REQUEST_TOOL_INVOCATION_APPROVAL = "agent_request_tool_invocation_approval" 
     AGENT_TOOL_INVOCATION_AUTO_EXECUTING = "agent_tool_invocation_auto_executing"
     
-    # --- Agent Errors (not necessarily phase changes, e.g., error during output generation) ---
+    # --- Agent Errors (not necessarily status changes, e.g., error during output generation) ---
     AGENT_ERROR_OUTPUT_GENERATION = "agent_error_output_generation"
 
     # --- Agent Team Events ---
     TEAM_STREAM_EVENT = "team_stream_event" # For unified agent team event stream
+
+    # --- Workflow Events ---
+    WORKFLOW_STREAM_EVENT = "workflow_stream_event" # For unified workflow event stream
 
     # --- Task Plan Events ---
     TASK_PLAN_TASKS_CREATED = "task_plan.tasks.created"

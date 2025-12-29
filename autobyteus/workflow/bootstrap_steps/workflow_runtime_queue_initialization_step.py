@@ -7,7 +7,7 @@ from autobyteus.workflow.events.workflow_input_event_queue_manager import Workfl
 
 if TYPE_CHECKING:
     from autobyteus.workflow.context.workflow_context import WorkflowContext
-    from autobyteus.workflow.phases.workflow_status_manager import WorkflowStatusManager
+    from autobyteus.workflow.status.workflow_status_manager import WorkflowStatusManager
 
 logger = logging.getLogger(__name__)
 

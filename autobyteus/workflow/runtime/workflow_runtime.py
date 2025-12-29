@@ -4,7 +4,7 @@ import logging
 from typing import TYPE_CHECKING, Callable, Optional
 
 from autobyteus.workflow.context.workflow_context import WorkflowContext
-from autobyteus.workflow.phases.workflow_status_manager import WorkflowStatusManager
+from autobyteus.workflow.status.workflow_status_manager import WorkflowStatusManager
 from autobyteus.workflow.runtime.workflow_worker import WorkflowWorker
 from autobyteus.workflow.events.workflow_events import BaseWorkflowEvent
 from autobyteus.workflow.streaming.workflow_event_notifier import WorkflowExternalEventNotifier

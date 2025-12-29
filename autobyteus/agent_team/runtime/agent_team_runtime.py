@@ -23,8 +23,9 @@ class AgentTeamRuntime:
         self.context = context
         self.notifier = AgentTeamExternalEventNotifier(team_id=self.context.team_id, runtime_ref=self)
         
-        # --- FIX: Set the status_manager_ref on the context's state BEFORE creating the worker ---
-        self.context.state.status_manager_ref = AgentTeamStatusManager(self.context, self.notifier)
+        # Create the status manager before the worker so lifecycle hooks are available during bootstrap.
+        self.status_manager: AgentTeamStatusManager = AgentTeamStatusManager(self.context, self.notifier)
+        self.context.state.status_manager_ref = self.status_manager
 
         
         self._worker = AgentTeamWorker(self.context, event_handler_registry)

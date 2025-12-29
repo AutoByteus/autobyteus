@@ -22,7 +22,7 @@ async def test_execute_success_with_team(
     """
     Tests successful execution for a standard team with a coordinator and one member.
     """
-    success = await prompt_prep_step.execute(workflow_context, workflow_context.phase_manager)
+    success = await prompt_prep_step.execute(workflow_context, workflow_context.status_manager)
 
     assert success is True
     
@@ -49,7 +49,7 @@ async def test_execute_with_solo_coordinator(
         description="Solo workflow"
     )
 
-    success = await prompt_prep_step.execute(workflow_context, workflow_context.phase_manager)
+    success = await prompt_prep_step.execute(workflow_context, workflow_context.status_manager)
 
     assert success is True
     prompt = workflow_context.state.prepared_coordinator_prompt
@@ -72,7 +72,7 @@ async def test_execute_failure_path(
         MagicMock(side_effect=ValueError(error_message))
     )
 
-    success = await prompt_prep_step.execute(workflow_context, workflow_context.phase_manager)
+    success = await prompt_prep_step.execute(workflow_context, workflow_context.status_manager)
 
     assert success is False
     assert workflow_context.state.prepared_coordinator_prompt is None

@@ -1,4 +1,4 @@
-# file: autobyteus/autobyteus/agent/phases/transition_info.py
+# file: autobyteus/autobyteus/agent/status/transition_info.py
 import logging
 from dataclasses import dataclass
 from typing import List, Tuple
@@ -16,18 +16,18 @@ class StatusTransitionInfo:
     kinds of status (lifecycle) hooks they can create.
     
     Attributes:
-        source_phases: A list of possible source phases/statuses for this transition.
-        target_phase: The single target phase/status for this transition.
+        source_statuses: A list of possible source statuses for this transition.
+        target_status: The single target status for this transition.
         description: A human-readable description of when this transition occurs.
         triggering_method: The name of the method in AgentStatusManager that triggers this.
     """
-    source_phases: Tuple[AgentStatus, ...]
-    target_phase: AgentStatus
+    source_statuses: Tuple[AgentStatus, ...]
+    target_status: AgentStatus
     description: str
     triggering_method: str
 
     def __repr__(self) -> str:
-        sources = ", ".join(f"'{p.value}'" for p in self.source_phases)
+        sources = ", ".join(f"'{p.value}'" for p in self.source_statuses)
         return (f"<StatusTransitionInfo sources=[{sources}] -> "
-                f"target='{self.target_phase.value}' "
+                f"target='{self.target_status.value}' "
                 f"triggered_by='{self.triggering_method}'>")

@@ -25,7 +25,7 @@ class BaseBootstrapStep(ABC):
 
         Args:
             context: The agent's context, providing access to configuration and state.
-            status_manager: The agent's phase manager for notifying phase transitions.
+            status_manager: The agent's status manager for notifying status transitions.
 
         Returns:
             True if the step completed successfully, False otherwise.

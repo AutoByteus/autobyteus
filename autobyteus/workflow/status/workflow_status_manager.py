@@ -1,8 +1,8 @@
-# file: autobyteus/autobyteus/workflow/phases/workflow_status_manager.py
+# file: autobyteus/autobyteus/workflow/status/workflow_status_manager.py
 import logging
 from typing import TYPE_CHECKING, Optional
 
-from autobyteus.workflow.phases.workflow_status import WorkflowStatus
+from autobyteus.workflow.status.workflow_status import WorkflowStatus
 
 if TYPE_CHECKING:
     from autobyteus.workflow.context.workflow_context import WorkflowContext

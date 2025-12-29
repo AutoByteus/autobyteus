@@ -89,7 +89,7 @@ class AgentRuntime:
             return
         
         logger.info(f"AgentRuntime for '{agent_id}': Starting worker.")
-        # The first meaningful phase change to BOOTSTRAPPING is triggered by the AgentBootstrapper
+        # The first meaningful status change to BOOTSTRAPPING is triggered by the AgentBootstrapper
         # within the worker's async context.
         self._worker.start() 
         logger.info(f"AgentRuntime for '{agent_id}': Worker start command issued. Worker will initialize itself.")
@@ -109,7 +109,7 @@ class AgentRuntime:
                     logger.critical(f"AgentRuntime '{agent_id}': Failed to run async error notification: {run_e}")
         
         if not self.context.current_status.is_terminal():
-             # Use asyncio.run() to execute the final async phase transition from a sync callback.
+             # Use asyncio.run() to execute the final async status transition from a sync callback.
              try:
                  asyncio.run(self.status_manager.notify_final_shutdown_complete())
              except Exception as run_e:

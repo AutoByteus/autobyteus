@@ -14,14 +14,14 @@ class LifecycleWorkflowEventHandler(BaseWorkflowEventHandler):
     """Logs various lifecycle events for a workflow."""
     async def handle(self, event: BaseWorkflowEvent, context: 'WorkflowContext') -> None:
         workflow_id = context.workflow_id
-        current_phase = context.state.current_phase.value
+        current_status = context.state.current_status.value
 
         if isinstance(event, WorkflowReadyEvent):
-            logger.info(f"Workflow '{workflow_id}' Logged WorkflowReadyEvent. Current phase: {current_phase}")
+            logger.info(f"Workflow '{workflow_id}' Logged WorkflowReadyEvent. Current status: {current_status}")
         elif isinstance(event, WorkflowErrorEvent):
             logger.error(
                 f"Workflow '{workflow_id}' Logged WorkflowErrorEvent: {event.error_message}. "
-                f"Details: {event.exception_details}. Current phase: {current_phase}"
+                f"Details: {event.exception_details}. Current status: {current_status}"
             )
         else:
             logger.warning(f"LifecycleWorkflowEventHandler received unhandled event type: {type(event).__name__}")

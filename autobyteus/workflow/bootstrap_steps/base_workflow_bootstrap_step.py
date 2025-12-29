@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from autobyteus.workflow.context.workflow_context import WorkflowContext
-    from autobyteus.workflow.phases.workflow_status_manager import WorkflowStatusManager
+    from autobyteus.workflow.status.workflow_status_manager import WorkflowStatusManager
 
 logger = logging.getLogger(__name__)
 

@@ -46,8 +46,8 @@ async def test_system_prompt_processing_success_with_processors(
         success = await prompt_proc_step.execute(agent_context, mock_status_manager)
 
     assert success is True
-    # The step no longer directly manages phase transitions. This is handled by the bootstrapper.
-    # Therefore, no calls to the phase manager are expected from this step.
+    # The step no longer directly manages status transitions. This is handled by the bootstrapper.
+    # Therefore, no calls to the status manager are expected from this step.
     assert f"Agent '{agent_context.agent_id}': Executing SystemPromptProcessingStep." in caplog.text
     assert "System prompt processor 'Processor1' applied successfully." in caplog.text
     assert "System prompt processor 'Processor2' applied successfully." in caplog.text
@@ -90,7 +90,7 @@ async def test_system_prompt_processing_success_no_processors(
         success = await prompt_proc_step.execute(agent_context, mock_status_manager)
 
     assert success is True
-    # The step no longer directly manages phase transitions.
+    # The step no longer directly manages status transitions.
     assert "No system prompt processors configured. Using system prompt as is." in caplog.text
     
     # Verify the original prompt was stored and set
@@ -140,7 +140,7 @@ async def test_system_prompt_processing_failure_processor_error(
         success = await prompt_proc_step.execute(agent_context, mock_status_manager)
 
     assert success is False
-    # The step no longer directly manages phase transitions.
+    # The step no longer directly manages status transitions.
     
     expected_error_log = f"Agent '{agent_context.agent_id}': Error applying system prompt processor 'FailingProcessor': {exception_message}"
     assert expected_error_log in caplog.text

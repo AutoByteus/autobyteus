@@ -13,7 +13,7 @@ from autobyteus.workflow.context import (
     WorkflowContext,
     TeamManager,
 )
-from autobyteus.workflow.phases.workflow_phase_manager import WorkflowPhaseManager
+from autobyteus.workflow.status.workflow_status_manager import WorkflowStatusManager
 from autobyteus.workflow.events.workflow_input_event_queue_manager import WorkflowInputEventQueueManager
 from autobyteus.workflow.streaming.workflow_event_notifier import WorkflowExternalEventNotifier
 from autobyteus.llm.base_llm import BaseLLM
@@ -91,25 +91,25 @@ def mock_team_manager():
     return manager
 
 @pytest.fixture
-def mock_workflow_phase_manager():
-    """Provides a self-contained, mocked WorkflowPhaseManager with async methods."""
+def mock_workflow_status_manager():
+    """Provides a self-contained, mocked WorkflowStatusManager with async methods."""
     notifier_mock = AsyncMock(spec=WorkflowExternalEventNotifier)
     for attr_name in dir(WorkflowExternalEventNotifier):
         if attr_name.startswith("notify_"):
             setattr(notifier_mock, attr_name, MagicMock())
 
-    manager = MagicMock(spec=WorkflowPhaseManager)
+    manager = MagicMock(spec=WorkflowStatusManager)
     manager.notifier = notifier_mock
-    for attr_name in dir(WorkflowPhaseManager):
+    for attr_name in dir(WorkflowStatusManager):
         if attr_name.startswith("notify_"):
             setattr(manager, attr_name, AsyncMock())
     return manager
 
 @pytest.fixture
-def workflow_context(sample_workflow_config, workflow_runtime_state, mock_workflow_event_queue_manager, mock_team_manager, mock_workflow_phase_manager):
+def workflow_context(sample_workflow_config, workflow_runtime_state, mock_workflow_event_queue_manager, mock_team_manager, mock_workflow_status_manager):
     """
     Provides a fully-composed and linked WorkflowContext ready for use in tests.
-    Any test that requests this fixture will have a context with a phase manager.
+    Any test that requests this fixture will have a context with a status manager.
     """
     context = WorkflowContext(
         workflow_id=workflow_runtime_state.workflow_id,
@@ -119,8 +119,8 @@ def workflow_context(sample_workflow_config, workflow_runtime_state, mock_workfl
     # Simulate a post-bootstrap state:
     context.state.input_event_queues = mock_workflow_event_queue_manager
     context.state.team_manager = mock_team_manager
-    # Link the mock phase manager, ensuring context.phase_manager is always available.
-    context.state.phase_manager_ref = mock_workflow_phase_manager
+    # Link the mock status manager, ensuring context.status_manager is always available.
+    context.state.status_manager_ref = mock_workflow_status_manager
     return context
 
 @pytest.fixture

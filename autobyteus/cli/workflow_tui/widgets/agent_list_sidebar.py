@@ -11,7 +11,7 @@ from textual.widgets.tree import TreeNode
 from textual.containers import Vertical
 
 from autobyteus.agent.status.status_enum import AgentStatus
-from autobyteus.workflow.phases.workflow_status import WorkflowStatus
+from autobyteus.workflow.status.workflow_status import WorkflowStatus
 from .shared import (
     AGENT_STATUS_ICONS, WORKFLOW_STATUS_ICONS, SUB_WORKFLOW_ICON, 
     WORKFLOW_ICON, SPEAKING_ICON, DEFAULT_ICON

@@ -28,10 +28,10 @@ class AgentProcessingEvent(BaseEvent):
     """Base class for events related to the agent's internal data processing and task execution logic."""
 
 
-# --- Agent Operational Phase Events ---
+# --- Agent Operational Status Events ---
 @dataclass
 class AgentOperationalEvent(AgentProcessingEvent): 
-    """Base class for events that occur during the agent's active operational phase (post-preparation)."""
+    """Base class for events that occur during the agent's active operational status (post-preparation)."""
     pass
 
 

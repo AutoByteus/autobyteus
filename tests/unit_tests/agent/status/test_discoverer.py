@@ -10,8 +10,8 @@ from autobyteus.agent.status.transition_info import StatusTransitionInfo
 
 class MockManager(AgentStatusManager):
     @status_transition(
-        source_phases=[AgentStatus.IDLE],
-        target_phase=AgentStatus.PROCESSING_USER_INPUT,
+        source_statuses=[AgentStatus.IDLE],
+        target_status=AgentStatus.PROCESSING_USER_INPUT,
         description="Test transition"
     )
     def transition_method(self):
@@ -48,8 +48,8 @@ def test_discover_basic():
     found = False
     for info in transitions:
         if info.triggering_method == "transition_method":
-            assert info.source_phases == (AgentStatus.IDLE,)
-            assert info.target_phase == AgentStatus.PROCESSING_USER_INPUT
+            assert info.source_statuses == (AgentStatus.IDLE,)
+            assert info.target_status == AgentStatus.PROCESSING_USER_INPUT
             assert info.description == "Test transition"
             found = True
             break

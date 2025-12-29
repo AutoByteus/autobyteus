@@ -5,7 +5,7 @@ from typing import Optional
 from autobyteus.workflow.runtime.workflow_runtime import WorkflowRuntime
 from autobyteus.workflow.events.workflow_events import ProcessUserMessageEvent, ToolApprovalWorkflowEvent
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
-from autobyteus.workflow.phases.workflow_status import WorkflowStatus
+from autobyteus.workflow.status.workflow_status import WorkflowStatus
 
 logger = logging.getLogger(__name__)
 

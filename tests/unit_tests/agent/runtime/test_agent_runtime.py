@@ -95,7 +95,7 @@ class TestAgentRuntime:
         # Verify context registration on init
         runtime._mock_context_registry.register_context.assert_called_once_with(mock_agent_context_for_runtime)
 
-        # The phase manager sets this on its own __init__
+        # The status manager sets this on its own __init__
         # Since we mocked StatusManager, it won't set the status. 
         # But we can assert the fixture default or explicitly set it if needed.
         # assert mock_agent_context_for_runtime.current_status == AgentStatus.UNINITIALIZED

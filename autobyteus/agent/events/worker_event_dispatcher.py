@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 class WorkerEventDispatcher:
     """
     Responsible for dispatching events to their appropriate handlers within an AgentWorker.
-    It also manages related phase transitions that occur immediately before or after
+    It also manages related status transitions that occur immediately before or after
     an event is handled. This component is part of the agent's event system.
     """
 
@@ -48,7 +48,7 @@ class WorkerEventDispatcher:
 
     async def dispatch(self, event: BaseEvent, context: 'AgentContext') -> None: # pragma: no cover
         """
-        Dispatches an event to its registered handler and manages phase transitions.
+        Dispatches an event to its registered handler and manages status transitions.
         """
         event_class = type(event)
         handler = self.event_handler_registry.get_handler(event_class)
@@ -78,7 +78,7 @@ class WorkerEventDispatcher:
                 if pending_invocation:
                     tool_name_for_approval = pending_invocation.name
                 else: 
-                    logger.warning(f"WorkerEventDispatcher '{agent_id}': Could not find pending invocation for ID '{event.tool_invocation_id}' to get tool name for phase notification.")
+                    logger.warning(f"WorkerEventDispatcher '{agent_id}': Could not find pending invocation for ID '{event.tool_invocation_id}' to get tool name for status notification.")
                     tool_name_for_approval = "unknown_tool" 
 
                 await self.status_manager.notify_tool_execution_resumed_after_approval(
@@ -93,9 +93,9 @@ class WorkerEventDispatcher:
                     await self.status_manager.notify_analyzing_llm_response()
 
             try:
-                logger.debug(f"WorkerEventDispatcher '{agent_id}' (Phase: {context.current_status.value}) dispatching '{event_class_name}' to {handler_class_name}.")
+                logger.debug(f"WorkerEventDispatcher '{agent_id}' (Status: {context.current_status.value}) dispatching '{event_class_name}' to {handler_class_name}.")
                 await handler.handle(event, context) 
-                logger.debug(f"WorkerEventDispatcher '{agent_id}' (Phase: {context.current_status.value}) event '{event_class_name}' handled by {handler_class_name}.")
+                logger.debug(f"WorkerEventDispatcher '{agent_id}' (Status: {context.current_status.value}) event '{event_class_name}' handled by {handler_class_name}.")
 
                 if isinstance(event, AgentReadyEvent): 
                     await self.status_manager.notify_initialization_complete() 
@@ -115,4 +115,4 @@ class WorkerEventDispatcher:
                     AgentErrorEvent(error_message=error_msg, exception_details=error_details)
                 )
         else: 
-            logger.warning(f"WorkerEventDispatcher '{agent_id}' (Phase: {context.current_status.value}) No handler for '{event_class.__name__}'. Event: {event}")
+            logger.warning(f"WorkerEventDispatcher '{agent_id}' (Status: {context.current_status.value}) No handler for '{event_class.__name__}'. Event: {event}")

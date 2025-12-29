@@ -9,7 +9,7 @@ import copy
 from autobyteus.agent.context import AgentConfig
 from autobyteus.workflow.agentic_workflow import AgenticWorkflow
 from autobyteus.agent.status.status_enum import AgentStatus
-from autobyteus.workflow.phases.workflow_status import WorkflowStatus
+from autobyteus.workflow.status.workflow_status import WorkflowStatus
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent, StreamEventType as AgentStreamEventType
 from autobyteus.agent.streaming.stream_event_payloads import (
     AgentStatusTransitionData, ToolInvocationApprovalRequestedData, 

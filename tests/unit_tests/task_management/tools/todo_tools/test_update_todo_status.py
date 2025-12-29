@@ -17,8 +17,8 @@ def tool() -> UpdateToDoStatus:
 def build_context(agent_id: str = "agent_update_todo", with_list: bool = True) -> AgentContext:
     context = Mock(spec=AgentContext)
     context.agent_id = agent_id
-    context.phase_manager = Mock()
-    context.phase_manager.notifier = Mock()
+    context.status_manager = Mock()
+    context.status_manager.notifier = Mock()
 
     state = Mock(spec=AgentRuntimeState)
     if with_list:

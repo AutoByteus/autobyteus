@@ -48,8 +48,8 @@ class BaseLifecycleEventProcessor(ABC, metaclass=LifecycleEventProcessorMeta):
     Abstract base class for lifecycle event processors.
     
     Users extend this class to add custom logic at specific lifecycle events.
-    Only requires specifying a single event (unlike Phase Hooks which required
-    source + target phase).
+    Only requires specifying a single event (unlike the legacy hooks system which required
+    source + target status).
     
     Example:
         class MySetupProcessor(BaseLifecycleEventProcessor):

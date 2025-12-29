@@ -6,7 +6,7 @@ from autobyteus.workflow.streaming.workflow_event_stream import WorkflowEventStr
 from autobyteus.workflow.streaming.workflow_stream_events import WorkflowStreamEvent
 from autobyteus.events.event_types import EventType
 from autobyteus.workflow.agentic_workflow import AgenticWorkflow
-from autobyteus.workflow.phases import WorkflowOperationalPhase
+from autobyteus.workflow.status import WorkflowStatus
 from autobyteus.agent.streaming.stream_events import StreamEventType
 
 pytestmark = pytest.mark.asyncio
@@ -76,8 +76,8 @@ async def test_stream_initialization(mock_workflow):
 
 async def test_handle_event_queues_correct_event(stream: WorkflowEventStream):
     """Tests that the handler correctly filters and queues events for its workflow."""
-    correct_event = WorkflowStreamEvent(workflow_id=stream.workflow_id, event_source_type="WORKFLOW", data={"new_status": WorkflowOperationalPhase.IDLE})
-    wrong_event = WorkflowStreamEvent(workflow_id="some-other-wf", event_source_type="WORKFLOW", data={"new_status": WorkflowOperationalPhase.IDLE})
+    correct_event = WorkflowStreamEvent(workflow_id=stream.workflow_id, event_source_type="WORKFLOW", data={"new_status": WorkflowStatus.IDLE})
+    wrong_event = WorkflowStreamEvent(workflow_id="some-other-wf", event_source_type="WORKFLOW", data={"new_status": WorkflowStatus.IDLE})
     
     stream._handle_event(payload=correct_event)
     stream._handle_event(payload=wrong_event)
@@ -92,7 +92,7 @@ async def test_all_events_stream_and_close(stream: WorkflowEventStream, mock_wor
     event1 = WorkflowStreamEvent(
         workflow_id=stream.workflow_id,
         event_source_type="WORKFLOW",
-        data={"new_status": WorkflowOperationalPhase.IDLE}
+        data={"new_status": WorkflowStatus.IDLE}
     )
     # FIX: The `agent_event` payload was an empty dict `{}`, which is not a valid AgentStreamEvent.
     # Provided a minimal, valid nested structure to satisfy Pydantic's validation.

@@ -166,8 +166,8 @@ class AgentEventStream(EventEmitter):
             if event.event_type == StreamEventType.TOOL_INTERACTION_LOG_ENTRY and isinstance(event.data, ToolInteractionLogEntryData):
                 yield event.data
     
-    async def stream_phase_transitions(self) -> AsyncIterator[AgentStatusTransitionData]:
-        """A convenience async generator that yields only agent phase transition data."""
+    async def stream_status_transitions(self) -> AsyncIterator[AgentStatusTransitionData]:
+        """A convenience async generator that yields only agent status transition data."""
         async for event in self.all_events():
             if event.event_type == StreamEventType.AGENT_STATUS_TRANSITION and isinstance(event.data, AgentStatusTransitionData):
                 yield event.data

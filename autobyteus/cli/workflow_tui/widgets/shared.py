@@ -4,7 +4,7 @@ Shared constants and data for TUI widgets.
 """
 from typing import Dict
 from autobyteus.agent.status.status_enum import AgentStatus
-from autobyteus.workflow.phases.workflow_status import WorkflowStatus
+from autobyteus.workflow.status.workflow_status import WorkflowStatus
 
 AGENT_STATUS_ICONS: Dict[AgentStatus, str] = {
     AgentStatus.UNINITIALIZED: "⚪",

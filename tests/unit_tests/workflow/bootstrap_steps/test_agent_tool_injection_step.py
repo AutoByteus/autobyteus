@@ -25,7 +25,7 @@ async def test_execute_success(
     mock_team_manager = workflow_context.team_manager
     
     # --- Execute ---
-    success = await tool_injection_step.execute(workflow_context, workflow_context.phase_manager)
+    success = await tool_injection_step.execute(workflow_context, workflow_context.status_manager)
 
     # --- Assert ---
     assert success is True
@@ -73,7 +73,7 @@ async def test_execute_failure_on_missing_state(
     else: # "prompt"
         workflow_context.state.prepared_coordinator_prompt = None
 
-    success = await tool_injection_step.execute(workflow_context, workflow_context.phase_manager)
+    success = await tool_injection_step.execute(workflow_context, workflow_context.status_manager)
 
     assert success is False
     

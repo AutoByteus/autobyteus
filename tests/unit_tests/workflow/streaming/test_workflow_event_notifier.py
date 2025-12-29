@@ -3,9 +3,9 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 from autobyteus.workflow.streaming.workflow_event_notifier import WorkflowExternalEventNotifier
-from autobyteus.workflow.streaming.workflow_stream_events import WorkflowStreamEvent, AgentEventRebroadcastPayload, WorkflowPhaseTransitionData
+from autobyteus.workflow.streaming.workflow_stream_events import WorkflowStreamEvent, AgentEventRebroadcastPayload, WorkflowStatusTransitionData
 from autobyteus.events.event_types import EventType
-from autobyteus.workflow.phases.workflow_operational_phase import WorkflowOperationalPhase
+from autobyteus.workflow.status.workflow_status import WorkflowStatus
 from autobyteus.agent.streaming.stream_events import StreamEvent, StreamEventType
 
 @pytest.fixture
@@ -13,12 +13,12 @@ def notifier():
     mock_runtime = MagicMock()
     return WorkflowExternalEventNotifier(workflow_id="wf-123", runtime_ref=mock_runtime)
 
-def test_notify_phase_change(notifier: WorkflowExternalEventNotifier):
-    """Tests that notify_phase_change creates and emits a correct WORKFLOW event."""
+def test_notify_status_change(notifier: WorkflowExternalEventNotifier):
+    """Tests that notify_status_change creates and emits a correct WORKFLOW event."""
     with patch.object(notifier, 'emit') as mock_emit:
-        notifier.notify_phase_change(
-            new_status=WorkflowOperationalPhase.IDLE,
-            old_status=WorkflowOperationalPhase.BOOTSTRAPPING,
+        notifier.notify_status_change(
+            new_status=WorkflowStatus.IDLE,
+            old_status=WorkflowStatus.BOOTSTRAPPING,
             extra_data={"error_message": "An error"}
         )
         
@@ -30,9 +30,9 @@ def test_notify_phase_change(notifier: WorkflowExternalEventNotifier):
         assert emitted_event.event_source_type == "WORKFLOW"
         
         data = emitted_event.data
-        assert isinstance(data, WorkflowPhaseTransitionData)
-        assert data.new_status == WorkflowOperationalPhase.IDLE
-        assert data.old_status == WorkflowOperationalPhase.BOOTSTRAPPING
+        assert isinstance(data, WorkflowStatusTransitionData)
+        assert data.new_status == WorkflowStatus.IDLE
+        assert data.old_status == WorkflowStatus.BOOTSTRAPPING
         assert data.error_message == "An error"
 
 def test_publish_agent_event(notifier: WorkflowExternalEventNotifier):

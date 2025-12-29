@@ -22,7 +22,7 @@ from autobyteus.llm.utils.response_types import CompleteResponse
 def mock_event_handler_registry():
     return MagicMock(spec=EventHandlerRegistry)
 
-# Removed local mock_phase_manager and mock_agent_context fixtures.
+# Removed local mock_status_manager and mock_agent_context fixtures.
 # The tests will now use the more robust shared fixtures from agent/conftest.py.
 
 @pytest.fixture
@@ -73,11 +73,13 @@ async def test_dispatch_handler_raises_exception(worker_event_dispatcher, agent_
         assert expected_log_error_substring in mock_logger.error.call_args[0][0]
         
         agent_context.status_manager.notify_error_occurred.assert_awaited_once()
-        call_kwargs = agent_context.status_manager.notify_error_occurred.call_args.kwargs
+        call_args, call_kwargs = agent_context.status_manager.notify_error_occurred.call_args
         
         expected_notify_error_substring = f"error handling 'UserMessageReceivedEvent' with {type(mock_event_handler).__name__}: Handler failed"
-        assert expected_notify_error_substring in call_kwargs['error_message']
-        assert "Traceback" in call_kwargs['error_details']
+        error_message = call_kwargs.get('error_message') if call_kwargs else call_args[0]
+        error_details = call_kwargs.get('error_details') if call_kwargs else call_args[1]
+        assert expected_notify_error_substring in error_message
+        assert "Traceback" in error_details
 
         agent_context.input_event_queues.enqueue_internal_system_event.assert_awaited_once()
         enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
@@ -86,9 +88,9 @@ async def test_dispatch_handler_raises_exception(worker_event_dispatcher, agent_
         assert "Traceback" in enqueued_event.exception_details
 
 
-# --- Pre-Handler Phase Transition Tests ---
+# --- Pre-Handler Status Transition Tests ---
 @pytest.mark.asyncio
-async def test_dispatch_user_message_from_idle_triggers_processing_phase(worker_event_dispatcher, agent_context, mock_event_handler_registry, mock_event_handler):
+async def test_dispatch_user_message_from_idle_triggers_processing_status(worker_event_dispatcher, agent_context, mock_event_handler_registry, mock_event_handler):
     agent_context.current_status = AgentStatus.IDLE
     event = UserMessageReceivedEvent(agent_input_user_message=MagicMock())
     mock_event_handler_registry.get_handler.return_value = mock_event_handler
@@ -97,7 +99,7 @@ async def test_dispatch_user_message_from_idle_triggers_processing_phase(worker_
     agent_context.status_manager.notify_processing_input_started.assert_awaited_once_with(trigger_info='UserMessageReceivedEvent')
 
 @pytest.mark.asyncio
-async def test_dispatch_inter_agent_message_from_idle_triggers_processing_phase(worker_event_dispatcher, agent_context, mock_event_handler_registry, mock_event_handler):
+async def test_dispatch_inter_agent_message_from_idle_triggers_processing_status(worker_event_dispatcher, agent_context, mock_event_handler_registry, mock_event_handler):
     agent_context.current_status = AgentStatus.IDLE
     event = InterAgentMessageReceivedEvent(inter_agent_message=MagicMock())
     mock_event_handler_registry.get_handler.return_value = mock_event_handler
@@ -106,7 +108,7 @@ async def test_dispatch_inter_agent_message_from_idle_triggers_processing_phase(
     agent_context.status_manager.notify_processing_input_started.assert_awaited_once_with(trigger_info='InterAgentMessageReceivedEvent')
 
 @pytest.mark.asyncio
-async def test_dispatch_llm_user_message_ready_triggers_awaiting_llm_phase(worker_event_dispatcher, agent_context, mock_event_handler_registry, mock_event_handler):
+async def test_dispatch_llm_user_message_ready_triggers_awaiting_llm_status(worker_event_dispatcher, agent_context, mock_event_handler_registry, mock_event_handler):
     agent_context.current_status = AgentStatus.PROCESSING_USER_INPUT
     event = LLMUserMessageReadyEvent(llm_user_message=MagicMock())
     mock_event_handler_registry.get_handler.return_value = mock_event_handler
@@ -159,7 +161,7 @@ async def test_dispatch_tool_execution_approval_denied(worker_event_dispatcher, 
     agent_context.status_manager.notify_tool_execution_resumed_after_approval.assert_awaited_once_with(approved=False, tool_name="denied_tool")
 
 @pytest.mark.asyncio
-async def test_dispatch_tool_result_triggers_processing_result_phase(worker_event_dispatcher, agent_context, mock_event_handler_registry, mock_event_handler):
+async def test_dispatch_tool_result_triggers_processing_result_status(worker_event_dispatcher, agent_context, mock_event_handler_registry, mock_event_handler):
     agent_context.current_status = AgentStatus.EXECUTING_TOOL
     event = ToolResultEvent(tool_name="test_tool_result", result="some_result")
     mock_event_handler_registry.get_handler.return_value = mock_event_handler
@@ -168,7 +170,7 @@ async def test_dispatch_tool_result_triggers_processing_result_phase(worker_even
     agent_context.status_manager.notify_processing_tool_result.assert_awaited_once_with("test_tool_result")
 
 @pytest.mark.asyncio
-async def test_dispatch_llm_complete_response_triggers_analyzing_phase(worker_event_dispatcher, agent_context, mock_event_handler_registry, mock_event_handler):
+async def test_dispatch_llm_complete_response_triggers_analyzing_status(worker_event_dispatcher, agent_context, mock_event_handler_registry, mock_event_handler):
     agent_context.current_status = AgentStatus.AWAITING_LLM_RESPONSE
     response_obj = CompleteResponse(content="Response text")
     event = LLMCompleteResponseReceivedEvent(complete_response=response_obj)
@@ -177,7 +179,7 @@ async def test_dispatch_llm_complete_response_triggers_analyzing_phase(worker_ev
     await worker_event_dispatcher.dispatch(event, agent_context)
     agent_context.status_manager.notify_analyzing_llm_response.assert_awaited_once()
 
-# --- Post-Handler Phase Transition Tests ---
+# --- Post-Handler Status Transition Tests ---
 @pytest.mark.asyncio
 async def test_dispatch_agent_ready_event_triggers_initialization_complete(worker_event_dispatcher, agent_context, mock_event_handler_registry, mock_event_handler):
     event = AgentReadyEvent()
@@ -207,9 +209,9 @@ async def test_dispatch_llm_complete_response_to_idle(worker_event_dispatcher, a
     event = LLMCompleteResponseReceivedEvent(complete_response=response_obj)
     mock_event_handler_registry.get_handler.return_value = mock_event_handler
 
-    async def set_analyzing_phase(*args, **kwargs):
+    async def set_analyzing_status(*args, **kwargs):
         agent_context.current_status = AgentStatus.ANALYZING_LLM_RESPONSE
-    agent_context.status_manager.notify_analyzing_llm_response.side_effect = set_analyzing_phase
+    agent_context.status_manager.notify_analyzing_llm_response.side_effect = set_analyzing_status
 
     call_order = []
     mock_event_handler.handle.side_effect = lambda *args, **kwargs: call_order.append("handle")
@@ -235,9 +237,9 @@ async def test_dispatch_llm_complete_not_to_idle_if_pending_approvals(worker_eve
     event = LLMCompleteResponseReceivedEvent(complete_response=response_obj)
     mock_event_handler_registry.get_handler.return_value = mock_event_handler
 
-    async def set_analyzing_phase(*args, **kwargs):
+    async def set_analyzing_status(*args, **kwargs):
         agent_context.current_status = AgentStatus.ANALYZING_LLM_RESPONSE
-    agent_context.status_manager.notify_analyzing_llm_response.side_effect = set_analyzing_phase
+    agent_context.status_manager.notify_analyzing_llm_response.side_effect = set_analyzing_status
 
     await worker_event_dispatcher.dispatch(event, agent_context)
     agent_context.status_manager.notify_processing_complete_and_idle.assert_not_awaited()
@@ -252,16 +254,16 @@ async def test_dispatch_llm_complete_not_to_idle_if_tool_requests_pending(worker
     event = LLMCompleteResponseReceivedEvent(complete_response=response_obj)
     mock_event_handler_registry.get_handler.return_value = mock_event_handler
 
-    async def set_analyzing_phase(*args, **kwargs):
+    async def set_analyzing_status(*args, **kwargs):
         agent_context.current_status = AgentStatus.ANALYZING_LLM_RESPONSE
-    agent_context.status_manager.notify_analyzing_llm_response.side_effect = set_analyzing_phase
+    agent_context.status_manager.notify_analyzing_llm_response.side_effect = set_analyzing_status
 
     await worker_event_dispatcher.dispatch(event, agent_context)
     agent_context.status_manager.notify_processing_complete_and_idle.assert_not_awaited()
 
 # --- No Transition Scenarios ---
 @pytest.mark.asyncio
-async def test_dispatch_user_message_not_from_idle_no_processing_phase_trigger(worker_event_dispatcher, agent_context, mock_event_handler_registry, mock_event_handler):
+async def test_dispatch_user_message_not_from_idle_no_processing_status_trigger(worker_event_dispatcher, agent_context, mock_event_handler_registry, mock_event_handler):
     agent_context.current_status = AgentStatus.PROCESSING_USER_INPUT
     event = UserMessageReceivedEvent(agent_input_user_message=MagicMock())
     mock_event_handler_registry.get_handler.return_value = mock_event_handler
@@ -271,9 +273,9 @@ async def test_dispatch_user_message_not_from_idle_no_processing_phase_trigger(w
 
 @pytest.mark.asyncio
 async def test_dispatch_llm_user_message_ready_if_already_awaiting_llm_or_error(worker_event_dispatcher, agent_context, mock_event_handler_registry, mock_event_handler):
-    test_phases = [AgentStatus.AWAITING_LLM_RESPONSE, AgentStatus.ERROR]
-    for phase in test_phases:
-        agent_context.current_status = phase
+    test_statuss = [AgentStatus.AWAITING_LLM_RESPONSE, AgentStatus.ERROR]
+    for status in test_statuss:
+        agent_context.current_status = status
         agent_context.status_manager.reset_mock()
         
         event = LLMUserMessageReadyEvent(llm_user_message=MagicMock())

@@ -35,7 +35,7 @@ async def test_handle_agent_ready_event(lifecycle_logger_handler: LifecycleEvent
     with caplog.at_level(logging.INFO):
         await lifecycle_logger_handler.handle(event, agent_context)
 
-    assert f"Agent '{agent_context.agent_id}' Logged AgentReadyEvent. Current agent phase: idle" in caplog.text
+    assert f"Agent '{agent_context.agent_id}' Logged AgentReadyEvent. Current agent status: idle" in caplog.text
 
 @pytest.mark.asyncio
 async def test_handle_agent_stopped_event(lifecycle_logger_handler: LifecycleEventLogger, agent_context, caplog):
@@ -46,7 +46,7 @@ async def test_handle_agent_stopped_event(lifecycle_logger_handler: LifecycleEve
     with caplog.at_level(logging.INFO):
         await lifecycle_logger_handler.handle(event, agent_context)
 
-    assert f"Agent '{agent_context.agent_id}' Logged AgentStoppedEvent. Current agent phase: shutdown_complete" in caplog.text
+    assert f"Agent '{agent_context.agent_id}' Logged AgentStoppedEvent. Current agent status: shutdown_complete" in caplog.text
 
 @pytest.mark.asyncio
 async def test_handle_agent_error_event(lifecycle_logger_handler: LifecycleEventLogger, agent_context, caplog):
@@ -62,7 +62,7 @@ async def test_handle_agent_error_event(lifecycle_logger_handler: LifecycleEvent
     log_output = caplog.text
     assert f"Agent '{agent_context.agent_id}' Logged AgentErrorEvent: {error_message}." in log_output
     assert f"Details: {exception_details}." in log_output
-    assert f"Current agent phase: error" in log_output
+    assert f"Current agent status: error" in log_output
 
 @pytest.mark.asyncio
 async def test_handle_unhandled_specific_lifecycle_event(lifecycle_logger_handler: LifecycleEventLogger, agent_context, caplog):
@@ -74,7 +74,7 @@ async def test_handle_unhandled_specific_lifecycle_event(lifecycle_logger_handle
         await lifecycle_logger_handler.handle(unhandled_event, agent_context)
     
     assert f"LifecycleEventLogger for agent '{agent_context.agent_id}' received an unhandled specific LifecycleEvent type: {type(unhandled_event)}." in caplog.text
-    assert f"Current phase: processing_user_input" in caplog.text
+    assert f"Current status: processing_user_input" in caplog.text
 
 @pytest.mark.asyncio
 async def test_handle_non_lifecycle_event(lifecycle_logger_handler: LifecycleEventLogger, agent_context, caplog):
@@ -86,11 +86,11 @@ async def test_handle_non_lifecycle_event(lifecycle_logger_handler: LifecycleEve
         await lifecycle_logger_handler.handle(non_lifecycle_event, agent_context)
 
     assert f"LifecycleEventLogger for agent '{agent_context.agent_id}' received an unexpected event type: {type(non_lifecycle_event)}." in caplog.text
-    assert f"Current phase: idle" in caplog.text
+    assert f"Current status: idle" in caplog.text
 
 @pytest.mark.asyncio
-async def test_handle_event_with_no_phase_on_context(lifecycle_logger_handler: LifecycleEventLogger, agent_context, caplog):
-    """Test behavior if context.current_phase is UNINITIALIZED (None is not allowed by setter)."""
+async def test_handle_event_with_no_status_on_context(lifecycle_logger_handler: LifecycleEventLogger, agent_context, caplog):
+    """Test behavior if context.current_status is UNINITIALIZED (None is not allowed by setter)."""
     event = AgentReadyEvent()
     # Setter prevents None, so we test with UNINITIALIZED or mock the property if we strictly want to test None (but that's invalid state now)
     # Let's test UNINITIALIZED which is the default valid "empty" state
@@ -100,4 +100,4 @@ async def test_handle_event_with_no_phase_on_context(lifecycle_logger_handler: L
         await lifecycle_logger_handler.handle(event, agent_context)
 
     assert f"Agent '{agent_context.agent_id}' Logged AgentReadyEvent." in caplog.text
-    assert "Current agent phase: uninitialized" in caplog.text
+    assert "Current agent status: uninitialized" in caplog.text

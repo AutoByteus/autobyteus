@@ -32,7 +32,7 @@ class LifecycleEventLogger(AgentEventHandler):
 
         Args:
             event: The lifecycle event object (AgentReadyEvent, AgentStoppedEvent, etc.).
-            context: The composite AgentContext (used for agent_id and current phase).
+            context: The composite AgentContext (used for agent_id and current status).
         """
         
         agent_id = context.agent_id 
@@ -55,7 +55,7 @@ class LifecycleEventLogger(AgentEventHandler):
             if isinstance(event, LifecycleEvent): 
                  logger.warning(
                      f"LifecycleEventLogger for agent '{agent_id}' received an unhandled "
-                     f"specific LifecycleEvent type: {type(event)}. Event: {event}. Current phase: {current_status_val}"
+                     f"specific LifecycleEvent type: {type(event)}. Event: {event}. Current status: {current_status_val}"
                  )
             else: 
                  logger.warning(

@@ -64,7 +64,7 @@ async def test_bridge_forwards_events(bridge: AgentEventBridge, mock_agent_event
     event2 = StreamEvent(
         agent_id="a1",
         event_type=StreamEventType.AGENT_IDLE,
-        data={"new_status": AgentOperationalPhase.IDLE} # Valid AgentOperationalPhaseTransitionData
+        data={"new_status": AgentStatus.IDLE} # Valid AgentStatusTransitionData
     )
 
     # Put events onto the stream's queue

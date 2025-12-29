@@ -24,7 +24,7 @@ Dependencies are explicit per-node, allowing teams to model execution ordering a
 
 ### 2.2 Team Facade vs Runtime
 - **AgentTeam**: thin, user-facing API (`post_message`, `post_tool_execution_approval`, `start`, `stop`).
-- **AgentTeamRuntime**: owns the team’s worker thread, event loop, phase manager, and multiplexer.
+- **AgentTeamRuntime**: owns the team’s worker thread, event loop, status manager, and multiplexer.
 
 The facade forwards all calls to the runtime, ensuring concurrency and event-driven processing.
 
@@ -73,7 +73,7 @@ Each team has a dedicated worker thread (via the shared `AgentThreadPoolManager`
 The worker waits on both using `asyncio.wait(FIRST_COMPLETED)`.
 
 ### 4.3 Event Dispatcher
-`AgentTeamEventDispatcher` routes events to handlers and triggers phase changes:
+`AgentTeamEventDispatcher` routes events to handlers and triggers status changes:
 
 - `AgentTeamReadyEvent` -> `IDLE`
 - Errors -> `ERROR`
@@ -113,7 +113,7 @@ Team initialization runs inside the worker loop via `AgentTeamBootstrapper`:
 5. **Final agent config preparation** (context injection + tool format override)
 6. **Coordinator initialization** (ensure coordinator starts early)
 
-When complete, the worker enqueues `AgentTeamReadyEvent` and the phase transitions to IDLE.
+When complete, the worker enqueues `AgentTeamReadyEvent` and the status transitions to IDLE.
 
 ---
 
@@ -148,7 +148,7 @@ This avoids direct agent-to-agent calls and keeps routing consistent.
 ## 9. Streaming + Observability
 Agent Teams expose a unified stream via `AgentTeamExternalEventNotifier`:
 
-- **TEAM**: phase transitions
+- **TEAM**: status transitions
 - **AGENT**: re-broadcast agent events
 - **SUB_TEAM**: re-broadcast sub-team streams
 - **TASK_PLAN**: task plan updates
@@ -190,4 +190,3 @@ This ensures the team fully tears down its resources and running nodes.
 - **Custom bootstrap steps**: pass new step lists to `AgentTeamBootstrapper`.
 - **Task activation behavior**: override or replace `ActivationPolicy` / `TaskActivator`.
 - **New stream payloads**: extend team stream payload definitions.
-

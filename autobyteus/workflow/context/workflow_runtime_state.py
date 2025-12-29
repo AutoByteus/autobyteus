@@ -2,13 +2,13 @@
 import logging
 from typing import List, Optional, TYPE_CHECKING, Dict
 
-from autobyteus.workflow.phases.workflow_status import WorkflowStatus
+from autobyteus.workflow.status.workflow_status import WorkflowStatus
 from autobyteus.agent.context import AgentConfig
 
 if TYPE_CHECKING:
     from autobyteus.agent.agent import Agent
     from autobyteus.workflow.events.workflow_input_event_queue_manager import WorkflowInputEventQueueManager
-    from autobyteus.workflow.phases.workflow_status_manager import WorkflowStatusManager
+    from autobyteus.workflow.status.workflow_status_manager import WorkflowStatusManager
     from autobyteus.workflow.context.workflow_node_config import WorkflowNodeConfig
     from autobyteus.workflow.context.team_manager import TeamManager
     from autobyteus.workflow.streaming.agent_event_multiplexer import AgentEventMultiplexer

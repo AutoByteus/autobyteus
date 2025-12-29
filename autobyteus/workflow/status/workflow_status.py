@@ -1,4 +1,4 @@
-# file: autobyteus/autobyteus/workflow/phases/workflow_status.py
+# file: autobyteus/autobyteus/workflow/status/workflow_status.py
 from enum import Enum
 
 class WorkflowStatus(str, Enum):

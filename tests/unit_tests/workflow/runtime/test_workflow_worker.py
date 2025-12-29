@@ -50,7 +50,7 @@ async def test_worker_initialization(workflow_worker: WorkflowWorker, workflow_c
     assert workflow_worker.context is workflow_context
     assert workflow_worker.event_dispatcher is mock_workflow_dispatcher
     assert not workflow_worker.is_alive
-    assert workflow_worker.phase_manager is workflow_context.phase_manager
+    assert workflow_worker.status_manager is workflow_context.status_manager
 
 @pytest.mark.asyncio
 async def test_worker_start_and_stop_cycle(workflow_worker: WorkflowWorker):
@@ -96,7 +96,7 @@ async def test_async_run_initialization_delegates_to_bootstrapper(workflow_worke
         await workflow_worker.async_run()
 
         mock_bootstrapper_class.assert_called_once_with()
-        mock_bootstrapper_instance.run.assert_awaited_once_with(workflow_context, workflow_context.phase_manager)
+        mock_bootstrapper_instance.run.assert_awaited_once_with(workflow_context, workflow_context.status_manager)
 
 @pytest.mark.asyncio
 async def test_async_run_handles_bootstrap_failure(workflow_worker: WorkflowWorker, workflow_context: WorkflowContext):
@@ -108,7 +108,7 @@ async def test_async_run_handles_bootstrap_failure(workflow_worker: WorkflowWork
         await workflow_worker.async_run()
 
         mock_bootstrapper_class.assert_called_once()
-        mock_bootstrapper_instance.run.assert_awaited_once_with(workflow_context, workflow_context.phase_manager)
+        mock_bootstrapper_instance.run.assert_awaited_once_with(workflow_context, workflow_context.status_manager)
         # The event loop should not have been entered, so no calls to get events.
         workflow_context.state.input_event_queues.user_message_queue.get.assert_not_called()
 

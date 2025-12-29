@@ -1,6 +1,7 @@
 # file: autobyteus/tests/unit_tests/agent/streaming/test_agent_event_stream.py
 import asyncio
 import pytest
+import pytest_asyncio
 import threading
 from typing import List, Any, AsyncIterator, Coroutine, Generator
 from unittest.mock import MagicMock
@@ -78,7 +79,7 @@ def mock_agent(agent_id_fixture: str, real_notifier: AgentExternalEventNotifier)
     mock_agent_context = MagicMock(spec=AgentContext)
     mock_agent_context.agent_id = agent_id_fixture
     
-    mock_status_manager = MagicMock(spec=AgentPhaseManager)
+    mock_status_manager = MagicMock(spec=AgentStatusManager)
     mock_status_manager.notifier = real_notifier
     mock_agent_context.status_manager = mock_status_manager
     
@@ -87,23 +88,14 @@ def mock_agent(agent_id_fixture: str, real_notifier: AgentExternalEventNotifier)
     agent.context = mock_agent_context
     return agent
 
-@pytest.fixture
-def streamer(mock_agent: MagicMock, event_loop: asyncio.AbstractEventLoop) -> Generator[AgentEventStream, None, None]:
+@pytest_asyncio.fixture
+async def streamer(mock_agent: MagicMock) -> Generator[AgentEventStream, None, None]:
     """
-    Fixture for an AgentEventStream instance. Yields the streamer and handles cleanup.
-    This is now a regular (synchronous) fixture. The event_loop fixture (from pytest-asyncio)
-    is used to run the async cleanup code.
+    Fixture for an AgentEventStream instance. Yields the streamer and handles async cleanup.
     """
-    # Setup
     s = AgentEventStream(mock_agent)
-    
-    # Yield the object to the test
     yield s
-    
-    # Teardown
-    if not event_loop.is_closed():
-        # Ensure the async close method is run to completion in the test's event loop.
-        event_loop.run_until_complete(s.close())
+    await s.close()
 
 # --- Test Cases ---
 
@@ -151,12 +143,12 @@ async def test_stream_assistant_final_messages(streamer: AgentEventStream, real_
     assert len(results) == 1
     assert results[0].content == final_msg.content
 
-async def test_all_events_receives_phase_change(streamer: AgentEventStream, real_notifier: AgentExternalEventNotifier, agent_id_fixture: str):
-    """Tests that phase change events are received by the unified stream."""
+async def test_all_events_receives_status_change(streamer: AgentEventStream, real_notifier: AgentExternalEventNotifier, agent_id_fixture: str):
+    """Tests that status change events are received by the unified stream."""
     async def produce_events():
         await asyncio.sleep(0.05)
-        # Use a valid phase transition from the new lifecycle
-        real_notifier.notify_phase_idle_entered(old_status=AgentStatus.BOOTSTRAPPING)
+        # Use a valid status transition from the new lifecycle
+        real_notifier.notify_status_idle_entered(old_status=AgentStatus.BOOTSTRAPPING)
         # DO NOT call streamer.close() from the producer thread.
 
     consumer_task = asyncio.create_task(_collect_stream_results(streamer.all_events()))
@@ -248,8 +240,8 @@ async def test_all_events_receives_multiple_mixed_events(streamer: AgentEventStr
 
     async def produce_events():
         await asyncio.sleep(0.02)
-        # Use a valid phase transition
-        real_notifier.notify_phase_idle_entered(old_status=AgentStatus.BOOTSTRAPPING)
+        # Use a valid status transition
+        real_notifier.notify_status_idle_entered(old_status=AgentStatus.BOOTSTRAPPING)
         await asyncio.sleep(0.02)
         real_notifier.notify_agent_data_assistant_chunk(chunk1)
         await asyncio.sleep(0.02)

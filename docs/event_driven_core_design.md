@@ -5,7 +5,7 @@ This document describes the **event-driven core** that powers Autobyteus agents,
 
 - creates per-entity event loops,
 - routes events through input queues,
-- dispatches events to handlers with phase management,
+- dispatches events to handlers with status management,
 - streams events outward for UI/monitoring,
 - and shuts down cleanly.
 
@@ -20,7 +20,7 @@ Autobyteus uses a consistent pattern across Agent, AgentTeam, and Workflow runti
 Each runtime (`AgentRuntime`, `AgentTeamRuntime`, `WorkflowRuntime`) owns:
 
 - the **context** (config + state),
-- a **phase manager**,
+- a **status manager**,
 - an **external event notifier** (for streaming + UI),
 - and a **worker** that runs the event loop.
 
@@ -102,13 +102,13 @@ The agent worker loop looks like:
 2. dispatch the event through `WorkerEventDispatcher`
 3. yield to loop (`await asyncio.sleep(0)`) so other tasks can run
 
-### 4.3 Dispatch + Phase Management
+### 4.3 Dispatch + Status Management
 `WorkerEventDispatcher` does two jobs:
 
-- **Phase transitions** (e.g., IDLE → PROCESSING_USER_INPUT → AWAITING_LLM_RESPONSE → ANALYZING → IDLE)
+- **Status transitions** (e.g., IDLE → PROCESSING_USER_INPUT → AWAITING_LLM_RESPONSE → ANALYZING → IDLE)
 - **Handler invocation** using the `EventHandlerRegistry`
 
-If a handler throws, the dispatcher emits `AgentErrorEvent` and notifies the phase manager to enter ERROR.
+If a handler throws, the dispatcher emits `AgentErrorEvent` and notifies the status manager to enter ERROR.
 
 ### 4.4 Handlers
 Handlers are registered by event type and encapsulate business logic (LLM calls, tool execution, messaging). They can enqueue follow-up events to continue the flow.
@@ -118,7 +118,7 @@ Handlers are registered by event type and encapsulate business logic (LLM calls,
 ## 5. Event Streaming and Multiplexing
 The event-driven core also emits **external, streamable events** for UIs and monitoring:
 
-- `AgentExternalEventNotifier` emits phase changes and output data events.
+- `AgentExternalEventNotifier` emits status changes and output data events.
 - `AgentEventStream` subscribes to the notifier and converts events to stream records.
 - `AgentEventBridge` forwards an agent’s stream into a workflow notifier.
 - `AgentEventMultiplexer` manages multiple bridges so a workflow can aggregate events from its agents and sub-workflows.
@@ -133,7 +133,7 @@ This decouples internal control flow (queues) from external observability (strea
 2. Worker creates event loop → runs bootstrap.
 3. `AgentRuntimeQueueInitializationStep` creates input queues.
 4. Bootstrap finishes → `AgentReadyEvent` enqueued.
-5. Dispatcher handles `AgentReadyEvent` → phase transitions to IDLE.
+5. Dispatcher handles `AgentReadyEvent` → status transitions to IDLE.
 
 ### 6.2 Event Handling (Typical)
 1. External `UserMessageReceivedEvent` is submitted.
@@ -144,10 +144,10 @@ This decouples internal control flow (queues) from external observability (strea
 6. `ToolResultEvent` and `LLMCompleteResponseReceivedEvent` drive the agent back to IDLE.
 
 ### 6.3 Shutdown
-1. `AgentRuntime.stop()` triggers phase transition to SHUTTING_DOWN.
+1. `AgentRuntime.stop()` triggers status transition to SHUTTING_DOWN.
 2. Worker stop signal set; `AgentStoppedEvent` enqueued.
 3. Worker exits loop and runs shutdown orchestrator.
-4. Runtime completes final phase transition.
+4. Runtime completes final status transition.
 
 ---
 
@@ -156,7 +156,7 @@ This decouples internal control flow (queues) from external observability (strea
 - **Thread-safe submission:** All input queue ops happen via run_coroutine_threadsafe on the worker loop.
 - **Ordering:** Each queue preserves FIFO; inter-queue ordering is deterministic via priority.
 - **Backpressure:** `asyncio.Queue(maxsize=queue_size)` can be configured for bounded queues.
-- **Error containment:** Dispatcher errors are caught, reported, and translated into error events/phase transitions.
+- **Error containment:** Dispatcher errors are caught, reported, and translated into error events/status transitions.
 
 ---
 
@@ -175,4 +175,3 @@ This decouples internal control flow (queues) from external observability (strea
 - Agent runtime wrapper: `autobyteus/agent/runtime/agent_runtime.py`
 - Workflow/team workers: `autobyteus/workflow/runtime/workflow_worker.py`, `autobyteus/agent_team/runtime/agent_team_worker.py`
 - Stream multiplexing: `autobyteus/workflow/streaming/agent_event_multiplexer.py`
-

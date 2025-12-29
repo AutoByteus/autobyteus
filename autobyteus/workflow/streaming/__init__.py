@@ -7,7 +7,7 @@ from .workflow_event_stream import WorkflowEventStream
 from .workflow_stream_events import WorkflowStreamEvent, WorkflowStreamDataPayload
 from .workflow_stream_event_payloads import (
     BaseWorkflowSpecificPayload,
-    WorkflowPhaseTransitionData,
+    WorkflowStatusTransitionData,
     AgentEventRebroadcastPayload,
 )
 from .agent_event_bridge import AgentEventBridge
@@ -19,7 +19,7 @@ __all__ = [
     "WorkflowStreamEvent",
     "WorkflowStreamDataPayload",
     "BaseWorkflowSpecificPayload",
-    "WorkflowPhaseTransitionData",
+    "WorkflowStatusTransitionData",
     "AgentEventRebroadcastPayload",
     "AgentEventBridge",
     "AgentEventMultiplexer",

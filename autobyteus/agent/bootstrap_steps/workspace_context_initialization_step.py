@@ -43,5 +43,5 @@ class WorkspaceContextInitializationStep(BaseBootstrapStep):
             error_message = f"Agent '{agent_id}': Critical failure during WorkspaceContextInitializationStep: {e}"
             logger.error(error_message, exc_info=True)
             # No easy way to enqueue an error event here if queues aren't even initialized yet.
-            # The failure of a bootstrap step is handled by the bootstrapper, which will log and set error phase.
+            # The failure of a bootstrap step is handled by the bootstrapper, which will log and set error status.
             return False

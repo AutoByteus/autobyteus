@@ -17,8 +17,8 @@ def build_context(agent_id: str = "agent_add_todo", with_list: bool = True) -> A
     context = Mock(spec=AgentContext)
     context.agent_id = agent_id
     context.custom_data = {}
-    context.phase_manager = Mock()
-    context.phase_manager.notifier = Mock()
+    context.status_manager = Mock()
+    context.status_manager.notifier = Mock()
 
     state = Mock(spec=AgentRuntimeState)
     state.todo_list = ToDoList(agent_id=agent_id) if with_list else None

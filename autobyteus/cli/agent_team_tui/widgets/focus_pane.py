@@ -23,7 +23,7 @@ from autobyteus.agent.streaming.stream_event_payloads import (
     SystemTaskNotificationData
 )
 from .shared import (
-    AGENT_PHASE_ICONS, TEAM_STATUS_ICONS, SUB_TEAM_ICON, DEFAULT_ICON,
+    AGENT_STATUS_ICONS, TEAM_STATUS_ICONS, SUB_TEAM_ICON, DEFAULT_ICON,
     USER_ICON, ASSISTANT_ICON, TEAM_ICON, AGENT_ICON, SYSTEM_TASK_ICON
 )
 from . import renderables
@@ -130,7 +130,7 @@ class FocusPane(Static):
             Button("Deny", variant="error", id="deny-btn")
         )
 
-    def _update_title(self, agent_phases: Dict[str, AgentStatus], team_phases: Dict[str, AgentTeamStatus]):
+    def _update_title(self, agent_statuses: Dict[str, AgentStatus], team_statuses: Dict[str, AgentTeamStatus]):
         """Renders the title of the focus pane with the node's current status."""
         if not self._focused_node_data:
             self.query_one("#focus-pane-title").update("Select a node from the sidebar")
@@ -141,31 +141,31 @@ class FocusPane(Static):
         node_type_str = node_type.replace("_", " ").capitalize()
 
         title_icon = DEFAULT_ICON
-        phase_str = ""
+        status_str = ""
 
         if node_type == 'agent':
             title_icon = AGENT_ICON
-            phase = agent_phases.get(node_name, AgentStatus.UNINITIALIZED)
-            phase_str = f" (Status: {phase.value})"
+            status = agent_statuses.get(node_name, AgentStatus.UNINITIALIZED)
+            status_str = f" (Status: {status.value})"
         elif node_type == 'subteam':
             title_icon = SUB_TEAM_ICON
-            status = team_phases.get(node_name, AgentTeamStatus.UNINITIALIZED)
-            phase_str = f" (Status: {status.value})"
+            status = team_statuses.get(node_name, AgentTeamStatus.UNINITIALIZED)
+            status_str = f" (Status: {status.value})"
         elif node_type == 'team':
             title_icon = TEAM_ICON
-            status = team_phases.get(node_name, AgentTeamStatus.UNINITIALIZED)
-            phase_str = f" (Status: {status.value})"
+            status = team_statuses.get(node_name, AgentTeamStatus.UNINITIALIZED)
+            status_str = f" (Status: {status.value})"
 
-        self.query_one("#focus-pane-title").update(f"{title_icon} {node_type_str}: [bold]{node_name}[/bold]{phase_str}")
+        self.query_one("#focus-pane-title").update(f"{title_icon} {node_type_str}: [bold]{node_name}[/bold]{status_str}")
         
-    def update_current_node_status(self, all_agent_phases: Dict, all_team_phases: Dict):
+    def update_current_node_status(self, all_agent_statuses: Dict, all_team_statuses: Dict):
         """A lightweight method to only update the title with the latest status."""
-        self._update_title(all_agent_phases, all_team_phases)
+        self._update_title(all_agent_statuses, all_team_statuses)
 
     async def update_content(self, node_data: Dict[str, Any], history: List[Any], 
                              pending_approval: Optional[ToolInvocationApprovalRequestedData], 
-                             all_agent_phases: Dict[str, AgentStatus],  
-                             all_team_phases: Dict[str, AgentTeamStatus],
+                             all_agent_statuses: Dict[str, AgentStatus],
+                             all_team_statuses: Dict[str, AgentTeamStatus],
                              task_plan: Optional[List[Task]],
                              task_statuses: Optional[Dict[str, TaskStatus]]):
         """The main method to update the entire pane based on new state."""
@@ -174,7 +174,7 @@ class FocusPane(Static):
         self._focused_node_data = node_data
         self._pending_approval_data = pending_approval
         
-        self._update_title(all_agent_phases, all_team_phases)
+        self._update_title(all_agent_statuses, all_team_statuses)
 
         log_container = self.query_one("#focus-pane-log-container")
         await log_container.remove_children()
@@ -192,23 +192,23 @@ class FocusPane(Static):
             if self._pending_approval_data:
                 await self._show_approval_prompt()
         elif self._focused_node_data.get("type") in ['team', 'subteam']:
-            await self._render_team_dashboard(node_data, all_agent_phases, all_team_phases, task_plan, task_statuses)
+            await self._render_team_dashboard(node_data, all_agent_statuses, all_team_statuses, task_plan, task_statuses)
 
-    async def _render_team_dashboard(self, node_data: Dict[str, Any], 
-                                         all_agent_phases: Dict[str, AgentStatus],
-                                         all_team_phases: Dict[str, AgentTeamStatus],
+    async def _render_team_dashboard(self, node_data: Dict[str, Any],
+                                         all_agent_statuses: Dict[str, AgentStatus],
+                                         all_team_statuses: Dict[str, AgentTeamStatus],
                                          task_plan: Optional[List[Task]],
                                          task_statuses: Optional[Dict[str, TaskStatus]]):
         """Renders a static summary dashboard for a team or sub-team."""
         log_container = self.query_one("#focus-pane-log-container")
         
-        status = all_team_phases.get(node_data['name'], AgentTeamStatus.UNINITIALIZED)
-        phase_icon = TEAM_STATUS_ICONS.get(status, DEFAULT_ICON)
+        status = all_team_statuses.get(node_data['name'], AgentTeamStatus.UNINITIALIZED)
+        status_icon = TEAM_STATUS_ICONS.get(status, DEFAULT_ICON)
         info_text = Text()
         info_text.append(f"Name: {node_data['name']}\n", style="bold")
         if node_data.get('role'):
             info_text.append(f"Role: {node_data['role']}\n")
-        info_text.append(f"Status: {phase_icon} {status.value}")
+        info_text.append(f"Status: {status_icon} {status.value}")
         await log_container.mount(Static(Panel(info_text, title="Team Info", border_style="green", title_align="left")))
 
         await log_container.mount(TaskPlanPanel(tasks=task_plan, statuses=task_statuses, team_name=node_data['name']))
@@ -218,11 +218,11 @@ class FocusPane(Static):
             team_text = Text()
             for name, child_node in children_data.items():
                 if child_node['type'] == 'agent':
-                    agent_phase = all_agent_phases.get(name, AgentStatus.UNINITIALIZED)
-                    agent_icon = AGENT_PHASE_ICONS.get(agent_phase, DEFAULT_ICON)
-                    team_text.append(f" ▪ {agent_icon} {name} (Agent): {agent_phase.value}\n")
+                    agent_status = all_agent_statuses.get(name, AgentStatus.UNINITIALIZED)
+                    agent_icon = AGENT_STATUS_ICONS.get(agent_status, DEFAULT_ICON)
+                    team_text.append(f" ▪ {agent_icon} {name} (Agent): {agent_status.value}\n")
                 elif child_node['type'] == 'subteam':
-                    wf_status = all_team_phases.get(name, AgentTeamStatus.UNINITIALIZED)
+                    wf_status = all_team_statuses.get(name, AgentTeamStatus.UNINITIALIZED)
                     wf_icon = TEAM_STATUS_ICONS.get(wf_status, SUB_TEAM_ICON)
                     team_text.append(f" ▪ {wf_icon} {name} (Sub-Team): {wf_status.value}\n")
             await log_container.mount(Static(Panel(team_text, title="Team Status", border_style="blue", title_align="left")))

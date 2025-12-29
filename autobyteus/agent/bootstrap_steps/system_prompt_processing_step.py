@@ -25,7 +25,7 @@ class SystemPromptProcessingStep(BaseBootstrapStep):
                       context: 'AgentContext',
                       status_manager: 'AgentStatusManager') -> bool:
         agent_id = context.agent_id
-        # The phase is now managed by the AgentBootstrapper.
+        # The status is now managed by the AgentBootstrapper.
         logger.info(f"Agent '{agent_id}': Executing SystemPromptProcessingStep.")
 
         try:

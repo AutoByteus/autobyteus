@@ -135,11 +135,11 @@ class AgentTeamApp(App):
         focus_pane = self.query_one(FocusPane)
 
         tree_data = self.store.get_tree_data()
-        agent_phases = self.store._agent_phases
+        agent_statuses = self.store._agent_statuses
         team_statuses = self.store._team_statuses
         speaking_agents = self.store._speaking_agents
         
-        sidebar.update_tree(tree_data, agent_phases, team_statuses, speaking_agents)
+        sidebar.update_tree(tree_data, agent_statuses, team_statuses, speaking_agents)
         
         focused_data = self.focused_node_data
         if focused_data and focused_data.get("type") in ['team', 'subteam']:
@@ -150,13 +150,13 @@ class AgentTeamApp(App):
                 node_data=focused_data,
                 history=[], # No history for teams
                 pending_approval=None,
-                all_agent_phases=agent_phases,
-                all_team_phases=team_statuses,
+                all_agent_statuses=agent_statuses,
+                all_team_statuses=team_statuses,
                 task_plan=task_plan,
                 task_statuses=task_statuses
             )
         elif focused_data and focused_data.get("type") == 'agent':
-            focus_pane.update_current_node_status(agent_phases, team_statuses)
+            focus_pane.update_current_node_status(agent_statuses, team_statuses)
 
 
     async def watch_focused_node_data(self, new_node_data: Optional[Dict[str, Any]]):
@@ -182,8 +182,8 @@ class AgentTeamApp(App):
             node_data=new_node_data,
             history=history,
             pending_approval=pending_approval,
-            all_agent_phases=self.store._agent_phases,
-            all_team_phases=self.store._team_statuses,
+            all_agent_statuses=self.store._agent_statuses,
+            all_team_statuses=self.store._team_statuses,
             task_plan=task_plan,
             task_statuses=task_statuses
         )

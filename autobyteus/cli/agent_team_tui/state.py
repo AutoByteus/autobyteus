@@ -39,8 +39,8 @@ class TUIStateStore:
         
         self._node_roles: Dict[str, str] = self._extract_node_roles(team)
         self._nodes: Dict[str, Any] = self._initialize_root_node()
-        self._agent_phases: Dict[str, AgentStatus] = {}
-        self._team_phases: Dict[str, AgentTeamStatus] = {self.team_name: AgentTeamStatus.UNINITIALIZED}
+        self._agent_statuses: Dict[str, AgentStatus] = {}
+        self._team_statuses: Dict[str, AgentTeamStatus] = {self.team_name: AgentTeamStatus.UNINITIALIZED}
         self._agent_event_history: Dict[str, List[AgentStreamEvent]] = {}
         self._team_event_history: Dict[str, List[AgentTeamStreamEvent]] = {self.team_name: []}
         self._pending_approvals: Dict[str, ToolInvocationApprovalRequestedData] = {}
@@ -76,7 +76,7 @@ class TUIStateStore:
         self.version += 1 # Increment on any event to signal a change
         
         if event.event_source_type == "TEAM" and isinstance(event.data, AgentTeamStatusTransitionData):
-            self._team_phases[self.team_name] = event.data.new_status
+            self._team_statuses[self.team_name] = event.data.new_status
         
         self._process_event_recursively(event, self.team_name)
 
@@ -122,10 +122,10 @@ class TUIStateStore:
             self._agent_event_history[agent_name].append(agent_event)
 
             if agent_event.event_type == AgentStreamEventType.AGENT_STATUS_TRANSITION:
-                self._agent_phases[agent_name] = agent_event.data.new_status
+                self._agent_statuses[agent_name] = agent_event.data.new_status
                 if agent_name in self._pending_approvals: del self._pending_approvals[agent_name]
             elif agent_event.event_type == AgentStreamEventType.AGENT_IDLE:
-                self._agent_phases[agent_name] = AgentStatus.IDLE
+                self._agent_statuses[agent_name] = AgentStatus.IDLE
             elif agent_event.event_type == AgentStreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED:
                 self._pending_approvals[agent_name] = agent_event.data
 

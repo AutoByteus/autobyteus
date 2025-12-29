@@ -3,23 +3,23 @@ import pytest
 from pydantic import ValidationError
 
 from autobyteus.agent.status.status_enum import AgentStatus
-from autobyteus.workflow.streaming.workflow_stream_events import WorkflowStreamEvent, WorkflowSpecificPayload, AgentEventRebroadcastPayload, WorkflowPhaseTransitionData
-from autobyteus.workflow.phases import WorkflowOperationalPhase
+from autobyteus.workflow.streaming.workflow_stream_events import WorkflowStreamEvent, WorkflowSpecificPayload, AgentEventRebroadcastPayload, WorkflowStatusTransitionData
+from autobyteus.workflow.status import WorkflowStatus
 from autobyteus.agent.streaming.stream_events import StreamEvent, StreamEventType
 
-def test_workflow_phase_transition_event_creation():
+def test_workflow_status_transition_event_creation():
     """Tests successful creation of a WORKFLOW-sourced event."""
-    data = WorkflowPhaseTransitionData(
-        new_status=WorkflowOperationalPhase.IDLE,
-        old_status=WorkflowOperationalPhase.PROCESSING
+    data = WorkflowStatusTransitionData(
+        new_status=WorkflowStatus.IDLE,
+        old_status=WorkflowStatus.PROCESSING
     )
     event = WorkflowStreamEvent(
         workflow_id="wf-1",
         event_source_type="WORKFLOW",
         data=data
     )
-    assert isinstance(event.data, WorkflowPhaseTransitionData)
-    assert event.data.new_status == WorkflowOperationalPhase.IDLE
+    assert isinstance(event.data, WorkflowStatusTransitionData)
+    assert event.data.new_status == WorkflowStatus.IDLE
 
 def test_agent_event_rebroadcast_event_creation():
     """Tests successful creation of an AGENT-sourced event."""
@@ -46,7 +46,7 @@ def test_agent_event_rebroadcast_event_creation():
 def test_validation_error_on_mismatched_data():
     """Tests that Pydantic raises an error for incorrect data shapes."""
     with pytest.raises(ValidationError):
-        # WORKFLOW source type expects WorkflowPhaseTransitionData, but we provide AGENT data
+        # WORKFLOW source type expects WorkflowStatusTransitionData, but we provide AGENT data
         WorkflowStreamEvent(
             workflow_id="wf-1",
             event_source_type="WORKFLOW",

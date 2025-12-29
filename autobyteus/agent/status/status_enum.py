@@ -1,10 +1,10 @@
-# file: autobyteus/autobyteus/agent/context/phases/phase_enum.py
+# file: autobyteus/autobyteus/agent/status/status_enum.py
 from enum import Enum
 
 class AgentStatus(str, Enum):
     """
     Defines the possible operational statuses of an agent.
-    Renamed from AgentOperationalPhase.
+    Renamed from the legacy operational state enum.
     """
     UNINITIALIZED = "uninitialized"            # Agent object created, but runtime not started or fully set up.
     BOOTSTRAPPING = "bootstrapping"            # Agent is running its internal initialization/bootstrap sequence.
@@ -27,13 +27,13 @@ class AgentStatus(str, Enum):
         return self.value
 
     def is_initializing(self) -> bool:
-        """Checks if the agent is in any of the initializing phases."""
+        """Checks if the agent is in any of the initializing statuses."""
         return self in [
             AgentStatus.BOOTSTRAPPING,
         ]
 
     def is_processing(self) -> bool:
-        """Checks if the agent is in any active processing phase (post-initialization, pre-shutdown)."""
+        """Checks if the agent is in any active processing status (post-initialization, pre-shutdown)."""
         return self in [
             AgentStatus.PROCESSING_USER_INPUT,
             AgentStatus.AWAITING_LLM_RESPONSE,
@@ -45,5 +45,5 @@ class AgentStatus(str, Enum):
         ]
     
     def is_terminal(self) -> bool:
-        """Checks if the phase is a terminal state (shutdown or error)."""
+        """Checks if the status is a terminal state (shutdown or error)."""
         return self in [AgentStatus.SHUTDOWN_COMPLETE, AgentStatus.ERROR]

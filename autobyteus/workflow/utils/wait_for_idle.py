@@ -4,7 +4,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from autobyteus.workflow.streaming.workflow_event_stream import WorkflowEventStream
-from autobyteus.workflow.phases.workflow_status import WorkflowStatus
+from autobyteus.workflow.status.workflow_status import WorkflowStatus
 
 if TYPE_CHECKING:
     from autobyteus.workflow.agentic_workflow import AgenticWorkflow

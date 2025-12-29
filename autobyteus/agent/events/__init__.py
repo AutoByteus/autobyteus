@@ -11,7 +11,7 @@ from .agent_events import (
     # Categorical Base Events
     LifecycleEvent,
     AgentProcessingEvent,
-    # Agent Phase-Specific Base Events
+    # Agent Status-Specific Base Events
     AgentOperationalEvent,
     # Specific Lifecycle Events
     AgentReadyEvent, 

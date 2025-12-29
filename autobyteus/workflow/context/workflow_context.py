@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from autobyteus.workflow.context.workflow_config import WorkflowConfig
     from autobyteus.workflow.context.workflow_runtime_state import WorkflowRuntimeState
     from autobyteus.agent.agent import Agent
-    from autobyteus.workflow.phases.workflow_status_manager import WorkflowStatusManager
+    from autobyteus.workflow.status.workflow_status_manager import WorkflowStatusManager
     from autobyteus.workflow.context.team_manager import TeamManager
     from autobyteus.workflow.streaming.agent_event_multiplexer import AgentEventMultiplexer
     from autobyteus.agent.context import AgentConfig

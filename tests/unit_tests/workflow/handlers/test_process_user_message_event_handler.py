@@ -28,10 +28,10 @@ async def test_handle_success(handler: ProcessUserMessageEventHandler, event: Pr
 
     await handler.handle(event, workflow_context)
 
-    workflow_context.phase_manager.notify_processing_started.assert_awaited_once()
+    workflow_context.status_manager.notify_processing_started.assert_awaited_once()
     workflow_context.team_manager.ensure_agent_is_ready.assert_awaited_once_with("Coordinator")
     mock_agent.post_user_message.assert_awaited_once_with(event.user_message)
-    workflow_context.phase_manager.notify_processing_complete_and_idle.assert_awaited_once()
+    workflow_context.status_manager.notify_processing_complete_and_idle.assert_awaited_once()
 
 @pytest.mark.asyncio
 async def test_handle_agent_not_found(handler: ProcessUserMessageEventHandler, event: ProcessUserMessageEvent, workflow_context: WorkflowContext):
@@ -42,7 +42,7 @@ async def test_handle_agent_not_found(handler: ProcessUserMessageEventHandler, e
 
     await handler.handle(event, workflow_context)
 
-    workflow_context.phase_manager.notify_error_occurred.assert_awaited_once()
-    error_msg = workflow_context.phase_manager.notify_error_occurred.call_args.args[0]
+    workflow_context.status_manager.notify_error_occurred.assert_awaited_once()
+    error_msg = workflow_context.status_manager.notify_error_occurred.call_args.args[0]
     assert "Agent 'Coordinator' not found or failed to start" in error_msg
-    workflow_context.phase_manager.notify_processing_complete_and_idle.assert_not_awaited()
+    workflow_context.status_manager.notify_processing_complete_and_idle.assert_not_awaited()
