@@ -100,9 +100,7 @@ def mock_agent_team_status_manager():
 
     manager = MagicMock(spec=AgentTeamStatusManager)
     manager.notifier = notifier_mock
-    for attr_name in dir(AgentTeamStatusManager):
-        if attr_name.startswith("notify_"):
-            setattr(manager, attr_name, AsyncMock())
+    manager.emit_status_update = AsyncMock()
     return manager
 
 @pytest.fixture

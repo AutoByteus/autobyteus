@@ -8,7 +8,6 @@ from autobyteus.events.event_types import EventType
 
 if TYPE_CHECKING:
     from autobyteus.agent_team.context.agent_team_context import AgentTeamContext
-    from autobyteus.agent_team.status.agent_team_status_manager import AgentTeamStatusManager
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +16,7 @@ class TeamContextInitializationStep(BaseAgentTeamBootstrapStep):
     Bootstrap step to initialize shared team context components, such as the
     TaskPlan, and bridges its events to the team's notifier.
     """
-    async def execute(self, context: 'AgentTeamContext', status_manager: 'AgentTeamStatusManager') -> bool:
+    async def execute(self, context: 'AgentTeamContext') -> bool:
         team_id = context.team_id
         logger.info(f"Team '{team_id}': Executing TeamContextInitializationStep.")
         try:
@@ -26,7 +25,8 @@ class TeamContextInitializationStep(BaseAgentTeamBootstrapStep):
                 context.state.task_plan = task_plan
                 logger.info(f"Team '{team_id}': TaskPlan initialized and attached to team state.")
 
-                notifier = status_manager.notifier
+                status_manager = context.status_manager
+                notifier = status_manager.notifier if status_manager else None
                 if notifier:
                     # The notifier, a long-lived component, subscribes to events
                     # from the task_plan, another long-lived component.

@@ -6,7 +6,11 @@ from autobyteus.agent_team.events.agent_team_events import (
     BaseAgentTeamEvent,
     LifecycleAgentTeamEvent,
     OperationalAgentTeamEvent,
+    AgentTeamBootstrapStartedEvent,
     AgentTeamReadyEvent,
+    AgentTeamIdleEvent,
+    AgentTeamShutdownRequestedEvent,
+    AgentTeamStoppedEvent,
     AgentTeamErrorEvent,
     ProcessUserMessageEvent,
     InterAgentMessageRequestEvent,
@@ -14,16 +18,23 @@ from autobyteus.agent_team.events.agent_team_events import (
 )
 from autobyteus.agent_team.events.agent_team_event_dispatcher import AgentTeamEventDispatcher
 from autobyteus.agent_team.events.agent_team_input_event_queue_manager import AgentTeamInputEventQueueManager
+from autobyteus.agent_team.events.event_store import AgentTeamEventStore, EventEnvelope
 
 __all__ = [
     "BaseAgentTeamEvent",
     "LifecycleAgentTeamEvent",
     "OperationalAgentTeamEvent",
+    "AgentTeamBootstrapStartedEvent",
     "AgentTeamReadyEvent",
+    "AgentTeamIdleEvent",
+    "AgentTeamShutdownRequestedEvent",
+    "AgentTeamStoppedEvent",
     "AgentTeamErrorEvent",
     "ProcessUserMessageEvent",
     "InterAgentMessageRequestEvent",
     "ToolApprovalTeamEvent",
     "AgentTeamEventDispatcher",
     "AgentTeamInputEventQueueManager",
+    "AgentTeamEventStore",
+    "EventEnvelope",
 ]

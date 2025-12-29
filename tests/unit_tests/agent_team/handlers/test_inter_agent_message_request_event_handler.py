@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 
 from autobyteus.agent_team.handlers.inter_agent_message_request_event_handler import InterAgentMessageRequestEventHandler
-from autobyteus.agent_team.events.agent_team_events import InterAgentMessageRequestEvent
+from autobyteus.agent_team.events.agent_team_events import InterAgentMessageRequestEvent, AgentTeamErrorEvent
 from autobyteus.agent_team.context import AgentTeamContext
 from autobyteus.agent.agent import Agent
 from autobyteus.agent.message.inter_agent_message import InterAgentMessage
@@ -42,6 +42,7 @@ async def test_handle_success(handler: InterAgentMessageRequestEventHandler, eve
     assert isinstance(posted_message, InterAgentMessage)
     assert posted_message.content == event.content
     assert posted_message.sender_agent_id == event.sender_agent_id
+    agent_team_context.state.input_event_queues.enqueue_internal_system_event.assert_not_called()
 
 @pytest.mark.asyncio
 async def test_handle_success_sub_team_recipient(handler: InterAgentMessageRequestEventHandler, event: InterAgentMessageRequestEvent, agent_team_context: AgentTeamContext):
@@ -81,4 +82,6 @@ async def test_handle_agent_not_found_or_failed_to_start(handler: InterAgentMess
     assert f"Recipient node '{event.recipient_name}' not found or failed to start" in caplog.text
     # Verify we did NOT attempt to post a message
     mock_agent.post_inter_agent_message.assert_not_awaited()
-
+    agent_team_context.state.input_event_queues.enqueue_internal_system_event.assert_awaited_once()
+    enqueued_event = agent_team_context.state.input_event_queues.enqueue_internal_system_event.call_args.args[0]
+    assert isinstance(enqueued_event, AgentTeamErrorEvent)

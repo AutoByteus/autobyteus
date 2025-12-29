@@ -10,38 +10,24 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 class AgentTeamStatusManager:
-    """Manages the operational status of an agent team."""
+    """
+    Emits external notifications for status updates derived from events.
+    The status itself is owned by the event stream projection.
+    """
     def __init__(self, context: 'AgentTeamContext', notifier: 'AgentTeamExternalEventNotifier'):
+        if notifier is None:
+            raise ValueError("AgentTeamStatusManager requires a notifier.")
         self.context = context
         self.notifier = notifier
-        self.context.state.current_status = AgentTeamStatus.UNINITIALIZED
+        if not isinstance(self.context.state.current_status, AgentTeamStatus):
+            self.context.state.current_status = AgentTeamStatus.UNINITIALIZED
         logger.debug(f"AgentTeamStatusManager initialized for team '{context.team_id}'.")
 
-    async def _transition_status(self, new_status: AgentTeamStatus, extra_data: Optional[dict] = None):
-        old_status = self.context.state.current_status
+    async def emit_status_update(self,
+                                 old_status: AgentTeamStatus,
+                                 new_status: AgentTeamStatus,
+                                 additional_data: Optional[dict] = None) -> None:
         if old_status == new_status:
             return
-        logger.info(f"Team '{self.context.team_id}' transitioning from {old_status.value} to {new_status.value}.")
-        self.context.state.current_status = new_status
-        self.notifier.notify_status_change(new_status, old_status, extra_data)
-
-    async def notify_bootstrapping_started(self):
-        await self._transition_status(AgentTeamStatus.BOOTSTRAPPING)
-
-    async def notify_initialization_complete(self):
-        await self._transition_status(AgentTeamStatus.IDLE)
-        
-    async def notify_processing_started(self):
-        await self._transition_status(AgentTeamStatus.PROCESSING)
-
-    async def notify_processing_complete_and_idle(self):
-        await self._transition_status(AgentTeamStatus.IDLE)
-
-    async def notify_error_occurred(self, error_message: str, error_details: Optional[str] = None):
-        await self._transition_status(AgentTeamStatus.ERROR, {"error_message": error_message, "error_details": error_details})
-
-    async def notify_shutdown_initiated(self):
-        await self._transition_status(AgentTeamStatus.SHUTTING_DOWN)
-
-    async def notify_final_shutdown_complete(self):
-        await self._transition_status(AgentTeamStatus.SHUTDOWN_COMPLETE)
+        logger.info(f"Team '{self.context.team_id}' updating status from {old_status.value} to {new_status.value}.")
+        self.notifier.notify_status_updated(new_status, old_status, additional_data)

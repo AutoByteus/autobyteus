@@ -93,7 +93,7 @@ async def test_async_run_initialization_delegates_to_bootstrapper(agent_team_wor
         await agent_team_worker.async_run()
 
         mock_bootstrapper_class.assert_called_once_with()
-        mock_bootstrapper_instance.run.assert_awaited_once_with(agent_team_context, agent_team_context.status_manager)
+        mock_bootstrapper_instance.run.assert_awaited_once_with(agent_team_context)
 
 @pytest.mark.asyncio
 async def test_async_run_handles_bootstrap_failure(agent_team_worker: AgentTeamWorker, agent_team_context: AgentTeamContext):
@@ -105,7 +105,7 @@ async def test_async_run_handles_bootstrap_failure(agent_team_worker: AgentTeamW
         await agent_team_worker.async_run()
 
         mock_bootstrapper_class.assert_called_once()
-        mock_bootstrapper_instance.run.assert_awaited_once_with(agent_team_context, agent_team_context.status_manager)
+        mock_bootstrapper_instance.run.assert_awaited_once_with(agent_team_context)
         # The event loop should not have been entered, so no calls to get events.
         agent_team_context.state.input_event_queues.user_message_queue.get.assert_not_called()
 
@@ -139,7 +139,7 @@ async def test_worker_processes_event(agent_team_worker: AgentTeamWorker, agent_
         assert agent_team_worker.is_alive
         
         # Verify dispatch was called with our event
-        mock_agent_team_dispatcher.dispatch.assert_awaited_with(test_event, agent_team_context)
+        mock_agent_team_dispatcher.dispatch.assert_any_await(test_event, agent_team_context)
 
         await agent_team_worker.stop()
 

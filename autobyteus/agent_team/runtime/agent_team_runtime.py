@@ -2,13 +2,19 @@
 # file: autobyteus/autobyteus/agent_team/runtime/agent_team_runtime.py
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Callable, Optional
+import traceback
+from typing import TYPE_CHECKING, Optional
 
 from autobyteus.agent_team.context.agent_team_context import AgentTeamContext
-from autobyteus.agent_team.status.agent_team_status import AgentTeamStatus
 from autobyteus.agent_team.status.agent_team_status_manager import AgentTeamStatusManager
+from autobyteus.agent_team.status.status_update_utils import apply_event_and_derive_status
 from autobyteus.agent_team.runtime.agent_team_worker import AgentTeamWorker
-from autobyteus.agent_team.events.agent_team_events import BaseAgentTeamEvent
+from autobyteus.agent_team.events.agent_team_events import (
+    BaseAgentTeamEvent,
+    AgentTeamErrorEvent,
+    AgentTeamStoppedEvent,
+    AgentTeamShutdownRequestedEvent,
+)
 from autobyteus.agent_team.streaming.agent_team_event_notifier import AgentTeamExternalEventNotifier
 from autobyteus.agent_team.streaming.agent_event_multiplexer import AgentEventMultiplexer
 
@@ -23,7 +29,7 @@ class AgentTeamRuntime:
         self.context = context
         self.notifier = AgentTeamExternalEventNotifier(team_id=self.context.team_id, runtime_ref=self)
         
-        # Create the status manager before the worker so lifecycle hooks are available during bootstrap.
+        # Create the status manager before the worker so external notifications are available during bootstrap.
         self.status_manager: AgentTeamStatusManager = AgentTeamStatusManager(self.context, self.notifier)
         self.context.state.status_manager_ref = self.status_manager
 
@@ -53,8 +59,22 @@ class AgentTeamRuntime:
             logger.info(f"AgentTeamRuntime '{team_id}': Worker thread completed.")
         except Exception as e:
             logger.error(f"AgentTeamRuntime '{team_id}': Worker thread terminated with exception: {e}", exc_info=True)
-        if not self.context.state.current_status.is_terminal():
-             asyncio.run(self.status_manager.notify_final_shutdown_complete())
+            if not self.context.current_status.is_terminal():
+                try:
+                    asyncio.run(self._apply_event_and_derive_status(
+                        AgentTeamErrorEvent(
+                            error_message="Worker thread exited unexpectedly.",
+                            exception_details=traceback.format_exc()
+                        )
+                    ))
+                except Exception as run_e:
+                    logger.critical(f"AgentTeamRuntime '{team_id}': Failed to emit derived error: {run_e}")
+
+        if not self.context.current_status.is_terminal():
+            try:
+                asyncio.run(self._apply_event_and_derive_status(AgentTeamStoppedEvent()))
+            except Exception as run_e:
+                logger.critical(f"AgentTeamRuntime '{team_id}': Failed to emit derived shutdown complete: {run_e}")
         
     def start(self):
         if self._worker.is_alive:
@@ -62,9 +82,14 @@ class AgentTeamRuntime:
         self._worker.start()
 
     async def stop(self, timeout: float = 10.0):
-        await self.status_manager.notify_shutdown_initiated()
+        if not self._worker.is_alive and not self._worker._is_active:
+            if not self.context.current_status.is_terminal():
+                await self._apply_event_and_derive_status(AgentTeamStoppedEvent())
+            return
+
+        await self._apply_event_and_derive_status(AgentTeamShutdownRequestedEvent())
         await self._worker.stop(timeout=timeout)
-        await self.status_manager.notify_final_shutdown_complete()
+        await self._apply_event_and_derive_status(AgentTeamStoppedEvent())
 
     async def submit_event(self, event: BaseAgentTeamEvent):
         if not self._worker.is_alive:
@@ -79,6 +104,9 @@ class AgentTeamRuntime:
             return _enqueue()
         future = self._worker.schedule_coroutine(_coro_factory)
         await asyncio.wrap_future(future)
+
+    async def _apply_event_and_derive_status(self, event: BaseAgentTeamEvent) -> None:
+        await apply_event_and_derive_status(event, self.context)
 
     @property
     def is_running(self) -> bool:

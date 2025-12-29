@@ -18,8 +18,24 @@ class OperationalAgentTeamEvent(BaseAgentTeamEvent):
 
 # Specific Events
 @dataclass
+class AgentTeamBootstrapStartedEvent(LifecycleAgentTeamEvent):
+    """Indicates the agent team bootstrap sequence has begun."""
+
+@dataclass
 class AgentTeamReadyEvent(LifecycleAgentTeamEvent):
     """Indicates the agent team has completed bootstrapping and is ready for tasks."""
+
+@dataclass
+class AgentTeamIdleEvent(LifecycleAgentTeamEvent):
+    """Indicates the agent team has returned to an idle state after processing."""
+
+@dataclass
+class AgentTeamShutdownRequestedEvent(LifecycleAgentTeamEvent):
+    """Indicates a shutdown request has been issued for the agent team."""
+
+@dataclass
+class AgentTeamStoppedEvent(LifecycleAgentTeamEvent):
+    """Indicates the agent team has fully stopped."""
 
 @dataclass
 class AgentTeamErrorEvent(LifecycleAgentTeamEvent):

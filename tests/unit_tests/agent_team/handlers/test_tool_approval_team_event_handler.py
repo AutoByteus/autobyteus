@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import AsyncMock
 
 from autobyteus.agent_team.handlers.tool_approval_team_event_handler import ToolApprovalTeamEventHandler
-from autobyteus.agent_team.events.agent_team_events import ToolApprovalTeamEvent
+from autobyteus.agent_team.events.agent_team_events import ToolApprovalTeamEvent, AgentTeamErrorEvent
 from autobyteus.agent_team.context import AgentTeamContext
 from autobyteus.agent.agent import Agent
 
@@ -46,6 +46,6 @@ async def test_handle_agent_not_found(handler: ToolApprovalTeamEventHandler, eve
 
     await handler.handle(event, agent_team_context)
 
-    agent_team_context.status_manager.notify_error_occurred.assert_awaited_once()
-    error_msg = agent_team_context.status_manager.notify_error_occurred.call_args.args[0]
-    assert f"Target node '{event.agent_name}' for approval is not an agent" in error_msg
+    agent_team_context.state.input_event_queues.enqueue_internal_system_event.assert_awaited_once()
+    enqueued_event = agent_team_context.state.input_event_queues.enqueue_internal_system_event.call_args.args[0]
+    assert isinstance(enqueued_event, AgentTeamErrorEvent)

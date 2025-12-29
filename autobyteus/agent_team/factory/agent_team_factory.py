@@ -17,7 +17,11 @@ from autobyteus.agent_team.handlers.inter_agent_message_request_event_handler im
 from autobyteus.agent_team.handlers.tool_approval_team_event_handler import ToolApprovalTeamEventHandler
 from autobyteus.agent_team.events.agent_team_events import (
     ProcessUserMessageEvent,
+    AgentTeamBootstrapStartedEvent,
     AgentTeamReadyEvent,
+    AgentTeamIdleEvent,
+    AgentTeamShutdownRequestedEvent,
+    AgentTeamStoppedEvent,
     AgentTeamErrorEvent,
     InterAgentMessageRequestEvent,
     ToolApprovalTeamEvent
@@ -41,7 +45,11 @@ class AgentTeamFactory(metaclass=SingletonMeta):
         registry.register(InterAgentMessageRequestEvent, InterAgentMessageRequestEventHandler())
         registry.register(ToolApprovalTeamEvent, ToolApprovalTeamEventHandler())
         lifecycle_handler = LifecycleAgentTeamEventHandler()
+        registry.register(AgentTeamBootstrapStartedEvent, lifecycle_handler)
         registry.register(AgentTeamReadyEvent, lifecycle_handler)
+        registry.register(AgentTeamIdleEvent, lifecycle_handler)
+        registry.register(AgentTeamShutdownRequestedEvent, lifecycle_handler)
+        registry.register(AgentTeamStoppedEvent, lifecycle_handler)
         registry.register(AgentTeamErrorEvent, lifecycle_handler)
         return registry
 

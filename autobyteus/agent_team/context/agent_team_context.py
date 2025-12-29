@@ -2,11 +2,15 @@
 import logging
 from typing import TYPE_CHECKING, List, Optional, Dict
 
+from autobyteus.agent_team.status.agent_team_status import AgentTeamStatus
+
 if TYPE_CHECKING:
     from autobyteus.agent_team.context.agent_team_config import AgentTeamConfig
     from autobyteus.agent_team.context.agent_team_runtime_state import AgentTeamRuntimeState
     from autobyteus.agent.agent import Agent
     from autobyteus.agent_team.status.agent_team_status_manager import AgentTeamStatusManager
+    from autobyteus.agent_team.status.status_deriver import AgentTeamStatusDeriver
+    from autobyteus.agent_team.events.event_store import AgentTeamEventStore
     from autobyteus.agent_team.context.team_manager import TeamManager
     from autobyteus.agent_team.streaming.agent_event_multiplexer import AgentEventMultiplexer
     from autobyteus.agent.context import AgentConfig
@@ -51,6 +55,24 @@ class AgentTeamContext:
     @property
     def status_manager(self) -> Optional['AgentTeamStatusManager']:
         return self.state.status_manager_ref
+
+    @property
+    def current_status(self) -> 'AgentTeamStatus':
+        return self.state.current_status
+
+    @current_status.setter
+    def current_status(self, value: 'AgentTeamStatus'):
+        if not isinstance(value, AgentTeamStatus):  # pragma: no cover
+            raise TypeError(f"current_status must be an AgentTeamStatus instance. Got {type(value)}")
+        self.state.current_status = value
+
+    @property
+    def event_store(self) -> Optional['AgentTeamEventStore']:
+        return self.state.event_store
+
+    @property
+    def status_deriver(self) -> Optional['AgentTeamStatusDeriver']:
+        return self.state.status_deriver
 
     @property
     def team_manager(self) -> Optional['TeamManager']:

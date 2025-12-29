@@ -63,7 +63,7 @@ async def test_execute_prepares_final_configs_correctly(
     agent_team_context.state.prepared_agent_prompts = prepared_prompts
 
     # --- Act ---
-    success = await config_prep_step.execute(agent_team_context, agent_team_context.status_manager)
+    success = await config_prep_step.execute(agent_team_context)
 
     # --- Assert ---
     assert success is True
@@ -113,6 +113,6 @@ async def test_execute_fails_if_team_manager_missing(
     """
     agent_team_context.state.team_manager = None
     
-    success = await config_prep_step.execute(agent_team_context, agent_team_context.status_manager)
+    success = await config_prep_step.execute(agent_team_context)
     
     assert success is False

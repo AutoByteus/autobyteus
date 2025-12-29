@@ -50,7 +50,7 @@ async def test_execute_injects_manifest_for_each_agent(
     )
     _rebuild_context_with_new_config(agent_team_context, new_team_config)
 
-    success = await prompt_prep_step.execute(agent_team_context, agent_team_context.status_manager)
+    success = await prompt_prep_step.execute(agent_team_context)
 
     assert success is True
     prompts = agent_team_context.state.prepared_agent_prompts
@@ -80,7 +80,7 @@ async def test_execute_handles_solo_agent(
     )
     _rebuild_context_with_new_config(agent_team_context, solo_config)
 
-    success = await prompt_prep_step.execute(agent_team_context, agent_team_context.status_manager)
+    success = await prompt_prep_step.execute(agent_team_context)
 
     assert success is True
     prompts = agent_team_context.state.prepared_agent_prompts
@@ -107,7 +107,7 @@ async def test_execute_failure_path(
         MagicMock(side_effect=ValueError("Synthetic error"))
     )
 
-    success = await prompt_prep_step.execute(agent_team_context, agent_team_context.status_manager)
+    success = await prompt_prep_step.execute(agent_team_context)
 
     assert success is False
     assert agent_team_context.state.prepared_agent_prompts == {}

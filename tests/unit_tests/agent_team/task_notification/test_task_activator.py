@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, AsyncMock
 from autobyteus.agent_team.task_notification.task_activator import TaskActivator
 from autobyteus.agent_team.events import ProcessUserMessageEvent
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
+from autobyteus.agent.sender_type import TASK_NOTIFIER_SENDER_ID
 
 @pytest.fixture
 def mock_team_manager():
@@ -54,7 +55,7 @@ async def test_activate_agent_happy_path(mock_team_manager):
     user_message = dispatched_event.user_message
     assert isinstance(user_message, AgentInputUserMessage)
     assert "You have new tasks" in user_message.content
-    assert user_message.metadata['source'] == 'system_task_notifier'
+    assert user_message.metadata['sender_id'] == TASK_NOTIFIER_SENDER_ID
 
 @pytest.mark.asyncio
 async def test_activate_agent_handles_team_manager_exception(mock_team_manager, caplog):

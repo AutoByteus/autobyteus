@@ -5,8 +5,18 @@ import concurrent.futures
 from typing import TYPE_CHECKING, Optional, Callable, Awaitable, Any
 
 from autobyteus.agent_team.events.agent_team_event_dispatcher import AgentTeamEventDispatcher
+from autobyteus.agent_team.events.agent_team_events import (
+    AgentTeamBootstrapStartedEvent,
+    AgentTeamReadyEvent,
+    AgentTeamErrorEvent,
+    AgentTeamStoppedEvent,
+)
+from autobyteus.agent_team.events.agent_team_input_event_queue_manager import AgentTeamInputEventQueueManager
+from autobyteus.agent_team.events.event_store import AgentTeamEventStore
 from autobyteus.agent_team.bootstrap_steps.agent_team_bootstrapper import AgentTeamBootstrapper
 from autobyteus.agent_team.shutdown_steps.agent_team_shutdown_orchestrator import AgentTeamShutdownOrchestrator
+from autobyteus.agent_team.status.status_deriver import AgentTeamStatusDeriver
+from autobyteus.agent_team.status.status_update_utils import apply_event_and_derive_status
 from autobyteus.agent.runtime.agent_thread_pool_manager import AgentThreadPoolManager
 
 if TYPE_CHECKING:
@@ -20,7 +30,10 @@ class AgentTeamWorker:
     def __init__(self, context: 'AgentTeamContext', event_handler_registry: 'AgentTeamEventHandlerRegistry'):
         self.context = context
         self.status_manager = self.context.status_manager
-        self.event_dispatcher = AgentTeamEventDispatcher(event_handler_registry, self.status_manager)
+        if not self.status_manager:  # pragma: no cover
+            raise ValueError(f"AgentTeamWorker for '{self.context.team_id}': AgentTeamStatusManager not found.")
+
+        self.event_dispatcher = AgentTeamEventDispatcher(event_handler_registry)
         
         self._thread_pool_manager = AgentThreadPoolManager()
         self._thread_future: Optional[concurrent.futures.Future] = None
@@ -30,6 +43,28 @@ class AgentTeamWorker:
         self._stop_initiated: bool = False
         self._done_callbacks: list[Callable[[concurrent.futures.Future], None]] = []
         logger.info(f"AgentTeamWorker initialized for team '{self.context.team_id}'.")
+
+    async def _runtime_init(self) -> bool:
+        team_id = self.context.team_id
+        if self.context.state.event_store is None:
+            self.context.state.event_store = AgentTeamEventStore(team_id=team_id)
+            logger.info(f"Team '{team_id}': Runtime init completed (event store initialized).")
+
+        if self.context.state.status_deriver is None:
+            self.context.state.status_deriver = AgentTeamStatusDeriver()
+            logger.info(f"Team '{team_id}': Runtime init completed (status deriver initialized).")
+
+        if self.context.state.input_event_queues is not None:
+            logger.debug(f"Team '{team_id}': Runtime init skipped; input event queues already initialized.")
+            return True
+
+        try:
+            self.context.state.input_event_queues = AgentTeamInputEventQueueManager()
+            logger.info(f"Team '{team_id}': Runtime init completed (input queues initialized).")
+            return True
+        except Exception as e:
+            logger.critical(f"Team '{team_id}': Runtime init failed while initializing input queues: {e}", exc_info=True)
+            return False
 
     def get_worker_loop(self) -> Optional[asyncio.AbstractEventLoop]:
         """Returns the worker's event loop if it's running."""
@@ -69,10 +104,26 @@ class AgentTeamWorker:
             self._is_active = False
 
     async def async_run(self):
-        bootstrapper = AgentTeamBootstrapper()
-        if not await bootstrapper.run(self.context, self.status_manager):
-            logger.critical(f"Team '{self.context.team_id}' failed to initialize. Shutting down.")
+        team_id = self.context.team_id
+        if not await self._runtime_init():
+            logger.critical(f"Team '{team_id}': Runtime init failed. Shutting down.")
+            await apply_event_and_derive_status(
+                AgentTeamErrorEvent(error_message="Runtime init failed.", exception_details="Failed to initialize event store or queues."),
+                self.context
+            )
             return
+
+        bootstrapper = AgentTeamBootstrapper()
+        await self.event_dispatcher.dispatch(AgentTeamBootstrapStartedEvent(), self.context)
+        if not await bootstrapper.run(self.context):
+            logger.critical(f"Team '{team_id}' failed to initialize. Shutting down.")
+            await self.event_dispatcher.dispatch(
+                AgentTeamErrorEvent(error_message="Bootstrap failed.", exception_details="Bootstrapper returned failure."),
+                self.context
+            )
+            return
+
+        await self.event_dispatcher.dispatch(AgentTeamReadyEvent(), self.context)
 
         logger.info(f"Team '{self.context.team_id}' entering main event loop.")
         while not self._async_stop_event.is_set():
@@ -103,7 +154,20 @@ class AgentTeamWorker:
             return
         self._stop_initiated = True
         if self._worker_loop:
-            self._worker_loop.call_soon_threadsafe(self._async_stop_event.set)
+            def _coro_factory():
+                async def _signal_coro():
+                    if self._async_stop_event and not self._async_stop_event.is_set():
+                        self._async_stop_event.set()
+                        if self.context.state.input_event_queues:
+                            await self.context.state.input_event_queues.enqueue_internal_system_event(
+                                AgentTeamStoppedEvent()
+                            )
+                return _signal_coro()
+            try:
+                future = self.schedule_coroutine(_coro_factory)
+                future.result(timeout=max(1.0, timeout - 1))
+            except Exception as e:
+                logger.error(f"Team '{self.context.team_id}': Error signaling stop event: {e}", exc_info=True)
         if self._thread_future:
             try:
                 # FIX: Use asyncio.wait_for() to handle the timeout correctly.

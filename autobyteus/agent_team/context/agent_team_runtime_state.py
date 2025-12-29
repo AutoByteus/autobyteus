@@ -9,7 +9,9 @@ from autobyteus.agent.context import AgentConfig
 if TYPE_CHECKING:
     from autobyteus.agent.agent import Agent
     from autobyteus.agent_team.events.agent_team_input_event_queue_manager import AgentTeamInputEventQueueManager
+    from autobyteus.agent_team.events.event_store import AgentTeamEventStore
     from autobyteus.agent_team.status.agent_team_status_manager import AgentTeamStatusManager
+    from autobyteus.agent_team.status.status_deriver import AgentTeamStatusDeriver
     from autobyteus.agent_team.context.team_node_config import TeamNodeConfig
     from autobyteus.agent_team.context.team_manager import TeamManager
     from autobyteus.agent_team.streaming.agent_event_multiplexer import AgentEventMultiplexer
@@ -36,6 +38,8 @@ class AgentTeamRuntimeState:
     input_event_queues: Optional['AgentTeamInputEventQueueManager'] = None
     status_manager_ref: Optional['AgentTeamStatusManager'] = None
     multiplexer_ref: Optional['AgentEventMultiplexer'] = None
+    event_store: Optional['AgentTeamEventStore'] = None
+    status_deriver: Optional['AgentTeamStatusDeriver'] = None
     
     # Dynamic planning and artifact state
     task_plan: Optional['BaseTaskPlan'] = None

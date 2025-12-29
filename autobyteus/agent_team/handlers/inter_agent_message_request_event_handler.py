@@ -3,7 +3,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from autobyteus.agent_team.handlers.base_agent_team_event_handler import BaseAgentTeamEventHandler
-from autobyteus.agent_team.events.agent_team_events import InterAgentMessageRequestEvent
+from autobyteus.agent_team.events.agent_team_events import InterAgentMessageRequestEvent, AgentTeamErrorEvent
 from autobyteus.agent.message.inter_agent_message import InterAgentMessage
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.agent_team.agent_team import AgentTeam
@@ -24,7 +24,12 @@ class InterAgentMessageRequestEventHandler(BaseAgentTeamEventHandler):
         team_manager = context.team_manager
         
         if not team_manager:
-            logger.error(f"Team '{team_id}': TeamManager not found. Cannot route message from '{event.sender_agent_id}' to '{event.recipient_name}'.")
+            msg = f"Team '{team_id}': TeamManager not found. Cannot route message from '{event.sender_agent_id}' to '{event.recipient_name}'."
+            logger.error(msg)
+            if context.state.input_event_queues:
+                await context.state.input_event_queues.enqueue_internal_system_event(
+                    AgentTeamErrorEvent(error_message=msg, exception_details="TeamManager is not initialized.")
+                )
             return
 
         try:
@@ -32,6 +37,13 @@ class InterAgentMessageRequestEventHandler(BaseAgentTeamEventHandler):
         except Exception as e:
             msg = f"Recipient node '{event.recipient_name}' not found or failed to start for message from '{event.sender_agent_id}'. Error: {e}"
             logger.error(f"Team '{team_id}': {msg}", exc_info=True)
+            if context.state.input_event_queues:
+                await context.state.input_event_queues.enqueue_internal_system_event(
+                    AgentTeamErrorEvent(
+                        error_message=f"Team '{team_id}': {msg}",
+                        exception_details=f"Node '{event.recipient_name}' not found or failed to start."
+                    )
+                )
             return
 
         try:
@@ -59,3 +71,7 @@ class InterAgentMessageRequestEventHandler(BaseAgentTeamEventHandler):
         except Exception as e:
             msg = f"Error posting message to node '{event.recipient_name}': {e}"
             logger.error(f"Team '{team_id}': {msg}", exc_info=True)
+            if context.state.input_event_queues:
+                await context.state.input_event_queues.enqueue_internal_system_event(
+                    AgentTeamErrorEvent(error_message=f"Team '{team_id}': {msg}", exception_details="Message delivery failed.")
+                )
