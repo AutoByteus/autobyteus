@@ -74,7 +74,7 @@ async def run(agent: Agent, show_tool_logs: bool = True, show_token_usage: bool 
                 approval_input = approval_input.strip().lower()
                 
                 approval_data = cli_display.pending_approval_data
-                cli_display.pending_approval_data = None
+                cli_display.clear_pending_approval()
                 
                 is_approved = approval_input in ["y", "yes"]
                 reason = "User approved via CLI" if is_approved else "User denied via CLI"

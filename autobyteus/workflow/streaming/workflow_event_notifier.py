@@ -6,7 +6,7 @@ from autobyteus.events.event_emitter import EventEmitter
 from autobyteus.events.event_types import EventType
 from autobyteus.workflow.status.workflow_status import WorkflowStatus
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent
-from .workflow_stream_events import WorkflowStreamEvent, AgentEventRebroadcastPayload, WorkflowStatusTransitionData, SubWorkflowEventRebroadcastPayload
+from .workflow_stream_events import WorkflowStreamEvent, AgentEventRebroadcastPayload, WorkflowStatusUpdateData, SubWorkflowEventRebroadcastPayload
 
 if TYPE_CHECKING:
     from autobyteus.workflow.runtime.workflow_runtime import WorkflowRuntime
@@ -33,9 +33,9 @@ class WorkflowExternalEventNotifier(EventEmitter):
         """
         self.emit(EventType.WORKFLOW_STREAM_EVENT, payload=event)
 
-    def notify_status_change(self, new_status: WorkflowStatus, old_status: Optional[WorkflowStatus], extra_data: Optional[Dict[str, Any]] = None):
+    def notify_status_updated(self, new_status: WorkflowStatus, old_status: Optional[WorkflowStatus], extra_data: Optional[Dict[str, Any]] = None):
         """
-        Notifies of a workflow status transition by creating and emitting a
+        Notifies of a workflow status update by creating and emitting a
         'WORKFLOW' sourced event.
         """
         payload_dict = {
@@ -48,7 +48,7 @@ class WorkflowExternalEventNotifier(EventEmitter):
         event = WorkflowStreamEvent(
             workflow_id=self.workflow_id,
             event_source_type="WORKFLOW",
-            data=WorkflowStatusTransitionData(**filtered_payload_dict)
+            data=WorkflowStatusUpdateData(**filtered_payload_dict)
         )
         self._emit_event(event)
     

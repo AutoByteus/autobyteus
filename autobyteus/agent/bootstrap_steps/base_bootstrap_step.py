@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
-    from autobyteus.agent.status.manager import AgentStatusManager
 
 logger = logging.getLogger(__name__)
 
@@ -18,14 +17,12 @@ class BaseBootstrapStep(ABC):
 
     @abstractmethod
     async def execute(self,
-                      context: 'AgentContext',
-                      status_manager: 'AgentStatusManager') -> bool:
+                      context: 'AgentContext') -> bool:
         """
         Executes the bootstrap step.
 
         Args:
             context: The agent's context, providing access to configuration and state.
-            status_manager: The agent's status manager for notifying status transitions.
 
         Returns:
             True if the step completed successfully, False otherwise.

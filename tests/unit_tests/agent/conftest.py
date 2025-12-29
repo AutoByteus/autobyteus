@@ -10,6 +10,7 @@ from autobyteus.agent.context.agent_config import AgentConfig
 from autobyteus.agent.context.agent_runtime_state import AgentRuntimeState
 from autobyteus.agent.context.agent_context import AgentContext
 from autobyteus.agent.status.manager import AgentStatusManager 
+from autobyteus.agent.status.status_deriver import AgentStatusDeriver
 
 from autobyteus.agent.events.agent_input_event_queue_manager import AgentInputEventQueueManager
 from autobyteus.agent.events.notifiers import AgentExternalEventNotifier 
@@ -90,6 +91,7 @@ def mock_status_manager():
     for attr_name in dir(AgentStatusManager):
         if attr_name.startswith("notify_") and callable(getattr(AgentStatusManager, attr_name)):
             setattr(manager, attr_name, AsyncMock())
+    manager.emit_status_update = AsyncMock()
             
     return manager
 
@@ -142,6 +144,7 @@ def agent_context(mock_agent_config, mock_agent_runtime_state, mock_input_event_
     composite_context.state.input_event_queues = mock_input_event_queue_manager
     composite_context.state.current_status = AgentStatus.IDLE 
     composite_context.state.status_manager_ref = mock_status_manager
+    composite_context.state.status_deriver = AgentStatusDeriver(initial_status=AgentStatus.IDLE)
     
     # Mock the get_tool method to allow tests to control it and verify calls
     composite_context.get_tool = MagicMock()

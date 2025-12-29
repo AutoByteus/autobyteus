@@ -14,6 +14,7 @@ from .tool_invocation_request_event_handler import ToolInvocationRequestEventHan
 from .tool_result_event_handler import ToolResultEventHandler
 from .approved_tool_invocation_event_handler import ApprovedToolInvocationEventHandler
 from .tool_execution_approval_event_handler import ToolExecutionApprovalEventHandler
+from .bootstrap_event_handler import BootstrapEventHandler
 
 # General Purpose and Lifecycle Handlers
 from .generic_event_handler import GenericEventHandler
@@ -31,6 +32,7 @@ __all__ = [
     "ToolResultEventHandler",
     "ApprovedToolInvocationEventHandler",
     "ToolExecutionApprovalEventHandler",
+    "BootstrapEventHandler",
     "GenericEventHandler",
     "LifecycleEventLogger", 
 ]

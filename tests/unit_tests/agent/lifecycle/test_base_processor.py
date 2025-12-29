@@ -7,10 +7,10 @@ from unittest.mock import AsyncMock, MagicMock
 from typing import Dict, Any
 
 from autobyteus.agent.lifecycle.events import LifecycleEvent
-from autobyteus.agent.lifecycle.base_processor import BaseLifecycleProcessor
+from autobyteus.agent.lifecycle.base_processor import BaseLifecycleEventProcessor
 
 
-class ConcreteLifecycleProcessor(BaseLifecycleProcessor):
+class ConcreteLifecycleProcessor(BaseLifecycleEventProcessor):
     """Concrete implementation for testing."""
     
     def __init__(self):
@@ -28,7 +28,7 @@ class ConcreteLifecycleProcessor(BaseLifecycleProcessor):
         self._process_event_data = event_data
 
 
-class CustomOrderProcessor(BaseLifecycleProcessor):
+class CustomOrderProcessor(BaseLifecycleEventProcessor):
     """Processor with custom order and name."""
     
     @classmethod
@@ -48,7 +48,7 @@ class CustomOrderProcessor(BaseLifecycleProcessor):
 
 
 class TestBaseLifecycleProcessor:
-    """Tests for BaseLifecycleProcessor abstract base class."""
+    """Tests for BaseLifecycleEventProcessor abstract base class."""
 
     def test_default_get_name_returns_class_name(self):
         """Verify default get_name returns the class name."""
@@ -102,6 +102,6 @@ class TestBaseLifecycleProcessor:
         """Verify abstract methods raise NotImplementedError if not implemented."""
         # This should fail because abstract methods are not implemented
         with pytest.raises(TypeError):
-            class IncompleteProcessor(BaseLifecycleProcessor):
+            class IncompleteProcessor(BaseLifecycleEventProcessor):
                 pass
             IncompleteProcessor()

@@ -11,8 +11,8 @@ from autobyteus.agent.events.agent_events import (
     UserMessageReceivedEvent, AgentErrorEvent
 )
 from autobyteus.agent.handlers import EventHandlerRegistry
-from autobyteus.agent.bootstrap_steps.agent_bootstrapper import AgentBootstrapper
 from autobyteus.agent.status.status_enum import AgentStatus
+from autobyteus.agent.events.agent_events import BootstrapStartedEvent
 
 # Module-scoped thread pool manager to avoid creating/destroying threads for every test.
 @pytest.fixture(scope="module", autouse=True)
@@ -82,29 +82,63 @@ async def test_worker_start_and_stop_cycle(agent_worker):
 
 @pytest.mark.asyncio
 async def test_initialize_delegates_to_bootstrapper_success(agent_worker, agent_context):
-    """Test that _initialize successfully delegates to AgentBootstrapper."""
-    mock_bootstrapper_instance = AsyncMock(spec=AgentBootstrapper)
-    mock_bootstrapper_instance.run.return_value = True
+    """Test that _initialize completes when internal bootstrap events reach IDLE."""
+    agent_context.current_status = AgentStatus.BOOTSTRAPPING
+    agent_context.state.status_deriver._current_status = AgentStatus.BOOTSTRAPPING
 
-    with patch('autobyteus.agent.runtime.agent_worker.AgentBootstrapper', return_value=mock_bootstrapper_instance) as mock_bootstrapper_class:
-        success = await agent_worker._initialize()
+    test_event = UserMessageReceivedEvent(agent_input_user_message=MagicMock())
 
-        assert success is True
-        mock_bootstrapper_class.assert_called_once_with() # Check it's initialized
-        mock_bootstrapper_instance.run.assert_awaited_once_with(agent_context, agent_context.status_manager)
+    async def internal_event_side_effect():
+        if not hasattr(internal_event_side_effect, "yielded"):
+            internal_event_side_effect.yielded = True
+            return ("internal_system_event_queue", test_event)
+        await asyncio.sleep(0.1)
+        return None
+
+    agent_context.state.input_event_queues.get_next_internal_event.side_effect = internal_event_side_effect
+
+    async def dispatch_side_effect(event_obj, context):
+        context.current_status = AgentStatus.IDLE
+        context.state.status_deriver._current_status = AgentStatus.IDLE
+
+    agent_worker.worker_event_dispatcher.dispatch.side_effect = dispatch_side_effect
+
+    success = await agent_worker._initialize()
+
+    assert success is True
+    agent_context.input_event_queues.enqueue_internal_system_event.assert_awaited_once()
+    enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
+    assert isinstance(enqueued_event, BootstrapStartedEvent)
 
 @pytest.mark.asyncio
 async def test_initialize_delegates_to_bootstrapper_failure(agent_worker, agent_context):
-    """Test that _initialize handles failure from AgentBootstrapper."""
-    mock_bootstrapper_instance = AsyncMock(spec=AgentBootstrapper)
-    mock_bootstrapper_instance.run.return_value = False # Simulate failure
+    """Test that _initialize fails when internal bootstrap events end in ERROR."""
+    agent_context.current_status = AgentStatus.BOOTSTRAPPING
+    agent_context.state.status_deriver._current_status = AgentStatus.BOOTSTRAPPING
 
-    with patch('autobyteus.agent.runtime.agent_worker.AgentBootstrapper', return_value=mock_bootstrapper_instance) as mock_bootstrapper_class:
-        success = await agent_worker._initialize()
+    test_event = UserMessageReceivedEvent(agent_input_user_message=MagicMock())
 
-        assert success is False
-        mock_bootstrapper_class.assert_called_once_with()
-        mock_bootstrapper_instance.run.assert_awaited_once_with(agent_context, agent_context.status_manager)
+    async def internal_event_side_effect():
+        if not hasattr(internal_event_side_effect, "yielded"):
+            internal_event_side_effect.yielded = True
+            return ("internal_system_event_queue", test_event)
+        await asyncio.sleep(0.1)
+        return None
+
+    agent_context.state.input_event_queues.get_next_internal_event.side_effect = internal_event_side_effect
+
+    async def dispatch_side_effect(event_obj, context):
+        context.current_status = AgentStatus.ERROR
+        context.state.status_deriver._current_status = AgentStatus.ERROR
+
+    agent_worker.worker_event_dispatcher.dispatch.side_effect = dispatch_side_effect
+
+    success = await agent_worker._initialize()
+
+    assert success is False
+    agent_context.input_event_queues.enqueue_internal_system_event.assert_awaited_once()
+    enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
+    assert isinstance(enqueued_event, BootstrapStartedEvent)
 
 @pytest.mark.asyncio
 async def test_worker_processes_event(agent_worker, agent_context, mock_dispatcher):
@@ -154,9 +188,7 @@ async def test_worker_handles_dispatcher_exception(agent_worker, agent_context, 
     with patch.object(agent_worker, '_initialize', return_value=True):
         agent_worker.start()
         await asyncio.sleep(0.2)
-        assert agent_worker.is_alive()
-
-        # The dispatcher now handles notifying error, so we check that.
-        agent_context.status_manager.notify_error_occurred.assert_awaited_once()
+        assert not agent_worker.is_alive()
+        mock_dispatcher.dispatch.assert_awaited_once_with(test_event, agent_context)
 
         await agent_worker.stop()

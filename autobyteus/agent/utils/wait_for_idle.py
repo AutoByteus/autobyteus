@@ -1,25 +1,23 @@
 # file: autobyteus/autobyteus/agent/utils/wait_for_idle.py
 import asyncio
 import logging
-from typing import Optional
 
 from autobyteus.agent.agent import Agent
 from autobyteus.agent.streaming.agent_event_stream import AgentEventStream
-from autobyteus.agent.streaming.stream_events import StreamEventType
 from autobyteus.agent.status.status_enum import AgentStatus
 
 logger = logging.getLogger(__name__)
 
 async def _wait_loop(streamer: AgentEventStream, agent_id: str):
-    """Internal helper to listen for the IDLE or ERROR event."""
-    async for event in streamer.all_events():
-        if event.event_type == StreamEventType.AGENT_IDLE:
+    """Internal helper to listen for the IDLE or ERROR status update."""
+    async for status_update in streamer.stream_status_updates():
+        if status_update.new_status == AgentStatus.IDLE:
             logger.info(f"Agent '{agent_id}' has become idle.")
             return
-        if event.event_type == StreamEventType.ERROR_EVENT:
-             error_message = f"Agent '{agent_id}' entered an error state while waiting for idle: {event.data}"
-             logger.error(error_message)
-             raise RuntimeError(error_message)
+        if status_update.new_status == AgentStatus.ERROR:
+            error_message = f"Agent '{agent_id}' entered an error state while waiting for idle: {status_update}"
+            logger.error(error_message)
+            raise RuntimeError(error_message)
 
 
 async def wait_for_agent_to_be_idle(agent: Agent, timeout: float = 30.0):

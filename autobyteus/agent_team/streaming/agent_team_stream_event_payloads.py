@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 class BaseTeamSpecificPayload(BaseModel):
     pass
 
-class AgentTeamStatusTransitionData(BaseTeamSpecificPayload):
+class AgentTeamStatusUpdateData(BaseTeamSpecificPayload):
     new_status: AgentTeamStatus
     old_status: Optional[AgentTeamStatus] = None
     error_message: Optional[str] = None

@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 from autobyteus.agent_team.streaming.agent_team_event_notifier import AgentTeamExternalEventNotifier
-from autobyteus.agent_team.streaming.agent_team_stream_events import AgentTeamStreamEvent, AgentEventRebroadcastPayload, AgentTeamStatusTransitionData, SubTeamEventRebroadcastPayload
+from autobyteus.agent_team.streaming.agent_team_stream_events import AgentTeamStreamEvent, AgentEventRebroadcastPayload, AgentTeamStatusUpdateData, SubTeamEventRebroadcastPayload
 from autobyteus.events.event_types import EventType
 from autobyteus.agent_team.status.agent_team_status import AgentTeamStatus
 from autobyteus.agent.streaming.stream_events import StreamEvent, StreamEventType
@@ -13,10 +13,10 @@ def notifier():
     mock_runtime = MagicMock()
     return AgentTeamExternalEventNotifier(team_id="team-123", runtime_ref=mock_runtime)
 
-def test_notify_status_change(notifier: AgentTeamExternalEventNotifier):
-    """Tests that notify_status_change creates and emits a correct TEAM event."""
+def test_notify_status_updated(notifier: AgentTeamExternalEventNotifier):
+    """Tests that notify_status_updated creates and emits a correct TEAM event."""
     with patch.object(notifier, 'emit') as mock_emit:
-        notifier.notify_status_change(
+        notifier.notify_status_updated(
             new_status=AgentTeamStatus.IDLE,
             old_status=AgentTeamStatus.BOOTSTRAPPING,
             extra_data={"error_message": "An error"}
@@ -31,7 +31,7 @@ def test_notify_status_change(notifier: AgentTeamExternalEventNotifier):
         assert emitted_event.event_source_type == "TEAM"
         
         data = emitted_event.data
-        assert isinstance(data, AgentTeamStatusTransitionData)
+        assert isinstance(data, AgentTeamStatusUpdateData)
         assert data.new_status == AgentTeamStatus.IDLE
         assert data.old_status == AgentTeamStatus.BOOTSTRAPPING
         assert data.error_message == "An error"
@@ -68,7 +68,7 @@ def test_publish_sub_team_event(notifier: AgentTeamExternalEventNotifier):
     mock_sub_team_event = AgentTeamStreamEvent(
         team_id="sub-team-456",
         event_source_type="TEAM",
-        data=AgentTeamStatusTransitionData(new_status=AgentTeamStatus.IDLE)
+        data=AgentTeamStatusUpdateData(new_status=AgentTeamStatus.IDLE)
     )
 
     with patch.object(notifier, 'emit') as mock_emit:

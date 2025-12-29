@@ -5,13 +5,13 @@ from typing import Literal, Union
 from pydantic import BaseModel, Field, model_validator
 
 from .agent_team_stream_event_payloads import (
-    AgentTeamStatusTransitionData, AgentEventRebroadcastPayload, 
+    AgentTeamStatusUpdateData, AgentEventRebroadcastPayload,
     SubTeamEventRebroadcastPayload, TaskPlanEventPayload
 )
 from autobyteus.task_management.events import BaseTaskPlanEvent
 
 # A union of all possible payloads for a "TEAM" sourced event.
-TeamSpecificPayload = Union[AgentTeamStatusTransitionData]
+TeamSpecificPayload = Union[AgentTeamStatusUpdateData]
 
 # The top-level discriminated union for the main event stream's payload.
 AgentTeamStreamDataPayload = Union[TeamSpecificPayload, AgentEventRebroadcastPayload, SubTeamEventRebroadcastPayload, TaskPlanEventPayload]
@@ -32,7 +32,7 @@ class AgentTeamStreamEvent(BaseModel):
         is_sub_team_payload = isinstance(self.data, SubTeamEventRebroadcastPayload)
 
         is_team_event = self.event_source_type == "TEAM"
-        is_team_payload = isinstance(self.data, AgentTeamStatusTransitionData)
+        is_team_payload = isinstance(self.data, AgentTeamStatusUpdateData)
         
         is_task_plan_event = self.event_source_type == "TASK_PLAN"
         is_task_plan_payload = isinstance(self.data, BaseTaskPlanEvent)

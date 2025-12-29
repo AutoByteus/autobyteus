@@ -1,7 +1,7 @@
 # file: autobyteus/agent/lifecycle/events.py
 """
 Defines the LifecycleEvent enum for user-facing lifecycle extension points.
-These are simplified, intuitive event names that map internally to status transitions.
+These are simplified, intuitive event names that map internally to status changes.
 """
 from enum import Enum
 

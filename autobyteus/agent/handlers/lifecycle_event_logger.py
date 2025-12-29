@@ -8,6 +8,8 @@ from autobyteus.agent.events import (
     AgentReadyEvent, # MODIFIED: Renamed from AgentStartedEvent
     AgentStoppedEvent,
     AgentErrorEvent,
+    AgentIdleEvent,
+    ShutdownRequestedEvent,
     LifecycleEvent 
 )
 from autobyteus.agent.status.status_enum import AgentStatus # Import new status enum
@@ -20,8 +22,8 @@ logger = logging.getLogger(__name__)
 class LifecycleEventLogger(AgentEventHandler): 
     """
     Logs various lifecycle events for an agent.
-    This handler does not modify agent state directly; status changes are managed
-    by AgentStatusManager.
+    This handler does not modify agent state directly; status changes are projected
+    from events.
     """
 
     async def handle(self,
@@ -44,6 +46,12 @@ class LifecycleEventLogger(AgentEventHandler):
 
         elif isinstance(event, AgentStoppedEvent):
             logger.info(f"Agent '{agent_id}' Logged AgentStoppedEvent. Current agent status: {current_status_val}")
+
+        elif isinstance(event, AgentIdleEvent):
+            logger.info(f"Agent '{agent_id}' Logged AgentIdleEvent. Current agent status: {current_status_val}")
+
+        elif isinstance(event, ShutdownRequestedEvent):
+            logger.info(f"Agent '{agent_id}' Logged ShutdownRequestedEvent. Current agent status: {current_status_val}")
 
         elif isinstance(event, AgentErrorEvent):
             logger.error(

@@ -5,6 +5,7 @@ Also includes the WorkerEventDispatcher for routing events within an agent's wor
 """
 from .agent_input_event_queue_manager import AgentInputEventQueueManager
 from .worker_event_dispatcher import WorkerEventDispatcher 
+from .event_store import AgentEventStore, EventEnvelope
 
 from .agent_events import (
     BaseEvent,
@@ -17,6 +18,12 @@ from .agent_events import (
     AgentReadyEvent, 
     AgentStoppedEvent,
     AgentErrorEvent,
+    AgentIdleEvent,
+    ShutdownRequestedEvent,
+    BootstrapStartedEvent,
+    BootstrapStepRequestedEvent,
+    BootstrapStepCompletedEvent,
+    BootstrapCompletedEvent,
     # Regular Agent Processing Events
     UserMessageReceivedEvent, 
     InterAgentMessageReceivedEvent, 
@@ -33,6 +40,8 @@ from .agent_events import (
 __all__ = [
     "AgentInputEventQueueManager", 
     "WorkerEventDispatcher", 
+    "AgentEventStore",
+    "EventEnvelope",
     "BaseEvent",
     "LifecycleEvent",
     "AgentProcessingEvent",
@@ -40,6 +49,12 @@ __all__ = [
     "AgentReadyEvent", 
     "AgentStoppedEvent",
     "AgentErrorEvent",
+    "AgentIdleEvent",
+    "ShutdownRequestedEvent",
+    "BootstrapStartedEvent",
+    "BootstrapStepRequestedEvent",
+    "BootstrapStepCompletedEvent",
+    "BootstrapCompletedEvent",
     "UserMessageReceivedEvent",
     "InterAgentMessageReceivedEvent",
     "LLMUserMessageReadyEvent", 

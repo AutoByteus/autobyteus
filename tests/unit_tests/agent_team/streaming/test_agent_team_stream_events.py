@@ -3,13 +3,13 @@ import pytest
 from pydantic import ValidationError
 
 from autobyteus.agent.status.status_enum import AgentStatus
-from autobyteus.agent_team.streaming.agent_team_stream_events import AgentTeamStreamEvent, AgentEventRebroadcastPayload, AgentTeamStatusTransitionData, SubTeamEventRebroadcastPayload
+from autobyteus.agent_team.streaming.agent_team_stream_events import AgentTeamStreamEvent, AgentEventRebroadcastPayload, AgentTeamStatusUpdateData, SubTeamEventRebroadcastPayload
 from autobyteus.agent_team.status import AgentTeamStatus
 from autobyteus.agent.streaming.stream_events import StreamEvent, StreamEventType
 
-def test_team_phase_transition_event_creation():
+def test_team_status_update_event_creation():
     """Tests successful creation of a TEAM-sourced event."""
-    data = AgentTeamStatusTransitionData(
+    data = AgentTeamStatusUpdateData(
         new_status=AgentTeamStatus.IDLE,
         old_status=AgentTeamStatus.PROCESSING
     )
@@ -18,14 +18,14 @@ def test_team_phase_transition_event_creation():
         event_source_type="TEAM",
         data=data
     )
-    assert isinstance(event.data, AgentTeamStatusTransitionData)
+    assert isinstance(event.data, AgentTeamStatusUpdateData)
     assert event.data.new_status == AgentTeamStatus.IDLE
 
 def test_agent_event_rebroadcast_event_creation():
     """Tests successful creation of an AGENT-sourced event."""
     mock_agent_event = StreamEvent(
         agent_id="agent-1",
-        event_type=StreamEventType.AGENT_STATUS_TRANSITION,
+        event_type=StreamEventType.AGENT_STATUS_UPDATED,
         data={"new_status": AgentStatus.IDLE}
     )
     data = AgentEventRebroadcastPayload(
@@ -46,7 +46,7 @@ def test_sub_team_event_rebroadcast_event_creation():
     mock_sub_team_event = AgentTeamStreamEvent(
         team_id="sub-team-2",
         event_source_type="TEAM",
-        data=AgentTeamStatusTransitionData(new_status=AgentTeamStatus.IDLE)
+        data=AgentTeamStatusUpdateData(new_status=AgentTeamStatus.IDLE)
     )
     data = SubTeamEventRebroadcastPayload(
         sub_team_node_name="ResearchTeam",
@@ -65,7 +65,7 @@ def test_sub_team_event_rebroadcast_event_creation():
 def test_validation_error_on_mismatched_data():
     """Tests that Pydantic raises an error for incorrect data shapes."""
     with pytest.raises(ValidationError):
-        # TEAM source type expects AgentTeamStatusTransitionData, but we provide AGENT data
+        # TEAM source type expects AgentTeamStatusUpdateData, but we provide AGENT data
         AgentTeamStreamEvent(
             team_id="team-1",
             event_source_type="TEAM",

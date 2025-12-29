@@ -9,7 +9,8 @@ from autobyteus.agent.context import AgentContext, AgentContextRegistry
 from autobyteus.agent.status.status_enum import AgentStatus 
 from autobyteus.agent.status.manager import AgentStatusManager 
 from autobyteus.agent.events.notifiers import AgentExternalEventNotifier 
-from autobyteus.agent.events import BaseEvent
+from autobyteus.agent.events import BaseEvent, AgentErrorEvent, AgentStoppedEvent, ShutdownRequestedEvent
+from autobyteus.agent.status.status_update_utils import apply_event_and_derive_status
 from autobyteus.agent.handlers import EventHandlerRegistry
 from autobyteus.agent.runtime.agent_worker import AgentWorker
 
@@ -89,8 +90,8 @@ class AgentRuntime:
             return
         
         logger.info(f"AgentRuntime for '{agent_id}': Starting worker.")
-        # The first meaningful status change to BOOTSTRAPPING is triggered by the AgentBootstrapper
-        # within the worker's async context.
+        # The first meaningful status change to BOOTSTRAPPING is triggered within
+        # the worker's async initialization sequence.
         self._worker.start() 
         logger.info(f"AgentRuntime for '{agent_id}': Worker start command issued. Worker will initialize itself.")
 
@@ -102,27 +103,30 @@ class AgentRuntime:
         except Exception as e:
             logger.error(f"AgentRuntime '{agent_id}': Worker thread terminated with an exception: {e}", exc_info=True)
             if not self.context.current_status.is_terminal():
-                # Since the status manager is now async, we must run it in a new event loop.
                 try:
-                    asyncio.run(self.status_manager.notify_error_occurred("Worker thread exited unexpectedly.", traceback.format_exc()))
+                    asyncio.run(self._apply_event_and_derive_status(
+                        AgentErrorEvent(
+                            error_message="Worker thread exited unexpectedly.",
+                            exception_details=traceback.format_exc()
+                        )
+                    ))
                 except Exception as run_e:
-                    logger.critical(f"AgentRuntime '{agent_id}': Failed to run async error notification: {run_e}")
+                    logger.critical(f"AgentRuntime '{agent_id}': Failed to emit derived error: {run_e}")
         
         if not self.context.current_status.is_terminal():
-             # Use asyncio.run() to execute the final async status transition from a sync callback.
              try:
-                 asyncio.run(self.status_manager.notify_final_shutdown_complete())
+                 asyncio.run(self._apply_event_and_derive_status(AgentStoppedEvent()))
              except Exception as run_e:
-                 logger.critical(f"AgentRuntime '{agent_id}': Failed to run async final shutdown notification: {run_e}")
+                 logger.critical(f"AgentRuntime '{agent_id}': Failed to emit derived shutdown complete: {run_e}")
         
     async def stop(self, timeout: float = 10.0) -> None:
         agent_id = self.context.agent_id
         if not self._worker.is_alive() and not self._worker._is_active: 
             if not self.context.current_status.is_terminal():
-                await self.status_manager.notify_final_shutdown_complete()
+                await self._apply_event_and_derive_status(AgentStoppedEvent())
             return
-        
-        await self.status_manager.notify_shutdown_initiated() 
+
+        await self._apply_event_and_derive_status(ShutdownRequestedEvent())
         await self._worker.stop(timeout=timeout) 
         
         # LLM instance cleanup is now handled by the AgentWorker before its loop closes.
@@ -131,8 +135,11 @@ class AgentRuntime:
         self._context_registry.unregister_context(agent_id)
         logger.info(f"AgentRuntime for '{agent_id}': Context unregistered.")
 
-        await self.status_manager.notify_final_shutdown_complete() 
+        await self._apply_event_and_derive_status(AgentStoppedEvent()) 
         logger.info(f"AgentRuntime for '{agent_id}' stop() method completed.")
+
+    async def _apply_event_and_derive_status(self, event: BaseEvent) -> None:
+        await apply_event_and_derive_status(event, self.context)
 
     @property 
     def current_status_property(self) -> AgentStatus: 

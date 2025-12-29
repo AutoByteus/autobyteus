@@ -1,19 +1,14 @@
 # file: autobyteus/autobyteus/agent/streaming/agent_event_stream.py
 import asyncio
 import logging
-import traceback
-import functools 
 import queue as standard_queue
-from typing import AsyncIterator, Dict, Any, TYPE_CHECKING, List, Optional, Callable, Union
-
-from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
+from typing import AsyncIterator, Any, TYPE_CHECKING, Optional, Union
 from autobyteus.agent.streaming.stream_events import StreamEvent, StreamEventType 
-from autobyteus.agent.streaming.stream_event_payloads import ( 
+from autobyteus.agent.streaming.stream_event_payloads import (
     create_assistant_chunk_data,
     create_assistant_complete_response_data,
     create_tool_interaction_log_entry_data,
-    create_tool_interaction_log_entry_data,
-    create_agent_status_transition_data, 
+    create_agent_status_update_data,
     create_error_event_data,
     create_tool_invocation_approval_requested_data,
     create_tool_invocation_auto_executing_data,
@@ -23,14 +18,13 @@ from autobyteus.agent.streaming.stream_event_payloads import (
     AssistantChunkData,
     AssistantCompleteResponseData,
     ToolInteractionLogEntryData,
-    AgentStatusTransitionData,
+    AgentStatusUpdateData,
     ToolInvocationApprovalRequestedData,
     ToolInvocationAutoExecutingData,
     ErrorEventData,
     SystemTaskNotificationData, # NEW
     InterAgentMessageData, # NEW
     ToDoListUpdateData,
-    EmptyData,
     StreamDataPayload,
 )
 from .queue_streamer import stream_queue_items 
@@ -59,7 +53,6 @@ class AgentEventStream(EventEmitter):
         self._generic_stream_event_internal_q: standard_queue.Queue[Union[StreamEvent, object]] = standard_queue.Queue()
 
         self._notifier: Optional['AgentExternalEventNotifier'] = None
-        self._notifier: Optional['AgentExternalEventNotifier'] = None
         if agent.context and agent.context.status_manager: 
             self._notifier = agent.context.status_manager.notifier
         
@@ -84,13 +77,10 @@ class AgentEventStream(EventEmitter):
         typed_payload_for_stream_event: Optional[StreamDataPayload] = None
         stream_event_type_for_generic_stream: Optional[StreamEventType] = None
 
-        try: 
-            if event_type == EventType.AGENT_STATUS_IDLE_ENTERED:
-                typed_payload_for_stream_event = create_agent_status_transition_data(payload)
-                stream_event_type_for_generic_stream = StreamEventType.AGENT_IDLE
-            elif event_type.name.startswith("AGENT_STATUS_"):
-                typed_payload_for_stream_event = create_agent_status_transition_data(payload)
-                stream_event_type_for_generic_stream = StreamEventType.AGENT_STATUS_TRANSITION
+        try:
+            if event_type == EventType.AGENT_STATUS_UPDATED:
+                typed_payload_for_stream_event = create_agent_status_update_data(payload)
+                stream_event_type_for_generic_stream = StreamEventType.AGENT_STATUS_UPDATED
             elif event_type == EventType.AGENT_DATA_ASSISTANT_CHUNK:
                 typed_payload_for_stream_event = create_assistant_chunk_data(payload)
                 stream_event_type_for_generic_stream = StreamEventType.ASSISTANT_CHUNK
@@ -166,10 +156,10 @@ class AgentEventStream(EventEmitter):
             if event.event_type == StreamEventType.TOOL_INTERACTION_LOG_ENTRY and isinstance(event.data, ToolInteractionLogEntryData):
                 yield event.data
     
-    async def stream_status_transitions(self) -> AsyncIterator[AgentStatusTransitionData]:
-        """A convenience async generator that yields only agent status transition data."""
+    async def stream_status_updates(self) -> AsyncIterator[AgentStatusUpdateData]:
+        """A convenience async generator that yields only agent status update data."""
         async for event in self.all_events():
-            if event.event_type == StreamEventType.AGENT_STATUS_TRANSITION and isinstance(event.data, AgentStatusTransitionData):
+            if event.event_type == StreamEventType.AGENT_STATUS_UPDATED and isinstance(event.data, AgentStatusUpdateData):
                 yield event.data
 
     async def stream_tool_approval_requests(self) -> AsyncIterator[ToolInvocationApprovalRequestedData]:

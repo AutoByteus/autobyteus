@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 from autobyteus.agent.context.agent_context import AgentContext
 from autobyteus.agent.streaming.agent_event_stream import AgentEventStream
-from autobyteus.agent.streaming.stream_events import StreamEvent, StreamEventType, AgentStatusTransitionData
+from autobyteus.agent.streaming.stream_events import StreamEvent, StreamEventType, AgentStatusUpdateData
 from autobyteus.agent.streaming.stream_event_payloads import AssistantChunkData, AssistantCompleteResponseData, ErrorEventData
 from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 from autobyteus.agent.agent import Agent
@@ -147,8 +147,10 @@ async def test_all_events_receives_status_change(streamer: AgentEventStream, rea
     """Tests that status change events are received by the unified stream."""
     async def produce_events():
         await asyncio.sleep(0.05)
-        # Use a valid status transition from the new lifecycle
-        real_notifier.notify_status_idle_entered(old_status=AgentStatus.BOOTSTRAPPING)
+        real_notifier.notify_status_updated(
+            new_status=AgentStatus.IDLE,
+            old_status=AgentStatus.BOOTSTRAPPING,
+        )
         # DO NOT call streamer.close() from the producer thread.
 
     consumer_task = asyncio.create_task(_collect_stream_results(streamer.all_events()))
@@ -161,8 +163,8 @@ async def test_all_events_receives_status_change(streamer: AgentEventStream, rea
     event = results[0]
     assert isinstance(event, StreamEvent)
     assert event.agent_id == agent_id_fixture
-    assert event.event_type == StreamEventType.AGENT_IDLE
-    assert isinstance(event.data, AgentStatusTransitionData)
+    assert event.event_type == StreamEventType.AGENT_STATUS_UPDATED
+    assert isinstance(event.data, AgentStatusUpdateData)
     assert event.data.new_status == AgentStatus.IDLE
     assert event.data.old_status == AgentStatus.BOOTSTRAPPING
 
@@ -240,8 +242,10 @@ async def test_all_events_receives_multiple_mixed_events(streamer: AgentEventStr
 
     async def produce_events():
         await asyncio.sleep(0.02)
-        # Use a valid status transition
-        real_notifier.notify_status_idle_entered(old_status=AgentStatus.BOOTSTRAPPING)
+        real_notifier.notify_status_updated(
+            new_status=AgentStatus.IDLE,
+            old_status=AgentStatus.BOOTSTRAPPING,
+        )
         await asyncio.sleep(0.02)
         real_notifier.notify_agent_data_assistant_chunk(chunk1)
         await asyncio.sleep(0.02)
@@ -256,6 +260,6 @@ async def test_all_events_receives_multiple_mixed_events(streamer: AgentEventStr
     producer_thread.join(timeout=1.0)
 
     assert len(results) == 3
-    assert results[0].event_type == StreamEventType.AGENT_IDLE
+    assert results[0].event_type == StreamEventType.AGENT_STATUS_UPDATED
     assert results[1].event_type == StreamEventType.ASSISTANT_CHUNK
     assert results[2].event_type == StreamEventType.ASSISTANT_COMPLETE_RESPONSE

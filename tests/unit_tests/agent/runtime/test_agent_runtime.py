@@ -11,6 +11,7 @@ from autobyteus.agent.handlers.event_handler_registry import EventHandlerRegistr
 from autobyteus.agent.status.status_enum import AgentStatus
 from autobyteus.agent.status.manager import AgentStatusManager
 from autobyteus.agent.events.notifiers import AgentExternalEventNotifier
+from autobyteus.agent.events.agent_events import ShutdownRequestedEvent, AgentStoppedEvent, AgentErrorEvent
 from autobyteus.agent.runtime.agent_worker import AgentWorker
 
 # Using fixtures from autobyteus/tests/unit_tests/agent/conftest.py
@@ -129,16 +130,18 @@ class TestAgentRuntime:
         context = agent_runtime_with_mocks.context
 
         mock_worker_instance.is_alive.return_value = True 
+        runtime._apply_event_and_derive_status = AsyncMock()
 
         await runtime.stop(timeout=0.1)
 
-        runtime.status_manager.notify_shutdown_initiated.assert_awaited_once()
+        assert runtime._apply_event_and_derive_status.call_count == 2
+        assert isinstance(runtime._apply_event_and_derive_status.call_args_list[0][0][0], ShutdownRequestedEvent)
         mock_worker_instance.stop.assert_awaited_once_with(timeout=0.1)
         # LLM cleanup is now handled by a shutdown step inside the worker, not directly by runtime.
         context.llm_instance.cleanup.assert_not_called()
         # Verify context is unregistered
         runtime._mock_context_registry.unregister_context.assert_called_once_with(context.agent_id)
-        runtime.status_manager.notify_final_shutdown_complete.assert_awaited_once()
+        assert isinstance(runtime._apply_event_and_derive_status.call_args_list[1][0][0], AgentStoppedEvent)
 
     async def test_stop_when_worker_not_alive(self, agent_runtime_with_mocks: AgentRuntime):
         runtime = agent_runtime_with_mocks
@@ -148,26 +151,22 @@ class TestAgentRuntime:
         mock_worker_instance.is_alive.return_value = False 
         mock_worker_instance._is_active = False 
 
-        runtime.status_manager.notify_shutdown_initiated.reset_mock()
+        runtime._apply_event_and_derive_status = AsyncMock()
         mock_worker_instance.stop.reset_mock()
         context.llm_instance.cleanup.reset_mock()
-        runtime.status_manager.notify_final_shutdown_complete.reset_mock()
         
         await runtime.stop(timeout=0.1)
         
         # Should return early
-        runtime.status_manager.notify_shutdown_initiated.assert_not_awaited() 
+        runtime._apply_event_and_derive_status.assert_awaited_once()
+        assert runtime._apply_event_and_derive_status.call_args[0][0].__class__ is AgentStoppedEvent
         mock_worker_instance.stop.assert_not_awaited()
         context.llm_instance.cleanup.assert_not_called()
         # Should NOT unregister context, as it's assumed to be already unregistered if worker isn't active.
         runtime._mock_context_registry.unregister_context.assert_not_called()
-        # But should still notify that it's complete
-        runtime.status_manager.notify_final_shutdown_complete.assert_awaited_once()
 
-    @patch('asyncio.run')
-    @patch('asyncio.run')
     @patch('autobyteus.agent.runtime.agent_runtime.traceback.format_exc', return_value="Mocked Traceback")
-    def test_handle_worker_completion_with_exception(self, mock_format_exception, mock_asyncio_run, agent_runtime_with_mocks: AgentRuntime):
+    def test_handle_worker_completion_with_exception(self, mock_format_exception, agent_runtime_with_mocks: AgentRuntime):
         from autobyteus.agent.status.status_enum import AgentStatus # Import locally to avoid stale NameError
         runtime = agent_runtime_with_mocks
         
@@ -179,6 +178,7 @@ class TestAgentRuntime:
         # Mock status manager on runtime is now a MagicMock (from fixture)
         # Verify it's the one we expect or just use runtime.status_manager
         runtime.context.current_status = AgentStatus.IDLE 
+        runtime._apply_event_and_derive_status = AsyncMock()
         
         with patch('autobyteus.agent.runtime.agent_runtime.logger') as mock_logger:
             runtime._handle_worker_completion(mock_future)
@@ -195,13 +195,9 @@ class TestAgentRuntime:
             
             assert worker_exception_logged
         
-        assert mock_asyncio_run.call_count == 2
-        
-        error_call = mock_asyncio_run.call_args_list[0]
-        final_call = mock_asyncio_run.call_args_list[1]
-
-        assert error_call[0][0].__name__ == 'notify_error_occurred'
-        assert final_call[0][0].__name__ == 'notify_final_shutdown_complete'
+        assert runtime._apply_event_and_derive_status.call_count == 2
+        assert isinstance(runtime._apply_event_and_derive_status.call_args_list[0][0][0], AgentErrorEvent)
+        assert isinstance(runtime._apply_event_and_derive_status.call_args_list[1][0][0], AgentStoppedEvent)
 
     def test_current_status_property(self, agent_runtime_with_mocks: AgentRuntime):
         from autobyteus.agent.status.status_enum import AgentStatus

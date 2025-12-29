@@ -107,6 +107,9 @@ async def test_cancellation_during_streaming(queue: standard_queue.Queue, sentin
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
+    # Unblock any pending executor call waiting on queue.get.
+    queue.put(sentinel)
+    await asyncio.sleep(0.01)
 
 async def test_stream_with_source_name(queue: standard_queue.Queue, sentinel: object, caplog):
     """Test that source_name is used in logging."""

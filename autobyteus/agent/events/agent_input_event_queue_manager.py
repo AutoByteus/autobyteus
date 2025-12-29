@@ -196,6 +196,27 @@ class AgentInputEventQueueManager:
         logger.debug("get_next_input_event: No events available after buffering.")
         return None
 
+    async def get_next_internal_event(self) -> Optional[Tuple[str, 'BaseEvent']]: # type: ignore[type-var]
+        """
+        Returns the next available internal system event only.
+        Intended for bootstrapping phases where non-internal queues should be gated.
+        """
+        qname = "internal_system_event_queue"
+        buf = self._ready_buffers.get(qname)
+        if buf and buf:
+            event = buf.popleft()
+            logger.debug(f"get_next_internal_event: Returning buffered event from {qname}: {type(event).__name__}")
+            return (qname, event)
+
+        event_result: Any = await self.internal_system_event_queue.get()
+        from autobyteus.agent.events.agent_events import BaseEvent as AgentBaseEvent
+        if isinstance(event_result, AgentBaseEvent):
+            logger.debug(f"get_next_internal_event: Dequeued event from {qname}: {type(event_result).__name__}")
+            return (qname, event_result)
+
+        logger.error(f"get_next_internal_event: Dequeued item is not a BaseEvent subclass: {type(event_result)}. Event: {event_result!r}")
+        return None
+
     def log_remaining_items_at_shutdown(self): # pragma: no cover
         """Logs remaining items in input queues, typically called during shutdown."""
         logger.info("Logging remaining items in input queues at shutdown:")

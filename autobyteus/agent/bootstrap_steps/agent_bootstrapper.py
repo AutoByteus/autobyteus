@@ -1,25 +1,18 @@
 # file: autobyteus/autobyteus/agent/bootstrap_steps/agent_bootstrapper.py
 import logging
-from typing import TYPE_CHECKING, List, Optional
+from typing import List, Optional
 
 from .base_bootstrap_step import BaseBootstrapStep
-from .agent_runtime_queue_initialization_step import AgentRuntimeQueueInitializationStep
 from .workspace_context_initialization_step import WorkspaceContextInitializationStep
 from .system_prompt_processing_step import SystemPromptProcessingStep
 from .mcp_server_prewarming_step import McpServerPrewarmingStep
-from autobyteus.agent.events import AgentReadyEvent
-
-if TYPE_CHECKING:
-    from autobyteus.agent.context import AgentContext
-    from autobyteus.agent.status.manager import AgentStatusManager
-from autobyteus.agent.status.status_enum import AgentStatus
 
 logger = logging.getLogger(__name__)
 
 class AgentBootstrapper:
     """
-    Orchestrates the agent's bootstrapping process by executing a sequence of
-    self-contained bootstrap steps.
+    Provides the ordered bootstrap steps for the agent.
+    Execution is driven by bootstrap lifecycle events.
     """
     def __init__(self, steps: Optional[List[BaseBootstrapStep]] = None):
         """
@@ -31,7 +24,6 @@ class AgentBootstrapper:
         """
         if steps is None:
             self.bootstrap_steps: List[BaseBootstrapStep] = [
-                AgentRuntimeQueueInitializationStep(),
                 WorkspaceContextInitializationStep(),
                 McpServerPrewarmingStep(),
                 SystemPromptProcessingStep(),
@@ -40,54 +32,3 @@ class AgentBootstrapper:
         else:
             self.bootstrap_steps = steps
             logger.debug(f"AgentBootstrapper initialized with {len(steps)} custom steps.")
-
-    async def run(self, context: 'AgentContext', status_manager: 'AgentStatusManager') -> bool:
-        """
-        Executes the configured sequence of bootstrap steps.
-
-        Args:
-            context: The agent's context.
-            status_manager: The agent's status manager.
-
-        Returns:
-            True if all steps completed successfully, False otherwise.
-        """
-        agent_id = context.agent_id
-        
-        # Set the agent status to BOOTSTRAPPING and wait for any associated hooks.
-        await status_manager.notify_bootstrapping_started()
-        logger.info(f"Agent '{agent_id}': AgentBootstrapper starting execution. Status set to BOOTSTRAPPING.")
-
-        for step_index, step_instance in enumerate(self.bootstrap_steps):
-            step_name = step_instance.__class__.__name__
-            logger.debug(f"Agent '{agent_id}': Executing bootstrap step {step_index + 1}/{len(self.bootstrap_steps)}: {step_name}")
-            
-            success = await step_instance.execute(context, status_manager)
-            
-            if not success:
-                error_message = f"Bootstrap step {step_name} failed."
-                logger.error(f"Agent '{agent_id}': {error_message} Halting bootstrap process.")
-                # The step itself is responsible for detailed error logging.
-                # We are responsible for notifying the status manager to set the agent to an error state.
-                await status_manager.notify_error_occurred(
-                    error_message=f"Critical bootstrap failure at {step_name}",
-                    error_details=f"Agent '{agent_id}' failed during bootstrap step '{step_name}'. Check logs for details."
-                )
-                return False
-
-        logger.info(f"Agent '{agent_id}': All bootstrap steps completed successfully. Enqueuing AgentReadyEvent.")
-        # After successful bootstrapping, enqueue the ready event.
-        if context.state.input_event_queues:
-            if context.current_status != AgentStatus.ERROR:
-                await status_manager.notify_initialization_complete()
-            await context.state.input_event_queues.enqueue_internal_system_event(AgentReadyEvent())
-        else: # pragma: no cover
-            # Should not happen if AgentRuntimeQueueInitializationStep is present and successful
-            logger.critical(f"Agent '{agent_id}': Bootstrap succeeded but input queues are not available to enqueue AgentReadyEvent.")
-            await status_manager.notify_error_occurred(
-                error_message="Input queues unavailable after bootstrap",
-                error_details=f"Agent '{agent_id}' bootstrap process seemed to succeed, but input event queues are missing."
-            )
-            return False
-            
-        return True

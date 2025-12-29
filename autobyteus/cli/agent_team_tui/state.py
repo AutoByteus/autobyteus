@@ -11,11 +11,11 @@ from autobyteus.agent.status.status_enum import AgentStatus
 from autobyteus.agent_team.status.agent_team_status import AgentTeamStatus
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent, StreamEventType as AgentStreamEventType
 from autobyteus.agent.streaming.stream_event_payloads import (
-    AgentStatusTransitionData, ToolInvocationApprovalRequestedData, 
+    AgentStatusUpdateData, ToolInvocationApprovalRequestedData, 
     AssistantChunkData, AssistantCompleteResponseData
 )
 from autobyteus.agent_team.streaming.agent_team_stream_events import AgentTeamStreamEvent
-from autobyteus.agent_team.streaming.agent_team_stream_event_payloads import AgentEventRebroadcastPayload, SubTeamEventRebroadcastPayload, AgentTeamStatusTransitionData
+from autobyteus.agent_team.streaming.agent_team_stream_event_payloads import AgentEventRebroadcastPayload, SubTeamEventRebroadcastPayload, AgentTeamStatusUpdateData
 from autobyteus.task_management.task import Task
 from autobyteus.task_management.events import TasksCreatedEvent, TaskStatusUpdatedEvent
 from autobyteus.task_management.base_task_plan import TaskStatus
@@ -75,7 +75,7 @@ class TUIStateStore:
     def process_event(self, event: AgentTeamStreamEvent):
         self.version += 1 # Increment on any event to signal a change
         
-        if event.event_source_type == "TEAM" and isinstance(event.data, AgentTeamStatusTransitionData):
+        if event.event_source_type == "TEAM" and isinstance(event.data, AgentTeamStatusUpdateData):
             self._team_statuses[self.team_name] = event.data.new_status
         
         self._process_event_recursively(event, self.team_name)
@@ -121,11 +121,9 @@ class TUIStateStore:
                 else: logger.error(f"Cannot add agent node '{agent_name}': parent '{parent_name}' not found.")
             self._agent_event_history[agent_name].append(agent_event)
 
-            if agent_event.event_type == AgentStreamEventType.AGENT_STATUS_TRANSITION:
+            if agent_event.event_type == AgentStreamEventType.AGENT_STATUS_UPDATED:
                 self._agent_statuses[agent_name] = agent_event.data.new_status
                 if agent_name in self._pending_approvals: del self._pending_approvals[agent_name]
-            elif agent_event.event_type == AgentStreamEventType.AGENT_IDLE:
-                self._agent_statuses[agent_name] = AgentStatus.IDLE
             elif agent_event.event_type == AgentStreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED:
                 self._pending_approvals[agent_name] = agent_event.data
 
@@ -136,7 +134,7 @@ class TUIStateStore:
             if not self._find_node(sub_team_name):
                 role = self._node_roles.get(sub_team_name, "Sub-Team")
                 self._add_node(sub_team_name, {"type": "subteam", "name": sub_team_name, "role": role, "children": {}}, parent_name)
-            if sub_team_event.event_source_type == "TEAM" and isinstance(sub_team_event.data, AgentTeamStatusTransitionData):
+            if sub_team_event.event_source_type == "TEAM" and isinstance(sub_team_event.data, AgentTeamStatusUpdateData):
                 self._team_statuses[sub_team_name] = sub_team_event.data.new_status
             self._process_event_recursively(sub_team_event, parent_name=sub_team_name)
 

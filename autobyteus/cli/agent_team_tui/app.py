@@ -18,7 +18,7 @@ from autobyteus.agent_team.streaming.agent_team_event_stream import AgentTeamEve
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.agent.streaming.stream_events import StreamEventType as AgentStreamEventType
 from autobyteus.agent_team.streaming.agent_team_stream_events import AgentTeamStreamEvent
-from autobyteus.agent_team.streaming.agent_team_stream_event_payloads import AgentEventRebroadcastPayload, SubTeamEventRebroadcastPayload, AgentTeamStatusTransitionData
+from autobyteus.agent_team.streaming.agent_team_stream_event_payloads import AgentEventRebroadcastPayload, SubTeamEventRebroadcastPayload, AgentTeamStatusUpdateData
 
 from .state import TUIStateStore
 from .widgets.agent_list_sidebar import AgentListSidebar
@@ -105,7 +105,7 @@ class AgentTeamApp(App):
                 self._ui_update_pending = True
                 
                 # 3. Handle real-time, incremental updates directly.
-                if event.event_source_type == "TEAM" and isinstance(event.data, AgentTeamStatusTransitionData):
+                if event.event_source_type == "TEAM" and isinstance(event.data, AgentTeamStatusUpdateData):
                     self.store._team_statuses[self.team.name] = event.data.new_status
                 elif isinstance(event.data, AgentEventRebroadcastPayload):
                     payload = event.data

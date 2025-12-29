@@ -11,6 +11,8 @@ if TYPE_CHECKING:
     from autobyteus.tools.base_tool import BaseTool
     from autobyteus.agent.events.agent_input_event_queue_manager import AgentInputEventQueueManager 
     from autobyteus.agent.tool_invocation import ToolInvocation
+    from autobyteus.agent.events.event_store import AgentEventStore
+    from autobyteus.agent.status.status_deriver import AgentStatusDeriver
     # LLMConfig no longer needed here
     from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
     
@@ -79,6 +81,14 @@ class AgentContext:
     @property
     def status_manager(self) -> Optional['AgentStatusManager']: 
         return self.state.status_manager_ref
+
+    @property
+    def event_store(self) -> Optional['AgentEventStore']:
+        return self.state.event_store
+
+    @property
+    def status_deriver(self) -> Optional['AgentStatusDeriver']:
+        return self.state.status_deriver
 
     @property
     def conversation_history(self) -> List[Dict[str, Any]]:

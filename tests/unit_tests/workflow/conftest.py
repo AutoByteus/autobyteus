@@ -52,7 +52,7 @@ def mock_agent_config():
 def workflow_node_factory(agent_config_factory):
     """Provides a factory to create WorkflowNodeConfig objects."""
     def _factory(name: str) -> WorkflowNodeConfig:
-        return WorkflowNodeConfig(agent_config=agent_config_factory(name))
+        return WorkflowNodeConfig(node_definition=agent_config_factory(name))
     return _factory
 
 @pytest.fixture

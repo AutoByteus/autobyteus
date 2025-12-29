@@ -35,7 +35,7 @@ def test_orchestrator_initialization_default(caplog):
         with caplog.at_level(logging.DEBUG):
             orchestrator = AgentShutdownOrchestrator()
         
-        assert len(orchestrator.shutdown_steps) == 2
+        assert len(orchestrator.shutdown_steps) == 3
         assert "AgentShutdownOrchestrator initialized with default steps" in caplog.text
 
 def test_orchestrator_initialization_custom(mock_shutdown_step_1, mock_shutdown_step_2):

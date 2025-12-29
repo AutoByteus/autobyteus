@@ -227,8 +227,8 @@ class RemoteAgentProxy(Agent):
         
         logger.info(f"RemoteAgentProxy '{self.agent_id}': Starting to stream events (Target: {self.target_agent_id_on_server or 'default'}).")
         async for event in self._connection.events():
-            # Update remote status if a status transition event is received
-            if event.type == MessageType.EVENT and event.event_type == "agent_status_transition" and event.payload:
+            # Update remote status if a status update event is received
+            if event.type == MessageType.EVENT and event.event_type == "agent_status_updated" and event.payload:
                 new_status_str = event.payload.get("new_status")
                 if new_status_str:
                     try: 

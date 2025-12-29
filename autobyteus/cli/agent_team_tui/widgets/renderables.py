@@ -10,7 +10,7 @@ from rich.text import Text
 from rich.panel import Panel
 
 from autobyteus.agent.streaming.stream_event_payloads import (
-    AgentStatusTransitionData, AssistantCompleteResponseData,
+    AgentStatusUpdateData, AssistantCompleteResponseData,
     ErrorEventData, ToolInteractionLogEntryData, ToolInvocationApprovalRequestedData,
     ToolInvocationAutoExecutingData, SystemTaskNotificationData
 )

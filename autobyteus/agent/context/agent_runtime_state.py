@@ -3,6 +3,8 @@ import logging
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
 
 from autobyteus.agent.events.agent_input_event_queue_manager import AgentInputEventQueueManager 
+from autobyteus.agent.events.event_store import AgentEventStore
+from autobyteus.agent.status.status_deriver import AgentStatusDeriver
 # AgentOutputDataManager is no longer part of AgentRuntimeState
 # from autobyteus.agent.events.agent_output_data_manager import AgentOutputDataManager       
 
@@ -24,7 +26,7 @@ logger = logging.getLogger(__name__)
 class AgentRuntimeState:
     """
     Encapsulates the dynamic, stateful data of an agent instance.
-    Input event queues are initialized by the AgentWorker via a bootstrap step.
+    Input event queues are initialized by the AgentWorker during minimal runtime init.
     Output data is now handled by emitting events via AgentExternalEventNotifier.
     """
     def __init__(self,
@@ -43,6 +45,8 @@ class AgentRuntimeState:
         self.tool_instances: Optional[Dict[str, 'BaseTool']] = None 
         
         self.input_event_queues: Optional[AgentInputEventQueueManager] = None 
+        self.event_store: Optional[AgentEventStore] = None
+        self.status_deriver: Optional[AgentStatusDeriver] = None
         # REMOVED: self.output_data_queues attribute
         
         self.workspace: Optional[BaseAgentWorkspace] = workspace

@@ -3,13 +3,13 @@ import pytest
 from pydantic import ValidationError
 
 from autobyteus.agent.status.status_enum import AgentStatus
-from autobyteus.workflow.streaming.workflow_stream_events import WorkflowStreamEvent, WorkflowSpecificPayload, AgentEventRebroadcastPayload, WorkflowStatusTransitionData
+from autobyteus.workflow.streaming.workflow_stream_events import WorkflowStreamEvent, WorkflowSpecificPayload, AgentEventRebroadcastPayload, WorkflowStatusUpdateData
 from autobyteus.workflow.status import WorkflowStatus
 from autobyteus.agent.streaming.stream_events import StreamEvent, StreamEventType
 
-def test_workflow_status_transition_event_creation():
+def test_workflow_status_update_event_creation():
     """Tests successful creation of a WORKFLOW-sourced event."""
-    data = WorkflowStatusTransitionData(
+    data = WorkflowStatusUpdateData(
         new_status=WorkflowStatus.IDLE,
         old_status=WorkflowStatus.PROCESSING
     )
@@ -18,16 +18,16 @@ def test_workflow_status_transition_event_creation():
         event_source_type="WORKFLOW",
         data=data
     )
-    assert isinstance(event.data, WorkflowStatusTransitionData)
+    assert isinstance(event.data, WorkflowStatusUpdateData)
     assert event.data.new_status == WorkflowStatus.IDLE
 
 def test_agent_event_rebroadcast_event_creation():
     """Tests successful creation of an AGENT-sourced event."""
-    # FIX: Provide a valid data payload for the StreamEvent. The AGENT_IDLE
-    # event type requires an AgentStatusTransitionData payload.
+    # Provide a valid data payload for the StreamEvent. The AGENT_STATUS_UPDATED
+    # event type requires an AgentStatusUpdateData payload.
     mock_agent_event = StreamEvent(
         agent_id="agent-1",
-        event_type=StreamEventType.AGENT_IDLE,
+        event_type=StreamEventType.AGENT_STATUS_UPDATED,
         data={"new_status": AgentStatus.IDLE}
     )
     data = AgentEventRebroadcastPayload(
@@ -46,7 +46,7 @@ def test_agent_event_rebroadcast_event_creation():
 def test_validation_error_on_mismatched_data():
     """Tests that Pydantic raises an error for incorrect data shapes."""
     with pytest.raises(ValidationError):
-        # WORKFLOW source type expects WorkflowStatusTransitionData, but we provide AGENT data
+        # WORKFLOW source type expects WorkflowStatusUpdateData, but we provide AGENT data
         WorkflowStreamEvent(
             workflow_id="wf-1",
             event_source_type="WORKFLOW",

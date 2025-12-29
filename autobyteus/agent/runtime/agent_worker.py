@@ -11,11 +11,15 @@ from autobyteus.agent.events import (
     BaseEvent,
     AgentErrorEvent, 
     AgentStoppedEvent,
+    AgentInputEventQueueManager,
+    BootstrapStartedEvent,
+    AgentEventStore,
 )
 from autobyteus.agent.events import WorkerEventDispatcher
 from autobyteus.agent.runtime.agent_thread_pool_manager import AgentThreadPoolManager 
-from autobyteus.agent.bootstrap_steps.agent_bootstrapper import AgentBootstrapper
 from autobyteus.agent.shutdown_steps import AgentShutdownOrchestrator
+from autobyteus.agent.status.status_deriver import AgentStatusDeriver
+from autobyteus.agent.status.status_update_utils import apply_event_and_derive_status
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
@@ -40,8 +44,7 @@ class AgentWorker:
             raise ValueError(f"AgentWorker for '{self.context.agent_id}': AgentStatusManager not found.")
 
         self.worker_event_dispatcher = WorkerEventDispatcher(
-            event_handler_registry=event_handler_registry, 
-            status_manager=self.status_manager
+            event_handler_registry=event_handler_registry
         )
         
         self._thread_pool_manager = AgentThreadPoolManager() 
@@ -58,16 +61,70 @@ class AgentWorker:
 
     async def _initialize(self) -> bool:
         """
-        Runs the agent's initialization sequence by using an AgentBootstrapper.
+        Runs the agent's initialization sequence via bootstrap events.
         Returns True on success, False on failure.
         """
         agent_id = self.context.agent_id
-        logger.info(f"Agent '{agent_id}': Starting internal initialization process using AgentBootstrapper.")
+        logger.info(f"Agent '{agent_id}': Starting internal initialization process using bootstrap events.")
 
-        bootstrapper = AgentBootstrapper() # Using default steps
-        initialization_successful = await bootstrapper.run(self.context, self.status_manager)
+        await self.context.input_event_queues.enqueue_internal_system_event(BootstrapStartedEvent())
 
-        return initialization_successful
+        while self.context.current_status not in [AgentStatus.IDLE, AgentStatus.ERROR]:
+            if self._async_stop_event and self._async_stop_event.is_set():
+                break
+            try:
+                queue_event_tuple = await asyncio.wait_for(
+                    self.context.state.input_event_queues.get_next_internal_event(), timeout=0.1
+                )
+            except asyncio.TimeoutError:
+                continue
+
+            if queue_event_tuple is None:
+                continue
+
+            _queue_name, event_obj = queue_event_tuple
+            await self.worker_event_dispatcher.dispatch(event_obj, self.context)
+            await asyncio.sleep(0)
+
+        return self.context.current_status == AgentStatus.IDLE
+
+    async def _runtime_init(self) -> bool:
+        """
+        Initializes the minimal runtime prerequisites required for event handling.
+        This must run before any event-driven bootstrap steps.
+        """
+        agent_id = self.context.agent_id
+        if self.context.state.event_store is None:
+            self.context.state.event_store = AgentEventStore(agent_id=agent_id)
+            logger.info(f"Agent '{agent_id}': Runtime init completed (event store initialized).")
+
+        if self.context.state.status_deriver is None:
+            self.context.state.status_deriver = AgentStatusDeriver()
+            logger.info(f"Agent '{agent_id}': Runtime init completed (status deriver initialized).")
+
+        if self.context.state.input_event_queues is not None:
+            logger.debug(f"Agent '{agent_id}': Runtime init skipped; input event queues already initialized.")
+            return True
+
+        try:
+            queue_size = getattr(self.context.config, "input_event_queue_size", 0)
+            if queue_size is None:
+                queue_size = 0
+            if queue_size < 0:
+                logger.warning(
+                    f"Agent '{agent_id}': input_event_queue_size must be >= 0. "
+                    f"Got {queue_size}. Falling back to unbounded queues."
+                )
+                queue_size = 0
+
+            self.context.state.input_event_queues = AgentInputEventQueueManager(queue_size=queue_size)
+            logger.info(
+                f"Agent '{agent_id}': Runtime init completed (input queues initialized, size={queue_size})."
+            )
+            return True
+        except Exception as e:
+            logger.critical(f"Agent '{agent_id}': Runtime init failed while initializing input queues: {e}", exc_info=True)
+            return False
 
     def add_done_callback(self, callback: Callable[[concurrent.futures.Future], None]):
         """Adds a callback to be executed when the worker's thread completes."""
@@ -113,12 +170,16 @@ class AgentWorker:
             self._worker_loop.run_until_complete(self.async_run())
         except Exception as e:
             logger.error(f"AgentWorker '{agent_id}': Unhandled exception in _run_managed_thread_loop: {e}", exc_info=True)
-            if self.status_manager and not self.context.current_status.is_terminal():
+            if not self.context.current_status.is_terminal():
                 try:
-                    # Since this is a sync context, we must run the async status manager method in a temporary event loop.
-                    asyncio.run(self.status_manager.notify_error_occurred(f"Worker thread fatal error: {e}", traceback.format_exc()))
+                    self._apply_event_and_derive_status_sync(
+                        AgentErrorEvent(
+                            error_message=f"Worker thread fatal error: {e}",
+                            exception_details=traceback.format_exc()
+                        )
+                    )
                 except Exception as run_e:
-                    logger.critical(f"AgentWorker '{agent_id}': Failed to run async error notification from sync context: {run_e}")
+                    logger.critical(f"AgentWorker '{agent_id}': Failed to emit derived error from sync context: {run_e}")
         finally:
             if self._worker_loop:
                 try:
@@ -145,6 +206,13 @@ class AgentWorker:
             logger.info(f"AgentWorker '{agent_id}' async_run(): Starting.")
             
             # --- Direct Initialization ---
+            runtime_init_successful = await self._runtime_init()
+            if not runtime_init_successful:
+                logger.critical(f"AgentWorker '{agent_id}' failed during runtime init. Worker is shutting down.")
+                if self._async_stop_event and not self._async_stop_event.is_set():
+                    self._async_stop_event.set()
+                return
+
             initialization_successful = await self._initialize()
             if not initialization_successful:
                 logger.critical(f"AgentWorker '{agent_id}' failed to initialize. Worker is shutting down.")
@@ -156,9 +224,14 @@ class AgentWorker:
             logger.info(f"AgentWorker '{agent_id}' initialized successfully. Entering main event loop.")
             while not self._async_stop_event.is_set(): 
                 try:
-                    queue_event_tuple = await asyncio.wait_for(
-                        self.context.state.input_event_queues.get_next_input_event(), timeout=0.1
-                    )
+                    if self.context.current_status == AgentStatus.BOOTSTRAPPING:
+                        queue_event_tuple = await asyncio.wait_for(
+                            self.context.state.input_event_queues.get_next_internal_event(), timeout=0.1
+                        )
+                    else:
+                        queue_event_tuple = await asyncio.wait_for(
+                            self.context.state.input_event_queues.get_next_input_event(), timeout=0.1
+                        )
                 except asyncio.TimeoutError:
                     if self._async_stop_event.is_set(): break
                     continue
@@ -228,6 +301,12 @@ class AgentWorker:
                 logger.warning(f"AgentWorker '{agent_id}': Timeout waiting for worker thread to terminate.")
         
         self._is_active = False
+
+    def _apply_event_and_derive_status_sync(self, event: BaseEvent) -> None:
+        try:
+            asyncio.run(apply_event_and_derive_status(event, self.context))
+        except Exception as e:  # pragma: no cover
+            logger.error(f"AgentWorker '{self.context.agent_id}': Failed to project status: {e}", exc_info=True)
 
 
     def is_alive(self) -> bool:

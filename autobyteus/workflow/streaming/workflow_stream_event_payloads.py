@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 class BaseWorkflowSpecificPayload(BaseModel):
     pass
 
-class WorkflowStatusTransitionData(BaseWorkflowSpecificPayload):
+class WorkflowStatusUpdateData(BaseWorkflowSpecificPayload):
     new_status: WorkflowStatus
     old_status: Optional[WorkflowStatus] = None
     error_message: Optional[str] = None

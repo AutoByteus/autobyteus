@@ -12,11 +12,11 @@ from autobyteus.agent.status.status_enum import AgentStatus
 from autobyteus.workflow.status.workflow_status import WorkflowStatus
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent, StreamEventType as AgentStreamEventType
 from autobyteus.agent.streaming.stream_event_payloads import (
-    AgentStatusTransitionData, ToolInvocationApprovalRequestedData, 
+    AgentStatusUpdateData, ToolInvocationApprovalRequestedData, 
     AssistantChunkData, AssistantCompleteResponseData
 )
 from autobyteus.workflow.streaming.workflow_stream_events import WorkflowStreamEvent
-from autobyteus.workflow.streaming.workflow_stream_event_payloads import AgentEventRebroadcastPayload, SubWorkflowEventRebroadcastPayload, WorkflowStatusTransitionData
+from autobyteus.workflow.streaming.workflow_stream_event_payloads import AgentEventRebroadcastPayload, SubWorkflowEventRebroadcastPayload, WorkflowStatusUpdateData
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ class TUIStateStore:
         The main entry point for processing events from the backend.
         This method acts as a reducer, updating the state based on the event.
         """
-        if event.event_source_type == "WORKFLOW" and isinstance(event.data, WorkflowStatusTransitionData):
+        if event.event_source_type == "WORKFLOW" and isinstance(event.data, WorkflowStatusUpdateData):
             self._workflow_statuses[self.workflow_name] = event.data.new_status
         
         self._process_event_recursively(event, self.workflow_name)
@@ -113,13 +113,11 @@ class TUIStateStore:
             self._agent_event_history[agent_name].append(agent_event)
 
             # --- State update logic for specific events (applies to both focused and non-focused) ---
-            if agent_event.event_type == AgentStreamEventType.AGENT_STATUS_TRANSITION:
-                status_data: AgentStatusTransitionData = agent_event.data
+            if agent_event.event_type == AgentStreamEventType.AGENT_STATUS_UPDATED:
+                status_data: AgentStatusUpdateData = agent_event.data
                 self._agent_statuses[agent_name] = status_data.new_status
                 if agent_name in self._pending_approvals:
                     del self._pending_approvals[agent_name]
-            elif agent_event.event_type == AgentStreamEventType.AGENT_IDLE:
-                self._agent_statuses[agent_name] = AgentStatus.IDLE
             elif agent_event.event_type == AgentStreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED:
                 self._pending_approvals[agent_name] = agent_event.data
 
@@ -134,7 +132,7 @@ class TUIStateStore:
                 role = self._node_roles.get(sub_workflow_name, "Sub-Workflow")
                 self._add_node(sub_workflow_name, {"type": "subworkflow", "name": sub_workflow_name, "role": role, "children": {}}, parent_name)
 
-            if sub_workflow_event.event_source_type == "WORKFLOW" and isinstance(sub_workflow_event.data, WorkflowStatusTransitionData):
+            if sub_workflow_event.event_source_type == "WORKFLOW" and isinstance(sub_workflow_event.data, WorkflowStatusUpdateData):
                 self._workflow_statuses[sub_workflow_name] = sub_workflow_event.data.new_status
 
             self._process_event_recursively(sub_workflow_event, parent_name=sub_workflow_name)

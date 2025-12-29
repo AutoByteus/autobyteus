@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import sys
-from typing import Optional, List, Dict, Any
+from typing import Optional
 import json 
 
 from autobyteus.agent.status.status_enum import AgentStatus
@@ -11,7 +11,7 @@ from autobyteus.agent.streaming.stream_event_payloads import (
     AssistantCompleteResponseData,
     ToolInvocationApprovalRequestedData,
     ToolInteractionLogEntryData,
-    AgentStatusTransitionData,
+    AgentStatusUpdateData,
     ErrorEventData,
     ToolInvocationAutoExecutingData,
 )
@@ -30,6 +30,9 @@ class InteractiveCLIDisplay:
         self.current_line_empty = True
         self.agent_has_spoken_this_turn = False
         self.pending_approval_data: Optional[ToolInvocationApprovalRequestedData] = None
+        self.approval_prompt_shown: bool = False
+        self.current_status: Optional[AgentStatus] = None
+        self.awaiting_approval: bool = False
         self.is_thinking = False
         self.is_in_content_block = False
 
@@ -56,7 +59,7 @@ class InteractiveCLIDisplay:
 
     def _display_tool_approval_prompt(self):
         """Displays the tool approval prompt using stored pending data."""
-        if not self.pending_approval_data:
+        if not self.pending_approval_data or self.approval_prompt_shown:
             return
             
         try:
@@ -72,6 +75,11 @@ class InteractiveCLIDisplay:
         sys.stdout.write(prompt_message)
         sys.stdout.flush()
         self.current_line_empty = False
+        self.approval_prompt_shown = True
+
+    def clear_pending_approval(self):
+        self.pending_approval_data = None
+        self.approval_prompt_shown = False
 
     async def handle_stream_event(self, event: StreamEvent):
         """Processes a single StreamEvent and updates the CLI display."""
@@ -87,13 +95,6 @@ class InteractiveCLIDisplay:
         # Most events should start on a new line.
         if event.event_type != StreamEventType.ASSISTANT_CHUNK:
             self._ensure_new_line()
-
-        if event.event_type in [
-            StreamEventType.AGENT_IDLE,
-            StreamEventType.ERROR_EVENT,
-            StreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED,
-        ]:
-            self.agent_turn_complete_event.set()
 
         if event.event_type == StreamEventType.ASSISTANT_CHUNK and isinstance(event.data, AssistantChunkData):
             # If this is the first output from the agent this turn, print the "Agent: " prefix.
@@ -159,7 +160,9 @@ class InteractiveCLIDisplay:
 
         elif event.event_type == StreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED and isinstance(event.data, ToolInvocationApprovalRequestedData):
             self.pending_approval_data = event.data
-            self._display_tool_approval_prompt()
+            if self.awaiting_approval or self.current_status == AgentStatus.AWAITING_TOOL_APPROVAL:
+                self._display_tool_approval_prompt()
+                self.agent_turn_complete_event.set()
 
         elif event.event_type == StreamEventType.TOOL_INVOCATION_AUTO_EXECUTING and isinstance(event.data, ToolInvocationAutoExecutingData):
             tool_name = event.data.tool_name
@@ -175,13 +178,27 @@ class InteractiveCLIDisplay:
                     f"[Tool Log ({event.data.tool_name} | {event.data.tool_invocation_id})]: {event.data.log_entry}"
                 )
 
-        elif event.event_type == StreamEventType.AGENT_STATUS_TRANSITION and isinstance(event.data, AgentStatusTransitionData):
+        elif event.event_type == StreamEventType.AGENT_STATUS_UPDATED and isinstance(event.data, AgentStatusUpdateData):
+            self.current_status = event.data.new_status
+            if event.data.new_status == AgentStatus.AWAITING_TOOL_APPROVAL:
+                self.awaiting_approval = True
+                if self.pending_approval_data:
+                    self._display_tool_approval_prompt()
+                    self.agent_turn_complete_event.set()
+            else:
+                self.awaiting_approval = False
+
+            if event.data.new_status in {AgentStatus.IDLE, AgentStatus.ERROR}:
+                self.agent_turn_complete_event.set()
+
             if event.data.new_status == AgentStatus.EXECUTING_TOOL:
                 tool_name = event.data.tool_name or "a tool"
                 sys.stdout.write(f"Agent: Waiting for tool '{tool_name}' to complete...\n")
                 sys.stdout.flush()
                 self.current_line_empty = True
                 self.agent_has_spoken_this_turn = True
+            elif event.data.new_status == AgentStatus.IDLE:
+                logger.info("[Agent is now idle.]")
             elif event.data.new_status == AgentStatus.BOOTSTRAPPING:
                 logger.info("[Agent is initializing...]")
             elif event.data.new_status == AgentStatus.TOOL_DENIED:
@@ -196,9 +213,7 @@ class InteractiveCLIDisplay:
 
         elif event.event_type == StreamEventType.ERROR_EVENT and isinstance(event.data, ErrorEventData):
             logger.error(f"[Error: {event.data.message} (Source: {event.data.source})]")
-
-        elif event.event_type == StreamEventType.AGENT_IDLE:
-            logger.info("[Agent is now idle.]")
+            self.agent_turn_complete_event.set()
         
         else:
             # Add logging for unhandled events for better debugging

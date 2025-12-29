@@ -47,7 +47,8 @@ class AgentConfig:
                  workspace: Optional['BaseAgentWorkspace'] = None,
                  lifecycle_processors: Optional[List['BaseLifecycleEventProcessor']] = None,
                  initial_custom_data: Optional[Dict[str, Any]] = None,
-                 skills: Optional[List[str]] = None):
+                 skills: Optional[List[str]] = None,
+                 input_event_queue_size: Optional[int] = None):
         """
         Initializes the AgentConfig.
 
@@ -72,6 +73,7 @@ class AgentConfig:
             initial_custom_data: An optional dictionary of data to pre-populate
                                  the agent's runtime state `custom_data`.
             skills: An optional list of skill names or paths to be preloaded for this agent.
+            input_event_queue_size: Optional max size for input event queues. None or 0 means unbounded.
         """
         self.name = name
         self.role = role
@@ -90,6 +92,7 @@ class AgentConfig:
         self.lifecycle_processors = lifecycle_processors or []
         self.initial_custom_data = initial_custom_data
         self.skills = skills or []
+        self.input_event_queue_size = input_event_queue_size
 
         logger.debug(f"AgentConfig created for name '{self.name}', role '{self.role}'. XML tool format override: {self.use_xml_tool_format}")
 
@@ -117,7 +120,8 @@ class AgentConfig:
             workspace=self.workspace,  # Pass by reference, do not copy
             lifecycle_processors=self.lifecycle_processors.copy(), # Shallow copy the list
             initial_custom_data=copy.deepcopy(self.initial_custom_data), # Deep copy for simple data
-            skills=self.skills.copy() # Shallow copy the list
+            skills=self.skills.copy(), # Shallow copy the list
+            input_event_queue_size=self.input_event_queue_size
         )
 
     def __repr__(self) -> str:

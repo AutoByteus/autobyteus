@@ -17,7 +17,7 @@ from autobyteus.workflow.streaming.workflow_event_stream import WorkflowEventStr
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.agent.streaming.stream_events import StreamEventType as AgentStreamEventType
 from autobyteus.agent.streaming.stream_event_payloads import AssistantChunkData
-from autobyteus.workflow.streaming.workflow_stream_event_payloads import AgentEventRebroadcastPayload, WorkflowStatusTransitionData
+from autobyteus.workflow.streaming.workflow_stream_event_payloads import AgentEventRebroadcastPayload
 
 from .state import TUIStateStore
 from .widgets.agent_list_sidebar import AgentListSidebar

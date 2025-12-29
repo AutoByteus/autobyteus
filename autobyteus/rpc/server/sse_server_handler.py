@@ -112,9 +112,9 @@
                     if sse_client_resp.closed: break
                     rpc_event_type: RPCEventType
                     if agent_event_obj.event_type == StreamEventType.ASSISTANT_CHUNK: rpc_event_type = RPCEventType.AGENT_OUTPUT_CHUNK
-                    elif agent_event_obj.event_type == StreamEventType.ASSISTANT_FINAL_MESSAGE: rpc_event_type = RPCEventType.AGENT_FINAL_MESSAGE
+                    elif agent_event_obj.event_type == StreamEventType.ASSISTANT_COMPLETE_RESPONSE: rpc_event_type = RPCEventType.AGENT_FINAL_MESSAGE
                     elif agent_event_obj.event_type == StreamEventType.TOOL_INTERACTION_LOG_ENTRY: rpc_event_type = RPCEventType.TOOL_LOG_ENTRY
-                    elif agent_event_obj.event_type == StreamEventType.AGENT_STATUS_CHANGE: rpc_event_type = RPCEventType.AGENT_STATUS_UPDATE
+                    elif agent_event_obj.event_type == StreamEventType.AGENT_STATUS_UPDATED: rpc_event_type = RPCEventType.AGENT_STATUS_UPDATE
                     elif agent_event_obj.event_type == StreamEventType.ERROR_EVENT: rpc_event_type = RPCEventType.AGENT_STATUS_UPDATE; logger.error(f"Unified stream error for agent '{agent.agent_id}': {agent_event_obj.data}")
                     else: rpc_event_type = RPCEventType.AGENT_STATUS_UPDATE; logger.warning(f"Unhandled StreamEventType '{agent_event_obj.event_type}' from agent '{agent.agent_id}'.")
                     payload_data = {"agent_id_on_server": agent_id_on_server, **agent_event_obj.data}

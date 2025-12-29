@@ -9,7 +9,6 @@ from autobyteus.tools.tool_category import ToolCategory
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
-    from autobyteus.agent.status.manager import AgentStatusManager
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +24,7 @@ class McpServerPrewarmingStep(BaseBootstrapStep):
         logger.debug("McpServerPrewarmingStep initialized.")
 
     async def execute(self,
-                      context: 'AgentContext',
-                      status_manager: 'AgentStatusManager') -> bool:
+                      context: 'AgentContext') -> bool:
         agent_id = context.agent_id
         logger.info(f"Agent '{agent_id}': Executing McpServerPrewarmingStep.")
 

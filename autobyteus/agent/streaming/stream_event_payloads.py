@@ -38,7 +38,7 @@ class ToolInteractionLogEntryData(BaseStreamPayload):
     tool_invocation_id: str
     tool_name: str
 
-class AgentStatusTransitionData(BaseStreamPayload): 
+class AgentStatusUpdateData(BaseStreamPayload):
     new_status: AgentStatus 
     old_status: Optional[AgentStatus] = None
     trigger: Optional[str] = None
@@ -89,7 +89,7 @@ StreamDataPayload = Union[
     AssistantChunkData,
     AssistantCompleteResponseData, 
     ToolInteractionLogEntryData,
-    AgentStatusTransitionData, 
+    AgentStatusUpdateData, 
     ErrorEventData,
     ToolInvocationApprovalRequestedData,
     ToolInvocationAutoExecutingData,
@@ -187,10 +187,10 @@ def create_tool_interaction_log_entry_data(log_data: Any) -> ToolInteractionLogE
             return ToolInteractionLogEntryData(**log_data)
     raise ValueError(f"Cannot create ToolInteractionLogEntryData from {type(log_data)}. Expected dict with 'log_entry', 'tool_invocation_id', and 'tool_name' keys.")
 
-def create_agent_status_transition_data(status_data_dict: Any) -> AgentStatusTransitionData: 
+def create_agent_status_update_data(status_data_dict: Any) -> AgentStatusUpdateData: 
     if isinstance(status_data_dict, dict):
-        return AgentStatusTransitionData(**status_data_dict) 
-    raise ValueError(f"Cannot create AgentStatusTransitionData from {type(status_data_dict)}") 
+        return AgentStatusUpdateData(**status_data_dict) 
+    raise ValueError(f"Cannot create AgentStatusUpdateData from {type(status_data_dict)}") 
 
 def create_error_event_data(error_data_dict: Any) -> ErrorEventData:
     if isinstance(error_data_dict, dict):

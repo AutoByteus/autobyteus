@@ -7,7 +7,7 @@ from .agent_team_event_stream import AgentTeamEventStream
 from .agent_team_stream_events import AgentTeamStreamEvent, AgentTeamStreamDataPayload
 from .agent_team_stream_event_payloads import (
     BaseTeamSpecificPayload,
-    AgentTeamStatusTransitionData,
+    AgentTeamStatusUpdateData,
     AgentEventRebroadcastPayload,
 )
 from .agent_event_bridge import AgentEventBridge
@@ -19,7 +19,7 @@ __all__ = [
     "AgentTeamStreamEvent",
     "AgentTeamStreamDataPayload",
     "BaseTeamSpecificPayload",
-    "AgentTeamStatusTransitionData",
+    "AgentTeamStatusUpdateData",
     "AgentEventRebroadcastPayload",
     "AgentEventBridge",
     "AgentEventMultiplexer",

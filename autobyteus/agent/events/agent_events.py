@@ -6,7 +6,6 @@ from typing import Any, Dict, Optional
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage 
 from autobyteus.agent.message.inter_agent_message import InterAgentMessage
 from autobyteus.agent.status.status_enum import AgentStatus
-from autobyteus.agent.streaming.stream_event_payloads import AgentStatusTransitionData
 from autobyteus.agent.tool_invocation import ToolInvocation
 from autobyteus.llm.user_message import LLMUserMessage 
 from autobyteus.llm.utils.response_types import CompleteResponse
@@ -52,6 +51,42 @@ class AgentErrorEvent(LifecycleEvent):
     """Event indicating a significant error occurred within the agent's operation."""
     error_message: str
     exception_details: Optional[str] = None 
+
+@dataclass
+class AgentIdleEvent(LifecycleEvent):
+    """Event indicating the agent has completed a processing cycle and is idle."""
+    pass
+
+@dataclass
+class ShutdownRequestedEvent(LifecycleEvent):
+    """Event indicating a shutdown has been requested."""
+    pass
+
+# --- Bootstrap Lifecycle Events ---
+
+@dataclass
+class BootstrapStartedEvent(LifecycleEvent):
+    """Event indicating the bootstrap orchestration has begun."""
+    pass
+
+@dataclass
+class BootstrapStepRequestedEvent(LifecycleEvent):
+    """Event requesting execution of a specific bootstrap step."""
+    step_index: int
+
+@dataclass
+class BootstrapStepCompletedEvent(LifecycleEvent):
+    """Event indicating a bootstrap step has completed."""
+    step_index: int
+    step_name: str
+    success: bool
+    error_message: Optional[str] = None
+
+@dataclass
+class BootstrapCompletedEvent(LifecycleEvent):
+    """Event indicating the bootstrap sequence has completed."""
+    success: bool
+    error_message: Optional[str] = None
 
 
 # --- Regular Agent Processing Events (now Operational) ---

@@ -18,7 +18,7 @@ from autobyteus.task_management.base_task_plan import TaskStatus
 from autobyteus.task_management.task import Task
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent, StreamEventType as AgentStreamEventType
 from autobyteus.agent.streaming.stream_event_payloads import (
-    AgentStatusTransitionData, AssistantChunkData, AssistantCompleteResponseData,
+    AgentStatusUpdateData, AssistantChunkData, AssistantCompleteResponseData,
     ErrorEventData, ToolInteractionLogEntryData, ToolInvocationApprovalRequestedData, ToolInvocationAutoExecutingData,
     SystemTaskNotificationData
 )

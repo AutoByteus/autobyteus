@@ -41,9 +41,16 @@ class AgentFactory(metaclass=SingletonMeta):
         registry.register(ToolExecutionApprovalEvent, ToolExecutionApprovalEventHandler())
         registry.register(LLMUserMessageReadyEvent, LLMUserMessageReadyEventHandler())
         registry.register(ApprovedToolInvocationEvent, ApprovedToolInvocationEventHandler())
+        bootstrap_handler = BootstrapEventHandler()
+        registry.register(BootstrapStartedEvent, bootstrap_handler)
+        registry.register(BootstrapStepRequestedEvent, bootstrap_handler)
+        registry.register(BootstrapStepCompletedEvent, bootstrap_handler)
+        registry.register(BootstrapCompletedEvent, bootstrap_handler)
         lifecycle_logger_instance = LifecycleEventLogger()
         registry.register(AgentReadyEvent, lifecycle_logger_instance)
         registry.register(AgentStoppedEvent, lifecycle_logger_instance)
+        registry.register(AgentIdleEvent, lifecycle_logger_instance)
+        registry.register(ShutdownRequestedEvent, lifecycle_logger_instance)
         registry.register(AgentErrorEvent, lifecycle_logger_instance)
         return registry
 

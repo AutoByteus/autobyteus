@@ -12,23 +12,13 @@ from .stream_event_payloads import (
     AssistantChunkData,
     AssistantCompleteResponseData,
     ToolInteractionLogEntryData,
-    AgentStatusTransitionData, 
+    AgentStatusUpdateData, 
     ErrorEventData,
     ToolInvocationApprovalRequestedData,
     ToolInvocationAutoExecutingData,
     SystemTaskNotificationData, # NEW
     InterAgentMessageData, # NEW
     ToDoListUpdateData,
-    EmptyData,
-    create_assistant_chunk_data,
-    create_assistant_complete_response_data,
-    create_tool_interaction_log_entry_data,
-    create_agent_status_transition_data, 
-    create_error_event_data,
-    create_tool_invocation_approval_requested_data,
-    create_tool_invocation_auto_executing_data,
-    create_system_task_notification_data, # NEW
-    create_todo_list_update_data,
 )
 
 logger = logging.getLogger(__name__)
@@ -41,28 +31,26 @@ class StreamEventType(str, Enum):
     ASSISTANT_CHUNK = "assistant_chunk"
     ASSISTANT_COMPLETE_RESPONSE = "assistant_complete_response"
     TOOL_INTERACTION_LOG_ENTRY = "tool_interaction_log_entry"
-    AGENT_STATUS_TRANSITION = "agent_status_transition"
+    AGENT_STATUS_UPDATED = "agent_status_updated"
     ERROR_EVENT = "error_event" 
     TOOL_INVOCATION_APPROVAL_REQUESTED = "tool_invocation_approval_requested" 
     TOOL_INVOCATION_AUTO_EXECUTING = "tool_invocation_auto_executing"
     SYSTEM_TASK_NOTIFICATION = "system_task_notification" # NEW
     INTER_AGENT_MESSAGE = "inter_agent_message"  # NEW
     AGENT_TODO_LIST_UPDATE = "agent_todo_list_updated"
-    AGENT_IDLE = "agent_idle"
 
 
 _STREAM_EVENT_TYPE_TO_PAYLOAD_CLASS: Dict[StreamEventType, Type[BaseModel]] = {
     StreamEventType.ASSISTANT_CHUNK: AssistantChunkData,
     StreamEventType.ASSISTANT_COMPLETE_RESPONSE: AssistantCompleteResponseData,
     StreamEventType.TOOL_INTERACTION_LOG_ENTRY: ToolInteractionLogEntryData,
-    StreamEventType.AGENT_STATUS_TRANSITION: AgentStatusTransitionData,
+    StreamEventType.AGENT_STATUS_UPDATED: AgentStatusUpdateData,
     StreamEventType.ERROR_EVENT: ErrorEventData,
     StreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED: ToolInvocationApprovalRequestedData,
     StreamEventType.TOOL_INVOCATION_AUTO_EXECUTING: ToolInvocationAutoExecutingData,
     StreamEventType.SYSTEM_TASK_NOTIFICATION: SystemTaskNotificationData, # NEW
     StreamEventType.INTER_AGENT_MESSAGE: InterAgentMessageData, # NEW
     StreamEventType.AGENT_TODO_LIST_UPDATE: ToDoListUpdateData,
-    StreamEventType.AGENT_IDLE: AgentStatusTransitionData,
 }
 
 

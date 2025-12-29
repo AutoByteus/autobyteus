@@ -17,7 +17,7 @@ from autobyteus.agent.status.status_enum import AgentStatus
 from autobyteus.workflow.status.workflow_status import WorkflowStatus
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent, StreamEventType as AgentStreamEventType
 from autobyteus.agent.streaming.stream_event_payloads import (
-    AgentStatusTransitionData, AssistantChunkData, AssistantCompleteResponseData,
+    AgentStatusUpdateData, AssistantChunkData, AssistantCompleteResponseData,
     ErrorEventData, ToolInteractionLogEntryData, ToolInvocationApprovalRequestedData, ToolInvocationAutoExecutingData
 )
 from .shared import (
@@ -324,7 +324,7 @@ class FocusPane(Static):
             await self._show_approval_prompt()
         elif event_type == AgentStreamEventType.ERROR_EVENT:
             renderable = renderables.render_error(event.data)
-        elif event_type in [AgentStreamEventType.AGENT_STATUS_TRANSITION, AgentStreamEventType.AGENT_IDLE]:
+        elif event_type == AgentStreamEventType.AGENT_STATUS_UPDATED:
             # These are informational and do not have a renderable in the log pane.
             pass
 

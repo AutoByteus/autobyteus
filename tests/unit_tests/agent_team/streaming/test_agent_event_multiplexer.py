@@ -14,8 +14,10 @@ def mock_notifier():
 @pytest.fixture
 def mock_worker():
     worker = MagicMock()
-    worker.get_worker_loop.return_value = asyncio.get_running_loop()
-    return worker
+    loop = asyncio.new_event_loop()
+    worker.get_worker_loop.return_value = loop
+    yield worker
+    loop.close()
 
 @pytest.fixture
 def multiplexer(mock_notifier, mock_worker):
