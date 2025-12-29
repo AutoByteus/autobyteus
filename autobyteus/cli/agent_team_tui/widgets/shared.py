@@ -2,34 +2,34 @@
 Shared constants and data for TUI widgets.
 """
 from typing import Dict
-from autobyteus.agent.phases import AgentOperationalPhase
-from autobyteus.agent_team.phases import AgentTeamOperationalPhase
+from autobyteus.agent.status.status_enum import AgentStatus
+from autobyteus.agent_team.status.agent_team_status import AgentTeamStatus
 from autobyteus.task_management.base_task_plan import TaskStatus
 
-AGENT_PHASE_ICONS: Dict[AgentOperationalPhase, str] = {
-    AgentOperationalPhase.UNINITIALIZED: "⚪",
-    AgentOperationalPhase.BOOTSTRAPPING: "⏳",
-    AgentOperationalPhase.IDLE: "🟢",
-    AgentOperationalPhase.PROCESSING_USER_INPUT: "💭",
-    AgentOperationalPhase.AWAITING_LLM_RESPONSE: "💭",
-    AgentOperationalPhase.ANALYZING_LLM_RESPONSE: "🤔",
-    AgentOperationalPhase.AWAITING_TOOL_APPROVAL: "❓",
-    AgentOperationalPhase.TOOL_DENIED: "❌",
-    AgentOperationalPhase.EXECUTING_TOOL: "🛠️",
-    AgentOperationalPhase.PROCESSING_TOOL_RESULT: "⚙️",
-    AgentOperationalPhase.SHUTTING_DOWN: "🌙",
-    AgentOperationalPhase.SHUTDOWN_COMPLETE: "⚫",
-    AgentOperationalPhase.ERROR: "❗",
+AGENT_PHASE_ICONS: Dict[AgentStatus, str] = {
+    AgentStatus.UNINITIALIZED: "⚪",
+    AgentStatus.BOOTSTRAPPING: "⏳",
+    AgentStatus.IDLE: "🟢",
+    AgentStatus.PROCESSING_USER_INPUT: "💭",
+    AgentStatus.AWAITING_LLM_RESPONSE: "💭",
+    AgentStatus.ANALYZING_LLM_RESPONSE: "🤔",
+    AgentStatus.AWAITING_TOOL_APPROVAL: "❓",
+    AgentStatus.TOOL_DENIED: "❌",
+    AgentStatus.EXECUTING_TOOL: "🛠️",
+    AgentStatus.PROCESSING_TOOL_RESULT: "⚙️",
+    AgentStatus.SHUTTING_DOWN: "🌙",
+    AgentStatus.SHUTDOWN_COMPLETE: "⚫",
+    AgentStatus.ERROR: "❗",
 }
 
-TEAM_PHASE_ICONS: Dict[AgentTeamOperationalPhase, str] = {
-    AgentTeamOperationalPhase.UNINITIALIZED: "⚪",
-    AgentTeamOperationalPhase.BOOTSTRAPPING: "⏳",
-    AgentTeamOperationalPhase.IDLE: "🟢",
-    AgentTeamOperationalPhase.PROCESSING: "⚙️",
-    AgentTeamOperationalPhase.SHUTTING_DOWN: "🌙",
-    AgentTeamOperationalPhase.SHUTDOWN_COMPLETE: "⚫",
-    AgentTeamOperationalPhase.ERROR: "❗",
+TEAM_STATUS_ICONS: Dict[AgentTeamStatus, str] = {
+    AgentTeamStatus.UNINITIALIZED: "⚪",
+    AgentTeamStatus.BOOTSTRAPPING: "⏳",
+    AgentTeamStatus.IDLE: "🟢",
+    AgentTeamStatus.PROCESSING: "⚙️",
+    AgentTeamStatus.SHUTTING_DOWN: "🌙",
+    AgentTeamStatus.SHUTDOWN_COMPLETE: "⚫",
+    AgentTeamStatus.ERROR: "❗",
 }
 
 TASK_STATUS_ICONS: Dict[TaskStatus, str] = {

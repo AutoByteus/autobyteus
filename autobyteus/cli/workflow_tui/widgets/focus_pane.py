@@ -13,15 +13,15 @@ from textual.message import Message
 from textual.widgets import Input, Static, Button
 from textual.containers import VerticalScroll, Horizontal
 
-from autobyteus.agent.phases import AgentOperationalPhase
-from autobyteus.workflow.phases import WorkflowOperationalPhase
+from autobyteus.agent.status.status_enum import AgentStatus
+from autobyteus.workflow.phases.workflow_status import WorkflowStatus
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent, StreamEventType as AgentStreamEventType
 from autobyteus.agent.streaming.stream_event_payloads import (
-    AgentOperationalPhaseTransitionData, AssistantChunkData, AssistantCompleteResponseData,
+    AgentStatusTransitionData, AssistantChunkData, AssistantCompleteResponseData,
     ErrorEventData, ToolInteractionLogEntryData, ToolInvocationApprovalRequestedData, ToolInvocationAutoExecutingData
 )
 from .shared import (
-    AGENT_PHASE_ICONS, WORKFLOW_PHASE_ICONS, SUB_WORKFLOW_ICON, DEFAULT_ICON,
+    AGENT_STATUS_ICONS, WORKFLOW_STATUS_ICONS, SUB_WORKFLOW_ICON, DEFAULT_ICON,
     USER_ICON, ASSISTANT_ICON, WORKFLOW_ICON, AGENT_ICON
 )
 from . import renderables
@@ -127,7 +127,7 @@ class FocusPane(Static):
             Button("Deny", variant="error", id="deny-btn")
         )
 
-    def _update_title(self, agent_phases: Dict[str, AgentOperationalPhase], workflow_phases: Dict[str, WorkflowOperationalPhase]):
+    def _update_title(self, agent_statuses: Dict[str, AgentStatus], workflow_statuses: Dict[str, WorkflowStatus]):
         """Renders the title of the focus pane with the node's current status."""
         if not self._focused_node_data:
             self.query_one("#focus-pane-title").update("Select a node from the sidebar")
@@ -142,27 +142,27 @@ class FocusPane(Static):
 
         if node_type == 'agent':
             title_icon = AGENT_ICON
-            phase = agent_phases.get(node_name, AgentOperationalPhase.UNINITIALIZED)
-            phase_str = f" (Status: {phase.value})"
+            status = agent_statuses.get(node_name, AgentStatus.UNINITIALIZED)
+            phase_str = f" (Status: {status.value})"
         elif node_type == 'subworkflow':
             title_icon = SUB_WORKFLOW_ICON
-            phase = workflow_phases.get(node_name, WorkflowOperationalPhase.UNINITIALIZED)
-            phase_str = f" (Status: {phase.value})"
+            status = workflow_statuses.get(node_name, WorkflowStatus.UNINITIALIZED)
+            phase_str = f" (Status: {status.value})"
         elif node_type == 'workflow':
             title_icon = WORKFLOW_ICON
-            phase = workflow_phases.get(node_name, WorkflowOperationalPhase.UNINITIALIZED)
-            phase_str = f" (Status: {phase.value})"
+            status = workflow_statuses.get(node_name, WorkflowStatus.UNINITIALIZED)
+            phase_str = f" (Status: {status.value})"
 
         self.query_one("#focus-pane-title").update(f"{title_icon} {node_type_str}: [bold]{node_name}[/bold]{phase_str}")
         
-    def update_current_node_status(self, all_agent_phases: Dict, all_workflow_phases: Dict):
+    def update_current_node_status(self, all_agent_statuses: Dict, all_workflow_statuses: Dict):
         """A lightweight method to only update the title with the latest status."""
-        self._update_title(all_agent_phases, all_workflow_phases)
+        self._update_title(all_agent_statuses, all_workflow_statuses)
 
     async def update_content(self, node_data: Dict[str, Any], history: List[Any], 
                              pending_approval: Optional[ToolInvocationApprovalRequestedData], 
-                             all_agent_phases: Dict[str, AgentOperationalPhase], 
-                             all_workflow_phases: Dict[str, WorkflowOperationalPhase]):
+                             all_agent_statuses: Dict[str, AgentStatus], 
+                             all_workflow_statuses: Dict[str, WorkflowStatus]):
         """The main method to update the entire pane based on new state.
         This is called when focus SWITCHES, or when data for a focused workflow is REFRESHED."""
         self.flush_stream_buffers()
@@ -170,7 +170,7 @@ class FocusPane(Static):
         self._focused_node_data = node_data
         self._pending_approval_data = pending_approval
         
-        self._update_title(all_agent_phases, all_workflow_phases)
+        self._update_title(all_agent_statuses, all_workflow_statuses)
 
         log_container = self.query_one("#focus-pane-log-container")
         await log_container.remove_children()
@@ -189,21 +189,21 @@ class FocusPane(Static):
             if self._pending_approval_data:
                 await self._show_approval_prompt()
         elif self._focused_node_data.get("type") in ['workflow', 'subworkflow']:
-            await self._render_workflow_dashboard(node_data, all_agent_phases, all_workflow_phases)
+            await self._render_workflow_dashboard(node_data, all_agent_statuses, all_workflow_statuses)
 
     async def _render_workflow_dashboard(self, node_data: Dict[str, Any], 
-                                         all_agent_phases: Dict[str, AgentOperationalPhase],
-                                         all_workflow_phases: Dict[str, WorkflowOperationalPhase]):
+                                         all_agent_statuses: Dict[str, AgentStatus],
+                                         all_workflow_statuses: Dict[str, WorkflowStatus]):
         """Renders a static summary dashboard for a workflow or sub-workflow."""
         log_container = self.query_one("#focus-pane-log-container")
         
-        phase = all_workflow_phases.get(node_data['name'], WorkflowOperationalPhase.UNINITIALIZED)
-        phase_icon = WORKFLOW_PHASE_ICONS.get(phase, DEFAULT_ICON)
+        status = all_workflow_statuses.get(node_data['name'], WorkflowStatus.UNINITIALIZED)
+        phase_icon = WORKFLOW_STATUS_ICONS.get(status, DEFAULT_ICON)
         info_text = Text()
         info_text.append(f"Name: {node_data['name']}\n", style="bold")
         if node_data.get('role'):
             info_text.append(f"Role: {node_data['role']}\n")
-        info_text.append(f"Status: {phase_icon} {phase.value}")
+        info_text.append(f"Status: {phase_icon} {status.value}")
         await log_container.mount(Static(Panel(info_text, title="Workflow Info", border_style="green", title_align="left")))
 
         children_data = node_data.get("children", {})
@@ -211,13 +211,13 @@ class FocusPane(Static):
             team_text = Text()
             for name, child_node in children_data.items():
                 if child_node['type'] == 'agent':
-                    agent_phase = all_agent_phases.get(name, AgentOperationalPhase.UNINITIALIZED)
-                    agent_icon = AGENT_PHASE_ICONS.get(agent_phase, DEFAULT_ICON)
-                    team_text.append(f" ▪ {agent_icon} {name} (Agent): {agent_phase.value}\n")
+                    agent_status = all_agent_statuses.get(name, AgentStatus.UNINITIALIZED)
+                    agent_icon = AGENT_STATUS_ICONS.get(agent_status, DEFAULT_ICON)
+                    team_text.append(f" ▪ {agent_icon} {name} (Agent): {agent_status.value}\n")
                 elif child_node['type'] == 'subworkflow':
-                    wf_phase = all_workflow_phases.get(name, WorkflowOperationalPhase.UNINITIALIZED)
-                    wf_icon = WORKFLOW_PHASE_ICONS.get(wf_phase, SUB_WORKFLOW_ICON)
-                    team_text.append(f" ▪ {wf_icon} {name} (Sub-Workflow): {wf_phase.value}\n")
+                    wf_status = all_workflow_statuses.get(name, WorkflowStatus.UNINITIALIZED)
+                    wf_icon = WORKFLOW_STATUS_ICONS.get(wf_status, SUB_WORKFLOW_ICON)
+                    team_text.append(f" ▪ {wf_icon} {name} (Sub-Workflow): {wf_status.value}\n")
             await log_container.mount(Static(Panel(team_text, title="Team Status", border_style="blue", title_align="left")))
 
     async def _close_thinking_block(self, scroll: bool = True):
@@ -324,7 +324,7 @@ class FocusPane(Static):
             await self._show_approval_prompt()
         elif event_type == AgentStreamEventType.ERROR_EVENT:
             renderable = renderables.render_error(event.data)
-        elif event_type in [AgentStreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION, AgentStreamEventType.AGENT_IDLE]:
+        elif event_type in [AgentStreamEventType.AGENT_STATUS_TRANSITION, AgentStreamEventType.AGENT_IDLE]:
             # These are informational and do not have a renderable in the log pane.
             pass
 

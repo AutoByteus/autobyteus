@@ -8,7 +8,7 @@ from autobyteus.workflow.events.workflow_events import BaseWorkflowEvent, Workfl
 if TYPE_CHECKING:
     from autobyteus.workflow.context.workflow_context import WorkflowContext
     from autobyteus.workflow.handlers.workflow_event_handler_registry import WorkflowEventHandlerRegistry
-    from autobyteus.workflow.phases.workflow_phase_manager import WorkflowPhaseManager
+    from autobyteus.workflow.phases.workflow_status_manager import WorkflowStatusManager
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +17,9 @@ class WorkflowEventDispatcher:
 
     def __init__(self,
                  event_handler_registry: 'WorkflowEventHandlerRegistry',
-                 phase_manager: 'WorkflowPhaseManager'):
+                 status_manager: 'WorkflowStatusManager'):
         self.registry = event_handler_registry
-        self.phase_manager = phase_manager
+        self.status_manager = status_manager
 
     async def dispatch(self, event: BaseWorkflowEvent, context: 'WorkflowContext'):
         handler = self.registry.get_handler(type(event))
@@ -32,8 +32,8 @@ class WorkflowEventDispatcher:
         try:
             await handler.handle(event, context)
             if isinstance(event, WorkflowReadyEvent):
-                await self.phase_manager.notify_initialization_complete()
+                await self.status_manager.notify_initialization_complete()
         except Exception as e:
             error_msg = f"Error handling '{type(event).__name__}' in workflow '{workflow_id}': {e}"
             logger.error(error_msg, exc_info=True)
-            await self.phase_manager.notify_error_occurred(error_msg, traceback.format_exc())
+            await self.status_manager.notify_error_occurred(error_msg, traceback.format_exc())

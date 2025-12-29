@@ -9,7 +9,7 @@ from autobyteus.agent.streaming.agent_event_stream import AgentEventStream
 from autobyteus.workflow.streaming.workflow_event_notifier import WorkflowExternalEventNotifier
 from autobyteus.agent.streaming.stream_events import StreamEvent, StreamEventType
 from autobyteus.agent.agent import Agent
-from autobyteus.agent.phases import AgentOperationalPhase
+from autobyteus.agent.status.status_enum import AgentStatus
 
 pytestmark = pytest.mark.asyncio
 
@@ -64,7 +64,7 @@ async def test_bridge_forwards_events(bridge: AgentEventBridge, mock_agent_event
     event2 = StreamEvent(
         agent_id="a1",
         event_type=StreamEventType.AGENT_IDLE,
-        data={"new_phase": AgentOperationalPhase.IDLE} # Valid AgentOperationalPhaseTransitionData
+        data={"new_status": AgentOperationalPhase.IDLE} # Valid AgentOperationalPhaseTransitionData
     )
 
     # Put events onto the stream's queue

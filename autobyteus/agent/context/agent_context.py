@@ -2,7 +2,7 @@
 import logging
 from typing import TYPE_CHECKING, List, Dict, Any, Optional
 
-from autobyteus.agent.phases import AgentOperationalPhase 
+ 
 
 if TYPE_CHECKING:
     from .agent_config import AgentConfig 
@@ -13,7 +13,9 @@ if TYPE_CHECKING:
     from autobyteus.agent.tool_invocation import ToolInvocation
     # LLMConfig no longer needed here
     from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
-    from autobyteus.agent.phases import AgentPhaseManager 
+    
+from autobyteus.agent.status.status_enum import AgentStatus 
+from autobyteus.agent.status.manager import AgentStatusManager 
 
 logger = logging.getLogger(__name__)
 
@@ -65,18 +67,18 @@ class AgentContext:
         return self.state.input_event_queues
 
     @property
-    def current_phase(self) -> 'AgentOperationalPhase': 
-        return self.state.current_phase
+    def current_status(self) -> 'AgentStatus': 
+        return self.state.current_status
 
-    @current_phase.setter
-    def current_phase(self, value: 'AgentOperationalPhase'): 
-        if not isinstance(value, AgentOperationalPhase): # pragma: no cover
-            raise TypeError(f"current_phase must be an AgentOperationalPhase instance. Got {type(value)}")
-        self.state.current_phase = value
+    @current_status.setter
+    def current_status(self, value: 'AgentStatus'): 
+        if not isinstance(value, AgentStatus): # pragma: no cover
+            raise TypeError(f"current_status must be an AgentStatus instance. Got {type(value)}")
+        self.state.current_status = value
 
     @property
-    def phase_manager(self) -> Optional['AgentPhaseManager']: 
-        return self.state.phase_manager_ref
+    def status_manager(self) -> Optional['AgentStatusManager']: 
+        return self.state.status_manager_ref
 
     @property
     def conversation_history(self) -> List[Dict[str, Any]]:
@@ -123,7 +125,7 @@ class AgentContext:
     def __repr__(self) -> str:
         input_q_status = "Initialized" if self.state.input_event_queues is not None else "Pending Init"
         return (f"AgentContext(agent_id='{self.agent_id}', "
-                f"current_phase='{self.state.current_phase.value}', " 
+                f"current_status='{self.state.current_status.value}', " 
                 f"llm_initialized={self.state.llm_instance is not None}, "
                 f"tools_initialized={self.state.tool_instances is not None}, "
                 f"input_queues_status='{input_q_status}')")

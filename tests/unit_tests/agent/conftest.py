@@ -1,3 +1,4 @@
+
 # file: autobyteus/tests/unit_tests/agent/conftest.py
 import asyncio
 import uuid
@@ -8,14 +9,14 @@ import pytest
 from autobyteus.agent.context.agent_config import AgentConfig
 from autobyteus.agent.context.agent_runtime_state import AgentRuntimeState
 from autobyteus.agent.context.agent_context import AgentContext
-from autobyteus.agent.phases.manager import AgentPhaseManager 
+from autobyteus.agent.status.manager import AgentStatusManager 
 
 from autobyteus.agent.events.agent_input_event_queue_manager import AgentInputEventQueueManager
 from autobyteus.agent.events.notifiers import AgentExternalEventNotifier 
 
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.tools.base_tool import BaseTool
-from autobyteus.agent.phases import AgentOperationalPhase 
+from autobyteus.agent.status.status_enum import AgentStatus
 from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
 from autobyteus.agent.tool_invocation import ToolInvocation
 from autobyteus.llm.utils.llm_config import LLMConfig
@@ -75,19 +76,19 @@ def mock_input_event_queue_manager():
     return manager
 
 @pytest.fixture
-def mock_phase_manager():
-    """Provides a mocked AgentPhaseManager with async methods."""
+def mock_status_manager():
+    """Provides a mocked AgentStatusManager with async methods."""
     notifier_mock = AsyncMock(spec=AgentExternalEventNotifier)
     # Mock all notify methods on the notifier to prevent actual event emissions
     for attr_name in dir(AgentExternalEventNotifier):
         if attr_name.startswith("notify_") and callable(getattr(AgentExternalEventNotifier, attr_name)):
             setattr(notifier_mock, attr_name, MagicMock())
 
-    manager = MagicMock(spec=AgentPhaseManager)
+    manager = MagicMock(spec=AgentStatusManager)
     manager.notifier = notifier_mock 
-    # Mock all notify methods on the phase manager itself as ASYNC mocks
-    for attr_name in dir(AgentPhaseManager):
-        if attr_name.startswith("notify_") and callable(getattr(AgentPhaseManager, attr_name)):
+    # Mock all notify methods on the status manager itself as ASYNC mocks
+    for attr_name in dir(AgentStatusManager):
+        if attr_name.startswith("notify_") and callable(getattr(AgentStatusManager, attr_name)):
             setattr(manager, attr_name, AsyncMock())
             
     return manager
@@ -122,7 +123,7 @@ def mock_agent_runtime_state(mock_agent_config, mock_workspace):
     return state
 
 @pytest.fixture
-def agent_context(mock_agent_config, mock_agent_runtime_state, mock_input_event_queue_manager, mock_phase_manager): 
+def agent_context(mock_agent_config, mock_agent_runtime_state, mock_input_event_queue_manager, mock_status_manager): 
     """
     Provides a fully-composed AgentContext ready for use in handler/step tests.
     It simulates a post-bootstrap state where essential components are already attached.
@@ -139,9 +140,16 @@ def agent_context(mock_agent_config, mock_agent_runtime_state, mock_input_event_
     
     # Simulate a post-bootstrap state for handlers:
     composite_context.state.input_event_queues = mock_input_event_queue_manager
-    composite_context.state.current_phase = AgentOperationalPhase.IDLE 
-    composite_context.state.phase_manager_ref = mock_phase_manager
+    composite_context.state.current_status = AgentStatus.IDLE 
+    composite_context.state.status_manager_ref = mock_status_manager
     
+    # Mock the get_tool method to allow tests to control it and verify calls
+    composite_context.get_tool = MagicMock()
+    # Default behavior: look up in tool_instances if no side_effect/return_value set
+    def get_tool_side_effect(tool_name):
+        return composite_context.state.tool_instances.get(tool_name)
+    composite_context.get_tool.side_effect = get_tool_side_effect
+
     return composite_context
 
 @pytest.fixture

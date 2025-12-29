@@ -39,8 +39,8 @@ class UserInputMessageEventHandler(AgentEventHandler):
 
         # --- UPDATED LOGIC: Check sender_type for system-generated tasks and notify TUI ---
         if original_agent_input_user_msg.sender_type == SenderType.SYSTEM:
-            if context.phase_manager:
-                notifier: 'AgentExternalEventNotifier' = context.phase_manager.notifier
+            if context.status_manager:
+                notifier: 'AgentExternalEventNotifier' = context.status_manager.notifier
                 notification_data = {
                     "sender_id": original_agent_input_user_msg.metadata.get("sender_id", "system"),
                     "content": original_agent_input_user_msg.content,
@@ -59,8 +59,15 @@ class UserInputMessageEventHandler(AgentEventHandler):
 
         processor_instances = context.config.input_processors
         if processor_instances:
+            valid_processors = []
+            for p in processor_instances:
+                if isinstance(p, BaseAgentUserInputMessageProcessor):
+                    valid_processors.append(p)
+                else:
+                    logger.error(f"Agent '{context.agent_id}': Invalid input processor type in config: {type(p)}. Skipping.")
+
             # Sort processors by their order attribute
-            sorted_processors = sorted(processor_instances, key=lambda p: p.get_order())
+            sorted_processors = sorted(valid_processors, key=lambda p: p.get_order())
             processor_names = [p.get_name() for p in sorted_processors]
             logger.debug(f"Agent '{context.agent_id}': Applying input processors in order: {processor_names}")
             

@@ -6,18 +6,18 @@ from unittest.mock import MagicMock, AsyncMock, patch
 from autobyteus.agent.bootstrap_steps.agent_bootstrapper import AgentBootstrapper
 from autobyteus.agent.bootstrap_steps.base_bootstrap_step import BaseBootstrapStep
 from autobyteus.agent.context import AgentContext
-from autobyteus.agent.phases import AgentPhaseManager
+from autobyteus.agent.status.manager import AgentStatusManager
 from autobyteus.agent.events import AgentReadyEvent
 
 # Define dummy classes for spec'ing mocks. This is more robust than
 # manually assigning __class__.__name__.
 class MockStep1(BaseBootstrapStep):
-    async def execute(self, context, phase_manager):
+    async def execute(self, context, status_manager):
         # This method will be mocked by AsyncMock anyway, so its content doesn't matter.
         pass
 
 class MockStep2(BaseBootstrapStep):
-    async def execute(self, context, phase_manager):
+    async def execute(self, context, status_manager):
         # This method will be mocked by AsyncMock anyway, so its content doesn't matter.
         pass
 
@@ -60,12 +60,12 @@ async def test_run_success(agent_context, mock_step_1, mock_step_2):
     """Test a successful run where all steps pass."""
     bootstrapper = AgentBootstrapper(steps=[mock_step_1, mock_step_2])
     
-    success = await bootstrapper.run(agent_context, agent_context.phase_manager)
+    success = await bootstrapper.run(agent_context, agent_context.status_manager)
 
     assert success is True
-    agent_context.phase_manager.notify_bootstrapping_started.assert_awaited_once()
-    mock_step_1.execute.assert_awaited_once_with(agent_context, agent_context.phase_manager)
-    mock_step_2.execute.assert_awaited_once_with(agent_context, agent_context.phase_manager)
+    agent_context.status_manager.notify_bootstrapping_started.assert_awaited_once()
+    mock_step_1.execute.assert_awaited_once_with(agent_context, agent_context.status_manager)
+    mock_step_2.execute.assert_awaited_once_with(agent_context, agent_context.status_manager)
     
     # Verify AgentReadyEvent was enqueued
     agent_context.state.input_event_queues.enqueue_internal_system_event.assert_awaited_once()
@@ -73,7 +73,7 @@ async def test_run_success(agent_context, mock_step_1, mock_step_2):
     assert isinstance(enqueued_event, AgentReadyEvent)
     
     # Verify no error was notified
-    agent_context.phase_manager.notify_error_occurred.assert_not_awaited()
+    agent_context.status_manager.notify_error_occurred.assert_not_awaited()
 
 @pytest.mark.asyncio
 async def test_run_fails_and_stops(agent_context, mock_step_1, mock_step_2):
@@ -82,16 +82,16 @@ async def test_run_fails_and_stops(agent_context, mock_step_1, mock_step_2):
     
     bootstrapper = AgentBootstrapper(steps=[mock_step_1, mock_step_2])
     
-    success = await bootstrapper.run(agent_context, agent_context.phase_manager)
+    success = await bootstrapper.run(agent_context, agent_context.status_manager)
 
     assert success is False
-    agent_context.phase_manager.notify_bootstrapping_started.assert_awaited_once()
+    agent_context.status_manager.notify_bootstrapping_started.assert_awaited_once()
     mock_step_1.execute.assert_awaited_once()
     mock_step_2.execute.assert_not_awaited() # Second step should not be executed
     
     # Verify error was notified
-    agent_context.phase_manager.notify_error_occurred.assert_awaited_once()
-    call_kwargs = agent_context.phase_manager.notify_error_occurred.call_args.kwargs
+    agent_context.status_manager.notify_error_occurred.assert_awaited_once()
+    call_kwargs = agent_context.status_manager.notify_error_occurred.call_args.kwargs
     # This assertion should now correctly pass
     assert "Critical bootstrap failure at MockStep1" in call_kwargs['error_message']
 
@@ -106,13 +106,13 @@ async def test_run_fails_if_queues_not_set_after_success(agent_context, mock_ste
     # Simulate steps succeeding but queues not being set
     agent_context.state.input_event_queues = None
     
-    success = await bootstrapper.run(agent_context, agent_context.phase_manager)
+    success = await bootstrapper.run(agent_context, agent_context.status_manager)
 
     assert success is False
-    agent_context.phase_manager.notify_bootstrapping_started.assert_awaited_once()
+    agent_context.status_manager.notify_bootstrapping_started.assert_awaited_once()
     mock_step_1.execute.assert_awaited_once()
     
     # Verify error was notified for this specific critical failure
-    agent_context.phase_manager.notify_error_occurred.assert_awaited_once()
-    call_kwargs = agent_context.phase_manager.notify_error_occurred.call_args.kwargs
+    agent_context.status_manager.notify_error_occurred.assert_awaited_once()
+    call_kwargs = agent_context.status_manager.notify_error_occurred.call_args.kwargs
     assert "Input queues unavailable after bootstrap" in call_kwargs['error_message']

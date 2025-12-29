@@ -11,7 +11,7 @@ from autobyteus.workflow.events.workflow_events import WorkflowReadyEvent
 
 if TYPE_CHECKING:
     from autobyteus.workflow.context.workflow_context import WorkflowContext
-    from autobyteus.workflow.phases.workflow_phase_manager import WorkflowPhaseManager
+    from autobyteus.workflow.phases.workflow_status_manager import WorkflowStatusManager
 
 logger = logging.getLogger(__name__)
 
@@ -25,18 +25,18 @@ class WorkflowBootstrapper:
             CoordinatorInitializationStep(),
         ]
 
-    async def run(self, context: 'WorkflowContext', phase_manager: 'WorkflowPhaseManager') -> bool:
+    async def run(self, context: 'WorkflowContext', status_manager: 'WorkflowStatusManager') -> bool:
         workflow_id = context.workflow_id
-        await phase_manager.notify_bootstrapping_started()
+        await status_manager.notify_bootstrapping_started()
         logger.info(f"Workflow '{workflow_id}': Bootstrapper starting.")
 
         for step in self.bootstrap_steps:
             step_name = step.__class__.__name__
             logger.debug(f"Workflow '{workflow_id}': Executing bootstrap step: {step_name}")
-            if not await step.execute(context, phase_manager):
+            if not await step.execute(context, status_manager):
                 error_message = f"Bootstrap step {step_name} failed."
                 logger.error(f"Workflow '{workflow_id}': {error_message}")
-                await phase_manager.notify_error_occurred(error_message, f"Failed during bootstrap step '{step_name}'.")
+                await status_manager.notify_error_occurred(error_message, f"Failed during bootstrap step '{step_name}'.")
                 return False
         
         logger.info(f"Workflow '{workflow_id}': All bootstrap steps completed successfully.")
@@ -44,7 +44,7 @@ class WorkflowBootstrapper:
             await context.state.input_event_queues.enqueue_internal_system_event(WorkflowReadyEvent())
         else:
             logger.critical(f"Workflow '{workflow_id}': Bootstrap succeeded but queues not available.")
-            await phase_manager.notify_error_occurred("Queues unavailable after bootstrap.", "")
+            await status_manager.notify_error_occurred("Queues unavailable after bootstrap.", "")
             return False
             
         return True

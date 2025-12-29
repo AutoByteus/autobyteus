@@ -21,14 +21,14 @@ class ToolApprovalWorkflowEventHandler(BaseWorkflowEventHandler):
         if not team_manager:
             msg = f"Workflow '{workflow_id}': TeamManager not found. Cannot route approval for agent '{event.agent_name}'."
             logger.error(msg)
-            await context.phase_manager.notify_error_occurred(msg, "TeamManager is not initialized.")
+            await context.status_manager.notify_error_occurred(msg, "TeamManager is not initialized.")
             return
 
         target_agent = await team_manager.ensure_agent_is_ready(event.agent_name)
         if not target_agent:
             msg = f"Workflow '{workflow_id}': Target agent '{event.agent_name}' for approval not found or failed to start."
             logger.error(msg)
-            await context.phase_manager.notify_error_occurred(msg, f"Agent '{event.agent_name}' not found or failed to start.")
+            await context.status_manager.notify_error_occurred(msg, f"Agent '{event.agent_name}' not found or failed to start.")
             return
 
         logger.info(f"Workflow '{workflow_id}': Posting tool approval (Approved: {event.is_approved}) to agent '{event.agent_name}' for invocation '{event.tool_invocation_id}'.")

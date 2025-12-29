@@ -11,7 +11,8 @@ from autobyteus.agent.events import AgentReadyEvent
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
-    from autobyteus.agent.phases import AgentPhaseManager
+    from autobyteus.agent.status.manager import AgentStatusManager
+from autobyteus.agent.status.status_enum import AgentStatus
 
 logger = logging.getLogger(__name__)
 
@@ -40,35 +41,35 @@ class AgentBootstrapper:
             self.bootstrap_steps = steps
             logger.debug(f"AgentBootstrapper initialized with {len(steps)} custom steps.")
 
-    async def run(self, context: 'AgentContext', phase_manager: 'AgentPhaseManager') -> bool:
+    async def run(self, context: 'AgentContext', status_manager: 'AgentStatusManager') -> bool:
         """
         Executes the configured sequence of bootstrap steps.
 
         Args:
             context: The agent's context.
-            phase_manager: The agent's phase manager.
+            status_manager: The agent's status manager.
 
         Returns:
             True if all steps completed successfully, False otherwise.
         """
         agent_id = context.agent_id
         
-        # Set the agent phase to BOOTSTRAPPING and wait for any associated hooks.
-        await phase_manager.notify_bootstrapping_started()
-        logger.info(f"Agent '{agent_id}': AgentBootstrapper starting execution. Phase set to BOOTSTRAPPING.")
+        # Set the agent status to BOOTSTRAPPING and wait for any associated hooks.
+        await status_manager.notify_bootstrapping_started()
+        logger.info(f"Agent '{agent_id}': AgentBootstrapper starting execution. Status set to BOOTSTRAPPING.")
 
         for step_index, step_instance in enumerate(self.bootstrap_steps):
             step_name = step_instance.__class__.__name__
             logger.debug(f"Agent '{agent_id}': Executing bootstrap step {step_index + 1}/{len(self.bootstrap_steps)}: {step_name}")
             
-            success = await step_instance.execute(context, phase_manager)
+            success = await step_instance.execute(context, status_manager)
             
             if not success:
                 error_message = f"Bootstrap step {step_name} failed."
                 logger.error(f"Agent '{agent_id}': {error_message} Halting bootstrap process.")
                 # The step itself is responsible for detailed error logging.
-                # We are responsible for notifying the phase manager to set the agent to an error state.
-                await phase_manager.notify_error_occurred(
+                # We are responsible for notifying the status manager to set the agent to an error state.
+                await status_manager.notify_error_occurred(
                     error_message=f"Critical bootstrap failure at {step_name}",
                     error_details=f"Agent '{agent_id}' failed during bootstrap step '{step_name}'. Check logs for details."
                 )
@@ -77,11 +78,13 @@ class AgentBootstrapper:
         logger.info(f"Agent '{agent_id}': All bootstrap steps completed successfully. Enqueuing AgentReadyEvent.")
         # After successful bootstrapping, enqueue the ready event.
         if context.state.input_event_queues:
+            if status_manager.current_status != AgentStatus.ERROR:
+                 status_manager.transition_to(AgentStatus.IDLE)
             await context.state.input_event_queues.enqueue_internal_system_event(AgentReadyEvent())
         else: # pragma: no cover
             # Should not happen if AgentRuntimeQueueInitializationStep is present and successful
             logger.critical(f"Agent '{agent_id}': Bootstrap succeeded but input queues are not available to enqueue AgentReadyEvent.")
-            await phase_manager.notify_error_occurred(
+            await status_manager.notify_error_occurred(
                 error_message="Input queues unavailable after bootstrap",
                 error_details=f"Agent '{agent_id}' bootstrap process seemed to succeed, but input event queues are missing."
             )

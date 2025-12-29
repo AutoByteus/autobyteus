@@ -13,11 +13,12 @@ from textual.widgets import Header, Static
 from textual.reactive import reactive
 
 from autobyteus.agent_team.agent_team import AgentTeam
+from autobyteus.agent_team.status.agent_team_status import AgentTeamStatus
 from autobyteus.agent_team.streaming.agent_team_event_stream import AgentTeamEventStream
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.agent.streaming.stream_events import StreamEventType as AgentStreamEventType
-from autobyteus.agent.streaming.stream_event_payloads import AssistantChunkData
-from autobyteus.agent_team.streaming.agent_team_stream_event_payloads import AgentEventRebroadcastPayload, AgentTeamPhaseTransitionData
+from autobyteus.agent_team.streaming.agent_team_stream_events import AgentTeamStreamEvent
+from autobyteus.agent_team.streaming.agent_team_stream_event_payloads import AgentEventRebroadcastPayload, SubTeamEventRebroadcastPayload, AgentTeamStatusTransitionData
 
 from .state import TUIStateStore
 from .widgets.agent_list_sidebar import AgentListSidebar
@@ -104,7 +105,9 @@ class AgentTeamApp(App):
                 self._ui_update_pending = True
                 
                 # 3. Handle real-time, incremental updates directly.
-                if isinstance(event.data, AgentEventRebroadcastPayload):
+                if event.event_source_type == "TEAM" and isinstance(event.data, AgentTeamStatusTransitionData):
+                    self.store._team_statuses[self.team.name] = event.data.new_status
+                elif isinstance(event.data, AgentEventRebroadcastPayload):
                     payload = event.data
                     agent_name = payload.agent_name
                     agent_event = payload.agent_event
@@ -133,10 +136,10 @@ class AgentTeamApp(App):
 
         tree_data = self.store.get_tree_data()
         agent_phases = self.store._agent_phases
-        team_phases = self.store._team_phases
+        team_statuses = self.store._team_statuses
         speaking_agents = self.store._speaking_agents
         
-        sidebar.update_tree(tree_data, agent_phases, team_phases, speaking_agents)
+        sidebar.update_tree(tree_data, agent_phases, team_statuses, speaking_agents)
         
         focused_data = self.focused_node_data
         if focused_data and focused_data.get("type") in ['team', 'subteam']:
@@ -148,12 +151,12 @@ class AgentTeamApp(App):
                 history=[], # No history for teams
                 pending_approval=None,
                 all_agent_phases=agent_phases,
-                all_team_phases=team_phases,
+                all_team_phases=team_statuses,
                 task_plan=task_plan,
                 task_statuses=task_statuses
             )
         elif focused_data and focused_data.get("type") == 'agent':
-            focus_pane.update_current_node_status(agent_phases, team_phases)
+            focus_pane.update_current_node_status(agent_phases, team_statuses)
 
 
     async def watch_focused_node_data(self, new_node_data: Optional[Dict[str, Any]]):
@@ -180,7 +183,7 @@ class AgentTeamApp(App):
             history=history,
             pending_approval=pending_approval,
             all_agent_phases=self.store._agent_phases,
-            all_team_phases=self.store._team_phases,
+            all_team_phases=self.store._team_statuses,
             task_plan=task_plan,
             task_statuses=task_statuses
         )

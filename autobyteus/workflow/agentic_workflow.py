@@ -5,7 +5,7 @@ from typing import Optional
 from autobyteus.workflow.runtime.workflow_runtime import WorkflowRuntime
 from autobyteus.workflow.events.workflow_events import ProcessUserMessageEvent, ToolApprovalWorkflowEvent
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
-from autobyteus.workflow.phases.workflow_operational_phase import WorkflowOperationalPhase
+from autobyteus.workflow.phases.workflow_status import WorkflowStatus
 
 logger = logging.getLogger(__name__)
 
@@ -89,5 +89,5 @@ class AgenticWorkflow:
         """Checks if the workflow's worker is running."""
         return self._runtime.is_running
         
-    def get_current_phase(self) -> WorkflowOperationalPhase: 
-        return self._runtime.context.state.current_phase
+    def get_current_status(self) -> WorkflowStatus: 
+        return self._runtime.context.state.current_status

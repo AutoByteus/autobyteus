@@ -49,8 +49,8 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
         any_processor_took_action = False
         
         notifier: Optional['AgentExternalEventNotifier'] = None
-        if context.phase_manager:
-            notifier = context.phase_manager.notifier
+        if context.status_manager:
+            notifier = context.status_manager.notifier
         
         if not notifier: # pragma: no cover
             logger.error(f"Agent '{agent_id}': Notifier not available in LLMCompleteResponseReceivedEventHandler. Cannot emit complete response event.")
@@ -63,8 +63,15 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
                     f"Proceeding to treat LLM response as output for this leg."
                 )
             else:
+                valid_processors = []
+                for p in processor_instances_to_try:
+                    if isinstance(p, BaseLLMResponseProcessor):
+                        valid_processors.append(p)
+                    else:
+                        logger.error(f"Agent '{agent_id}': Invalid LLM response processor type in config: {type(p)}. Skipping.")
+
                 # Sort processors by their order attribute
-                sorted_processors = sorted(processor_instances_to_try, key=lambda p: p.get_order())
+                sorted_processors = sorted(valid_processors, key=lambda p: p.get_order())
                 processor_names = [p.get_name() for p in sorted_processors]
                 logger.debug(f"Agent '{agent_id}': Attempting LLM response processing in order: {processor_names}")
 

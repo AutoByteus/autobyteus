@@ -19,8 +19,8 @@ class WorkflowWorker:
     """Encapsulates the core event processing loop for a workflow."""
     def __init__(self, context: 'WorkflowContext', event_handler_registry: 'WorkflowEventHandlerRegistry'):
         self.context = context
-        self.phase_manager = self.context.phase_manager
-        self.event_dispatcher = WorkflowEventDispatcher(event_handler_registry, self.phase_manager)
+        self.status_manager = self.context.status_manager
+        self.event_dispatcher = WorkflowEventDispatcher(event_handler_registry, self.status_manager)
         
         self._thread_pool_manager = AgentThreadPoolManager()
         self._thread_future: Optional[concurrent.futures.Future] = None
@@ -70,7 +70,7 @@ class WorkflowWorker:
 
     async def async_run(self):
         bootstrapper = WorkflowBootstrapper()
-        if not await bootstrapper.run(self.context, self.phase_manager):
+        if not await bootstrapper.run(self.context, self.status_manager):
             logger.critical(f"Workflow '{self.context.workflow_id}' failed to initialize. Shutting down.")
             return
 

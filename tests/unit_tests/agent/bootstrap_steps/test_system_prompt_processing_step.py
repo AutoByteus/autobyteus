@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, call, AsyncMock
 from autobyteus.agent.bootstrap_steps.system_prompt_processing_step import SystemPromptProcessingStep
 from autobyteus.agent.events import AgentErrorEvent
 from autobyteus.agent.context import AgentContext
-from autobyteus.agent.phases import AgentPhaseManager
+from autobyteus.agent.status.manager import AgentStatusManager
 from autobyteus.agent.system_prompt_processor import BaseSystemPromptProcessor
 
 @pytest.fixture
@@ -18,7 +18,7 @@ def prompt_proc_step():
 async def test_system_prompt_processing_success_with_processors(
     prompt_proc_step: SystemPromptProcessingStep,
     agent_context: AgentContext,
-    mock_phase_manager: AgentPhaseManager,
+    mock_status_manager: AgentStatusManager,
     caplog
 ):
     """Tests successful prompt processing with a sequence of processors."""
@@ -28,10 +28,12 @@ async def test_system_prompt_processing_success_with_processors(
     # Create mock processor instances
     mock_processor_1 = MagicMock(spec=BaseSystemPromptProcessor)
     mock_processor_1.get_name.return_value = "Processor1"
+    mock_processor_1.get_order.return_value = 100
     mock_processor_1.process = MagicMock(return_value="Processed by P1.")
     
     mock_processor_2 = MagicMock(spec=BaseSystemPromptProcessor)
     mock_processor_2.get_name.return_value = "Processor2"
+    mock_processor_2.get_order.return_value = 200
     mock_processor_2.process = MagicMock(return_value="Final processed by P2.")
     
     # Set the instances on the config
@@ -41,7 +43,7 @@ async def test_system_prompt_processing_success_with_processors(
     agent_context.llm_instance.configure_system_prompt = MagicMock()
 
     with caplog.at_level(logging.INFO):
-        success = await prompt_proc_step.execute(agent_context, mock_phase_manager)
+        success = await prompt_proc_step.execute(agent_context, mock_status_manager)
 
     assert success is True
     # The step no longer directly manages phase transitions. This is handled by the bootstrapper.
@@ -74,7 +76,7 @@ async def test_system_prompt_processing_success_with_processors(
 async def test_system_prompt_processing_success_no_processors(
     prompt_proc_step: SystemPromptProcessingStep,
     agent_context: AgentContext,
-    mock_phase_manager: AgentPhaseManager,
+    mock_status_manager: AgentStatusManager,
     caplog
 ):
     """Tests successful execution when no processors are configured."""
@@ -85,7 +87,7 @@ async def test_system_prompt_processing_success_no_processors(
     agent_context.llm_instance.configure_system_prompt = MagicMock()
 
     with caplog.at_level(logging.DEBUG):
-        success = await prompt_proc_step.execute(agent_context, mock_phase_manager)
+        success = await prompt_proc_step.execute(agent_context, mock_status_manager)
 
     assert success is True
     # The step no longer directly manages phase transitions.
@@ -100,7 +102,7 @@ async def test_system_prompt_processing_success_no_processors(
 async def test_execute_fails_if_no_llm_instance(
     prompt_proc_step: SystemPromptProcessingStep,
     agent_context: AgentContext,
-    mock_phase_manager: AgentPhaseManager,
+    mock_status_manager: AgentStatusManager,
     caplog
 ):
     """Tests that the step fails if the LLM instance isn't in the context."""
@@ -108,7 +110,7 @@ async def test_execute_fails_if_no_llm_instance(
     agent_context.config.llm_instance = None
 
     with caplog.at_level(logging.ERROR):
-        success = await prompt_proc_step.execute(agent_context, mock_phase_manager)
+        success = await prompt_proc_step.execute(agent_context, mock_status_manager)
     
     assert success is False
     assert "Critical failure during system prompt processing step: LLM instance not found" in caplog.text
@@ -121,7 +123,7 @@ async def test_execute_fails_if_no_llm_instance(
 async def test_system_prompt_processing_failure_processor_error(
     prompt_proc_step: SystemPromptProcessingStep,
     agent_context: AgentContext,
-    mock_phase_manager: AgentPhaseManager,
+    mock_status_manager: AgentStatusManager,
     caplog
 ):
     """Tests failure when a processor instance raises an exception."""
@@ -135,7 +137,7 @@ async def test_system_prompt_processing_failure_processor_error(
     agent_context.config.system_prompt_processors = [failing_processor]
 
     with caplog.at_level(logging.ERROR):
-        success = await prompt_proc_step.execute(agent_context, mock_phase_manager)
+        success = await prompt_proc_step.execute(agent_context, mock_status_manager)
 
     assert success is False
     # The step no longer directly manages phase transitions.
@@ -152,14 +154,14 @@ async def test_system_prompt_processing_failure_processor_error(
 async def test_system_prompt_processing_invalid_processor_type(
     prompt_proc_step: SystemPromptProcessingStep,
     agent_context: AgentContext,
-    mock_phase_manager: AgentPhaseManager,
+    mock_status_manager: AgentStatusManager,
     caplog
 ):
     """Tests failure when an item in the processor list is not a valid type."""
     agent_context.config.system_prompt_processors = ["not_a_processor_instance"]
 
     with caplog.at_level(logging.ERROR):
-        success = await prompt_proc_step.execute(agent_context, mock_phase_manager)
+        success = await prompt_proc_step.execute(agent_context, mock_status_manager)
 
     assert success is False
     assert "Invalid system prompt processor configuration type" in caplog.text

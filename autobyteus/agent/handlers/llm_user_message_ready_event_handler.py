@@ -37,8 +37,8 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
         if context.state.llm_instance is None: 
             error_msg = f"Agent '{agent_id}' received LLMUserMessageReadyEvent but LLM instance is not yet initialized."
             logger.critical(error_msg)
-            if context.phase_manager and context.phase_manager.notifier:
-                context.phase_manager.notifier.notify_agent_error_output_generation( # USE RENAMED METHOD
+            if context.status_manager and context.status_manager.notifier:
+                context.status_manager.notifier.notify_agent_error_output_generation( # USE RENAMED METHOD
                     error_source="LLMUserMessageReadyEventHandler.pre_llm_check",
                     error_message=error_msg
                 )
@@ -58,8 +58,8 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
         complete_video_urls: List[str] = []
         
         notifier: Optional['AgentExternalEventNotifier'] = None
-        if context.phase_manager:
-            notifier = context.phase_manager.notifier
+        if context.status_manager:
+            notifier = context.status_manager.notifier
         
         if not notifier: # pragma: no cover
             logger.error(f"Agent '{agent_id}': Notifier not available in LLMUserMessageReadyEventHandler. Cannot emit chunk events.")

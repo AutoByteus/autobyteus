@@ -3,33 +3,33 @@
 Shared constants and data for TUI widgets.
 """
 from typing import Dict
-from autobyteus.agent.phases import AgentOperationalPhase
-from autobyteus.workflow.phases import WorkflowOperationalPhase
+from autobyteus.agent.status.status_enum import AgentStatus
+from autobyteus.workflow.phases.workflow_status import WorkflowStatus
 
-AGENT_PHASE_ICONS: Dict[AgentOperationalPhase, str] = {
-    AgentOperationalPhase.UNINITIALIZED: "⚪",
-    AgentOperationalPhase.BOOTSTRAPPING: "⏳",
-    AgentOperationalPhase.IDLE: "🟢",
-    AgentOperationalPhase.PROCESSING_USER_INPUT: "💭",
-    AgentOperationalPhase.AWAITING_LLM_RESPONSE: "💭",
-    AgentOperationalPhase.ANALYZING_LLM_RESPONSE: "🤔",
-    AgentOperationalPhase.AWAITING_TOOL_APPROVAL: "❓",
-    AgentOperationalPhase.TOOL_DENIED: "❌",
-    AgentOperationalPhase.EXECUTING_TOOL: "🛠️",
-    AgentOperationalPhase.PROCESSING_TOOL_RESULT: "⚙️",
-    AgentOperationalPhase.SHUTTING_DOWN: "🌙",
-    AgentOperationalPhase.SHUTDOWN_COMPLETE: "⚫",
-    AgentOperationalPhase.ERROR: "❗",
+AGENT_STATUS_ICONS: Dict[AgentStatus, str] = {
+    AgentStatus.UNINITIALIZED: "⚪",
+    AgentStatus.BOOTSTRAPPING: "⏳",
+    AgentStatus.IDLE: "🟢",
+    AgentStatus.PROCESSING_USER_INPUT: "💭",
+    AgentStatus.AWAITING_LLM_RESPONSE: "💭",
+    AgentStatus.ANALYZING_LLM_RESPONSE: "🤔",
+    AgentStatus.AWAITING_TOOL_APPROVAL: "❓",
+    AgentStatus.TOOL_DENIED: "❌",
+    AgentStatus.EXECUTING_TOOL: "🛠️",
+    AgentStatus.PROCESSING_TOOL_RESULT: "⚙️",
+    AgentStatus.SHUTTING_DOWN: "🌙",
+    AgentStatus.SHUTDOWN_COMPLETE: "⚫",
+    AgentStatus.ERROR: "❗",
 }
 
-WORKFLOW_PHASE_ICONS: Dict[WorkflowOperationalPhase, str] = {
-    WorkflowOperationalPhase.UNINITIALIZED: "⚪",
-    WorkflowOperationalPhase.BOOTSTRAPPING: "⏳",
-    WorkflowOperationalPhase.IDLE: "🟢",
-    WorkflowOperationalPhase.PROCESSING: "⚙️",
-    WorkflowOperationalPhase.SHUTTING_DOWN: "🌙",
-    WorkflowOperationalPhase.SHUTDOWN_COMPLETE: "⚫",
-    WorkflowOperationalPhase.ERROR: "❗",
+WORKFLOW_STATUS_ICONS: Dict[WorkflowStatus, str] = {
+    WorkflowStatus.UNINITIALIZED: "⚪",
+    WorkflowStatus.BOOTSTRAPPING: "⏳",
+    WorkflowStatus.IDLE: "🟢",
+    WorkflowStatus.PROCESSING: "⚙️",
+    WorkflowStatus.SHUTTING_DOWN: "🌙",
+    WorkflowStatus.SHUTDOWN_COMPLETE: "⚫",
+    WorkflowStatus.ERROR: "❗",
 }
 
 # Main component icons
@@ -47,5 +47,5 @@ ASSISTANT_ICON = "🤖"
 TOOL_ICON = "🛠️"
 PROMPT_ICON = "❓"
 ERROR_ICON = "💥"
-PHASE_ICON = "🔄"
+STATUS_ICON = "🔄"
 LOG_ICON = "📄"

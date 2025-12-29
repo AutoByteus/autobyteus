@@ -10,7 +10,7 @@ from rich.text import Text
 from rich.panel import Panel
 
 from autobyteus.agent.streaming.stream_event_payloads import (
-    AgentOperationalPhaseTransitionData, AssistantCompleteResponseData,
+    AgentStatusTransitionData, AssistantCompleteResponseData,
     ErrorEventData, ToolInteractionLogEntryData, ToolInvocationApprovalRequestedData, ToolInvocationAutoExecutingData
 )
 from .shared import ASSISTANT_ICON, TOOL_ICON, PROMPT_ICON, ERROR_ICON, LOG_ICON

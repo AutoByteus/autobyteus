@@ -18,7 +18,7 @@ def tool_result_handler():
 def mock_notifier(agent_context):
     """Fixture to ensure the notifier is a mock."""
     notifier = AsyncMock()
-    agent_context.phase_manager.notifier = notifier
+    agent_context.status_manager.notifier = notifier
     return notifier
 
 # === Single Tool Call Tests ===

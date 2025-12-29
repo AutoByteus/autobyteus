@@ -8,7 +8,7 @@ from autobyteus.agent.bootstrap_steps.agent_runtime_queue_initialization_step im
 # Import dependent classes for type checking and mocking
 from autobyteus.agent.events import AgentInputEventQueueManager
 from autobyteus.agent.context import AgentContext
-from autobyteus.agent.phases import AgentPhaseManager
+from autobyteus.agent.status.manager import AgentStatusManager
 
 @pytest.fixture
 def queue_init_step():
@@ -40,7 +40,7 @@ async def test_execute_success_first_time(
         mock_queue_manager_class
     )
     
-    success = await queue_init_step.execute(agent_context, agent_context.phase_manager)
+    success = await queue_init_step.execute(agent_context, agent_context.status_manager)
 
     assert success is True
     
@@ -69,7 +69,7 @@ async def test_execute_success_overwrite(
     )
     
     with caplog.at_level(logging.WARNING):
-        success = await queue_init_step.execute(agent_context, agent_context.phase_manager)
+        success = await queue_init_step.execute(agent_context, agent_context.status_manager)
 
     assert success is True
     
@@ -94,7 +94,7 @@ async def test_execute_failure_during_instantiation(
     )
 
     with caplog.at_level(logging.ERROR):
-        success = await queue_init_step.execute(agent_context, agent_context.phase_manager)
+        success = await queue_init_step.execute(agent_context, agent_context.status_manager)
 
     assert success is False
     assert f"Critical failure during AgentRuntimeQueueInitializationStep (input queues): {exception_message}" in caplog.text

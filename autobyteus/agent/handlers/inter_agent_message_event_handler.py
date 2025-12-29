@@ -50,8 +50,8 @@ class InterAgentMessageReceivedEventHandler(AgentEventHandler):
         )
 
         # Surface this inter-agent message to external subscribers (UI, etc.)
-        if context.phase_manager and context.phase_manager.notifier:
-            notifier: 'AgentExternalEventNotifier' = context.phase_manager.notifier
+        if context.status_manager and context.status_manager.notifier:
+            notifier: 'AgentExternalEventNotifier' = context.status_manager.notifier
             notifier.notify_agent_data_inter_agent_message_received({
                 "sender_agent_id": inter_agent_msg.sender_agent_id,
                 "recipient_role_name": inter_agent_msg.recipient_role_name,

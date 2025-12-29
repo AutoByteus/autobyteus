@@ -6,7 +6,8 @@ import concurrent.futures
 from typing import Optional, Any, Callable, Awaitable, TYPE_CHECKING 
 
 from autobyteus.agent.context import AgentContext, AgentContextRegistry
-from autobyteus.agent.phases import AgentOperationalPhase, AgentPhaseManager 
+from autobyteus.agent.status.status_enum import AgentStatus 
+from autobyteus.agent.status.manager import AgentStatusManager 
 from autobyteus.agent.events.notifiers import AgentExternalEventNotifier 
 from autobyteus.agent.events import BaseEvent
 from autobyteus.agent.handlers import EventHandlerRegistry
@@ -30,9 +31,9 @@ class AgentRuntime:
         self.event_handler_registry: EventHandlerRegistry = event_handler_registry
         
         self.external_event_notifier: AgentExternalEventNotifier = AgentExternalEventNotifier(agent_id=self.context.agent_id)
-        self.phase_manager: AgentPhaseManager = AgentPhaseManager(context=self.context, notifier=self.external_event_notifier) 
+        self.status_manager: AgentStatusManager = AgentStatusManager(context=self.context, notifier=self.external_event_notifier) 
         
-        self.context.state.phase_manager_ref = self.phase_manager 
+        self.context.state.status_manager_ref = self.status_manager 
         
         self._worker: AgentWorker = AgentWorker(
             context=self.context,
@@ -100,28 +101,28 @@ class AgentRuntime:
             logger.info(f"AgentRuntime '{agent_id}': Worker thread completed successfully.")
         except Exception as e:
             logger.error(f"AgentRuntime '{agent_id}': Worker thread terminated with an exception: {e}", exc_info=True)
-            if not self.context.current_phase.is_terminal():
-                # Since the phase manager is now async, we must run it in a new event loop.
+            if not self.context.current_status.is_terminal():
+                # Since the status manager is now async, we must run it in a new event loop.
                 try:
-                    asyncio.run(self.phase_manager.notify_error_occurred("Worker thread exited unexpectedly.", traceback.format_exc()))
+                    asyncio.run(self.status_manager.notify_error_occurred("Worker thread exited unexpectedly.", traceback.format_exc()))
                 except Exception as run_e:
                     logger.critical(f"AgentRuntime '{agent_id}': Failed to run async error notification: {run_e}")
         
-        if not self.context.current_phase.is_terminal():
+        if not self.context.current_status.is_terminal():
              # Use asyncio.run() to execute the final async phase transition from a sync callback.
              try:
-                 asyncio.run(self.phase_manager.notify_final_shutdown_complete())
+                 asyncio.run(self.status_manager.notify_final_shutdown_complete())
              except Exception as run_e:
                  logger.critical(f"AgentRuntime '{agent_id}': Failed to run async final shutdown notification: {run_e}")
         
     async def stop(self, timeout: float = 10.0) -> None:
         agent_id = self.context.agent_id
         if not self._worker.is_alive() and not self._worker._is_active: 
-            if not self.context.current_phase.is_terminal():
-                await self.phase_manager.notify_final_shutdown_complete()
+            if not self.context.current_status.is_terminal():
+                await self.status_manager.notify_final_shutdown_complete()
             return
         
-        await self.phase_manager.notify_shutdown_initiated() 
+        await self.status_manager.notify_shutdown_initiated() 
         await self._worker.stop(timeout=timeout) 
         
         # LLM instance cleanup is now handled by the AgentWorker before its loop closes.
@@ -130,12 +131,12 @@ class AgentRuntime:
         self._context_registry.unregister_context(agent_id)
         logger.info(f"AgentRuntime for '{agent_id}': Context unregistered.")
 
-        await self.phase_manager.notify_final_shutdown_complete() 
+        await self.status_manager.notify_final_shutdown_complete() 
         logger.info(f"AgentRuntime for '{agent_id}' stop() method completed.")
 
     @property 
-    def current_phase_property(self) -> AgentOperationalPhase: 
-        return self.context.current_phase 
+    def current_status_property(self) -> AgentStatus: 
+        return self.context.current_status 
         
     @property
     def is_running(self) -> bool:

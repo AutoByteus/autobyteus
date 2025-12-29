@@ -10,10 +10,10 @@ from textual.widgets import Static, Tree
 from textual.widgets.tree import TreeNode
 from textual.containers import Vertical
 
-from autobyteus.agent.phases import AgentOperationalPhase
-from autobyteus.workflow.phases import WorkflowOperationalPhase
+from autobyteus.agent.status.status_enum import AgentStatus
+from autobyteus.workflow.phases.workflow_status import WorkflowStatus
 from .shared import (
-    AGENT_PHASE_ICONS, WORKFLOW_PHASE_ICONS, SUB_WORKFLOW_ICON, 
+    AGENT_STATUS_ICONS, WORKFLOW_STATUS_ICONS, SUB_WORKFLOW_ICON, 
     WORKFLOW_ICON, SPEAKING_ICON, DEFAULT_ICON
 )
 from .logo import Logo
@@ -45,19 +45,19 @@ class AgentListSidebar(Static):
             self.post_message(self.NodeSelected(event.node.data))
         event.stop()
 
-    def _build_label(self, name: str, node_data: Dict, agent_phases: Dict, workflow_phases: Dict, speaking_agents: Dict) -> str:
+    def _build_label(self, name: str, node_data: Dict, agent_statuses: Dict, workflow_statuses: Dict, speaking_agents: Dict) -> str:
         """Constructs the display label for a tree node."""
         node_type = node_data["type"]
         icon = DEFAULT_ICON
         
         if node_type == "agent":
-            phase = agent_phases.get(name, AgentOperationalPhase.UNINITIALIZED)
-            icon = SPEAKING_ICON if speaking_agents.get(name) else AGENT_PHASE_ICONS.get(phase, DEFAULT_ICON)
+            status = agent_statuses.get(name, AgentStatus.UNINITIALIZED)
+            icon = SPEAKING_ICON if speaking_agents.get(name) else AGENT_STATUS_ICONS.get(status, DEFAULT_ICON)
             label = f"{icon} {name}"
         elif node_type in ["workflow", "subworkflow"]:
-            phase = workflow_phases.get(name, WorkflowOperationalPhase.UNINITIALIZED)
+            status = workflow_statuses.get(name, WorkflowStatus.UNINITIALIZED)
             default_icon = WORKFLOW_ICON if node_type == "workflow" else SUB_WORKFLOW_ICON
-            icon = WORKFLOW_PHASE_ICONS.get(phase, default_icon)
+            icon = WORKFLOW_STATUS_ICONS.get(status, default_icon)
             role = node_data.get("role")
             label = f"{icon} {role or name}"
             if role and role != name:
@@ -67,7 +67,7 @@ class AgentListSidebar(Static):
             
         return label
 
-    def update_tree(self, tree_data: Dict, agent_phases: Dict[str, AgentOperationalPhase], workflow_phases: Dict[str, WorkflowOperationalPhase], speaking_agents: Dict[str, bool]):
+    def update_tree(self, tree_data: Dict, agent_statuses: Dict[str, AgentStatus], workflow_statuses: Dict[str, WorkflowStatus], speaking_agents: Dict[str, bool]):
         """
         Performs an in-place update of the tree to reflect the new state,
         avoiding a full rebuild for better performance and preserving UI state like expansion.
@@ -82,17 +82,17 @@ class AgentListSidebar(Static):
         root_node_data = tree_data[root_name]
 
         # Kick off the recursive update from the root.
-        self._update_node_recursively(tree.root, root_node_data, agent_phases, workflow_phases, speaking_agents)
+        self._update_node_recursively(tree.root, root_node_data, agent_statuses, workflow_statuses, speaking_agents)
         
         # Ensure the root is expanded on the first run.
         if not tree.root.is_expanded:
             tree.root.expand()
 
-    def _update_node_recursively(self, ui_node: TreeNode, node_data: Dict, agent_phases: Dict, workflow_phases: Dict, speaking_agents: Dict):
+    def _update_node_recursively(self, ui_node: TreeNode, node_data: Dict, agent_statuses: Dict, workflow_statuses: Dict, speaking_agents: Dict):
         """Recursively updates a node and reconciles its children."""
         # 1. Update the current node's label and data
         name = node_data['name']
-        label = self._build_label(name, node_data, agent_phases, workflow_phases, speaking_agents)
+        label = self._build_label(name, node_data, agent_statuses, workflow_statuses, speaking_agents)
         ui_node.set_label(label)
         ui_node.data = node_data
         self._node_map[name] = ui_node  # Ensure map is always up-to-date
@@ -106,10 +106,10 @@ class AgentListSidebar(Static):
             if child_name in existing_ui_children_by_name:
                 # Node exists, so we recursively update it
                 child_ui_node = existing_ui_children_by_name[child_name]
-                self._update_node_recursively(child_ui_node, child_data, agent_phases, workflow_phases, speaking_agents)
+                self._update_node_recursively(child_ui_node, child_data, agent_statuses, workflow_statuses, speaking_agents)
             else:
                 # Node is new, so we add it
-                new_child_label = self._build_label(child_name, child_data, agent_phases, workflow_phases, speaking_agents)
+                new_child_label = self._build_label(child_name, child_data, agent_statuses, workflow_statuses, speaking_agents)
                 is_leaf = child_data.get("children", {}) == {} and child_data['type'] == 'agent'
                 
                 if is_leaf:
@@ -117,7 +117,7 @@ class AgentListSidebar(Static):
                 else:
                     new_ui_node = ui_node.add(new_child_label, data=child_data)
                     # Since this is a new branch, we must build its children too
-                    self._update_node_recursively(new_ui_node, child_data, agent_phases, workflow_phases, speaking_agents)
+                    self._update_node_recursively(new_ui_node, child_data, agent_statuses, workflow_statuses, speaking_agents)
                 
                 self._node_map[child_name] = new_ui_node
 

@@ -7,7 +7,7 @@ from autobyteus.agent.events.agent_input_event_queue_manager import AgentInputEv
 # from autobyteus.agent.events.agent_output_data_manager import AgentOutputDataManager       
 
 from autobyteus.llm.base_llm import BaseLLM
-from autobyteus.agent.phases import AgentOperationalPhase 
+from autobyteus.agent.status.status_enum import AgentStatus 
 from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
 from autobyteus.agent.tool_invocation import ToolInvocation
 # LLMConfig is no longer needed here
@@ -15,7 +15,7 @@ from autobyteus.agent.tool_invocation import ToolInvocation
 from autobyteus.task_management.todo_list import ToDoList
 
 if TYPE_CHECKING:
-    from autobyteus.agent.phases import AgentPhaseManager 
+    from autobyteus.agent.status.manager import AgentStatusManager 
     from autobyteus.tools.base_tool import BaseTool 
     from autobyteus.agent.tool_invocation import ToolInvocationTurn
 
@@ -38,7 +38,7 @@ class AgentRuntimeState:
             raise TypeError(f"AgentRuntimeState 'workspace' must be a BaseAgentWorkspace or None. Got {type(workspace)}")
 
         self.agent_id: str = agent_id 
-        self.current_phase: AgentOperationalPhase = AgentOperationalPhase.UNINITIALIZED 
+        self.current_status: AgentStatus = AgentStatus.UNINITIALIZED 
         self.llm_instance: Optional[BaseLLM] = None  
         self.tool_instances: Optional[Dict[str, 'BaseTool']] = None 
         
@@ -59,9 +59,9 @@ class AgentRuntimeState:
         self.processed_system_prompt: Optional[str] = None
         # self.final_llm_config_for_creation removed
         
-        self.phase_manager_ref: Optional['AgentPhaseManager'] = None 
+        self.status_manager_ref: Optional['AgentStatusManager'] = None 
          
-        logger.info(f"AgentRuntimeState initialized for agent_id '{self.agent_id}'. Initial phase: {self.current_phase.value}. Workspace linked. InputQueues pending initialization. Output data via notifier.")
+        logger.info(f"AgentRuntimeState initialized for agent_id '{self.agent_id}'. Initial status: {self.current_status.value}. Workspace linked. InputQueues pending initialization. Output data via notifier.")
 
     def add_message_to_history(self, message: Dict[str, Any]) -> None:
         if not isinstance(message, dict) or "role" not in message: # pragma: no cover
@@ -86,13 +86,13 @@ class AgentRuntimeState:
         return invocation
     
     def __repr__(self) -> str:
-        phase_repr = self.current_phase.value
+        # phase_repr removed or renamed
         llm_status = "Initialized" if self.llm_instance else "Not Initialized"
         tools_status = f"{len(self.tool_instances)} Initialized" if self.tool_instances is not None else "Not Initialized"
         input_queues_status = "Initialized" if self.input_event_queues else "Not Initialized"
         # REMOVED output_queues_status from repr
         active_turn_status = "Active" if self.active_multi_tool_call_turn else "Inactive"
-        return (f"AgentRuntimeState(agent_id='{self.agent_id}', current_phase='{phase_repr}', "
+        return (f"AgentRuntimeState(agent_id='{self.agent_id}', current_status='{self.current_status.value}', "
                 f"llm_status='{llm_status}', tools_status='{tools_status}', "
                 f"input_queues_status='{input_queues_status}', "
                 f"pending_approvals={len(self.pending_tool_approvals)}, history_len={len(self.conversation_history)}, "

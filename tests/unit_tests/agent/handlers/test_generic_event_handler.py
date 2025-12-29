@@ -51,7 +51,7 @@ async def test_handle_unknown_generic_event_type(generic_event_handler: GenericE
     event_type_name = "some_unknown_event_type"
     event = GenericEvent(payload=event_payload, type_name=event_type_name)
     
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.INFO):
         await generic_event_handler.handle(event, agent_context)
     
     # Check for the initial info log

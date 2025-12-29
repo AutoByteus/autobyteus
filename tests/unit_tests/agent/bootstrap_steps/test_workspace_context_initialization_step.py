@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 from autobyteus.agent.bootstrap_steps.workspace_context_initialization_step import WorkspaceContextInitializationStep
 from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
 from autobyteus.agent.context import AgentContext
-from autobyteus.agent.phases import AgentPhaseManager
+from autobyteus.agent.status.manager import AgentStatusManager
 
 @pytest.fixture
 def workspace_init_step():
@@ -26,12 +26,12 @@ async def test_execute_success_with_workspace(
     workspace_init_step: WorkspaceContextInitializationStep,
     agent_context: AgentContext,
     mock_workspace: BaseAgentWorkspace,
-    mock_phase_manager
+    mock_status_manager
 ):
     """Tests successful execution when a workspace is configured."""
     agent_context.state.workspace = mock_workspace
 
-    success = await workspace_init_step.execute(agent_context, mock_phase_manager)
+    success = await workspace_init_step.execute(agent_context, mock_status_manager)
 
     assert success is True
     # Verify set_context was called with the correct context
@@ -41,14 +41,14 @@ async def test_execute_success_with_workspace(
 async def test_execute_success_no_workspace(
     workspace_init_step: WorkspaceContextInitializationStep,
     agent_context: AgentContext,
-    mock_phase_manager,
+    mock_status_manager,
     caplog
 ):
     """Tests graceful pass-through when no workspace is configured."""
     agent_context.state.workspace = None
 
     with caplog.at_level(logging.DEBUG):
-        success = await workspace_init_step.execute(agent_context, mock_phase_manager)
+        success = await workspace_init_step.execute(agent_context, mock_status_manager)
 
     assert success is True
     assert f"Agent '{agent_context.agent_id}': No workspace configured. Skipping context injection." in caplog.text
@@ -57,7 +57,7 @@ async def test_execute_success_no_workspace(
 async def test_execute_warns_if_no_set_context_method(
     workspace_init_step: WorkspaceContextInitializationStep,
     agent_context: AgentContext,
-    mock_phase_manager,
+    mock_status_manager,
     caplog
 ):
     """Tests that a warning is logged if the workspace lacks the set_context method."""
@@ -67,7 +67,7 @@ async def test_execute_warns_if_no_set_context_method(
     agent_context.state.workspace = workspace_without_method
 
     with caplog.at_level(logging.WARNING):
-        success = await workspace_init_step.execute(agent_context, mock_phase_manager)
+        success = await workspace_init_step.execute(agent_context, mock_status_manager)
     
     assert success is True
     assert "does not have a 'set_context' method" in caplog.text
@@ -77,7 +77,7 @@ async def test_execute_fails_on_exception(
     workspace_init_step: WorkspaceContextInitializationStep,
     agent_context: AgentContext,
     mock_workspace: BaseAgentWorkspace,
-    mock_phase_manager,
+    mock_status_manager,
     caplog
 ):
     """Tests that the step fails if set_context raises an exception."""
@@ -86,7 +86,7 @@ async def test_execute_fails_on_exception(
     agent_context.state.workspace = mock_workspace
     
     with caplog.at_level(logging.ERROR):
-        success = await workspace_init_step.execute(agent_context, mock_phase_manager)
+        success = await workspace_init_step.execute(agent_context, mock_status_manager)
 
     assert success is False
     assert f"Critical failure during WorkspaceContextInitializationStep: {exception_message}" in caplog.text

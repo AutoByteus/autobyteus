@@ -12,7 +12,7 @@ from .stream_event_payloads import (
     AssistantChunkData,
     AssistantCompleteResponseData,
     ToolInteractionLogEntryData,
-    AgentOperationalPhaseTransitionData, 
+    AgentStatusTransitionData, 
     ErrorEventData,
     ToolInvocationApprovalRequestedData,
     ToolInvocationAutoExecutingData,
@@ -23,7 +23,7 @@ from .stream_event_payloads import (
     create_assistant_chunk_data,
     create_assistant_complete_response_data,
     create_tool_interaction_log_entry_data,
-    create_agent_operational_phase_transition_data, 
+    create_agent_status_transition_data, 
     create_error_event_data,
     create_tool_invocation_approval_requested_data,
     create_tool_invocation_auto_executing_data,
@@ -41,7 +41,7 @@ class StreamEventType(str, Enum):
     ASSISTANT_CHUNK = "assistant_chunk"
     ASSISTANT_COMPLETE_RESPONSE = "assistant_complete_response"
     TOOL_INTERACTION_LOG_ENTRY = "tool_interaction_log_entry"
-    AGENT_OPERATIONAL_PHASE_TRANSITION = "agent_operational_phase_transition"
+    AGENT_STATUS_TRANSITION = "agent_status_transition"
     ERROR_EVENT = "error_event" 
     TOOL_INVOCATION_APPROVAL_REQUESTED = "tool_invocation_approval_requested" 
     TOOL_INVOCATION_AUTO_EXECUTING = "tool_invocation_auto_executing"
@@ -55,14 +55,14 @@ _STREAM_EVENT_TYPE_TO_PAYLOAD_CLASS: Dict[StreamEventType, Type[BaseModel]] = {
     StreamEventType.ASSISTANT_CHUNK: AssistantChunkData,
     StreamEventType.ASSISTANT_COMPLETE_RESPONSE: AssistantCompleteResponseData,
     StreamEventType.TOOL_INTERACTION_LOG_ENTRY: ToolInteractionLogEntryData,
-    StreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION: AgentOperationalPhaseTransitionData,
+    StreamEventType.AGENT_STATUS_TRANSITION: AgentStatusTransitionData,
     StreamEventType.ERROR_EVENT: ErrorEventData,
     StreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED: ToolInvocationApprovalRequestedData,
     StreamEventType.TOOL_INVOCATION_AUTO_EXECUTING: ToolInvocationAutoExecutingData,
     StreamEventType.SYSTEM_TASK_NOTIFICATION: SystemTaskNotificationData, # NEW
     StreamEventType.INTER_AGENT_MESSAGE: InterAgentMessageData, # NEW
     StreamEventType.AGENT_TODO_LIST_UPDATE: ToDoListUpdateData,
-    StreamEventType.AGENT_IDLE: AgentOperationalPhaseTransitionData,
+    StreamEventType.AGENT_IDLE: AgentStatusTransitionData,
 }
 
 

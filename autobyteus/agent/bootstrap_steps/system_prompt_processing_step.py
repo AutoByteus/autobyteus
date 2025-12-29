@@ -3,12 +3,12 @@ import logging
 from typing import TYPE_CHECKING
 
 from .base_bootstrap_step import BaseBootstrapStep
-from autobyteus.agent.events import AgentErrorEvent
 from autobyteus.agent.system_prompt_processor.base_processor import BaseSystemPromptProcessor
+from autobyteus.agent.events import AgentErrorEvent
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
-    from autobyteus.agent.phases import AgentPhaseManager
+    from autobyteus.agent.status.manager import AgentStatusManager
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class SystemPromptProcessingStep(BaseBootstrapStep):
 
     async def execute(self,
                       context: 'AgentContext',
-                      phase_manager: 'AgentPhaseManager') -> bool:
+                      status_manager: 'AgentStatusManager') -> bool:
         agent_id = context.agent_id
         # The phase is now managed by the AgentBootstrapper.
         logger.info(f"Agent '{agent_id}': Executing SystemPromptProcessingStep.")
@@ -36,11 +36,21 @@ class SystemPromptProcessingStep(BaseBootstrapStep):
 
             # If a specific system_prompt is not provided in AgentConfig, fall back
             # to the default system_message from the LLM's own configuration.
-            current_system_prompt = context.config.system_prompt or llm_instance.config.system_message
+            base_system_prompt = context.config.system_prompt or llm_instance.config.system_message
             logger.debug(f"Agent '{agent_id}': Retrieved base system prompt.")
-            
+
             processor_instances = context.config.system_prompt_processors
             tool_instances_for_processor = context.tool_instances
+
+            # --- Validation Section ---
+            if processor_instances:
+                for p in processor_instances:
+                     if not isinstance(p, BaseSystemPromptProcessor):
+                        error_message = f"Invalid system prompt processor configuration type: {type(p)}. Expected BaseSystemPromptProcessor."
+                        logger.error(error_message)
+                        raise TypeError(error_message)
+
+            current_system_prompt = base_system_prompt
 
             if not processor_instances:
                 logger.debug(f"Agent '{agent_id}': No system prompt processors configured. Using system prompt as is.")
@@ -51,11 +61,6 @@ class SystemPromptProcessingStep(BaseBootstrapStep):
                 logger.debug(f"Agent '{agent_id}': Found {len(sorted_processors)} configured system prompt processors. Applying sequentially in order: {processor_names}")
 
                 for processor_instance in sorted_processors:
-                    if not isinstance(processor_instance, BaseSystemPromptProcessor):
-                        error_message = f"Agent '{agent_id}': Invalid system prompt processor configuration type: {type(processor_instance)}. Expected BaseSystemPromptProcessor."
-                        logger.error(error_message)
-                        raise TypeError(error_message)
-                    
                     processor_name = processor_instance.get_name()
                     try:
                         logger.debug(f"Agent '{agent_id}': Applying system prompt processor '{processor_name}'.")
@@ -93,7 +98,7 @@ class SystemPromptProcessingStep(BaseBootstrapStep):
             error_message = f"Agent '{agent_id}': Critical failure during system prompt processing step: {e}"
             logger.error(error_message, exc_info=True)
             if context.state.input_event_queues:
-                await context.input_event_queues.enqueue_internal_system_event(
+                await context.state.input_event_queues.enqueue_internal_system_event(
                     AgentErrorEvent(error_message=error_message, exception_details=str(e))
                 )
             return False

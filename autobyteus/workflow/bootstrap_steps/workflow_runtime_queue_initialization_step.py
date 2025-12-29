@@ -7,13 +7,13 @@ from autobyteus.workflow.events.workflow_input_event_queue_manager import Workfl
 
 if TYPE_CHECKING:
     from autobyteus.workflow.context.workflow_context import WorkflowContext
-    from autobyteus.workflow.phases.workflow_phase_manager import WorkflowPhaseManager
+    from autobyteus.workflow.phases.workflow_status_manager import WorkflowStatusManager
 
 logger = logging.getLogger(__name__)
 
 class WorkflowRuntimeQueueInitializationStep(BaseWorkflowBootstrapStep):
     """Bootstrap step for initializing the workflow's runtime event queues."""
-    async def execute(self, context: 'WorkflowContext', phase_manager: 'WorkflowPhaseManager') -> bool:
+    async def execute(self, context: 'WorkflowContext', status_manager: 'WorkflowStatusManager') -> bool:
         workflow_id = context.workflow_id
         logger.info(f"Workflow '{workflow_id}': Executing WorkflowRuntimeQueueInitializationStep.")
         try:

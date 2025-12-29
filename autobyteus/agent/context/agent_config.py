@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from autobyteus.agent.tool_invocation_preprocessor import BaseToolInvocationPreprocessor
     from autobyteus.llm.base_llm import BaseLLM
     from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
-    from autobyteus.agent.hooks.base_phase_hook import BasePhaseHook
+    from autobyteus.agent.lifecycle import BaseLifecycleEventProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ class AgentConfig:
                  tool_execution_result_processors: Optional[List['BaseToolExecutionResultProcessor']] = None,
                  tool_invocation_preprocessors: Optional[List['BaseToolInvocationPreprocessor']] = None,
                  workspace: Optional['BaseAgentWorkspace'] = None,
-                 phase_hooks: Optional[List['BasePhaseHook']] = None,
+                 lifecycle_processors: Optional[List['BaseLifecycleEventProcessor']] = None,
                  initial_custom_data: Optional[Dict[str, Any]] = None,
                  skills: Optional[List[str]] = None):
         """
@@ -68,7 +68,7 @@ class AgentConfig:
             system_prompt_processors: A list of system prompt processor instances.
             tool_execution_result_processors: A list of tool execution result processor instances.
             workspace: An optional pre-initialized workspace instance for the agent.
-            phase_hooks: An optional list of phase transition hook instances.
+            lifecycle_processors: An optional list of lifecycle processor instances.
             initial_custom_data: An optional dictionary of data to pre-populate
                                  the agent's runtime state `custom_data`.
             skills: An optional list of skill names or paths to be preloaded for this agent.
@@ -87,7 +87,7 @@ class AgentConfig:
         self.system_prompt_processors = system_prompt_processors if system_prompt_processors is not None else list(self.DEFAULT_SYSTEM_PROMPT_PROCESSORS)
         self.tool_execution_result_processors = tool_execution_result_processors or []
         self.tool_invocation_preprocessors = tool_invocation_preprocessors or []
-        self.phase_hooks = phase_hooks or []
+        self.lifecycle_processors = lifecycle_processors or []
         self.initial_custom_data = initial_custom_data
         self.skills = skills or []
 
@@ -115,7 +115,7 @@ class AgentConfig:
             tool_execution_result_processors=self.tool_execution_result_processors.copy(), # Shallow copy the list
             tool_invocation_preprocessors=self.tool_invocation_preprocessors.copy(),
             workspace=self.workspace,  # Pass by reference, do not copy
-            phase_hooks=self.phase_hooks.copy(), # Shallow copy the list
+            lifecycle_processors=self.lifecycle_processors.copy(), # Shallow copy the list
             initial_custom_data=copy.deepcopy(self.initial_custom_data), # Deep copy for simple data
             skills=self.skills.copy() # Shallow copy the list
         )

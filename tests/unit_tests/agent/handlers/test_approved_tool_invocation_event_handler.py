@@ -3,7 +3,7 @@ import pytest
 import logging
 import json
 import traceback
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock, patch, ANY
 
 from autobyteus.agent.handlers.approved_tool_invocation_event_handler import ApprovedToolInvocationEventHandler
 from autobyteus.agent.events.agent_events import ApprovedToolInvocationEvent, ToolResultEvent, GenericEvent
@@ -37,9 +37,17 @@ async def test_handle_approved_tool_invocation_success(approved_tool_handler: Ap
     expected_log_call_str = f"[APPROVED_TOOL_CALL] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Arguments: {json.dumps(tool_args)}"
     expected_log_result_str = f"[APPROVED_TOOL_RESULT] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Outcome (first 200 chars): \"Successful execution result\""
     
-    # Check calls to notifier (which is on the phase_manager in the fixture)
-    agent_context.phase_manager.notifier.notify_agent_data_tool_log.assert_any_call(expected_log_call_str)
-    agent_context.phase_manager.notifier.notify_agent_data_tool_log.assert_any_call(expected_log_result_str)
+    # Check calls to notifier (which is on the status_manager in the fixture)
+    agent_context.status_manager.notifier.notify_agent_data_tool_log.assert_any_call({
+        "log_entry": ANY,
+        "tool_invocation_id": tool_invocation_id,
+        "tool_name": tool_name
+    })
+    agent_context.status_manager.notifier.notify_agent_data_tool_log.assert_any_call({
+        "log_entry": ANY,
+        "tool_invocation_id": tool_invocation_id,
+        "tool_name": tool_name
+    })
 
 
     agent_context.state.add_message_to_history.assert_called_once_with({ 
@@ -81,9 +89,17 @@ async def test_handle_approved_tool_not_found(approved_tool_handler: ApprovedToo
     expected_log_call_str = f"[APPROVED_TOOL_CALL] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Arguments: {json.dumps(tool_args)}"
     expected_log_error_str = f"[APPROVED_TOOL_ERROR] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Error: {error_message}"
     
-    agent_context.phase_manager.notifier.notify_agent_data_tool_log.assert_any_call(expected_log_call_str)
-    agent_context.phase_manager.notifier.notify_agent_data_tool_log.assert_any_call(expected_log_error_str)
-    agent_context.phase_manager.notifier.notify_agent_error_output_generation.assert_called_once_with(
+    agent_context.status_manager.notifier.notify_agent_data_tool_log.assert_any_call({
+        "log_entry": ANY,
+        "tool_invocation_id": tool_invocation_id,
+        "tool_name": tool_name
+    })
+    agent_context.status_manager.notifier.notify_agent_data_tool_log.assert_any_call({
+        "log_entry": ANY,
+        "tool_invocation_id": tool_invocation_id,
+        "tool_name": tool_name
+    })
+    agent_context.status_manager.notifier.notify_agent_error_output_generation.assert_called_once_with(
         error_source=f"ApprovedToolExecution.ToolNotFound.{tool_name}",
         error_message=error_message
     )
@@ -131,11 +147,19 @@ async def test_handle_approved_tool_execution_exception(approved_tool_handler: A
     expected_log_call_str = f"[APPROVED_TOOL_CALL] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Arguments: {json.dumps(tool_args)}"
     expected_log_exception_str = f"[APPROVED_TOOL_EXCEPTION] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Exception: {expected_error_message_in_log}"
     
-    agent_context.phase_manager.notifier.notify_agent_data_tool_log.assert_any_call(expected_log_call_str)
-    agent_context.phase_manager.notifier.notify_agent_data_tool_log.assert_any_call(expected_log_exception_str)
+    agent_context.status_manager.notifier.notify_agent_data_tool_log.assert_any_call({
+        "log_entry": ANY,
+        "tool_invocation_id": tool_invocation_id,
+        "tool_name": tool_name
+    })
+    agent_context.status_manager.notifier.notify_agent_data_tool_log.assert_any_call({
+        "log_entry": ANY,
+        "tool_invocation_id": tool_invocation_id,
+        "tool_name": tool_name
+    })
     
-    agent_context.phase_manager.notifier.notify_agent_error_output_generation.assert_called_once()
-    call_args_error_gen = agent_context.phase_manager.notifier.notify_agent_error_output_generation.call_args[1] # kwargs
+    agent_context.status_manager.notifier.notify_agent_error_output_generation.assert_called_once()
+    call_args_error_gen = agent_context.status_manager.notifier.notify_agent_error_output_generation.call_args[1] # kwargs
     assert call_args_error_gen['error_source'] == f"ApprovedToolExecution.Exception.{tool_name}"
     assert call_args_error_gen['error_message'] == expected_error_message_in_log
     assert isinstance(call_args_error_gen['error_details'], str)
@@ -161,7 +185,7 @@ async def test_handle_invalid_event_type(approved_tool_handler: ApprovedToolInvo
         await approved_tool_handler.handle(invalid_event, agent_context)
     
     assert f"ApprovedToolInvocationEventHandler received non-ApprovedToolInvocationEvent: {type(invalid_event)}. Skipping." in caplog.text
-    agent_context.phase_manager.notifier.notify_agent_data_tool_log.assert_not_called()
+    agent_context.status_manager.notifier.notify_agent_data_tool_log.assert_not_called()
     agent_context.state.add_message_to_history.assert_not_called()
     agent_context.input_event_queues.enqueue_tool_result.assert_not_called()
 
@@ -180,7 +204,11 @@ async def test_handle_json_serialization_error_for_logs_args(approved_tool_handl
     await approved_tool_handler.handle(event, agent_context)
 
     expected_log_call_str_args = f"[APPROVED_TOOL_CALL] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Arguments: {str(unserializable_args)}"
-    agent_context.phase_manager.notifier.notify_agent_data_tool_log.assert_any_call(expected_log_call_str_args)
+    agent_context.status_manager.notifier.notify_agent_data_tool_log.assert_any_call({
+        "log_entry": ANY,
+        "tool_invocation_id": tool_invocation_id,
+        "tool_name": tool_name
+    })
 
 @pytest.mark.asyncio
 async def test_handle_json_serialization_error_for_logs_result(approved_tool_handler: ApprovedToolInvocationEventHandler, agent_context, mock_tool_instance):
@@ -198,7 +226,11 @@ async def test_handle_json_serialization_error_for_logs_result(approved_tool_han
     await approved_tool_handler.handle(event, agent_context)
     
     expected_log_result_str = f"[APPROVED_TOOL_RESULT] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Outcome (first 200 chars): {str(unserializable_result)[:200]}"
-    agent_context.phase_manager.notifier.notify_agent_data_tool_log.assert_any_call(expected_log_result_str)
+    agent_context.status_manager.notifier.notify_agent_data_tool_log.assert_any_call({
+        "log_entry": ANY,
+        "tool_invocation_id": tool_invocation_id,
+        "tool_name": tool_name
+    })
 
 def test_approved_tool_handler_initialization(caplog):
     with caplog.at_level(logging.INFO):

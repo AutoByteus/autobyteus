@@ -76,8 +76,8 @@ async def test_stream_initialization(mock_workflow):
 
 async def test_handle_event_queues_correct_event(stream: WorkflowEventStream):
     """Tests that the handler correctly filters and queues events for its workflow."""
-    correct_event = WorkflowStreamEvent(workflow_id=stream.workflow_id, event_source_type="WORKFLOW", data={"new_phase": WorkflowOperationalPhase.IDLE})
-    wrong_event = WorkflowStreamEvent(workflow_id="some-other-wf", event_source_type="WORKFLOW", data={"new_phase": WorkflowOperationalPhase.IDLE})
+    correct_event = WorkflowStreamEvent(workflow_id=stream.workflow_id, event_source_type="WORKFLOW", data={"new_status": WorkflowOperationalPhase.IDLE})
+    wrong_event = WorkflowStreamEvent(workflow_id="some-other-wf", event_source_type="WORKFLOW", data={"new_status": WorkflowOperationalPhase.IDLE})
     
     stream._handle_event(payload=correct_event)
     stream._handle_event(payload=wrong_event)
@@ -88,11 +88,11 @@ async def test_handle_event_queues_correct_event(stream: WorkflowEventStream):
 async def test_all_events_stream_and_close(stream: WorkflowEventStream, mock_workflow):
     """Tests the full lifecycle: streaming events and closing gracefully."""
     # FIX: Corrected the data payloads to be valid for their respective Pydantic models.
-    # Using the enum member for `new_phase` is more robust than a raw string.
+    # Using the enum member for `new_status` is more robust than a raw string.
     event1 = WorkflowStreamEvent(
         workflow_id=stream.workflow_id,
         event_source_type="WORKFLOW",
-        data={"new_phase": WorkflowOperationalPhase.IDLE}
+        data={"new_status": WorkflowOperationalPhase.IDLE}
     )
     # FIX: The `agent_event` payload was an empty dict `{}`, which is not a valid AgentStreamEvent.
     # Provided a minimal, valid nested structure to satisfy Pydantic's validation.

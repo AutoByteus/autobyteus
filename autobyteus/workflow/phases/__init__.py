@@ -2,10 +2,10 @@
 """
 This package contains components for defining and managing workflow operational phases.
 """
-from autobyteus.workflow.phases.workflow_operational_phase import WorkflowOperationalPhase
-from autobyteus.workflow.phases.workflow_phase_manager import WorkflowPhaseManager
+from autobyteus.workflow.phases.workflow_status import WorkflowStatus
+from autobyteus.workflow.phases.workflow_status_manager import WorkflowStatusManager
 
 __all__ = [
-    "WorkflowOperationalPhase",
-    "WorkflowPhaseManager",
+    "WorkflowStatus",
+    "WorkflowStatusManager",
 ]

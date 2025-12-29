@@ -6,7 +6,7 @@ from autobyteus.workflow.bootstrap_steps.base_workflow_bootstrap_step import Bas
 
 if TYPE_CHECKING:
     from autobyteus.workflow.context.workflow_context import WorkflowContext
-    from autobyteus.workflow.phases.workflow_phase_manager import WorkflowPhaseManager
+    from autobyteus.workflow.phases.workflow_status_manager import WorkflowStatusManager
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ class CoordinatorInitializationStep(BaseWorkflowBootstrapStep):
     using the TeamManager. This ensures the coordinator is ready before the
     workflow becomes idle.
     """
-    async def execute(self, context: 'WorkflowContext', phase_manager: 'WorkflowPhaseManager') -> bool:
+    async def execute(self, context: 'WorkflowContext', status_manager: 'WorkflowStatusManager') -> bool:
         workflow_id = context.workflow_id
         logger.info(f"Workflow '{workflow_id}': Executing CoordinatorInitializationStep.")
         

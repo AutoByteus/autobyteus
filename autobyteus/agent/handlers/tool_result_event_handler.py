@@ -120,7 +120,7 @@ class ToolResultEventHandler(AgentEventHandler):
             return
 
         agent_id = context.agent_id
-        notifier: Optional['AgentExternalEventNotifier'] = context.phase_manager.notifier if context.phase_manager else None
+        notifier: Optional['AgentExternalEventNotifier'] = context.status_manager.notifier if context.status_manager else None
 
         # --- Step 1: Immediately process the incoming event ---
         processed_event = event

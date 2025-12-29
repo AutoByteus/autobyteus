@@ -4,7 +4,7 @@ from typing import Dict, Any, Optional, List, Union
 from pydantic import BaseModel, Field
 
 from autobyteus.llm.utils.token_usage import TokenUsage 
-from autobyteus.agent.phases import AgentOperationalPhase
+from autobyteus.agent.status.status_enum import AgentStatus
 
 
 logger = logging.getLogger(__name__)
@@ -38,9 +38,9 @@ class ToolInteractionLogEntryData(BaseStreamPayload):
     tool_invocation_id: str
     tool_name: str
 
-class AgentOperationalPhaseTransitionData(BaseStreamPayload): 
-    new_phase: AgentOperationalPhase 
-    old_phase: Optional[AgentOperationalPhase] = None
+class AgentStatusTransitionData(BaseStreamPayload): 
+    new_status: AgentStatus 
+    old_status: Optional[AgentStatus] = None
     trigger: Optional[str] = None
     tool_name: Optional[str] = None
     error_message: Optional[str] = None
@@ -89,7 +89,7 @@ StreamDataPayload = Union[
     AssistantChunkData,
     AssistantCompleteResponseData, 
     ToolInteractionLogEntryData,
-    AgentOperationalPhaseTransitionData, 
+    AgentStatusTransitionData, 
     ErrorEventData,
     ToolInvocationApprovalRequestedData,
     ToolInvocationAutoExecutingData,
@@ -187,10 +187,10 @@ def create_tool_interaction_log_entry_data(log_data: Any) -> ToolInteractionLogE
             return ToolInteractionLogEntryData(**log_data)
     raise ValueError(f"Cannot create ToolInteractionLogEntryData from {type(log_data)}. Expected dict with 'log_entry', 'tool_invocation_id', and 'tool_name' keys.")
 
-def create_agent_operational_phase_transition_data(phase_data_dict: Any) -> AgentOperationalPhaseTransitionData: 
-    if isinstance(phase_data_dict, dict):
-        return AgentOperationalPhaseTransitionData(**phase_data_dict) 
-    raise ValueError(f"Cannot create AgentOperationalPhaseTransitionData from {type(phase_data_dict)}") 
+def create_agent_status_transition_data(status_data_dict: Any) -> AgentStatusTransitionData: 
+    if isinstance(status_data_dict, dict):
+        return AgentStatusTransitionData(**status_data_dict) 
+    raise ValueError(f"Cannot create AgentStatusTransitionData from {type(status_data_dict)}") 
 
 def create_error_event_data(error_data_dict: Any) -> ErrorEventData:
     if isinstance(error_data_dict, dict):

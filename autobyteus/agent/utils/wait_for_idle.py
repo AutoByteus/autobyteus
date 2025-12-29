@@ -6,7 +6,7 @@ from typing import Optional
 from autobyteus.agent.agent import Agent
 from autobyteus.agent.streaming.agent_event_stream import AgentEventStream
 from autobyteus.agent.streaming.stream_events import StreamEventType
-from autobyteus.agent.phases import AgentOperationalPhase
+from autobyteus.agent.status.status_enum import AgentStatus
 
 logger = logging.getLogger(__name__)
 
@@ -41,12 +41,12 @@ async def wait_for_agent_to_be_idle(agent: Agent, timeout: float = 30.0):
     if not isinstance(agent, Agent):
         raise TypeError("The 'agent' argument must be an instance of the Agent class.")
 
-    current_phase = agent.get_current_phase()
-    if current_phase.is_terminal():
-        logger.warning(f"Agent '{agent.agent_id}' is already in a terminal state ({current_phase.value}) and will not become idle.")
+    current_status = agent.get_current_status()
+    if current_status.is_terminal():
+        logger.warning(f"Agent '{agent.agent_id}' is already in a terminal state ({current_status.value}) and will not become idle.")
         return
 
-    if current_phase == AgentOperationalPhase.IDLE:
+    if current_status == AgentStatus.IDLE:
         logger.debug(f"Agent '{agent.agent_id}' is already idle.")
         return
 

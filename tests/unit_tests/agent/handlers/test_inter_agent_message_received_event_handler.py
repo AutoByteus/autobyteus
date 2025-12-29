@@ -3,9 +3,10 @@ import logging
 from unittest.mock import MagicMock, patch
 
 from autobyteus.agent.handlers.inter_agent_message_event_handler import InterAgentMessageReceivedEventHandler
-from autobyteus.agent.events.agent_events import InterAgentMessageReceivedEvent, LLMUserMessageReadyEvent, GenericEvent
+from autobyteus.agent.events.agent_events import InterAgentMessageReceivedEvent, LLMUserMessageReadyEvent, GenericEvent, UserMessageReceivedEvent
 from autobyteus.agent.message.inter_agent_message import InterAgentMessage, InterAgentMessageType
 from autobyteus.llm.user_message import LLMUserMessage
+from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 
 @pytest.fixture
 def inter_agent_handler():
@@ -39,28 +40,24 @@ async def test_handle_inter_agent_message_success(inter_agent_handler: InterAgen
     assert f"type '{message_type.value}'" in caplog.text
     # Updated assertion: removed [:100]... as the logger doesn't truncate/add ellipsis
     assert f"Content: '{content}'" in caplog.text 
-    assert f"Agent '{agent_context.agent_id}' processed InterAgentMessage from sender '{sender_id}' and enqueued LLMUserMessageReadyEvent." in caplog.text 
+    assert f"Agent '{agent_context.agent_id}' processed InterAgentMessage from sender '{sender_id}' and enqueued UserMessageReceivedEvent to route through input pipeline." in caplog.text 
 
     expected_history_content_part1 = f"You have received a message from another agent.\nSender Agent ID: {sender_id}"
     expected_history_content_part2 = f"Message Type: {message_type.value}"
     expected_history_content_part3 = f"--- Message Content ---\n{content}"
     
-    agent_context.state.add_message_to_history.assert_called_once() 
-    added_message = agent_context.state.add_message_to_history.call_args[0][0]
-    assert added_message["role"] == "user"
-    assert expected_history_content_part1 in added_message["content"]
-    assert expected_history_content_part2 in added_message["content"]
-    assert expected_history_content_part3 in added_message["content"]
-    assert added_message["sender_agent_id"] == sender_id
-    assert added_message["original_message_type"] == message_type.value
+    # context.state.add_message_to_history is NOT called here anymore, because it's routed to UserMessageReceivedEventHandler
+    agent_context.state.add_message_to_history.assert_not_called()
 
-    agent_context.input_event_queues.enqueue_internal_system_event.assert_called_once() 
-    enqueued_event = agent_context.input_event_queues.enqueue_internal_system_event.call_args[0][0]
-    assert isinstance(enqueued_event, LLMUserMessageReadyEvent) 
-    assert isinstance(enqueued_event.llm_user_message, LLMUserMessage)
-    assert expected_history_content_part1 in enqueued_event.llm_user_message.content 
-    assert expected_history_content_part2 in enqueued_event.llm_user_message.content
-    assert expected_history_content_part3 in enqueued_event.llm_user_message.content
+    agent_context.input_event_queues.enqueue_user_message.assert_called_once() 
+    enqueued_event = agent_context.input_event_queues.enqueue_user_message.call_args[0][0]
+    assert isinstance(enqueued_event, UserMessageReceivedEvent)
+    # The message is wrapped in AgentInputUserMessage inside the event
+    assert isinstance(enqueued_event.agent_input_user_message, AgentInputUserMessage)
+    content_sent = enqueued_event.agent_input_user_message.content
+    assert expected_history_content_part1 in content_sent
+    assert expected_history_content_part2 in content_sent
+    assert expected_history_content_part3 in content_sent
 
 @pytest.mark.asyncio
 async def test_handle_invalid_event_type(inter_agent_handler: InterAgentMessageReceivedEventHandler, agent_context, caplog):

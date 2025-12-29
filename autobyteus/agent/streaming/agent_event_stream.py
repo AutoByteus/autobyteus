@@ -12,7 +12,8 @@ from autobyteus.agent.streaming.stream_event_payloads import (
     create_assistant_chunk_data,
     create_assistant_complete_response_data,
     create_tool_interaction_log_entry_data,
-    create_agent_operational_phase_transition_data, 
+    create_tool_interaction_log_entry_data,
+    create_agent_status_transition_data, 
     create_error_event_data,
     create_tool_invocation_approval_requested_data,
     create_tool_invocation_auto_executing_data,
@@ -22,7 +23,7 @@ from autobyteus.agent.streaming.stream_event_payloads import (
     AssistantChunkData,
     AssistantCompleteResponseData,
     ToolInteractionLogEntryData,
-    AgentOperationalPhaseTransitionData,
+    AgentStatusTransitionData,
     ToolInvocationApprovalRequestedData,
     ToolInvocationAutoExecutingData,
     ErrorEventData,
@@ -58,8 +59,9 @@ class AgentEventStream(EventEmitter):
         self._generic_stream_event_internal_q: standard_queue.Queue[Union[StreamEvent, object]] = standard_queue.Queue()
 
         self._notifier: Optional['AgentExternalEventNotifier'] = None
-        if agent.context and agent.context.phase_manager: 
-            self._notifier = agent.context.phase_manager.notifier
+        self._notifier: Optional['AgentExternalEventNotifier'] = None
+        if agent.context and agent.context.status_manager: 
+            self._notifier = agent.context.status_manager.notifier
         
         if not self._notifier:
             logger.error(f"AgentEventStream for '{self.agent_id}': Notifier not available. No events will be streamed.")
@@ -83,12 +85,12 @@ class AgentEventStream(EventEmitter):
         stream_event_type_for_generic_stream: Optional[StreamEventType] = None
 
         try: 
-            if event_type == EventType.AGENT_PHASE_IDLE_ENTERED:
-                typed_payload_for_stream_event = create_agent_operational_phase_transition_data(payload)
+            if event_type == EventType.AGENT_STATUS_IDLE_ENTERED:
+                typed_payload_for_stream_event = create_agent_status_transition_data(payload)
                 stream_event_type_for_generic_stream = StreamEventType.AGENT_IDLE
-            elif event_type.name.startswith("AGENT_PHASE_"):
-                typed_payload_for_stream_event = create_agent_operational_phase_transition_data(payload)
-                stream_event_type_for_generic_stream = StreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION
+            elif event_type.name.startswith("AGENT_STATUS_"):
+                typed_payload_for_stream_event = create_agent_status_transition_data(payload)
+                stream_event_type_for_generic_stream = StreamEventType.AGENT_STATUS_TRANSITION
             elif event_type == EventType.AGENT_DATA_ASSISTANT_CHUNK:
                 typed_payload_for_stream_event = create_assistant_chunk_data(payload)
                 stream_event_type_for_generic_stream = StreamEventType.ASSISTANT_CHUNK
@@ -164,10 +166,10 @@ class AgentEventStream(EventEmitter):
             if event.event_type == StreamEventType.TOOL_INTERACTION_LOG_ENTRY and isinstance(event.data, ToolInteractionLogEntryData):
                 yield event.data
     
-    async def stream_phase_transitions(self) -> AsyncIterator[AgentOperationalPhaseTransitionData]:
+    async def stream_phase_transitions(self) -> AsyncIterator[AgentStatusTransitionData]:
         """A convenience async generator that yields only agent phase transition data."""
         async for event in self.all_events():
-            if event.event_type == StreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION and isinstance(event.data, AgentOperationalPhaseTransitionData):
+            if event.event_type == StreamEventType.AGENT_STATUS_TRANSITION and isinstance(event.data, AgentStatusTransitionData):
                 yield event.data
 
     async def stream_tool_approval_requests(self) -> AsyncIterator[ToolInvocationApprovalRequestedData]:

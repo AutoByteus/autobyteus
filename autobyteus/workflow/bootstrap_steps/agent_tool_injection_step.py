@@ -10,7 +10,7 @@ from autobyteus.tools.registry import default_tool_registry
 
 if TYPE_CHECKING:
     from autobyteus.workflow.context.workflow_context import WorkflowContext
-    from autobyteus.workflow.phases.workflow_phase_manager import WorkflowPhaseManager
+    from autobyteus.workflow.phases.workflow_status_manager import WorkflowStatusManager
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class AgentToolInjectionStep(BaseWorkflowBootstrapStep):
     The primary logic of applying the coordinator prompt has been moved to the TeamManager
     to ensure it happens just before the coordinator is created.
     """
-    async def execute(self, context: 'WorkflowContext', phase_manager: 'WorkflowPhaseManager') -> bool:
+    async def execute(self, context: 'WorkflowContext', status_manager: 'WorkflowStatusManager') -> bool:
         workflow_id = context.workflow_id
         logger.info(f"Workflow '{workflow_id}': Executing AgentToolInjectionStep (now a placeholder).")
         # The logic for injecting SendMessageTo and setting the coordinator prompt is now

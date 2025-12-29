@@ -9,7 +9,7 @@ from autobyteus.workflow.context.workflow_config import WorkflowConfig
 
 if TYPE_CHECKING:
     from autobyteus.workflow.context.workflow_context import WorkflowContext
-    from autobyteus.workflow.phases.workflow_phase_manager import WorkflowPhaseManager
+    from autobyteus.workflow.phases.workflow_status_manager import WorkflowStatusManager
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class CoordinatorPromptPreparationStep(BaseWorkflowBootstrapStep):
     Bootstrap step to dynamically generate the coordinator's system prompt
     based on the workflow's structure and store it in the workflow's state.
     """
-    async def execute(self, context: 'WorkflowContext', phase_manager: 'WorkflowPhaseManager') -> bool:
+    async def execute(self, context: 'WorkflowContext', status_manager: 'WorkflowStatusManager') -> bool:
         workflow_id = context.workflow_id
         logger.info(f"Workflow '{workflow_id}': Executing CoordinatorPromptPreparationStep.")
         try:

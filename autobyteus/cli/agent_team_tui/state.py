@@ -7,15 +7,15 @@ import copy
 
 from autobyteus.agent.context import AgentConfig
 from autobyteus.agent_team.agent_team import AgentTeam
-from autobyteus.agent.phases import AgentOperationalPhase
-from autobyteus.agent_team.phases import AgentTeamOperationalPhase
+from autobyteus.agent.status.status_enum import AgentStatus
+from autobyteus.agent_team.status.agent_team_status import AgentTeamStatus
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent, StreamEventType as AgentStreamEventType
 from autobyteus.agent.streaming.stream_event_payloads import (
-    AgentOperationalPhaseTransitionData, ToolInvocationApprovalRequestedData, 
+    AgentStatusTransitionData, ToolInvocationApprovalRequestedData, 
     AssistantChunkData, AssistantCompleteResponseData
 )
 from autobyteus.agent_team.streaming.agent_team_stream_events import AgentTeamStreamEvent
-from autobyteus.agent_team.streaming.agent_team_stream_event_payloads import AgentEventRebroadcastPayload, SubTeamEventRebroadcastPayload, AgentTeamPhaseTransitionData
+from autobyteus.agent_team.streaming.agent_team_stream_event_payloads import AgentEventRebroadcastPayload, SubTeamEventRebroadcastPayload, AgentTeamStatusTransitionData
 from autobyteus.task_management.task import Task
 from autobyteus.task_management.events import TasksCreatedEvent, TaskStatusUpdatedEvent
 from autobyteus.task_management.base_task_plan import TaskStatus
@@ -39,8 +39,8 @@ class TUIStateStore:
         
         self._node_roles: Dict[str, str] = self._extract_node_roles(team)
         self._nodes: Dict[str, Any] = self._initialize_root_node()
-        self._agent_phases: Dict[str, AgentOperationalPhase] = {}
-        self._team_phases: Dict[str, AgentTeamOperationalPhase] = {self.team_name: AgentTeamOperationalPhase.UNINITIALIZED}
+        self._agent_phases: Dict[str, AgentStatus] = {}
+        self._team_phases: Dict[str, AgentTeamStatus] = {self.team_name: AgentTeamStatus.UNINITIALIZED}
         self._agent_event_history: Dict[str, List[AgentStreamEvent]] = {}
         self._team_event_history: Dict[str, List[AgentTeamStreamEvent]] = {self.team_name: []}
         self._pending_approvals: Dict[str, ToolInvocationApprovalRequestedData] = {}
@@ -75,8 +75,8 @@ class TUIStateStore:
     def process_event(self, event: AgentTeamStreamEvent):
         self.version += 1 # Increment on any event to signal a change
         
-        if event.event_source_type == "TEAM" and isinstance(event.data, AgentTeamPhaseTransitionData):
-            self._team_phases[self.team_name] = event.data.new_phase
+        if event.event_source_type == "TEAM" and isinstance(event.data, AgentTeamStatusTransitionData):
+            self._team_phases[self.team_name] = event.data.new_status
         
         self._process_event_recursively(event, self.team_name)
 
@@ -121,11 +121,11 @@ class TUIStateStore:
                 else: logger.error(f"Cannot add agent node '{agent_name}': parent '{parent_name}' not found.")
             self._agent_event_history[agent_name].append(agent_event)
 
-            if agent_event.event_type == AgentStreamEventType.AGENT_OPERATIONAL_PHASE_TRANSITION:
-                self._agent_phases[agent_name] = agent_event.data.new_phase
+            if agent_event.event_type == AgentStreamEventType.AGENT_STATUS_TRANSITION:
+                self._agent_phases[agent_name] = agent_event.data.new_status
                 if agent_name in self._pending_approvals: del self._pending_approvals[agent_name]
             elif agent_event.event_type == AgentStreamEventType.AGENT_IDLE:
-                self._agent_phases[agent_name] = AgentOperationalPhase.IDLE
+                self._agent_phases[agent_name] = AgentStatus.IDLE
             elif agent_event.event_type == AgentStreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED:
                 self._pending_approvals[agent_name] = agent_event.data
 
@@ -136,8 +136,8 @@ class TUIStateStore:
             if not self._find_node(sub_team_name):
                 role = self._node_roles.get(sub_team_name, "Sub-Team")
                 self._add_node(sub_team_name, {"type": "subteam", "name": sub_team_name, "role": role, "children": {}}, parent_name)
-            if sub_team_event.event_source_type == "TEAM" and isinstance(sub_team_event.data, AgentTeamPhaseTransitionData):
-                self._team_phases[sub_team_name] = sub_team_event.data.new_phase
+            if sub_team_event.event_source_type == "TEAM" and isinstance(sub_team_event.data, AgentTeamStatusTransitionData):
+                self._team_statuses[sub_team_name] = sub_team_event.data.new_status
             self._process_event_recursively(sub_team_event, parent_name=sub_team_name)
 
     def _add_node(self, node_name: str, node_data: Dict, parent_name: str):

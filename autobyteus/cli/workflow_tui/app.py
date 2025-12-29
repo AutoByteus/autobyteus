@@ -17,7 +17,7 @@ from autobyteus.workflow.streaming.workflow_event_stream import WorkflowEventStr
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.agent.streaming.stream_events import StreamEventType as AgentStreamEventType
 from autobyteus.agent.streaming.stream_event_payloads import AssistantChunkData
-from autobyteus.workflow.streaming.workflow_stream_event_payloads import AgentEventRebroadcastPayload, WorkflowPhaseTransitionData
+from autobyteus.workflow.streaming.workflow_stream_event_payloads import AgentEventRebroadcastPayload, WorkflowStatusTransitionData
 
 from .state import TUIStateStore
 from .widgets.agent_list_sidebar import AgentListSidebar
@@ -139,12 +139,12 @@ class WorkflowApp(App):
 
         # Fetch fresh data from the store for the update
         tree_data = self.store.get_tree_data()
-        agent_phases = self.store._agent_phases
-        workflow_phases = self.store._workflow_phases
+        agent_statuses = self.store._agent_statuses
+        workflow_statuses = self.store._workflow_statuses
         speaking_agents = self.store._speaking_agents
         
         # Update sidebar
-        sidebar.update_tree(tree_data, agent_phases, workflow_phases, speaking_agents)
+        sidebar.update_tree(tree_data, agent_statuses, workflow_statuses, speaking_agents)
         
         # Intelligently update the focus pane
         focused_data = self.focused_node_data
@@ -156,12 +156,12 @@ class WorkflowApp(App):
                 node_data=focused_data,
                 history=history,
                 pending_approval=None,
-                all_agent_phases=agent_phases,
-                all_workflow_phases=workflow_phases
+                all_agent_statuses=agent_statuses,
+                all_workflow_statuses=workflow_statuses
             )
         elif focused_data and focused_data.get("type") == 'agent':
             # For agents, we only need to update the title status, not the whole log.
-            focus_pane.update_current_node_status(agent_phases, workflow_phases)
+            focus_pane.update_current_node_status(agent_statuses, workflow_statuses)
 
 
     async def watch_focused_node_data(self, new_node_data: Optional[Dict[str, Any]]):
@@ -181,8 +181,8 @@ class WorkflowApp(App):
             node_data=new_node_data,
             history=history,
             pending_approval=pending_approval,
-            all_agent_phases=self.store._agent_phases,
-            all_workflow_phases=self.store._workflow_phases
+            all_agent_statuses=self.store._agent_statuses,
+            all_workflow_statuses=self.store._workflow_statuses
         )
         
         sidebar.update_selection(node_name)

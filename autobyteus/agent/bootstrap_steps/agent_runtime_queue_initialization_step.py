@@ -8,7 +8,7 @@ from autobyteus.agent.events import AgentErrorEvent, AgentInputEventQueueManager
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
-    from autobyteus.agent.phases import AgentPhaseManager
+    from autobyteus.agent.status.manager import AgentStatusManager
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class AgentRuntimeQueueInitializationStep(BaseBootstrapStep):
 
     async def execute(self,
                       context: 'AgentContext',
-                      phase_manager: 'AgentPhaseManager') -> bool:
+                      status_manager: 'AgentStatusManager') -> bool:
         agent_id = context.agent_id
         logger.info(f"Agent '{agent_id}': Executing AgentRuntimeQueueInitializationStep (for input queues).")
 

@@ -18,8 +18,8 @@ class MockLLMResponseProcessor(BaseLLMResponseProcessor):
     def get_name(self) -> str:
         return "mock_processor"
 
-    async def process_response(self, response: str, context, triggering_event) -> bool:
-        MockLLMResponseProcessor._processed_text = response
+    async def process_response(self, response: CompleteResponse, context, triggering_event) -> bool:
+        self._processed_text = response.content
         if self._should_handle:
             mock_ti = MagicMock(spec=ToolInvocation)
             mock_ti.id = "test-tool-id"
@@ -47,9 +47,9 @@ def llm_complete_handler(agent_context, mock_processor_instance):
     # Set the processor instance on the agent's config
     agent_context.config.llm_response_processors = [mock_processor_instance]
     
-    # Ensure notifier is mocked on phase_manager
-    if not hasattr(agent_context.phase_manager, 'notifier') or not isinstance(agent_context.phase_manager.notifier, AsyncMock):
-        agent_context.phase_manager.notifier = AsyncMock()
+    # Ensure notifier is mocked on status_manager
+    if not hasattr(agent_context.status_manager, 'notifier') or not isinstance(agent_context.status_manager.notifier, AsyncMock):
+        agent_context.status_manager.notifier = AsyncMock()
         
     handler = LLMCompleteResponseReceivedEventHandler()
     return handler
@@ -70,14 +70,14 @@ async def test_handle_response_processed_by_processor(llm_complete_handler: LLMC
 
     log_msg = (
         f"Agent '{agent_context.agent_id}' handling LLMCompleteResponseReceivedEvent. "
-        f"Response Length: {len(response_text)}, IsErrorFlagged: False, "
+        f"Response Length: {len(response_text)}, Reasoning Length: 0, IsErrorFlagged: False, "
         f"TokenUsage: {mock_usage}"
     )
     assert log_msg in caplog.text
     assert f"LLMResponseProcessor '{mock_processor_instance.get_name()}' handled the response" in caplog.text
     assert mock_processor_instance._processed_text == response_text
     
-    agent_context.phase_manager.notifier.notify_agent_data_assistant_complete_response.assert_not_called()
+    agent_context.status_manager.notifier.notify_agent_data_assistant_complete_response.assert_called_once()
     
     agent_context.input_event_queues.enqueue_tool_invocation_request.assert_called_once()
     enqueued_event = agent_context.input_event_queues.enqueue_tool_invocation_request.call_args[0][0]
@@ -98,11 +98,11 @@ async def test_handle_response_not_processed(llm_complete_handler: LLMCompleteRe
         await llm_complete_handler.handle(event, agent_context)
 
     assert "No LLMResponseProcessor handled the response" in caplog.text
-    assert "Emitting the current LLM response as a complete response" in caplog.text
+    assert "Emitting the full LLM response as a final answer and completion signal" in caplog.text
     
     assert mock_processor_instance._processed_text == response_text
     
-    agent_context.phase_manager.notifier.notify_agent_data_assistant_complete_response.assert_called_once_with(complete_response)
+    agent_context.status_manager.notifier.notify_agent_data_assistant_complete_response.assert_called_once_with(complete_response)
 
 
 @pytest.mark.asyncio
@@ -122,7 +122,7 @@ async def test_handle_error_response_event(llm_complete_handler: LLMCompleteResp
     
     assert mock_processor_instance._processed_text is None
     
-    agent_context.phase_manager.notifier.notify_agent_data_assistant_complete_response.assert_called_once_with(complete_response)
+    agent_context.status_manager.notifier.notify_agent_data_assistant_complete_response.assert_called_once_with(complete_response)
 
 
 @pytest.mark.asyncio
@@ -139,7 +139,7 @@ async def test_handle_no_processors_configured(llm_complete_handler: LLMComplete
 
     assert "No LLM response processors configured" in caplog.text
     
-    agent_context.phase_manager.notifier.notify_agent_data_assistant_complete_response.assert_called_once()
+    agent_context.status_manager.notifier.notify_agent_data_assistant_complete_response.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -158,7 +158,7 @@ async def test_handle_invalid_processor_type_in_config(llm_complete_handler: LLM
         await llm_complete_handler.handle(event, agent_context)
     
     assert "Invalid LLM response processor type in config" in caplog.text
-    agent_context.phase_manager.notifier.notify_agent_data_assistant_complete_response.assert_called_once()
+    agent_context.status_manager.notifier.notify_agent_data_assistant_complete_response.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -180,10 +180,10 @@ async def test_handle_processor_raises_exception(llm_complete_handler: LLMComple
     assert f"Error while using LLMResponseProcessor '{mock_processor_instance.get_name()}': Simulated processor error" in caplog.text
     
     # It should still emit the original response as final output
-    agent_context.phase_manager.notifier.notify_agent_data_assistant_complete_response.assert_called_once()
+    agent_context.status_manager.notifier.notify_agent_data_assistant_complete_response.assert_called_once()
     
     # And it should notify about the error during output generation
-    agent_context.phase_manager.notifier.notify_agent_error_output_generation.assert_called_once_with(
+    agent_context.status_manager.notifier.notify_agent_error_output_generation.assert_called_once_with(
         error_source=f"LLMResponseProcessor.{mock_processor_instance.get_name()}",
         error_message="Simulated processor error"
     )

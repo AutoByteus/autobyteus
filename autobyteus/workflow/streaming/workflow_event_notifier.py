@@ -4,9 +4,9 @@ from typing import Optional, Dict, Any, TYPE_CHECKING
 
 from autobyteus.events.event_emitter import EventEmitter
 from autobyteus.events.event_types import EventType
-from autobyteus.workflow.phases.workflow_operational_phase import WorkflowOperationalPhase
+from autobyteus.workflow.phases.workflow_status import WorkflowStatus
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent
-from .workflow_stream_events import WorkflowStreamEvent, AgentEventRebroadcastPayload, WorkflowPhaseTransitionData, SubWorkflowEventRebroadcastPayload
+from .workflow_stream_events import WorkflowStreamEvent, AgentEventRebroadcastPayload, WorkflowStatusTransitionData, SubWorkflowEventRebroadcastPayload
 
 if TYPE_CHECKING:
     from autobyteus.workflow.runtime.workflow_runtime import WorkflowRuntime
@@ -33,14 +33,14 @@ class WorkflowExternalEventNotifier(EventEmitter):
         """
         self.emit(EventType.WORKFLOW_STREAM_EVENT, payload=event)
 
-    def notify_phase_change(self, new_phase: WorkflowOperationalPhase, old_phase: Optional[WorkflowOperationalPhase], extra_data: Optional[Dict[str, Any]] = None):
+    def notify_status_change(self, new_status: WorkflowStatus, old_status: Optional[WorkflowStatus], extra_data: Optional[Dict[str, Any]] = None):
         """
         Notifies of a workflow phase transition by creating and emitting a
         'WORKFLOW' sourced event.
         """
         payload_dict = {
-            "new_phase": new_phase,
-            "old_phase": old_phase,
+            "new_status": new_status,
+            "old_status": old_status,
             "error_message": extra_data.get("error_message") if extra_data else None,
         }
         filtered_payload_dict = {k: v for k, v in payload_dict.items() if v is not None}
@@ -48,7 +48,7 @@ class WorkflowExternalEventNotifier(EventEmitter):
         event = WorkflowStreamEvent(
             workflow_id=self.workflow_id,
             event_source_type="WORKFLOW",
-            data=WorkflowPhaseTransitionData(**filtered_payload_dict)
+            data=WorkflowStatusTransitionData(**filtered_payload_dict)
         )
         self._emit_event(event)
     

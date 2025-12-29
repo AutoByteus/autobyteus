@@ -6,7 +6,7 @@ import threading
 import concurrent.futures
 from typing import TYPE_CHECKING, Optional, Any, Callable, Awaitable, List
 
-from autobyteus.agent.phases import AgentOperationalPhase
+from autobyteus.agent.status.status_enum import AgentStatus
 from autobyteus.agent.events import ( 
     BaseEvent,
     AgentErrorEvent, 
@@ -35,13 +35,13 @@ class AgentWorker:
                  event_handler_registry: 'EventHandlerRegistry'): 
         self.context: 'AgentContext' = context
         
-        self.phase_manager = self.context.phase_manager
-        if not self.phase_manager: # pragma: no cover
-            raise ValueError(f"AgentWorker for '{self.context.agent_id}': AgentPhaseManager not found.")
+        self.status_manager = self.context.status_manager
+        if not self.status_manager: # pragma: no cover
+            raise ValueError(f"AgentWorker for '{self.context.agent_id}': AgentStatusManager not found.")
 
         self.worker_event_dispatcher = WorkerEventDispatcher(
             event_handler_registry=event_handler_registry, 
-            phase_manager=self.phase_manager
+            status_manager=self.status_manager
         )
         
         self._thread_pool_manager = AgentThreadPoolManager() 
@@ -65,7 +65,7 @@ class AgentWorker:
         logger.info(f"Agent '{agent_id}': Starting internal initialization process using AgentBootstrapper.")
 
         bootstrapper = AgentBootstrapper() # Using default steps
-        initialization_successful = await bootstrapper.run(self.context, self.phase_manager)
+        initialization_successful = await bootstrapper.run(self.context, self.status_manager)
 
         return initialization_successful
 
@@ -113,10 +113,10 @@ class AgentWorker:
             self._worker_loop.run_until_complete(self.async_run())
         except Exception as e:
             logger.error(f"AgentWorker '{agent_id}': Unhandled exception in _run_managed_thread_loop: {e}", exc_info=True)
-            if self.phase_manager and not self.context.current_phase.is_terminal():
+            if self.status_manager and not self.context.current_status.is_terminal():
                 try:
-                    # Since this is a sync context, we must run the async phase manager method in a temporary event loop.
-                    asyncio.run(self.phase_manager.notify_error_occurred(f"Worker thread fatal error: {e}", traceback.format_exc()))
+                    # Since this is a sync context, we must run the async status manager method in a temporary event loop.
+                    asyncio.run(self.status_manager.notify_error_occurred(f"Worker thread fatal error: {e}", traceback.format_exc()))
                 except Exception as run_e:
                     logger.critical(f"AgentWorker '{agent_id}': Failed to run async error notification from sync context: {run_e}")
         finally:

@@ -49,7 +49,9 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
         # Run tool invocation preprocessors (if any) before execution
         processors = context.config.tool_invocation_preprocessors
         if processors:
-            sorted_processors = sorted(processors, key=lambda p: p.get_order())
+            # Filter valid processors first to avoid sorting crashes (checking for get_order attribute)
+            valid_processors = [p for p in processors if hasattr(p, 'get_order')]
+            sorted_processors = sorted(valid_processors, key=lambda p: p.get_order())
             for processor in sorted_processors:
                 try:
                     tool_invocation = await processor.process(tool_invocation, context)
@@ -178,8 +180,8 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
         agent_id = context.agent_id 
         
         notifier: Optional['AgentExternalEventNotifier'] = None
-        if context.phase_manager:
-            notifier = context.phase_manager.notifier
+        if context.status_manager:
+            notifier = context.status_manager.notifier
         
         if not notifier:
             logger.error(f"Agent '{agent_id}': Notifier not available in ToolInvocationRequestEventHandler. Output events for tool approval/logging will be lost.")

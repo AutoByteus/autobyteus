@@ -38,8 +38,8 @@ class ApprovedToolInvocationEventHandler(AgentEventHandler):
         agent_id = context.agent_id 
 
         notifier: Optional['AgentExternalEventNotifier'] = None
-        if context.phase_manager:
-            notifier = context.phase_manager.notifier
+        if context.status_manager:
+            notifier = context.status_manager.notifier
         
         if not notifier: # pragma: no cover
             logger.error(f"Agent '{agent_id}': Notifier not available in ApprovedToolInvocationEventHandler. Tool interaction logs will not be emitted.")

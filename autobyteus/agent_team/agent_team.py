@@ -5,7 +5,7 @@ from typing import Optional
 from autobyteus.agent_team.runtime.agent_team_runtime import AgentTeamRuntime
 from autobyteus.agent_team.events.agent_team_events import ProcessUserMessageEvent, ToolApprovalTeamEvent
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
-from autobyteus.agent_team.phases.agent_team_operational_phase import AgentTeamOperationalPhase
+from autobyteus.agent_team.status.agent_team_status import AgentTeamStatus
 
 logger = logging.getLogger(__name__)
 
@@ -89,5 +89,5 @@ class AgentTeam:
         """Checks if the agent team's worker is running."""
         return self._runtime.is_running
         
-    def get_current_phase(self) -> AgentTeamOperationalPhase: 
-        return self._runtime.context.state.current_phase
+    def get_current_status(self) -> AgentTeamStatus: 
+        return self._runtime.context.state.current_status

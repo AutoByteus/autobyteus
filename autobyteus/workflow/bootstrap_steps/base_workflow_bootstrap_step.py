@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from autobyteus.workflow.context.workflow_context import WorkflowContext
-    from autobyteus.workflow.phases.workflow_phase_manager import WorkflowPhaseManager
+    from autobyteus.workflow.phases.workflow_status_manager import WorkflowStatusManager
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +13,7 @@ class BaseWorkflowBootstrapStep(ABC):
     """Abstract base class for individual steps in the workflow bootstrapping process."""
 
     @abstractmethod
-    async def execute(self, context: 'WorkflowContext', phase_manager: 'WorkflowPhaseManager') -> bool:
+    async def execute(self, context: 'WorkflowContext', status_manager: 'WorkflowStatusManager') -> bool:
         """
         Executes the bootstrap step.
 

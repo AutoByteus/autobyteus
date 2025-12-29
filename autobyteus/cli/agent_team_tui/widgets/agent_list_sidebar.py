@@ -10,10 +10,10 @@ from textual.widgets import Static, Tree
 from textual.widgets.tree import TreeNode
 from textual.containers import Vertical
 
-from autobyteus.agent.phases import AgentOperationalPhase
-from autobyteus.agent_team.phases import AgentTeamOperationalPhase
+from autobyteus.agent.status.status_enum import AgentStatus
+from autobyteus.agent_team.status.agent_team_status import AgentTeamStatus
 from .shared import (
-    AGENT_PHASE_ICONS, TEAM_PHASE_ICONS, SUB_TEAM_ICON, 
+    AGENT_PHASE_ICONS, TEAM_STATUS_ICONS, SUB_TEAM_ICON, 
     TEAM_ICON, SPEAKING_ICON, DEFAULT_ICON
 )
 from .logo import Logo
@@ -51,13 +51,13 @@ class AgentListSidebar(Static):
         icon = DEFAULT_ICON
         
         if node_type == "agent":
-            phase = agent_phases.get(name, AgentOperationalPhase.UNINITIALIZED)
+            phase = agent_phases.get(name, AgentStatus.UNINITIALIZED)
             icon = SPEAKING_ICON if speaking_agents.get(name) else AGENT_PHASE_ICONS.get(phase, DEFAULT_ICON)
             label = f"{icon} {name}"
         elif node_type in ["team", "subteam"]:
-            phase = team_phases.get(name, AgentTeamOperationalPhase.UNINITIALIZED)
+            status = team_phases.get(name, AgentTeamStatus.UNINITIALIZED)
             default_icon = TEAM_ICON if node_type == "team" else SUB_TEAM_ICON
-            icon = TEAM_PHASE_ICONS.get(phase, default_icon)
+            icon = TEAM_STATUS_ICONS.get(status, default_icon)
             role = node_data.get("role")
             label = f"{icon} {role or name}"
             if role and role != name:
@@ -67,7 +67,7 @@ class AgentListSidebar(Static):
             
         return label
 
-    def update_tree(self, tree_data: Dict, agent_phases: Dict[str, AgentOperationalPhase], team_phases: Dict[str, AgentTeamOperationalPhase], speaking_agents: Dict[str, bool]):
+    def update_tree(self, tree_data: Dict, agent_phases: Dict[str, AgentStatus], team_phases: Dict[str, AgentTeamStatus], speaking_agents: Dict[str, bool]):
         """
         Performs an in-place update of the tree to reflect the new state,
         avoiding a full rebuild for better performance and preserving UI state like expansion.

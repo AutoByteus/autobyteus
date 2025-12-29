@@ -5,7 +5,7 @@ import uuid # For generating default request IDs if ProtocolMessage doesn't
 from typing import Optional, Dict, Any, AsyncIterator
 
 from autobyteus.agent.agent import Agent 
-from autobyteus.agent.phases import AgentOperationalPhase
+from autobyteus.agent.status.status_enum import AgentStatus
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.agent.message.inter_agent_message import InterAgentMessage
 from autobyteus.rpc.client import default_client_connection_manager, AbstractClientConnection
@@ -47,7 +47,7 @@ class RemoteAgentProxy(Agent):
 
         self._remote_agent_id_from_discovery: Optional[str] = None 
         self._remote_capabilities: Dict[str, Any] = {} 
-        self._remote_status: AgentOperationalPhase = AgentOperationalPhase.UNINITIALIZED 
+        self._remote_status: AgentStatus = AgentStatus.UNINITIALIZED 
 
         # For Agent compatibility:
         # If target_agent_id_on_server is known, use it for a more descriptive initial proxy agent_id.
@@ -105,8 +105,8 @@ class RemoteAgentProxy(Agent):
             initial_status_str = response_msg.result.get("status") # 'status' key for legacy, but should be 'phase'
             initial_phase_str = response_msg.result.get("phase", initial_status_str) # Prefer 'phase'
             if initial_phase_str:
-                try: self._remote_status = AgentOperationalPhase(initial_phase_str)
-                except ValueError: logger.warning(f"Invalid phase '{initial_phase_str}' from discovery."); self._remote_status = AgentOperationalPhase.UNINITIALIZED
+                try: self._remote_status = AgentStatus(initial_phase_str)
+                except ValueError: logger.warning(f"Invalid phase '{initial_phase_str}' from discovery."); self._remote_status = AgentStatus.UNINITIALIZED
             logger.info(f"RemoteAgentProxy (now ID: '{self.agent_id}'): Capabilities discovered. Remote Caps: {list(self._remote_capabilities.keys())}")
         elif response_msg.type == MessageType.ERROR and response_msg.error:
             err = response_msg.error
@@ -174,7 +174,7 @@ class RemoteAgentProxy(Agent):
         await self._invoke_remote_method("post_tool_execution_approval", params)
         logger.debug(f"RemoteAgentProxy '{self.agent_id}': post_tool_execution_approval sent.")
 
-    def get_current_phase(self) -> AgentOperationalPhase:
+    def get_current_phase(self) -> AgentStatus:
         if not self._is_initialized:
             logger.warning(f"RemoteAgentProxy '{self.agent_id}': get_current_phase called before initialization.")
         # Returns cached status updated by discovery or potentially by SSE events.
@@ -184,7 +184,7 @@ class RemoteAgentProxy(Agent):
     def is_running(self) -> bool:
         # A remote agent is "running" if it's not in a terminal state or uninitialized.
         if self._remote_status:
-            return not self._remote_status.is_terminal() and self._remote_status != AgentOperationalPhase.UNINITIALIZED
+            return not self._remote_status.is_terminal() and self._remote_status != AgentStatus.UNINITIALIZED
         return False
 
     def start(self) -> None:
@@ -205,7 +205,7 @@ class RemoteAgentProxy(Agent):
             await self._connection.close()
             self._connection = None
         self._is_initialized = False
-        self._remote_status = AgentOperationalPhase.SHUTDOWN_COMPLETE 
+        self._remote_status = AgentStatus.SHUTDOWN_COMPLETE 
 
     def get_event_queues(self): 
         logger.warning("RemoteAgentProxy does not provide direct access to remote event queues.")
@@ -227,13 +227,13 @@ class RemoteAgentProxy(Agent):
         async for event in self._connection.events():
             # Update remote status if a phase transition event is received
             if event.type == MessageType.EVENT and event.event_type == "agent_phase_transition" and event.payload:
-                new_phase_str = event.payload.get("new_phase")
-                if new_phase_str:
+                new_status_str = event.payload.get("new_status")
+                if new_status_str:
                     try: 
-                        self._remote_status = AgentOperationalPhase(new_phase_str)
+                        self._remote_status = AgentStatus(new_status_str)
                         logger.debug(f"RemoteAgentProxy '{self.agent_id}': Remote phase updated to {self._remote_status.value}")
                     except ValueError: 
-                        logger.warning(f"Received invalid phase '{new_phase_str}' via SSE event.")
+                        logger.warning(f"Received invalid phase '{new_status_str}' via SSE event.")
             yield event
 
 

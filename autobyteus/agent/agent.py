@@ -4,7 +4,7 @@ import logging
 from typing import AsyncIterator, Optional, List, Any, Dict, TYPE_CHECKING 
 
 from autobyteus.agent.runtime.agent_runtime import AgentRuntime
-from autobyteus.agent.phases.phase_enum import AgentOperationalPhase 
+from autobyteus.agent.status.status_enum import AgentStatus 
 from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
 from autobyteus.agent.message.inter_agent_message import InterAgentMessage
 from autobyteus.agent.events import UserMessageReceivedEvent, InterAgentMessageReceivedEvent, ToolExecutionApprovalEvent, BaseEvent 
@@ -81,8 +81,18 @@ class Agent:
         )
         await self._submit_event_to_runtime(approval_event)
 
-    def get_current_phase(self) -> AgentOperationalPhase: 
-        return self._runtime.current_phase_property 
+    def get_current_status(self) -> AgentStatus:
+        """
+        Returns the current status of the agent.
+
+        Returns:
+            AgentStatus: The current status of the agent.
+        """
+        # If the runtime hasn't started yet, we are uninitialized.
+        if not self._runtime:
+            return AgentStatus.UNINITIALIZED
+        
+        return self._runtime.current_status_property
     
     @property
     def is_running(self) -> bool:
@@ -102,5 +112,5 @@ class Agent:
 
 
     def __repr__(self) -> str:
-        phase_val = self._runtime.current_phase_property.value 
-        return f"<Agent agent_id='{self.agent_id}', current_phase='{phase_val}'>"
+        status_val = self._runtime.current_status_property.value 
+        return f"<Agent agent_id='{self.agent_id}', current_status='{status_val}'>"

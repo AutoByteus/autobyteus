@@ -17,8 +17,8 @@ def test_notify_phase_change(notifier: WorkflowExternalEventNotifier):
     """Tests that notify_phase_change creates and emits a correct WORKFLOW event."""
     with patch.object(notifier, 'emit') as mock_emit:
         notifier.notify_phase_change(
-            new_phase=WorkflowOperationalPhase.IDLE,
-            old_phase=WorkflowOperationalPhase.BOOTSTRAPPING,
+            new_status=WorkflowOperationalPhase.IDLE,
+            old_status=WorkflowOperationalPhase.BOOTSTRAPPING,
             extra_data={"error_message": "An error"}
         )
         
@@ -31,8 +31,8 @@ def test_notify_phase_change(notifier: WorkflowExternalEventNotifier):
         
         data = emitted_event.data
         assert isinstance(data, WorkflowPhaseTransitionData)
-        assert data.new_phase == WorkflowOperationalPhase.IDLE
-        assert data.old_phase == WorkflowOperationalPhase.BOOTSTRAPPING
+        assert data.new_status == WorkflowOperationalPhase.IDLE
+        assert data.old_status == WorkflowOperationalPhase.BOOTSTRAPPING
         assert data.error_message == "An error"
 
 def test_publish_agent_event(notifier: WorkflowExternalEventNotifier):

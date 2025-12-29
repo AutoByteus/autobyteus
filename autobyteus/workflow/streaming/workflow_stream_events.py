@@ -4,10 +4,10 @@ import uuid
 from typing import Literal, Union
 from pydantic import BaseModel, Field, model_validator
 
-from .workflow_stream_event_payloads import WorkflowPhaseTransitionData, AgentEventRebroadcastPayload, SubWorkflowEventRebroadcastPayload
+from .workflow_stream_event_payloads import WorkflowStatusTransitionData, AgentEventRebroadcastPayload, SubWorkflowEventRebroadcastPayload
 
 # A union of all possible payloads for a "WORKFLOW" sourced event.
-WorkflowSpecificPayload = Union[WorkflowPhaseTransitionData]
+WorkflowSpecificPayload = Union[WorkflowStatusTransitionData]
 
 # The top-level discriminated union for the main event stream's payload.
 WorkflowStreamDataPayload = Union[WorkflowSpecificPayload, AgentEventRebroadcastPayload, SubWorkflowEventRebroadcastPayload]
@@ -28,7 +28,7 @@ class WorkflowStreamEvent(BaseModel):
         is_sub_workflow_payload = isinstance(self.data, SubWorkflowEventRebroadcastPayload)
 
         is_workflow_event = self.event_source_type == "WORKFLOW"
-        is_workflow_payload = isinstance(self.data, WorkflowPhaseTransitionData)
+        is_workflow_payload = isinstance(self.data, WorkflowStatusTransitionData)
 
         if is_agent_event and not is_agent_payload:
             raise ValueError("event_source_type is 'AGENT' but data is not an AgentEventRebroadcastPayload")
