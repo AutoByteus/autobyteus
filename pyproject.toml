@@ -71,9 +71,10 @@ dev = [
 Homepage = "https://github.com/AutoByteus/autobyteus"
 
 [tool.setuptools]
-include-package-data = true
+include-package-data = false
 
 [tool.setuptools.packages.find]
+include = ["autobyteus", "autobyteus.*"]
 exclude = ["tests", "tests.*"]
 
 [tool.setuptools.package-data]

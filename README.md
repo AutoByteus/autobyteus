@@ -16,10 +16,11 @@ Autobyteus is built with a modular, event-driven architecture designed for exten
     -   **`InputProcessors`**: To modify or enrich user messages *before* they are sent to the LLM.
     -   **`LLMResponseProcessors`**: To parse the LLM's raw output and extract structured actions, such as tool calls.
     -   **`ToolExecutionResultProcessors` (Tool Result Processors)**: To modify the result from a tool *before* it is sent back to the LLM for the next step of reasoning (e.g., formatting, summarization, artifact extraction).
-    -   **`PhaseHooks`**: To run custom code on specific agent lifecycle transitions (e.g., when an agent becomes `IDLE`).
+    -   **Lifecycle Event Processors**: To run custom code on specific lifecycle events (e.g., `BEFORE_LLM_CALL`, `AFTER_TOOL_EXECUTE`).
 -   **Context-Aware Tooling**: Tools are first-class citizens that receive the agent's full `AgentContext` during execution. This allows tools to be deeply integrated with the agent's state, configuration, and workspace, enabling more intelligent and powerful actions.
 -   **Tool Approval Flow**: The framework has native support for human-in-the-loop workflows. By setting `auto_execute_tools=False` in the agent's configuration, the agent will pause before executing a tool, emit an event requesting permission, and wait for external approval before proceeding.
 -   **MCP Integration**: The framework has native support for the Model Context Protocol (MCP). This allows agents to discover and use tools from external, language-agnostic tool servers, making the ecosystem extremely flexible and ready for enterprise integration.
+-   **Agent Skills**: A powerful mechanism for extending agent capabilities using modular, file-based skills. Each skill is a directory containing a map (`SKILL.md`) and arbitrary assets (code, docs, templates). Skills can be preloaded or dynamically fetched via the `load_skill` tool, enabling human-like, just-in-time retrieval without bloating the context window.
 
 ## Key Features
 
@@ -109,6 +110,9 @@ python autobyteus/examples/agent_team/event_driven/run_software_engineering_team
 
 # Run the hierarchical debate team example
 python autobyteus/examples/agent_team/manual_notification/run_debate_team.py --llm-model gpt-4-turbo
+
+# Run the hierarchical skills example (modular, file-based capabilities)
+python examples/run_agent_with_skill.py --llm-model gpt-4o
 ```
 You can see all available models and their identifiers by running an example with the `--help-models` flag.
 
