@@ -26,12 +26,12 @@ Transitions are managed by the `AgentStatusManager`. For example, when the LLM r
 
 ### 2. Lifecycle Events (`LifecycleEvent`)
 
-Lifecycle Events represent **actionable moments** that occur during status transitions. Developers can register **Lifecycle Processors** to run custom logic when these events fire. This replaces the legacy "Phase Hooks" system.
+Lifecycle Events represent **actionable moments** that occur during status transitions. Developers can register **Lifecycle Processors** to run custom logic when these events fire.
 
 **Key Lifecycle Events:**
 
 - `AGENT_READY`: Fires when bootstrapping finishes and the agent becomes `IDLE`. Good for one-time initialization.
-- `BEFORE_LLM_CALL`: Fires right before sending a request to the LLM. useful for modifying prompt context.
+- `BEFORE_LLM_CALL`: Fires right before sending a request to the LLM. Useful for modifying prompt context.
 - `AFTER_LLM_RESPONSE`: Fires when the LLM response is received but before it is processed.
 - `BEFORE_TOOL_EXECUTE`: Fires before a tool runs.
 - `AFTER_TOOL_EXECUTE`: Fires after a tool completes.
@@ -60,23 +60,38 @@ Legacy "Phase" event names have been deprecated. The new standard is `AGENT_STAT
 
 ## Architecture: How It Works
 
-1.  **Trigger**: The `AgentRuntime` determines it needs to change state (e.g., "Tool finished running").
-2.  **Request**: It calls `AgentStatusManager._transition_status(new_status=...)`.
-3.  **Lifecycle Hooks**: The Manager calculates the equivalent `LifecycleEvent` (if any) and executes all registered `LifecycleProcessors`.
-    - _Example_: Transitioning `EXECUTING_TOOL` -> `PROCESSING_TOOL_RESULT` triggers `AFTER_TOOL_EXECUTE`.
+1.  **Trigger**: The event dispatcher receives an event (e.g., `LLMUserMessageReadyEvent`).
+2.  **Status Request**: The dispatcher asks `AgentStatusManager` to transition status.
+3.  **Lifecycle Processors**: The manager maps the status transition to a `LifecycleEvent` and runs matching processors.
+    - _Example_: Transitioning to `AWAITING_LLM_RESPONSE` triggers `BEFORE_LLM_CALL`.
 4.  **State Change**: The `AgentContext.current_status` is updated.
-5.  **External Notification**: The Manager calls `AgentExternalEventNotifier.notify_status_*()`, which emits the persistent `EventType` to the Event Bus.
+5.  **External Notification**: The manager calls `AgentExternalEventNotifier.notify_status_*()`, which emits `EventType` for external observers.
+
+## Processor vs. Lifecycle Processor (Ordering Contract)
+
+There are two extensibility mechanisms, and they run at different times:
+
+- **Pipeline processors** (input, system prompt, LLM response, tool pre/post, tool result) are invoked by event handlers.
+- **Lifecycle processors** run on status transitions inside the `AgentStatusManager`.
+
+**Current ordering (important for clarity):**
+
+1. **Bootstrapping**: `SystemPromptProcessingStep` runs once during bootstrapping to build the system prompt and configure the LLM. It does **not** run before each LLM call.
+2. **Before LLM call**: `BEFORE_LLM_CALL` lifecycle processors run when the agent transitions to `AWAITING_LLM_RESPONSE`, **before** the handler makes the LLM request.
+3. **After LLM response**: `AFTER_LLM_RESPONSE` lifecycle processors run when transitioning to `ANALYZING_LLM_RESPONSE`, **before** LLM response processors are applied.
+4. **Before tool execution**: `BEFORE_TOOL_EXECUTE` lifecycle processors run when transitioning to `EXECUTING_TOOL`, **before** the tool handler executes the tool.
+5. **After tool execution**: `AFTER_TOOL_EXECUTE` lifecycle processors run when transitioning out of `EXECUTING_TOOL`, **before** tool result processors run.
 
 ## Extending the Agent
 
 ### Adding Custom Logic (Internal)
 
-To inject custom code into the agent loop, implement a `BaseLifecycleProcessor`:
+To inject custom code into the agent loop, implement a `BaseLifecycleEventProcessor`:
 
 ```python
-from autobyteus.agent.lifecycle import BaseLifecycleProcessor, LifecycleEvent
+from autobyteus.agent.lifecycle import BaseLifecycleEventProcessor, LifecycleEvent
 
-class MyCustomLogger(BaseLifecycleProcessor):
+class MyCustomLogger(BaseLifecycleEventProcessor):
     @property
     def event(self) -> LifecycleEvent:
         return LifecycleEvent.BEFORE_LLM_CALL
@@ -92,12 +107,3 @@ To update a UI or database based on agent progress, subscribe to the Event Bus:
 ```python
 event_emitter.on(EventType.AGENT_STATUS_EXECUTING_TOOL_STARTED, my_handler)
 ```
-
-## Reference Map
-
-| Old Term ("Phase")      | New Term ("Status")  | Purpose                    |
-| :---------------------- | :------------------- | :------------------------- |
-| `AgentOperationalPhase` | `AgentStatus`        | State Machine Enum         |
-| `AgentPhaseManager`     | `AgentStatusManager` | State Controller           |
-| `Phase Hook`            | `LifecycleProcessor` | Custom Logic Plugin        |
-| `notify_phase_*`        | `notify_status_*`    | Status Change Notification |
