@@ -61,30 +61,51 @@ You are a Java Expert.
 
 **Path Resolution (Context Injection)**
 
-Skill authors write standard relative paths (e.g., `./scripts/...`) in their `SKILL.md`. At runtime, the system injects the skill content with a clear header that provides the **Root Path**.
+Skill authors write standard relative paths (e.g., `./scripts/...` or `scripts/...`) in their `SKILL.md`. At runtime, the system injects the skill content with:
+
+1. A **Skill Catalog** listing all available skills
+2. **Critical Rules** for path resolution (applies to ALL skills)
+3. **Skill Details** with each preloaded skill's Root Path and content
 
 _Injection Format Example:_
 
-```
-## Skill: java_expert
-Root Path: /home/user/skills/java_expert
+```markdown
+## Agent Skills
+
+### Skill Catalog
+
+- **java_expert**: Java development expert with access to formatters and templates.
+
+To load a skill not shown in detail below, use the `load_skill` tool.
+
+### Critical Rules for Using Skills
+
+> **Path Resolution Required for Skill Files**
+>
+> Skill instructions use relative paths (e.g., `./scripts/run.sh` or `scripts/run.sh`) to refer to internal files.
+> However, standard tools resolve relative paths against the User's Workspace, not the skill directory.
+>
+> When using ANY file from a skill, you MUST convert its path to ABSOLUTE:
+> `Root Path` + `Relative Path` = `Absolute Path`
+>
+> **Examples:**
+>
+> 1. Root Path: `/path/to/skill`
+>    Relative: `./scripts/run.sh`
+>    Result: `/path/to/skill/scripts/run.sh`
+>
+> 2. Root Path: `/path/to/skill`
+>    Relative: `scripts/run.sh`
+>    Result: `/path/to/skill/scripts/run.sh`
+
+### Skill Details
+
+#### java_expert
+
+**Root Path:** `/home/user/skills/java_expert`
 
 [content of SKILL.md here]
 ```
-
-> **CRITICAL: Path Resolution When Using Tools**
->
-> Skills use relative paths like `./scripts/format.sh` or `./templates/App.java`. However, standard tools (`read_file`, `write_file`, `bash_executor`) resolve relative paths against the **agent's workspace**, NOT the skill directory.
->
-> When using any tool that requires a file path, you MUST first construct the full absolute path by combining the skill's Root Path with the relative path from the skill instructions.
->
-> **Path Construction Example:**
->
-> - Skill Root Path: `/home/user/skills/java_expert`
-> - Skill instruction says: "Run the formatter at `./scripts/format.sh`"
-> - Constructed full path: `/home/user/skills/java_expert/scripts/format.sh`
->
-> Use this constructed full path when calling tools like `read_file`, `write_file`, or `bash_executor`.
 
 ## 2. Core Components
 
