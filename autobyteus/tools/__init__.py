@@ -57,6 +57,7 @@ try:
     from .browser.standalone.webpage_screenshot_taker import WebPageScreenshotTaker as StandaloneWebPageScreenshotTaker # Alias
     from .browser.standalone.webpage_image_downloader import WebPageImageDownloader
     from .browser.standalone.web_page_pdf_generator import WebPagePDFGenerator
+    from .web.read_url_tool import ReadUrl
 except ModuleNotFoundError as import_err:
     logger.warning('Standalone browser tools not available: %s', import_err)
     StandaloneNavigateTo = None
@@ -64,6 +65,7 @@ except ModuleNotFoundError as import_err:
     StandaloneWebPageScreenshotTaker = None
     WebPageImageDownloader = None
     WebPagePDFGenerator = None
+    ReadUrl = None
 
 # Session-Aware Browser tools
 try:
@@ -111,6 +113,7 @@ __all__ = [
     "StandaloneWebPageScreenshotTaker",
     "WebPageImageDownloader",
     "WebPagePDFGenerator",
+    "ReadUrl",
 
     # Re-exported Session-Aware Browser tools
     "BrowserSessionAwareNavigateTo",
