@@ -1,164 +1,164 @@
 """
-EventEmitter: Manages part event emission for the streaming parser.
+EventEmitter: Manages segment event emission for the streaming parser.
 
 This class is responsible for:
-- Generating unique part IDs
-- Tracking the current active part
-- Building and queuing PartEvents
+- Generating unique segment IDs
+- Tracking the current active segment
+- Building and queuing SegmentEvents
 - Managing the event queue
 """
-from typing import Optional, List, Dict, Any, Literal
+from typing import Optional, List, Dict, Any
 
-from .events import PartEvent, PartStartEvent, PartDeltaEvent, PartEndEvent
+from .events import SegmentEvent, SegmentType, SegmentEventType
 
 
 class EventEmitter:
     """
-    Manages part event emission for the streaming parser.
+    Manages segment event emission for the streaming parser.
     
-    Generates unique IDs and manages the lifecycle of Message Parts (Start -> Delta -> End).
+    Extracted from ParserContext to improve single responsibility.
     """
     
     def __init__(self):
-        self._event_queue: List[PartEvent] = []
-        self._part_counter: int = 0
-        self._current_part_id: Optional[str] = None
-        self._current_part_type: Optional[str] = None
-        self._current_part_content: str = ""
-        self._current_part_metadata: Dict[str, Any] = {}
+        self._event_queue: List[SegmentEvent] = []
+        self._segment_counter: int = 0
+        self._current_segment_id: Optional[str] = None
+        self._current_segment_type: Optional[SegmentType] = None
+        self._current_segment_content: str = ""
+        self._current_segment_metadata: Dict[str, Any] = {}
 
-    def _generate_part_id(self) -> str:
-        """Generate a unique part ID."""
-        self._part_counter += 1
-        return f"part_{self._part_counter}"
+    def _generate_segment_id(self) -> str:
+        """Generate a unique segment ID."""
+        self._segment_counter += 1
+        return f"seg_{self._segment_counter}"
 
-    def emit_part_start(
+    def emit_segment_start(
         self, 
-        part_type: Literal["text", "tool_call", "reasoning"], 
+        segment_type: SegmentType, 
         **metadata
     ) -> str:
         """
-        Emit a PartStartEvent and begin tracking a new part.
+        Emit a SEGMENT_START event and begin tracking a new segment.
         
         Args:
-            part_type: The type of part starting (text, tool_call, reasoning).
-            **metadata: Additional metadata for the part (e.g., tool_name).
+            segment_type: The type of segment starting.
+            **metadata: Additional metadata for the segment.
             
         Returns:
-            The generated part ID.
+            The generated segment ID.
         """
-        part_id = self._generate_part_id()
-        self._current_part_id = part_id
-        self._current_part_type = part_type
-        self._current_part_content = ""
-        self._current_part_metadata = dict(metadata)
+        segment_id = self._generate_segment_id()
+        self._current_segment_id = segment_id
+        self._current_segment_type = segment_type
+        self._current_segment_content = ""
+        self._current_segment_metadata = dict(metadata)
         
-        event = PartStartEvent(
-            part_id=part_id, 
-            part_type=part_type, 
-            metadata=self._current_part_metadata
-        )
+        event = SegmentEvent.start(segment_id, segment_type, **metadata)
         self._event_queue.append(event)
-        return part_id
+        return segment_id
 
-    def emit_part_delta(self, delta: str) -> None:
+    def emit_segment_content(self, delta: Any) -> None:
         """
-        Emit a PartDeltaEvent for the current part.
+        Emit a SEGMENT_CONTENT event for the current segment.
         
         Args:
-            delta: The content chunk to emit.
+            delta: The content delta to emit.
             
         Raises:
-            RuntimeError: If no part is active.
+            RuntimeError: If no segment is active.
         """
-        if self._current_part_id is None:
-            raise RuntimeError("Cannot emit delta without an active part.")
+        if self._current_segment_id is None:
+            raise RuntimeError("Cannot emit content without an active segment.")
         
         # Accumulate string content
-        self._current_part_content += delta
+        if isinstance(delta, str):
+            self._current_segment_content += delta
         
-        event = PartDeltaEvent(
-            part_id=self._current_part_id, 
-            delta=delta
-        )
+        event = SegmentEvent.content(self._current_segment_id, delta)
         self._event_queue.append(event)
 
-    def emit_part_end(self) -> Optional[str]:
+    def emit_segment_end(self) -> Optional[str]:
         """
-        Emit a PartEndEvent and stop tracking the current part.
+        Emit a SEGMENT_END event and stop tracking the current segment.
         
-        The END event includes the *accumulated* metadata (including any updates).
+        The END event includes the current segment metadata for downstream
+        processing (e.g., tool invocation creation).
         
         Returns:
-            The part ID that was ended, or None if no active part.
+            The segment ID that was ended, or None if no active segment.
         """
-        if self._current_part_id is None:
+        if self._current_segment_id is None:
             return None
         
-        part_id = self._current_part_id
+        segment_id = self._current_segment_id
         
-        event = PartEndEvent(
-            part_id=part_id,
-            metadata=self._current_part_metadata.copy()
+        # Include metadata in END event for downstream processing
+        event = SegmentEvent(
+            event_type=SegmentEventType.END,
+            segment_id=segment_id,
+            payload={"metadata": self._current_segment_metadata.copy()} if self._current_segment_metadata else {}
         )
         self._event_queue.append(event)
         
         # Clear tracking
-        self._current_part_id = None
-        self._current_part_type = None
+        self._current_segment_id = None
+        self._current_segment_type = None
         
-        return part_id
+        return segment_id
 
     # --- Query Methods ---
     
-    def get_current_part_id(self) -> Optional[str]:
-        """Get the ID of the currently active part."""
-        return self._current_part_id
+    def get_current_segment_id(self) -> Optional[str]:
+        """Get the ID of the currently active segment."""
+        return self._current_segment_id
 
-    def get_current_part_type(self) -> Optional[str]:
-        """Get the type of the currently active part."""
-        return self._current_part_type
+    def get_current_segment_type(self) -> Optional[SegmentType]:
+        """Get the type of the currently active segment."""
+        return self._current_segment_type
 
-    def get_current_part_content(self) -> str:
-        """Get the accumulated content of the current part."""
-        return self._current_part_content
+    def get_current_segment_content(self) -> str:
+        """Get the accumulated content of the current segment."""
+        return self._current_segment_content
 
-    def get_current_part_metadata(self) -> Dict[str, Any]:
-        """Get the metadata of the current part."""
-        return self._current_part_metadata.copy()
+    def get_current_segment_metadata(self) -> Dict[str, Any]:
+        """Get the metadata of the current segment."""
+        return self._current_segment_metadata.copy()
 
-    def update_current_part_metadata(self, **metadata) -> None:
-        """Update metadata for the current part."""
-        self._current_part_metadata.update(metadata)
+    def update_current_segment_metadata(self, **metadata) -> None:
+        """Update metadata for the current segment."""
+        self._current_segment_metadata.update(metadata)
 
     # --- Event Queue Management ---
     
-    def get_and_clear_events(self) -> List[PartEvent]:
+    def get_and_clear_events(self) -> List[SegmentEvent]:
         """
         Get all queued events and clear the queue.
         
         Returns:
-            List of PartEvents that were queued.
+            List of SegmentEvents that were queued.
         """
         events = self._event_queue.copy()
         self._event_queue.clear()
         return events
 
-    def get_events(self) -> List[PartEvent]:
+    def get_events(self) -> List[SegmentEvent]:
         """Get all queued events without clearing."""
         return self._event_queue.copy()
 
     # --- Convenience Methods ---
     
-    def append_text_part(self, text: str) -> None:
+    def append_text_segment(self, text: str) -> None:
         """
-        Convenience method to emit a complete text part.
+        Convenience method to emit a complete text segment.
         
-        Emits START, DELTA, and END events.
+        Emits START, CONTENT, and END events for a text segment.
+        
+        Args:
+            text: The text content to emit.
         """
         if not text:
             return
         
-        self.emit_part_start("text")
-        self.emit_part_delta(text)
-        self.emit_part_end()
+        self.emit_segment_start(SegmentType.TEXT)
+        self.emit_segment_content(text)
+        self.emit_segment_end()

@@ -1,0 +1,78 @@
+"""
+Unit tests for the StateFactory.
+
+Updated to match the new unified architecture where all content states
+receive opening_tag in their constructor.
+"""
+import pytest
+from autobyteus.agent.streaming.parser.parser_context import ParserContext
+from autobyteus.agent.streaming.parser.state_factory import StateFactory
+from autobyteus.agent.streaming.parser.states.base_state import BaseState
+
+
+class TestStateFactory:
+    """Tests for StateFactory."""
+
+    def test_create_text_state(self):
+        """Factory creates TextState."""
+        ctx = ParserContext()
+        state = StateFactory.text_state(ctx)
+        assert isinstance(state, BaseState)
+        assert state.__class__.__name__ == "TextState"
+
+    def test_create_xml_tag_init_state(self):
+        """Factory creates XmlTagInitializationState."""
+        ctx = ParserContext()
+        ctx.append("<test")  # Need content
+        state = StateFactory.xml_tag_init_state(ctx)
+        assert state.__class__.__name__ == "XmlTagInitializationState"
+
+    def test_create_file_parsing_state(self):
+        """Factory creates FileParsingState with opening_tag."""
+        ctx = ParserContext()
+        ctx.append("content</file>")
+        # Now requires opening_tag parameter
+        state = StateFactory.file_parsing_state(ctx, "<file path='/test.py'>")
+        assert state.__class__.__name__ == "FileParsingState"
+
+    def test_create_bash_parsing_state(self):
+        """Factory creates BashParsingState."""
+        ctx = ParserContext()
+        state = StateFactory.bash_parsing_state(ctx, "<bash>")
+        assert state.__class__.__name__ == "BashParsingState"
+
+    def test_create_tool_parsing_state(self):
+        """Factory creates ToolParsingState."""
+        ctx = ParserContext()
+        ctx.append("content</tool>")
+        state = StateFactory.tool_parsing_state(ctx, "<tool name='test'>")
+        assert state.__class__.__name__ == "ToolParsingState"
+
+    def test_create_json_init_state(self):
+        """Factory creates JsonInitializationState."""
+        ctx = ParserContext()
+        ctx.append('{"name": "test"}')
+        state = StateFactory.json_init_state(ctx)
+        assert state.__class__.__name__ == "JsonInitializationState"
+
+    def test_create_json_tool_parsing_state(self):
+        """Factory creates JsonToolParsingState."""
+        ctx = ParserContext()
+        ctx.append('{"name": "test", "arguments": {}}')
+        state = StateFactory.json_tool_parsing_state(ctx, '{"name"')
+        assert state.__class__.__name__ == "JsonToolParsingState"
+
+    def test_all_states_have_run_method(self):
+        """All created states have required methods."""
+        ctx = ParserContext()
+        ctx.append("content</test>")
+        
+        states = [
+            StateFactory.text_state(ctx),
+            StateFactory.file_parsing_state(ctx, "<file path='/test'>"),
+            StateFactory.bash_parsing_state(ctx, "<bash>"),
+        ]
+        
+        for state in states:
+            assert hasattr(state, 'run')
+            assert hasattr(state, 'finalize')

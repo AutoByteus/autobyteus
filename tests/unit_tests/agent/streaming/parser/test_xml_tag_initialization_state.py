@@ -5,7 +5,10 @@ import pytest
 from autobyteus.agent.streaming.parser.parser_context import ParserContext, ParserConfig
 from autobyteus.agent.streaming.parser.states.text_state import TextState
 from autobyteus.agent.streaming.parser.states.xml_tag_initialization_state import XmlTagInitializationState
+from autobyteus.agent.streaming.parser.states.file_parsing_state import FileParsingState
+from autobyteus.agent.streaming.parser.states.bash_parsing_state import BashParsingState
 from autobyteus.agent.streaming.parser.states.tool_parsing_state import ToolParsingState
+from autobyteus.agent.streaming.parser.states.iframe_parsing_state import IframeParsingState
 from autobyteus.agent.streaming.parser.events import SegmentEventType
 
 
@@ -24,6 +27,59 @@ class TestXmlTagInitConstructor:
         
         # After constructor, position should be 1 (consumed '<')
         assert ctx.get_position() == 1
+
+
+class TestXmlTagInitFileDetection:
+    """Tests for <file tag detection."""
+
+    def test_file_tag_transitions_to_file_state(self):
+        """<file path="..."> triggers transition to FileParsingState."""
+        ctx = ParserContext()
+        ctx.append('<file path="/test.py">')
+        
+        state = XmlTagInitializationState(ctx)
+        ctx.current_state = state
+        state.run()
+        
+        assert isinstance(ctx.current_state, FileParsingState)
+
+    def test_file_tag_case_insensitive(self):
+        """<FILE (uppercase) also triggers FileParsingState."""
+        ctx = ParserContext()
+        ctx.append('<FILE path="/test.py">')
+        
+        state = XmlTagInitializationState(ctx)
+        ctx.current_state = state
+        state.run()
+        
+        assert isinstance(ctx.current_state, FileParsingState)
+
+
+
+class TestXmlTagInitBashDetection:
+    """Tests for <bash> tag detection."""
+
+    def test_bash_tag_transitions_to_bash_state(self):
+        """<bash> triggers transition to BashParsingState."""
+        ctx = ParserContext()
+        ctx.append("<bash>command</bash>")
+        
+        state = XmlTagInitializationState(ctx)
+        ctx.current_state = state
+        state.run()
+        
+        assert isinstance(ctx.current_state, BashParsingState)
+
+    def test_bash_with_attributes(self):
+        """<bash description='test'> also triggers BashParsingState."""
+        ctx = ParserContext()
+        ctx.append("<bash description='test'>")
+        
+        state = XmlTagInitializationState(ctx)
+        ctx.current_state = state
+        state.run()
+        
+        assert isinstance(ctx.current_state, BashParsingState)
 
 
 class TestXmlTagInitToolDetection:
@@ -58,6 +114,31 @@ class TestXmlTagInitToolDetection:
         content_events = [e for e in events if e.event_type == SegmentEventType.CONTENT]
         assert any("<tool name='test'>" in e.payload.get("delta", "") for e in content_events)
 
+
+class TestXmlTagInitDoctypeDetection:
+    """Tests for <!doctype html> detection."""
+
+    def test_doctype_transitions_to_iframe_state(self):
+        """<!doctype html> triggers transition to IframeParsingState."""
+        ctx = ParserContext()
+        ctx.append("<!doctype html><html>")
+        
+        state = XmlTagInitializationState(ctx)
+        ctx.current_state = state
+        state.run()
+        
+        assert isinstance(ctx.current_state, IframeParsingState)
+
+    def test_doctype_case_insensitive(self):
+        """<!DOCTYPE HTML> also triggers IframeParsingState."""
+        ctx = ParserContext()
+        ctx.append("<!DOCTYPE HTML><html>")
+        
+        state = XmlTagInitializationState(ctx)
+        ctx.current_state = state
+        state.run()
+        
+        assert isinstance(ctx.current_state, IframeParsingState)
 
 
 class TestXmlTagInitUnknownTags:
@@ -97,10 +178,10 @@ class TestXmlTagInitUnknownTags:
 class TestXmlTagInitPartialBuffer:
     """Tests for partial/incomplete tags."""
 
-    def test_partial_tool_waits_for_more(self):
-        """Partial '<too' waits for more characters."""
+    def test_partial_file_waits_for_more(self):
+        """Partial '<fil' waits for more characters."""
         ctx = ParserContext()
-        ctx.append("<too")  # Incomplete - could be <tool
+        ctx.append("<fil")  # Incomplete - could be <file
         
         state = XmlTagInitializationState(ctx)
         ctx.current_state = state

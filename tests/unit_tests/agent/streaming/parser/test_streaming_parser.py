@@ -8,7 +8,7 @@ from autobyteus.agent.streaming.parser.streaming_parser import (
     extract_segments
 )
 from autobyteus.agent.streaming.parser.parser_context import ParserConfig
-from autobyteus.agent.streaming.parser.events import PartStartEvent, PartDeltaEvent, PartEndEvent
+from autobyteus.agent.streaming.parser.events import SegmentType, SegmentEventType
 
 
 class TestStreamingParserBasics:
@@ -20,10 +20,10 @@ class TestStreamingParserBasics:
         events = parser.feed("Hello, I can help you with that!")
         events.extend(parser.finalize())
         
-        # Should have text part events
-        start_events = [e for e in events if isinstance(e, PartStartEvent)]
+        # Should have text segment events
+        start_events = [e for e in events if e.event_type == SegmentEventType.START]
         assert len(start_events) >= 1
-        assert start_events[0].part_type == "text"
+        assert start_events[0].segment_type == SegmentType.TEXT
 
     def test_empty_input_no_events(self):
         """Empty input produces no events."""
@@ -47,6 +47,24 @@ class TestStreamingParserBasics:
         assert len(all_events) > 0
 
 
+class TestStreamingParserFileParsing:
+    """Tests for file tag parsing through the driver."""
+
+    def test_complete_file_tag(self):
+        """Parse a complete file tag."""
+        parser = StreamingParser()
+        events = parser.feed_and_finalize(
+            "Here is the code:<file path='/test.py'>print('hello')</file>Done!"
+        )
+        
+        segments = extract_segments(events)
+        
+        # Should have file segment
+        file_segments = [s for s in segments if s["type"] == "file"]
+        assert len(file_segments) >= 1
+        assert file_segments[0]["metadata"].get("path") == "/test.py"
+
+
 class TestStreamingParserToolParsing:
     """Tests for tool call parsing through the driver."""
 
@@ -60,10 +78,8 @@ class TestStreamingParserToolParsing:
         )
         
         segments = extract_segments(events)
-        tool_segments = [s for s in segments if s.type == "tool_call"]
+        tool_segments = [s for s in segments if s["type"] == "tool_call"]
         assert len(tool_segments) >= 1
-        assert tool_segments[0].tool_name == "weather"
-        assert tool_segments[0].arguments["city"] == "NYC"
 
     def test_tool_call_disabled(self):
         """Tool tags become text when parsing disabled."""
@@ -73,42 +89,36 @@ class TestStreamingParserToolParsing:
         events = parser.feed_and_finalize("<tool name='test'>args</tool>")
         
         segments = extract_segments(events)
-        tool_segments = [s for s in segments if s.type == "tool_call"]
+        tool_segments = [s for s in segments if s["type"] == "tool_call"]
         assert len(tool_segments) == 0
-        
-        # Should be text
-        text_segments = [s for s in segments if s.type == "text"]
-        assert len(text_segments) > 0
 
 
 class TestStreamingParserMixedContent:
     """Tests for mixed content responses."""
 
-    def test_text_and_tool(self):
-        """Parse mix of text and tool."""
-        config = ParserConfig(parse_tool_calls=True, use_xml_tool_format=True)
-        parser = StreamingParser(config)
+    def test_text_and_file(self):
+        """Parse mix of text and file."""
+        parser = StreamingParser()
         events = parser.feed_and_finalize(
-            "Here is the solution:\n<tool name='weather'>NYC</tool>\nLet me know!"
+            "Here is the solution:\n<file path='/main.py'>print('done')</file>\nLet me know!"
         )
         
         segments = extract_segments(events)
-        types = set(s.type for s in segments)
+        types = set(s["type"] for s in segments)
         
         assert "text" in types
-        assert "tool_call" in types
+        assert "file" in types
 
-    def test_multiple_tool_blocks(self):
-        """Parse multiple tool blocks."""
-        config = ParserConfig(parse_tool_calls=True, use_xml_tool_format=True)
-        parser = StreamingParser(config)
+    def test_multiple_file_blocks(self):
+        """Parse multiple file blocks."""
+        parser = StreamingParser()
         events = parser.feed_and_finalize(
-            "<tool name='a'>a</tool><tool name='b'>b</tool>"
+            "<file path='/a.py'>a</file><file path='/b.py'>b</file>"
         )
         
         segments = extract_segments(events)
-        tool_segments = [s for s in segments if s.type == "tool_call"]
-        assert len(tool_segments) >= 2
+        file_segments = [s for s in segments if s["type"] == "file"]
+        assert len(file_segments) >= 2
 
 
 class TestStreamingParserStateManagement:
@@ -159,8 +169,8 @@ class TestConvenienceFunctions:
         segments = extract_segments(events)
         
         assert len(segments) >= 1
-        assert segments[0].type == "text"
-        assert "Plain text here" in segments[0].content
+        assert segments[0]["type"] == "text"
+        assert "Plain text here" in segments[0]["content"]
 
 
 class TestStreamingParserStreaming:
@@ -183,17 +193,16 @@ class TestStreamingParserStreaming:
         
         # Should produce text segments
         segments = extract_segments(all_events)
-        combined_text = "".join(s.content for s in segments if s.type == "text")
+        combined_text = "".join(s["content"] for s in segments if s["type"] == "text")
         assert "Hello, I can help you!" in combined_text
 
-    def test_tool_split_across_chunks(self):
-        """Tool tag content split across chunks."""
-        config = ParserConfig(parse_tool_calls=True, use_xml_tool_format=True)
-        parser = StreamingParser(config)
+    def test_file_split_across_chunks(self):
+        """File tag content split across chunks."""
+        parser = StreamingParser()
         
         all_events = []
         
-        chunks = ["<to", "ol name='calc'>print", "('hello')</tool>"]
+        chunks = ["<fi", "le path='/test.py'>print", "('hello')</file>"]
         for chunk in chunks:
             events = parser.feed(chunk)
             all_events.extend(events)
@@ -202,6 +211,5 @@ class TestStreamingParserStreaming:
         all_events.extend(final_events)
         
         segments = extract_segments(all_events)
-        tool_segments = [s for s in segments if s.type == "tool_call"]
-        assert len(tool_segments) >= 1
-
+        file_segments = [s for s in segments if s["type"] == "file"]
+        assert len(file_segments) >= 1

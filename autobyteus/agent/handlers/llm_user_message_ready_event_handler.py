@@ -63,7 +63,7 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
         def emit_part_event(event):
             if notifier:
                 try:
-                    notifier.notify_agent_message_part_event(event.model_dump())
+                    notifier.notify_agent_message_part_event(event.to_dict())
                 except Exception as e:
                      logger.error(f"Agent '{agent_id}': Error notifying part event: {e}", exc_info=True)
 

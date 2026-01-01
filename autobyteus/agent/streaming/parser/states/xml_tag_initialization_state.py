@@ -1,8 +1,8 @@
 """
 XmlTagInitializationState: Analyzes potential XML tags after a '<' is detected.
 
-This state buffers characters to identify special tags like <tool
-and transitions to the appropriate specialized state.
+This state buffers characters to identify special tags like <tool, <file, <bash,
+<!doctype html> and transitions to the appropriate specialized state.
 
 UNIFORM HANDOFF: All content states receive the complete opening_tag and handle
 their own initialization consistently.
@@ -20,7 +20,7 @@ class XmlTagInitializationState(BaseState):
     Analyzes a potential XML tag to determine the correct specialized state.
     
     This state is entered when a '<' is detected. It buffers characters
-    to identify tags like <tool.
+    to identify tags like <tool, <file, <bash, <!doctype html>.
     
     If no known tag is detected, the buffered content is emitted as text.
     
@@ -30,7 +30,10 @@ class XmlTagInitializationState(BaseState):
     """
     
     # Known tag prefixes (lowercase for case-insensitive matching)
+    POSSIBLE_FILE = "<file"
+    POSSIBLE_BASH = "<bash"
     POSSIBLE_TOOL = "<tool"
+    POSSIBLE_DOCTYPE = "<!doctype html>"
     
     def __init__(self, context: "ParserContext"):
         super().__init__(context)
@@ -45,7 +48,10 @@ class XmlTagInitializationState(BaseState):
         Transitions to specialized states or reverts to text if unknown.
         """
         from .text_state import TextState
+        from .file_parsing_state import FileParsingState
+        from .bash_parsing_state import BashParsingState
         from .tool_parsing_state import ToolParsingState
+        from .iframe_parsing_state import IframeParsingState
         
         while self.context.has_more_chars():
             char = self.context.peek_char()
@@ -56,6 +62,22 @@ class XmlTagInitializationState(BaseState):
             
             # --- Tag completion check (when we see '>') ---
             if char == '>':
+                # <file...> tag
+                if lower_buffer.startswith(self.POSSIBLE_FILE):
+                    # UNIFORM HANDOFF: Pass complete opening_tag
+                    self.context.transition_to(
+                        FileParsingState(self.context, self._tag_buffer)
+                    )
+                    return
+                
+                # <bash...> tag
+                if lower_buffer.startswith(self.POSSIBLE_BASH):
+                    # UNIFORM HANDOFF: Pass complete opening_tag
+                    self.context.transition_to(
+                        BashParsingState(self.context, self._tag_buffer)
+                    )
+                    return
+                
                 # <tool...> tag (only if tool parsing is enabled)
                 if lower_buffer.startswith(self.POSSIBLE_TOOL):
                     if self.context.parse_tool_calls:
@@ -65,25 +87,41 @@ class XmlTagInitializationState(BaseState):
                         )
                     else:
                         # Tool parsing disabled - emit as text
-                        self.context.append_text_part(self._tag_buffer)
+                        self.context.append_text_segment(self._tag_buffer)
                         self.context.transition_to(TextState(self.context))
                     return
                 
+                # <!doctype html> - check when we see '>' (includes the >)
+                if lower_buffer == self.POSSIBLE_DOCTYPE:
+                    self.context.transition_to(
+                        IframeParsingState(self.context, self._tag_buffer)
+                    )
+                    return
+                
                 # Unknown tag - emit as text
-                self.context.append_text_part(self._tag_buffer)
+                self.context.append_text_segment(self._tag_buffer)
                 self.context.transition_to(TextState(self.context))
                 return
             
             # --- Continuity check ---
             # If the buffer can still potentially match a known tag, continue
+            could_be_file = (
+                self.POSSIBLE_FILE.startswith(lower_buffer) or 
+                lower_buffer.startswith(self.POSSIBLE_FILE)
+            )
+            could_be_bash = (
+                self.POSSIBLE_BASH.startswith(lower_buffer) or 
+                lower_buffer.startswith(self.POSSIBLE_BASH)
+            )
             could_be_tool = (
                 self.POSSIBLE_TOOL.startswith(lower_buffer) or 
                 lower_buffer.startswith(self.POSSIBLE_TOOL)
             )
+            could_be_doctype = self.POSSIBLE_DOCTYPE.startswith(lower_buffer)
             
-            if not could_be_tool:
+            if not (could_be_file or could_be_bash or could_be_tool or could_be_doctype):
                 # No possible match - emit as text and return to TextState
-                self.context.append_text_part(self._tag_buffer)
+                self.context.append_text_segment(self._tag_buffer)
                 self.context.transition_to(TextState(self.context))
                 return
         
@@ -99,8 +137,7 @@ class XmlTagInitializationState(BaseState):
         from .text_state import TextState
         
         if self._tag_buffer:
-            self.context.append_text_part(self._tag_buffer)
+            self.context.append_text_segment(self._tag_buffer)
             self._tag_buffer = ""
         
         self.context.transition_to(TextState(self.context))
-

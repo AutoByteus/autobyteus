@@ -7,6 +7,7 @@ for transitioning to specialized parsing states (XML tags, JSON).
 from typing import TYPE_CHECKING
 
 from .base_state import BaseState
+from ..events import SegmentType
 
 if TYPE_CHECKING:
     from ..parser_context import ParserContext
@@ -44,7 +45,7 @@ class TextState(BaseState):
                 # Emit accumulated text before transitioning
                 text = self.context.substring(start_pos, self.context.get_position())
                 if text:
-                    self.context.append_text_part(text)
+                    self.context.append_text_segment(text)
                 
                 # Transition to XML tag initialization
                 self.context.transition_to(XmlTagInitializationState(self.context))
@@ -57,7 +58,7 @@ class TextState(BaseState):
                 # Emit accumulated text before transitioning
                 text = self.context.substring(start_pos, self.context.get_position())
                 if text:
-                    self.context.append_text_part(text)
+                    self.context.append_text_segment(text)
                 
                 # Transition to JSON initialization
                 self.context.transition_to(JsonInitializationState(self.context))
@@ -69,7 +70,7 @@ class TextState(BaseState):
         # Buffer exhausted - emit any accumulated text
         text = self.context.substring(start_pos)
         if text:
-            self.context.append_text_part(text)
+            self.context.append_text_segment(text)
 
     def finalize(self) -> None:
         """

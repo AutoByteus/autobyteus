@@ -94,6 +94,46 @@ class TestPureTextParsing:
         assert combined == "Hello, I can help you!"
 
 
+class TestFileTagParsing:
+    """Tests for parsing <file> tags."""
+
+    def test_file_tag_single_chunk(self):
+        """Parse a complete file tag in one chunk."""
+        driver = StreamingParserDriver()
+        driver.feed("Here is the file:<file path='/test.py'>print('hello')</file>Done!")
+        driver.finalize()
+        
+        segments = driver.get_segments()
+        # Should have: text, file, text
+        types = [s["type"] for s in segments]
+        assert "file" in types
+
+    def test_file_tag_streaming(self):
+        """Parse a file tag arriving in chunks."""
+        driver = StreamingParserDriver()
+        driver.feed("Code:<fi")
+        driver.feed("le path='/test.py'>def ")
+        driver.feed("hello():\n    pass</file>")
+        driver.finalize()
+        
+        segments = driver.get_segments()
+        file_segments = [s for s in segments if s["type"] == "file"]
+        assert len(file_segments) >= 1
+
+
+class TestBashTagParsing:
+    """Tests for parsing <bash> tags."""
+
+    def test_bash_tag_complete(self):
+        """Parse a complete bash tag."""
+        driver = StreamingParserDriver()
+        driver.feed("Run this:<bash>ls -la</bash>")
+        driver.finalize()
+        
+        segments = driver.get_segments()
+        bash_segments = [s for s in segments if s["type"] == "bash"]
+        assert len(bash_segments) >= 1
+
 
 class TestToolCallParsing:
     """Tests for parsing <tool> tags."""
@@ -125,20 +165,45 @@ class TestToolCallParsing:
 class TestMixedContent:
     """Tests for parsing mixed content responses."""
 
-    def test_text_mixed_with_tool(self):
-        """Parse response with text and tool calls."""
-        config = ParserConfig(parse_tool_calls=True, use_xml_tool_format=True)
-        driver = StreamingParserDriver(config)
-        driver.feed("I will check that for you.\n")
-        driver.feed("<tool name='weather'>city=NYC</tool>\n")
-        driver.feed("Here are the results.")
+    def test_text_mixed_with_code(self):
+        """Parse response with text and code blocks."""
+        driver = StreamingParserDriver()
+        driver.feed("Here is the solution:\n")
+        driver.feed("<file path='/main.py'>print('done')</file>\n")
+        driver.feed("Let me know if you need more help!")
         driver.finalize()
         
         segments = driver.get_segments()
         types = set(s["type"] for s in segments)
         assert "text" in types
-        assert "tool_call" in types
+        assert "file" in types
 
+    def test_multiple_file_blocks(self):
+        """Parse response with multiple file blocks."""
+        driver = StreamingParserDriver()
+        driver.feed("<file path='/a.py'>a</file>")
+        driver.feed("<file path='/b.py'>b</file>")
+        driver.finalize()
+        
+        segments = driver.get_segments()
+        file_segments = [s for s in segments if s["type"] == "file"]
+        assert len(file_segments) >= 2
+
+
+class TestDoctypeHtmlParsing:
+    """Tests for parsing <!doctype html> content."""
+
+    def test_html_doctype(self):
+        """Parse HTML doctype content."""
+        config = ParserConfig()
+        driver = StreamingParserDriver(config)
+        driver.feed("Preview:<!doctype html><html><body>Hi</body></html>Done")
+        driver.finalize()
+        
+        segments = driver.get_segments()
+        iframe_segments = [s for s in segments if s["type"] == "iframe"]
+        # Should detect iframe/html segment
+        assert len(iframe_segments) >= 1
 
 
 class TestEdgeCases:
@@ -147,13 +212,12 @@ class TestEdgeCases:
     def test_incomplete_tag_at_stream_end(self):
         """Incomplete tag at end of stream is emitted as text."""
         driver = StreamingParserDriver()
-        driver.feed("Some text <too")  # Incomplete <tool tag
+        driver.feed("Some text <fi")  # Incomplete <file tag
         driver.finalize()
         
         segments = driver.get_segments()
         combined = "".join(s["content"] for s in segments if s["type"] == "text")
-        # Should contain the partial tag characters
-        assert "<too" in combined or "too" in combined
+        assert "<fi" in combined or "fi" in combined
 
     def test_unknown_xml_tag(self):
         """Unknown XML tags like <div> are treated as text."""
