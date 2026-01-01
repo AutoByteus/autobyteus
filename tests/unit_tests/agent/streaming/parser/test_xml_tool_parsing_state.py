@@ -1,15 +1,15 @@
 """
-Unit tests for ToolParsingState.
+Unit tests for XmlToolParsingState.
 """
 import pytest
 from autobyteus.agent.streaming.parser.parser_context import ParserContext, ParserConfig
 from autobyteus.agent.streaming.parser.states.text_state import TextState
-from autobyteus.agent.streaming.parser.states.tool_parsing_state import ToolParsingState
+from autobyteus.agent.streaming.parser.states.xml_tool_parsing_state import XmlToolParsingState
 from autobyteus.agent.streaming.parser.events import SegmentType, SegmentEventType
 
 
-class TestToolParsingStateBasics:
-    """Tests for basic ToolParsingState functionality."""
+class TestXmlToolParsingStateBasics:
+    """Tests for basic XmlToolParsingState functionality."""
 
     def test_simple_tool_call(self):
         """Simple tool call is parsed correctly."""
@@ -17,7 +17,7 @@ class TestToolParsingStateBasics:
         signature = "<tool name='weather'>"
         ctx.append(signature + "<arguments><city>NYC</city></arguments></tool>after")
         
-        state = ToolParsingState(ctx, signature)
+        state = XmlToolParsingState(ctx, signature)
         ctx.current_state = state
         state.run()
         
@@ -38,7 +38,7 @@ class TestToolParsingStateBasics:
         signature = '<tool name="get_weather">'
         ctx.append(signature + "<arguments><location>Paris</location></arguments></tool>")
         
-        state = ToolParsingState(ctx, signature)
+        state = XmlToolParsingState(ctx, signature)
         ctx.current_state = state
         state.run()
         
@@ -52,7 +52,7 @@ class TestToolParsingStateBasics:
         signature = "<tool>"  # No name
         ctx.append(signature + "content</tool>")
         
-        state = ToolParsingState(ctx, signature)
+        state = XmlToolParsingState(ctx, signature)
         ctx.current_state = state
         state.run()
         
@@ -62,7 +62,7 @@ class TestToolParsingStateBasics:
         assert len(tool_starts) == 0
 
 
-class TestToolParsingStateArguments:
+class TestXmlToolParsingStateArguments:
     """Tests for argument extraction."""
 
     def test_single_argument_extracted(self):
@@ -71,7 +71,7 @@ class TestToolParsingStateArguments:
         signature = "<tool name='test'>"
         ctx.append(signature + "<arguments><path>/test/file.py</path></arguments></tool>")
         
-        state = ToolParsingState(ctx, signature)
+        state = XmlToolParsingState(ctx, signature)
         ctx.current_state = state
         state.run()
         
@@ -87,7 +87,7 @@ class TestToolParsingStateArguments:
         content = "<arguments><path>/test.py</path><content>print('hello')</content></arguments></tool>"
         ctx.append(signature + content)
         
-        state = ToolParsingState(ctx, signature)
+        state = XmlToolParsingState(ctx, signature)
         ctx.current_state = state
         state.run()
         
@@ -97,7 +97,7 @@ class TestToolParsingStateArguments:
         assert len(end_events) == 1
 
 
-class TestToolParsingStateStreaming:
+class TestXmlToolParsingStateStreaming:
     """Tests for streaming tool content."""
 
     def test_tool_content_complete(self):
@@ -107,7 +107,7 @@ class TestToolParsingStateStreaming:
         full_content = signature + "<arguments><query>testing</query></arguments></tool>done"
         ctx.append(full_content)
         
-        state = ToolParsingState(ctx, signature)
+        state = XmlToolParsingState(ctx, signature)
         ctx.current_state = state
         state.run()
         
@@ -121,7 +121,7 @@ class TestToolParsingStateStreaming:
         assert isinstance(ctx.current_state, TextState)
 
 
-class TestToolParsingStateFinalize:
+class TestXmlToolParsingStateFinalize:
     """Tests for finalize behavior."""
 
     def test_finalize_incomplete_tool(self):
@@ -130,7 +130,7 @@ class TestToolParsingStateFinalize:
         signature = "<tool name='test'>"
         ctx.append(signature + "<arguments><arg>val")
         
-        state = ToolParsingState(ctx, signature)
+        state = XmlToolParsingState(ctx, signature)
         ctx.current_state = state
         state.run()
         

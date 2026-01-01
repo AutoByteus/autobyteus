@@ -47,10 +47,10 @@ The streaming parser is a state-machine-based system that incrementally parses L
                                │
         ┌──────────────────────┼──────────────────────┐
         ▼                      ▼                      ▼
-┌───────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│FileParsingState│   │BashParsingState │   │ToolParsingState │
+┌───────────────┐    ┌─────────────────┐    ┌──────────────────┐
+│FileParsingState│   │BashParsingState │   │XmlToolParsingState│
 │(<file>...</file>)│   │(<bash>...</bash>)│   │(<tool>...</tool>)│
-└───────────────┘    └─────────────────┘    └─────────────────┘
+└───────────────┘    └─────────────────┘    └──────────────────┘
         │                      │                      │
         └──────────────────────┼──────────────────────┘
                                ▼
@@ -240,7 +240,7 @@ autobyteus/agent/streaming/
         ├── json_initialization_state.py
         ├── file_parsing_state.py
         ├── bash_parsing_state.py
-        ├── tool_parsing_state.py
+        ├── xml_tool_parsing_state.py
         ├── json_tool_parsing_state.py
         └── iframe_parsing_state.py
 ```

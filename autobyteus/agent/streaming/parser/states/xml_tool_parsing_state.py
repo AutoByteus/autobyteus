@@ -1,5 +1,5 @@
 """
-ToolParsingState: Parses <tool name="...">...</tool> blocks.
+XmlToolParsingState: Parses <tool name="...">...</tool> blocks.
 
 This state handles tool call parsing, extracting tool name and arguments.
 
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from ..parser_context import ParserContext
 
 
-class ToolParsingState(BaseState):
+class XmlToolParsingState(BaseState):
     """
     Parses tool call blocks.
     

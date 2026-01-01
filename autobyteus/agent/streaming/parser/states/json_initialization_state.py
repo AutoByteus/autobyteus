@@ -88,7 +88,7 @@ class JsonInitializationState(BaseState):
         """
         Buffer characters and check for tool call signatures.
         
-        If a match is found, transitions to ToolParsingState (JSON mode).
+        If a match is found, transitions to XmlToolParsingState (JSON mode).
         If no match, reverts the buffer to text.
         """
         from .text_state import TextState

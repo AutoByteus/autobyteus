@@ -50,7 +50,7 @@ class XmlTagInitializationState(BaseState):
         from .text_state import TextState
         from .file_parsing_state import FileParsingState
         from .bash_parsing_state import BashParsingState
-        from .tool_parsing_state import ToolParsingState
+        from .xml_tool_parsing_state import XmlToolParsingState
         from .iframe_parsing_state import IframeParsingState
         
         while self.context.has_more_chars():
@@ -83,7 +83,7 @@ class XmlTagInitializationState(BaseState):
                     if self.context.parse_tool_calls:
                         # UNIFORM HANDOFF: Pass complete opening_tag
                         self.context.transition_to(
-                            ToolParsingState(self.context, self._tag_buffer)
+                            XmlToolParsingState(self.context, self._tag_buffer)
                         )
                     else:
                         # Tool parsing disabled - emit as text

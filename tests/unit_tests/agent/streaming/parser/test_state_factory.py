@@ -41,12 +41,12 @@ class TestStateFactory:
         state = StateFactory.bash_parsing_state(ctx, "<bash>")
         assert state.__class__.__name__ == "BashParsingState"
 
-    def test_create_tool_parsing_state(self):
-        """Factory creates ToolParsingState."""
+    def test_create_xml_tool_parsing_state(self):
+        """Factory creates XmlToolParsingState."""
         ctx = ParserContext()
         ctx.append("content</tool>")
-        state = StateFactory.tool_parsing_state(ctx, "<tool name='test'>")
-        assert state.__class__.__name__ == "ToolParsingState"
+        state = StateFactory.xml_tool_parsing_state(ctx, "<tool name='test'>")
+        assert state.__class__.__name__ == "XmlToolParsingState"
 
     def test_create_json_init_state(self):
         """Factory creates JsonInitializationState."""

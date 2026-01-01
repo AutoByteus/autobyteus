@@ -44,10 +44,10 @@ class StateFactory:
         return BashParsingState(context, opening_tag)
     
     @staticmethod
-    def tool_parsing_state(context: "ParserContext", signature_buffer: str) -> "BaseState":
-        """Create a ToolParsingState instance."""
-        from .states.tool_parsing_state import ToolParsingState
-        return ToolParsingState(context, signature_buffer)
+    def xml_tool_parsing_state(context: "ParserContext", signature_buffer: str) -> "BaseState":
+        """Create a XmlToolParsingState instance."""
+        from .states.xml_tool_parsing_state import XmlToolParsingState
+        return XmlToolParsingState(context, signature_buffer)
     
     @staticmethod
     def iframe_parsing_state(context: "ParserContext", initial_content: str) -> "BaseState":

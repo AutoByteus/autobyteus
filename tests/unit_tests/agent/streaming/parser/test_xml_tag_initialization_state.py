@@ -7,7 +7,7 @@ from autobyteus.agent.streaming.parser.states.text_state import TextState
 from autobyteus.agent.streaming.parser.states.xml_tag_initialization_state import XmlTagInitializationState
 from autobyteus.agent.streaming.parser.states.file_parsing_state import FileParsingState
 from autobyteus.agent.streaming.parser.states.bash_parsing_state import BashParsingState
-from autobyteus.agent.streaming.parser.states.tool_parsing_state import ToolParsingState
+from autobyteus.agent.streaming.parser.states.xml_tool_parsing_state import XmlToolParsingState
 from autobyteus.agent.streaming.parser.states.iframe_parsing_state import IframeParsingState
 from autobyteus.agent.streaming.parser.events import SegmentEventType
 
@@ -86,7 +86,7 @@ class TestXmlTagInitToolDetection:
     """Tests for <tool> tag detection."""
 
     def test_tool_tag_transitions_to_tool_state(self):
-        """<tool> triggers transition to ToolParsingState when parsing enabled."""
+        """<tool> triggers transition to XmlToolParsingState when parsing enabled."""
         ctx = ParserContext()  # parse_tool_calls=True by default
         ctx.append("<tool name='test'>")
         
@@ -94,7 +94,7 @@ class TestXmlTagInitToolDetection:
         ctx.current_state = state
         state.run()
         
-        assert isinstance(ctx.current_state, ToolParsingState)
+        assert isinstance(ctx.current_state, XmlToolParsingState)
 
     def test_tool_tag_disabled_emits_text(self):
         """<tool> is treated as text when parse_tool_calls=False."""
