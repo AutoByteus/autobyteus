@@ -8,7 +8,7 @@ from autobyteus.agent.streaming.parser.streaming_parser import (
     extract_segments
 )
 from autobyteus.agent.streaming.parser.parser_context import ParserConfig
-from autobyteus.agent.streaming.parser.events import SegmentType, SegmentEventType
+from autobyteus.agent.streaming.parser.events import PartStartEvent, PartDeltaEvent, PartEndEvent
 
 
 class TestStreamingParserBasics:
@@ -20,10 +20,10 @@ class TestStreamingParserBasics:
         events = parser.feed("Hello, I can help you with that!")
         events.extend(parser.finalize())
         
-        # Should have text segment events
-        start_events = [e for e in events if e.event_type == SegmentEventType.START]
+        # Should have text part events
+        start_events = [e for e in events if isinstance(e, PartStartEvent)]
         assert len(start_events) >= 1
-        assert start_events[0].segment_type == SegmentType.TEXT
+        assert start_events[0].part_type == "text"
 
     def test_empty_input_no_events(self):
         """Empty input produces no events."""
@@ -47,9 +47,6 @@ class TestStreamingParserBasics:
         assert len(all_events) > 0
 
 
-
-
-
 class TestStreamingParserToolParsing:
     """Tests for tool call parsing through the driver."""
 
@@ -63,8 +60,10 @@ class TestStreamingParserToolParsing:
         )
         
         segments = extract_segments(events)
-        tool_segments = [s for s in segments if s["type"] == "tool_call"]
+        tool_segments = [s for s in segments if s.type == "tool_call"]
         assert len(tool_segments) >= 1
+        assert tool_segments[0].tool_name == "weather"
+        assert tool_segments[0].arguments["city"] == "NYC"
 
     def test_tool_call_disabled(self):
         """Tool tags become text when parsing disabled."""
@@ -74,8 +73,12 @@ class TestStreamingParserToolParsing:
         events = parser.feed_and_finalize("<tool name='test'>args</tool>")
         
         segments = extract_segments(events)
-        tool_segments = [s for s in segments if s["type"] == "tool_call"]
+        tool_segments = [s for s in segments if s.type == "tool_call"]
         assert len(tool_segments) == 0
+        
+        # Should be text
+        text_segments = [s for s in segments if s.type == "text"]
+        assert len(text_segments) > 0
 
 
 class TestStreamingParserMixedContent:
@@ -90,7 +93,7 @@ class TestStreamingParserMixedContent:
         )
         
         segments = extract_segments(events)
-        types = set(s["type"] for s in segments)
+        types = set(s.type for s in segments)
         
         assert "text" in types
         assert "tool_call" in types
@@ -104,7 +107,7 @@ class TestStreamingParserMixedContent:
         )
         
         segments = extract_segments(events)
-        tool_segments = [s for s in segments if s["type"] == "tool_call"]
+        tool_segments = [s for s in segments if s.type == "tool_call"]
         assert len(tool_segments) >= 2
 
 
@@ -156,8 +159,8 @@ class TestConvenienceFunctions:
         segments = extract_segments(events)
         
         assert len(segments) >= 1
-        assert segments[0]["type"] == "text"
-        assert "Plain text here" in segments[0]["content"]
+        assert segments[0].type == "text"
+        assert "Plain text here" in segments[0].content
 
 
 class TestStreamingParserStreaming:
@@ -180,7 +183,7 @@ class TestStreamingParserStreaming:
         
         # Should produce text segments
         segments = extract_segments(all_events)
-        combined_text = "".join(s["content"] for s in segments if s["type"] == "text")
+        combined_text = "".join(s.content for s in segments if s.type == "text")
         assert "Hello, I can help you!" in combined_text
 
     def test_tool_split_across_chunks(self):
@@ -199,5 +202,6 @@ class TestStreamingParserStreaming:
         all_events.extend(final_events)
         
         segments = extract_segments(all_events)
-        tool_segments = [s for s in segments if s["type"] == "tool_call"]
+        tool_segments = [s for s in segments if s.type == "tool_call"]
         assert len(tool_segments) >= 1
+

@@ -10,7 +10,6 @@ import re
 from typing import TYPE_CHECKING, Optional, Dict, Any
 
 from .base_state import BaseState
-from ..events import SegmentType
 
 if TYPE_CHECKING:
     from ..parser_context import ParserContext
@@ -70,14 +69,14 @@ class ToolParsingState(BaseState):
         # Start the segment (first run only)
         if not self._segment_started:
             if self._tool_name:
-                self.context.emit_segment_start(
-                    SegmentType.TOOL_CALL,
+                self.context.emit_part_start(
+                    "tool_call",
                     tool_name=self._tool_name
                 )
                 self._segment_started = True
             else:
                 # No tool name - treat as text
-                self.context.append_text_segment(self._opening_tag)
+                self.context.append_text_part(self._opening_tag)
                 self.context.transition_to(TextState(self.context))
                 return
         
@@ -99,14 +98,14 @@ class ToolParsingState(BaseState):
                 # Emit any remaining content not yet streamed
                 unemitted = content[self._emitted_length:]
                 if unemitted:
-                    self.context.emit_segment_content(unemitted)
+                    self.context.emit_part_delta(unemitted)
                 
                 # Update metadata with parsed arguments
-                self.context.update_current_segment_metadata(
+                self.context.update_current_part_metadata(
                     arguments=self._parsed_arguments
                 )
                 
-                self.context.emit_segment_end()
+                self.context.emit_part_end()
                 self.context.transition_to(TextState(self.context))
                 return
         
@@ -123,7 +122,7 @@ class ToolParsingState(BaseState):
         if safe_length > self._emitted_length:
             unemitted = self._content_buffer[self._emitted_length:safe_length]
             if unemitted:
-                self.context.emit_segment_content(unemitted)
+                self.context.emit_part_delta(unemitted)
                 self._emitted_length = safe_length
 
     def _parse_arguments_from_content(self, content: str) -> None:
@@ -164,14 +163,14 @@ class ToolParsingState(BaseState):
         
         if not self._segment_started:
             # Never started - emit opening tag as text
-            self.context.append_text_segment(self._opening_tag)
+            self.context.append_text_part(self._opening_tag)
         else:
             # Emit remaining content
             unemitted = self._content_buffer[self._emitted_length:]
             if unemitted:
-                self.context.emit_segment_content(unemitted)
+                self.context.emit_part_delta(unemitted)
             
             # Close the segment
-            self.context.emit_segment_end()
+            self.context.emit_part_end()
         
         self.context.transition_to(TextState(self.context))

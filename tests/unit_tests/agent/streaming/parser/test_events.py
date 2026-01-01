@@ -3,122 +3,84 @@ Unit tests for the streaming parser events module.
 """
 import pytest
 from autobyteus.agent.streaming.parser.events import (
-    SegmentEvent,
-    SegmentType,
-    SegmentEventType,
+    PartStartEvent,
+    PartDeltaEvent,
+    PartEndEvent,
+    TextPart,
+    ToolCallPart,
+    ReasoningPart,
 )
 
 
-class TestSegmentType:
-    """Tests for SegmentType enum."""
+class TestMessageParts:
+    """Tests for MessagePart models."""
 
-    def test_segment_type_values(self):
-        """Verify all expected segment types exist with correct values."""
-        assert SegmentType.TEXT.value == "text"
-        assert SegmentType.TOOL_CALL.value == "tool_call"
-        assert SegmentType.FILE.value == "file"
-        assert SegmentType.BASH.value == "bash"
-        assert SegmentType.IFRAME.value == "iframe"
-        assert SegmentType.THOUGHT.value == "thought"
+    def test_text_part(self):
+        part = TextPart(id="1", content="hello")
+        assert part.type == "text"
+        assert part.content == "hello"
 
-
-class TestSegmentEventType:
-    """Tests for SegmentEventType enum."""
-
-    def test_event_type_values(self):
-        """Verify all expected event types exist with correct values."""
-        assert SegmentEventType.START.value == "SEGMENT_START"
-        assert SegmentEventType.CONTENT.value == "SEGMENT_CONTENT"
-        assert SegmentEventType.END.value == "SEGMENT_END"
-
-
-class TestSegmentEvent:
-    """Tests for SegmentEvent dataclass."""
-
-    def test_start_factory(self):
-        """Test the start() factory method creates correct event."""
-        event = SegmentEvent.start(
-            segment_id="seg_001",
-            segment_type=SegmentType.TOOL_CALL,
-            tool_name="weather_api"
+    def test_tool_call_part(self):
+        part = ToolCallPart(
+            id="2",
+            tool_name="test_tool",
+            arguments={"arg": 1},
+            raw_arguments='{"arg": 1}'
         )
-        
-        assert event.event_type == SegmentEventType.START
-        assert event.segment_id == "seg_001"
-        assert event.segment_type == SegmentType.TOOL_CALL
-        assert event.payload == {"metadata": {"tool_name": "weather_api"}}
+        assert part.type == "tool_call"
+        assert part.tool_name == "test_tool"
 
-    def test_start_factory_no_metadata(self):
-        """Test start() factory with no metadata."""
-        event = SegmentEvent.start(
-            segment_id="seg_002",
-            segment_type=SegmentType.TEXT
+    def test_reasoning_part(self):
+        part = ReasoningPart(id="3", content="thinking")
+        assert part.type == "reasoning"
+        assert part.content == "thinking"
+
+
+class TestPartEvents:
+    """Tests for PartEvent classes."""
+
+    def test_part_start_event(self):
+        event = PartStartEvent(
+            part_id="p1",
+            part_type="tool_call",
+            metadata={"tool_name": "calc"}
         )
+        assert event.event == "part_start"
+        assert event.part_id == "p1"
+        assert event.part_type == "tool_call"
+        assert event.metadata["tool_name"] == "calc"
         
-        assert event.event_type == SegmentEventType.START
-        assert event.segment_id == "seg_002"
-        assert event.segment_type == SegmentType.TEXT
-        assert event.payload == {}
+        d = event.model_dump()
+        assert d["event"] == "part_start"
+        assert d["part_id"] == "p1"
+        assert d["part_type"] == "tool_call"
+        assert d["metadata"] == {"tool_name": "calc"}
 
-    def test_content_factory(self):
-        """Test the content() factory method creates correct event."""
-        event = SegmentEvent.content(
-            segment_id="seg_001",
-            delta="Hello world"
+    def test_part_delta_event(self):
+        event = PartDeltaEvent(
+            part_id="p1",
+            delta="hello"
         )
+        assert event.event == "part_delta"
+        assert event.part_id == "p1"
+        assert event.delta == "hello"
         
-        assert event.event_type == SegmentEventType.CONTENT
-        assert event.segment_id == "seg_001"
-        assert event.segment_type is None
-        assert event.payload == {"delta": "Hello world"}
+        d = event.model_dump()
+        assert d["event"] == "part_delta"
+        assert d["part_id"] == "p1"
+        assert d["delta"] == "hello"
 
-    def test_end_factory(self):
-        """Test the end() factory method creates correct event."""
-        event = SegmentEvent.end(segment_id="seg_001")
-        
-        assert event.event_type == SegmentEventType.END
-        assert event.segment_id == "seg_001"
-        assert event.segment_type is None
-        assert event.payload == {}
-
-    def test_to_dict_start_event(self):
-        """Test serialization of START event includes segment_type."""
-        event = SegmentEvent.start(
-            segment_id="seg_001",
-            segment_type=SegmentType.FILE,
-            path="/tmp/test.py"
+    def test_part_end_event(self):
+        event = PartEndEvent(
+            part_id="p1",
+            metadata={"status": "done"}
         )
+        assert event.event == "part_end"
+        assert event.part_id == "p1"
+        assert event.metadata == {"status": "done"}
         
-        result = event.to_dict()
-        
-        assert result == {
-            "type": "SEGMENT_START",
-            "segment_id": "seg_001",
-            "segment_type": "file",
-            "payload": {"metadata": {"path": "/tmp/test.py"}}
-        }
+        d = event.model_dump()
+        assert d["event"] == "part_end"
+        assert d["part_id"] == "p1"
+        assert d["metadata"] == {"status": "done"}
 
-    def test_to_dict_content_event(self):
-        """Test serialization of CONTENT event excludes segment_type."""
-        event = SegmentEvent.content(segment_id="seg_001", delta="code here")
-        
-        result = event.to_dict()
-        
-        assert result == {
-            "type": "SEGMENT_CONTENT",
-            "segment_id": "seg_001",
-            "payload": {"delta": "code here"}
-        }
-        assert "segment_type" not in result
-
-    def test_to_dict_end_event(self):
-        """Test serialization of END event."""
-        event = SegmentEvent.end(segment_id="seg_001")
-        
-        result = event.to_dict()
-        
-        assert result == {
-            "type": "SEGMENT_END",
-            "segment_id": "seg_001",
-            "payload": {}
-        }

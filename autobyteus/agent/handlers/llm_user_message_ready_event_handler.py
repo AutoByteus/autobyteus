@@ -9,7 +9,7 @@ from autobyteus.llm.user_message import LLMUserMessage
 from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.agent.streaming.streaming_response_handler import StreamingResponseHandler
-from autobyteus.agent.streaming.parser.events import SegmentEventType
+from autobyteus.agent.streaming.parser.events import PartStartEvent, PartDeltaEvent, PartEndEvent
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
@@ -59,8 +59,17 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
         complete_audio_urls: List[str] = []
         complete_video_urls: List[str] = []
         
+        # Helper for emitting part events
+        def emit_part_event(event):
+            if notifier:
+                try:
+                    notifier.notify_agent_message_part_event(event.model_dump())
+                except Exception as e:
+                     logger.error(f"Agent '{agent_id}': Error notifying part event: {e}", exc_info=True)
+
         # Initialize Streaming Response Handler
-        streaming_handler = StreamingResponseHandler()
+        # We pass the emitter callback directly to the handler
+        streaming_handler = StreamingResponseHandler(on_part_event=emit_part_event)
         
         notifier: Optional['AgentExternalEventNotifier'] = None
         if context.status_manager:
@@ -68,6 +77,10 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
         
         if not notifier: # pragma: no cover
             logger.error(f"Agent '{agent_id}': Notifier not available in LLMUserMessageReadyEventHandler. Cannot emit chunk events.")
+
+        # State for manual reasoning parts (since they might come from outside the parser)
+        current_reasoning_part_id = None
+        import uuid # Ensure uuid is imported
 
         try:
             async for chunk_response in context.state.llm_instance.stream_user_message(llm_user_message):
@@ -93,46 +106,43 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
                     if chunk_response.video_urls:
                         complete_video_urls.extend(chunk_response.video_urls)
 
-                # Use StreamingResponseHandler to parse and safeguard the stream
-                parsed_events = []
+                # Handle Reasoning (Manual Part Management)
+                if chunk_response.reasoning:
+                    if current_reasoning_part_id is None:
+                        current_reasoning_part_id = str(uuid.uuid4())
+                        emit_part_event(PartStartEvent(
+                            part_id=current_reasoning_part_id,
+                            part_type="reasoning"
+                        ))
+                    
+                    emit_part_event(PartDeltaEvent(
+                        part_id=current_reasoning_part_id,
+                        delta=chunk_response.reasoning
+                    ))
+
+                # Handle Content (Through Parser)
                 if chunk_response.content:
-                    parsed_events = streaming_handler.feed(chunk_response.content)
+                    # If we switch to content and have an open reasoning part, we could close it,
+                    # but some models might interleave. For now, we'll keep it open until the end 
+                    # or if we want to enforce structure we could close it here. 
+                    # Let's keep it simple: strict separation isn't guaranteed by all providers.
+                    streaming_handler.feed(chunk_response.content)
 
-                if notifier:
-                    try:
-                        # Forward safe content deltas to the frontend
-                        for segment_event in parsed_events:
-                            delta = segment_event.payload.get("delta")
-                            if delta:
-                                # Create a synthetic chunk for the parsed delta
-                                safe_chunk = ChunkResponse(content=delta)
-                                notifier.notify_agent_data_assistant_chunk(safe_chunk)
-                        
-                        # Note: We currently only forward content deltas. 
-                        # Structured start/end events are handled by the complete response processor later,
-                        # or can be added here in the future for real-time UI updates.
-                        
-                        # Also forward reasoning immediately (not parsed by our handler currently)
-                        if chunk_response.reasoning:
-                            notifier.notify_agent_data_assistant_chunk(ChunkResponse(content="", reasoning=chunk_response.reasoning))
-
-                    except Exception as e_notify: 
-                         logger.error(f"Agent '{agent_id}': Error notifying assistant chunk generated: {e_notify}", exc_info=True)
+            # End of stream loop
             
             # Finalize the stream parser to get any held-back content
-            final_events = streaming_handler.finalize()
-            if notifier and final_events:
-                 try:
-                    for segment_event in final_events:
-                        delta = segment_event.payload.get("delta")
-                        if delta:
-                            safe_chunk = ChunkResponse(content=delta)
-                            notifier.notify_agent_data_assistant_chunk(safe_chunk)
-                 except Exception as e_notify_final:
-                     logger.error(f"Agent '{agent_id}': Error notifying final chunks: {e_notify_final}", exc_info=True)
+            streaming_handler.finalize()
+            
+            # Close any open reasoning part
+            if current_reasoning_part_id:
+                emit_part_event(PartEndEvent(
+                    part_id=current_reasoning_part_id
+                ))
 
             if notifier:
                 try:
+                    # We can keep this for legacy or generic end signaling, 
+                    # though PartEnd events should suffice for parts.
                     notifier.notify_agent_data_assistant_chunk_stream_end() 
                 except Exception as e_notify_end: 
                     logger.error(f"Agent '{agent_id}': Error notifying assistant chunk stream end: {e_notify_end}", exc_info=True)

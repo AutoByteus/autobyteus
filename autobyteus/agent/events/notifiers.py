@@ -97,3 +97,10 @@ class AgentExternalEventNotifier(EventEmitter):
             "details": error_details
         }
         self._emit_event(EventType.AGENT_ERROR_OUTPUT_GENERATION, payload_content=payload_dict)
+
+    def notify_agent_message_part_event(self, event_data: Dict[str, Any]):
+        """
+        Notifies about a message part event (start, delta, end).
+        The event_data should be the serialized dict of a PartEvent.
+        """
+        self._emit_event(EventType.AGENT_MESSAGE_PART_EVENT, payload_content=event_data)

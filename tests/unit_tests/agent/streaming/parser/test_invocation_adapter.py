@@ -2,44 +2,39 @@
 Unit tests for ToolInvocationAdapter.
 """
 import pytest
-from autobyteus.agent.streaming.parser.events import SegmentEvent, SegmentType, SegmentEventType
+from autobyteus.agent.streaming.parser.events import PartStartEvent, PartDeltaEvent, PartEndEvent
 from autobyteus.agent.streaming.parser.invocation_adapter import ToolInvocationAdapter
 
 
 class TestToolInvocationAdapterBasics:
     """Basic functionality tests."""
 
-    def test_complete_tool_segment_creates_invocation(self):
-        """Complete tool segment lifecycle creates ToolInvocation."""
+    def test_complete_tool_part_creates_invocation(self):
+        """Complete tool part lifecycle creates ToolInvocation."""
         adapter = ToolInvocationAdapter()
         
-        # Simulate tool segment: START → CONTENT → END
+        # Simulate tool part: START → DELTA → END
         events = [
-            SegmentEvent.start("seg_5", SegmentType.TOOL_CALL, tool_name="read_file"),
-            SegmentEvent.content("seg_5", "<arguments><path>/src/main.py</path></arguments>"),
-            SegmentEvent(
-                event_type=SegmentEventType.END,
-                segment_id="seg_5",
-                payload={"metadata": {"tool_name": "read_file", "arguments": {"path": "/src/main.py"}}}
-            )
+            PartStartEvent(part_id="p1", part_type="tool_call", metadata={"tool_name": "read_file"}),
+            PartDeltaEvent(part_id="p1", delta="<arguments><path>/src/main.py</path></arguments>"),
+            PartEndEvent(part_id="p1", metadata={"tool_name": "read_file", "arguments": {"path": "/src/main.py"}})
         ]
         
         invocations = adapter.process_events(events)
         
         assert len(invocations) == 1
-        assert invocations[0].id == "seg_5"  # segment_id becomes invocationId
+        assert invocations[0].id == "p1"  # part_id becomes invocationId
         assert invocations[0].name == "read_file"
         assert invocations[0].arguments == {"path": "/src/main.py"}
 
-    def test_segment_id_becomes_invocation_id(self):
-        """Verify segment_id is used as invocationId."""
+    def test_part_id_depends_invocation_id(self):
+        """Verify part_id is used as invocationId."""
         adapter = ToolInvocationAdapter()
         
-        start = SegmentEvent.start("my-unique-id-123", SegmentType.TOOL_CALL, tool_name="write_file")
-        end = SegmentEvent(
-            event_type=SegmentEventType.END,
-            segment_id="my-unique-id-123",
-            payload={"metadata": {"tool_name": "write_file", "arguments": {"path": "/out.txt", "content": "data"}}}
+        start = PartStartEvent(part_id="my-unique-id-123", part_type="tool_call", metadata={"tool_name": "write_file"})
+        end = PartEndEvent(
+            part_id="my-unique-id-123",
+            metadata={"tool_name": "write_file", "arguments": {"path": "/out.txt", "content": "data"}}
         )
         
         adapter.process_event(start)
@@ -48,74 +43,69 @@ class TestToolInvocationAdapterBasics:
         assert result is not None
         assert result.id == "my-unique-id-123"
 
-    def test_non_tool_segments_ignored(self):
-        """Text and file segments don't create invocations."""
+    def test_non_tool_parts_ignored(self):
+        """Text and other parts don't create invocations."""
         adapter = ToolInvocationAdapter()
         
         events = [
-            SegmentEvent.start("seg_1", SegmentType.TEXT),
-            SegmentEvent.content("seg_1", "hello"),
-            SegmentEvent.end("seg_1"),
-            SegmentEvent.start("seg_2", SegmentType.FILE, path="/test.py"),
-            SegmentEvent.content("seg_2", "code"),
-            SegmentEvent.end("seg_2"),
+            PartStartEvent(part_id="p1", part_type="text"),
+            PartDeltaEvent(part_id="p1", delta="hello"),
+            PartEndEvent(part_id="p1"),
+            # Text parts should be ignored
+            PartStartEvent(part_id="p2", part_type="text"),
+            PartEndEvent(part_id="p2"),
         ]
         
         invocations = adapter.process_events(events)
         assert len(invocations) == 0
 
-    def test_multiple_tool_segments(self):
-        """Multiple tool segments create multiple invocations."""
+    def test_multiple_tool_parts(self):
+        """Multiple tool parts create multiple invocations."""
         adapter = ToolInvocationAdapter()
         
         events = [
-            SegmentEvent.start("seg_1", SegmentType.TOOL_CALL, tool_name="tool_a"),
-            SegmentEvent(event_type=SegmentEventType.END, segment_id="seg_1", 
-                        payload={"metadata": {"tool_name": "tool_a", "arguments": {"x": 1}}}),
-            SegmentEvent.start("seg_2", SegmentType.TOOL_CALL, tool_name="tool_b"),
-            SegmentEvent(event_type=SegmentEventType.END, segment_id="seg_2",
-                        payload={"metadata": {"tool_name": "tool_b", "arguments": {"y": 2}}}),
+            PartStartEvent(part_id="p1", part_type="tool_call", metadata={"tool_name": "tool_a"}),
+            PartEndEvent(part_id="p1", metadata={"tool_name": "tool_a", "arguments": {"x": 1}}),
+            PartStartEvent(part_id="p2", part_type="tool_call", metadata={"tool_name": "tool_b"}),
+            PartEndEvent(part_id="p2", metadata={"tool_name": "tool_b", "arguments": {"y": 2}}),
         ]
         
         invocations = adapter.process_events(events)
         
         assert len(invocations) == 2
-        assert invocations[0].id == "seg_1"
+        assert invocations[0].id == "p1"
         assert invocations[0].name == "tool_a"
-        assert invocations[1].id == "seg_2"
+        assert invocations[1].id == "p2"
         assert invocations[1].name == "tool_b"
 
 
 class TestToolInvocationAdapterState:
     """State management tests."""
 
-    def test_active_segments_tracked(self):
-        """Active segments are tracked until END."""
+    def test_active_parts_tracked(self):
+        """Active parts are tracked until END."""
         adapter = ToolInvocationAdapter()
         
-        adapter.process_event(SegmentEvent.start("seg_1", SegmentType.TOOL_CALL, tool_name="test"))
+        adapter.process_event(PartStartEvent(part_id="p1", part_type="tool_call", metadata={"tool_name": "test"}))
         
-        assert "seg_1" in adapter.get_active_segment_ids()
+        assert "p1" in adapter.get_active_part_ids()
         
-        adapter.process_event(SegmentEvent(
-            event_type=SegmentEventType.END, segment_id="seg_1",
-            payload={"metadata": {"tool_name": "test", "arguments": {}}}
-        ))
+        adapter.process_event(PartEndEvent(part_id="p1", metadata={"tool_name": "test", "arguments": {}}))
         
-        assert "seg_1" not in adapter.get_active_segment_ids()
+        assert "p1" not in adapter.get_active_part_ids()
 
     def test_reset_clears_state(self):
         """Reset clears all tracking."""
         adapter = ToolInvocationAdapter()
         
-        adapter.process_event(SegmentEvent.start("seg_1", SegmentType.TOOL_CALL, tool_name="test"))
-        adapter.process_event(SegmentEvent.start("seg_2", SegmentType.TOOL_CALL, tool_name="test"))
+        adapter.process_event(PartStartEvent(part_id="p1", part_type="tool_call", metadata={"tool_name": "test"}))
+        adapter.process_event(PartStartEvent(part_id="p2", part_type="tool_call", metadata={"tool_name": "test"}))
         
-        assert len(adapter.get_active_segment_ids()) == 2
+        assert len(adapter.get_active_part_ids()) == 2
         
         adapter.reset()
         
-        assert len(adapter.get_active_segment_ids()) == 0
+        assert len(adapter.get_active_part_ids()) == 0
 
 
 class TestToolInvocationAdapterEdgeCases:
@@ -125,25 +115,25 @@ class TestToolInvocationAdapterEdgeCases:
         """END without prior START is ignored."""
         adapter = ToolInvocationAdapter()
         
-        result = adapter.process_event(SegmentEvent.end("unknown_seg"))
+        result = adapter.process_event(PartEndEvent(part_id="unknown_part"))
         
         assert result is None
 
-    def test_content_without_start_ignored(self):
-        """CONTENT without prior START is ignored."""
+    def test_delta_without_start_ignored(self):
+        """DELTA without prior START is ignored."""
         adapter = ToolInvocationAdapter()
         
-        result = adapter.process_event(SegmentEvent.content("unknown_seg", "data"))
+        result = adapter.process_event(PartDeltaEvent(part_id="unknown_part", delta="data"))
         
         assert result is None
 
-    def test_incomplete_segment_no_invocation(self):
-        """Incomplete segment (no END) doesn't create invocation."""
+    def test_incomplete_part_no_invocation(self):
+        """Incomplete part (no END) doesn't create invocation."""
         adapter = ToolInvocationAdapter()
         
-        adapter.process_event(SegmentEvent.start("seg_1", SegmentType.TOOL_CALL, tool_name="test"))
-        adapter.process_event(SegmentEvent.content("seg_1", "content"))
+        adapter.process_event(PartStartEvent(part_id="p1", part_type="tool_call", metadata={"tool_name": "test"}))
+        adapter.process_event(PartDeltaEvent(part_id="p1", delta="content"))
         # No END event
         
-        assert len(adapter.get_active_segment_ids()) == 1
-        # No invocation created yet
+        assert len(adapter.get_active_part_ids()) == 1
+        # No invocation created yet (process_event returns None for start/delta)

@@ -5,11 +5,11 @@ This class manages the scanner, current state, and configuration.
 Event emission is delegated to the EventEmitter.
 States use this context to read characters, emit events, and transition.
 """
-from typing import Optional, List, Dict, Any, TYPE_CHECKING
+from typing import Optional, List, Dict, Any, TYPE_CHECKING, Literal
 
 from .stream_scanner import StreamScanner
 from .event_emitter import EventEmitter
-from .events import SegmentEvent, SegmentType
+from .events import PartEvent
 
 if TYPE_CHECKING:
     from .states.base_state import BaseState
@@ -44,7 +44,7 @@ class ParserContext:
     
     This context provides:
     - Scanner for reading the character stream
-    - EventEmitter for segment events
+    - EventEmitter for part events
     - State management for transitions
     - Configuration access
     """
@@ -147,46 +147,46 @@ class ParserContext:
 
     # --- Event Emission (Delegated to EventEmitter) ---
     
-    def emit_segment_start(self, segment_type: SegmentType, **metadata) -> str:
-        """Emit a SEGMENT_START event."""
-        return self._emitter.emit_segment_start(segment_type, **metadata)
+    def emit_part_start(self, part_type: Literal["text", "tool_call", "reasoning"], **metadata) -> str:
+        """Emit a PartStartEvent."""
+        return self._emitter.emit_part_start(part_type, **metadata)
 
-    def emit_segment_content(self, delta: Any) -> None:
-        """Emit a SEGMENT_CONTENT event."""
-        self._emitter.emit_segment_content(delta)
+    def emit_part_delta(self, delta: str) -> None:
+        """Emit a PartDeltaEvent."""
+        self._emitter.emit_part_delta(delta)
 
-    def emit_segment_end(self) -> Optional[str]:
-        """Emit a SEGMENT_END event."""
-        return self._emitter.emit_segment_end()
+    def emit_part_end(self) -> Optional[str]:
+        """Emit a PartEndEvent."""
+        return self._emitter.emit_part_end()
 
-    def get_current_segment_id(self) -> Optional[str]:
-        """Get the ID of the currently active segment."""
-        return self._emitter.get_current_segment_id()
+    def get_current_part_id(self) -> Optional[str]:
+        """Get the ID of the currently active part."""
+        return self._emitter.get_current_part_id()
 
-    def get_current_segment_type(self) -> Optional[SegmentType]:
-        """Get the type of the currently active segment."""
-        return self._emitter.get_current_segment_type()
+    def get_current_part_type(self) -> Optional[str]:
+        """Get the type of the currently active part."""
+        return self._emitter.get_current_part_type()
 
-    def get_current_segment_content(self) -> str:
-        """Get the accumulated content of the current segment."""
-        return self._emitter.get_current_segment_content()
+    def get_current_part_content(self) -> str:
+        """Get the accumulated content of the current part."""
+        return self._emitter.get_current_part_content()
 
-    def get_current_segment_metadata(self) -> Dict[str, Any]:
-        """Get the metadata of the current segment."""
-        return self._emitter.get_current_segment_metadata()
+    def get_current_part_metadata(self) -> Dict[str, Any]:
+        """Get the metadata of the current part."""
+        return self._emitter.get_current_part_metadata()
 
-    def update_current_segment_metadata(self, **metadata) -> None:
-        """Update metadata for the current segment."""
-        self._emitter.update_current_segment_metadata(**metadata)
+    def update_current_part_metadata(self, **metadata) -> None:
+        """Update metadata for the current part."""
+        self._emitter.update_current_part_metadata(**metadata)
 
-    def get_and_clear_events(self) -> List[SegmentEvent]:
+    def get_and_clear_events(self) -> List[PartEvent]:
         """Get all queued events and clear the queue."""
         return self._emitter.get_and_clear_events()
 
-    def get_events(self) -> List[SegmentEvent]:
+    def get_events(self) -> List[PartEvent]:
         """Get all queued events without clearing."""
         return self._emitter.get_events()
 
-    def append_text_segment(self, text: str) -> None:
-        """Convenience method to emit a complete text segment."""
-        self._emitter.append_text_segment(text)
+    def append_text_part(self, text: str) -> None:
+        """Convenience method to emit a complete text part."""
+        self._emitter.append_text_part(text)

@@ -65,12 +65,12 @@ class XmlTagInitializationState(BaseState):
                         )
                     else:
                         # Tool parsing disabled - emit as text
-                        self.context.append_text_segment(self._tag_buffer)
+                        self.context.append_text_part(self._tag_buffer)
                         self.context.transition_to(TextState(self.context))
                     return
                 
                 # Unknown tag - emit as text
-                self.context.append_text_segment(self._tag_buffer)
+                self.context.append_text_part(self._tag_buffer)
                 self.context.transition_to(TextState(self.context))
                 return
             
@@ -83,7 +83,7 @@ class XmlTagInitializationState(BaseState):
             
             if not could_be_tool:
                 # No possible match - emit as text and return to TextState
-                self.context.append_text_segment(self._tag_buffer)
+                self.context.append_text_part(self._tag_buffer)
                 self.context.transition_to(TextState(self.context))
                 return
         
@@ -99,7 +99,7 @@ class XmlTagInitializationState(BaseState):
         from .text_state import TextState
         
         if self._tag_buffer:
-            self.context.append_text_segment(self._tag_buffer)
+            self.context.append_text_part(self._tag_buffer)
             self._tag_buffer = ""
         
         self.context.transition_to(TextState(self.context))

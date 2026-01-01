@@ -6,10 +6,19 @@ Main components:
 - StreamingParser: Main entry point for parsing
 - StreamingResponseHandler: High-level handler with callbacks
 - ToolInvocationAdapter: Converts tool segments to ToolInvocations
-- SegmentEvent: Structured events emitted during parsing
+- PartEvent: Structured events emitted during parsing
 """
 from .streaming_parser import StreamingParser, parse_complete_response, extract_segments
-from .events import SegmentEvent, SegmentType, SegmentEventType
+from .events import (
+    PartEvent,
+    PartStartEvent,
+    PartDeltaEvent,
+    PartEndEvent,
+    MessagePart,
+    TextPart,
+    ToolCallPart,
+    ReasoningPart,
+)
 from .invocation_adapter import ToolInvocationAdapter
 from .parser_context import ParserConfig
 
@@ -20,9 +29,16 @@ __all__ = [
     "ParserConfig",
     
     # Event types
-    "SegmentEvent",
-    "SegmentType",
-    "SegmentEventType",
+    "PartEvent",
+    "PartStartEvent",
+    "PartDeltaEvent",
+    "PartEndEvent",
+    
+    # Message parts
+    "MessagePart",
+    "TextPart",
+    "ToolCallPart",
+    "ReasoningPart",
     
     # Convenience functions
     "parse_complete_response",

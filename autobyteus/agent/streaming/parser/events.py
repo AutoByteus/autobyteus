@@ -1,81 +1,60 @@
 """
-Segment Event definitions for the Streaming Parser.
+Event and Model definitions for the Streaming Parser.
 
-These dataclasses define the structured events that the parser emits
-as it incrementally parses LLM response chunks.
+Defines the "Message Part" hierarchy for data structure and the "Part Event" 
+protocol for streaming wire transmission.
 """
 from dataclasses import dataclass, field
-from typing import Dict, Any, Optional
-from enum import Enum
+from typing import Dict, Any, Optional, Literal, Union
+from pydantic import BaseModel, Field
 
 
-class SegmentType(str, Enum):
-    """Types of content segments that can be parsed from LLM responses."""
-    TEXT = "text"
-    TOOL_CALL = "tool_call"
-    FILE = "file"
-    BASH = "bash"
-    IFRAME = "iframe"
-    THOUGHT = "thought"
+# --- Data Models (The "Parts") ---
+
+class MessagePart(BaseModel):
+    """Base class for all message parts."""
+    id: str
+    type: str
+
+class TextPart(MessagePart):
+    """A part containing text content."""
+    type: Literal["text"] = "text"
+    content: str = ""
+
+class ToolCallPart(MessagePart):
+    """A part representing a tool call."""
+    type: Literal["tool_call"] = "tool_call"
+    tool_name: str
+    arguments: Dict[str, Any] = Field(default_factory=dict)
+    raw_arguments: str = ""  # The accumulated raw content (e.g. XML/JSON)
+
+class ReasoningPart(MessagePart):
+    """A part containing internal reasoning/thinking."""
+    type: Literal["reasoning"] = "reasoning"
+    content: str = ""
 
 
-class SegmentEventType(str, Enum):
-    """Types of segment lifecycle events."""
-    START = "SEGMENT_START"
-    CONTENT = "SEGMENT_CONTENT"
-    END = "SEGMENT_END"
+# --- Wire Protocol (The "Events") ---
 
+class BasePartEvent(BaseModel):
+    """Base class for streaming events."""
+    part_id: str
 
-@dataclass
-class SegmentEvent:
-    """
-    A structured event emitted by the streaming parser.
-    
-    Attributes:
-        event_type: The lifecycle stage of this event (START, CONTENT, END).
-        segment_id: Unique identifier for the segment this event belongs to.
-        segment_type: The type of content segment (only present in START events).
-        payload: Additional data for the event (e.g., delta content, metadata).
-    """
-    event_type: SegmentEventType
-    segment_id: str
-    segment_type: Optional[SegmentType] = None
-    payload: Dict[str, Any] = field(default_factory=dict)
+class PartStartEvent(BasePartEvent):
+    """Signal that a new part has started."""
+    event: Literal["part_start"] = "part_start"
+    part_type: Literal["text", "tool_call", "reasoning"]
+    metadata: Dict[str, Any] = Field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
-        """Serialize the event to a dictionary for JSON transmission."""
-        result = {
-            "type": self.event_type.value,
-            "segment_id": self.segment_id,
-            "payload": self.payload
-        }
-        if self.segment_type is not None:
-            result["segment_type"] = self.segment_type.value
-        return result
+class PartDeltaEvent(BasePartEvent):
+    """Signal a content chunk for the active part."""
+    event: Literal["part_delta"] = "part_delta"
+    delta: str
 
-    @classmethod
-    def start(cls, segment_id: str, segment_type: SegmentType, **metadata) -> "SegmentEvent":
-        """Factory method to create a SEGMENT_START event."""
-        return cls(
-            event_type=SegmentEventType.START,
-            segment_id=segment_id,
-            segment_type=segment_type,
-            payload={"metadata": metadata} if metadata else {}
-        )
+class PartEndEvent(BasePartEvent):
+    """Signal that the part is finished."""
+    event: Literal["part_end"] = "part_end"
+    metadata: Dict[str, Any] = Field(default_factory=dict)  # Final/Additional data
 
-    @classmethod
-    def content(cls, segment_id: str, delta: Any) -> "SegmentEvent":
-        """Factory method to create a SEGMENT_CONTENT event."""
-        return cls(
-            event_type=SegmentEventType.CONTENT,
-            segment_id=segment_id,
-            payload={"delta": delta}
-        )
-
-    @classmethod
-    def end(cls, segment_id: str) -> "SegmentEvent":
-        """Factory method to create a SEGMENT_END event."""
-        return cls(
-            event_type=SegmentEventType.END,
-            segment_id=segment_id
-        )
+# Union type for type hinting
+PartEvent = Union[PartStartEvent, PartDeltaEvent, PartEndEvent]
