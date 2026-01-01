@@ -8,6 +8,8 @@ from autobyteus.agent.events import LLMUserMessageReadyEvent, LLMCompleteRespons
 from autobyteus.llm.user_message import LLMUserMessage
 from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 from autobyteus.llm.utils.token_usage import TokenUsage
+from autobyteus.agent.streaming.streaming_response_handler import StreamingResponseHandler
+from autobyteus.agent.streaming.parser.events import SegmentEventType
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
@@ -18,9 +20,8 @@ logger = logging.getLogger(__name__)
 class LLMUserMessageReadyEventHandler(AgentEventHandler): 
     """
     Handles LLMUserMessageReadyEvents by sending the prepared LLMUserMessage 
-    to the LLM, emitting AGENT_DATA_ASSISTANT_CHUNK events via the notifier
-    for each chunk, emitting AGENT_DATA_ASSISTANT_CHUNK_STREAM_END upon completion,
-    and then enqueuing an LLMCompleteResponseReceivedEvent with the full aggregated response.
+    to the LLM, passing the stream through StreamingResponseHandler for safe parsing,
+    emitting filtered chunks via the notifier, and finally enqueuing the complete response.
     """
 
     def __init__(self):
@@ -50,12 +51,16 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
         
         context.state.add_message_to_history({"role": "user", "content": llm_user_message.content})
 
+        # Initialize aggregators
         complete_response_text = ""
         complete_reasoning_text = ""
         token_usage: Optional[TokenUsage] = None
         complete_image_urls: List[str] = []
         complete_audio_urls: List[str] = []
         complete_video_urls: List[str] = []
+        
+        # Initialize Streaming Response Handler
+        streaming_handler = StreamingResponseHandler()
         
         notifier: Optional['AgentExternalEventNotifier'] = None
         if context.status_manager:
@@ -70,43 +75,72 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
                     logger.warning(f"Agent '{agent_id}' received unexpected chunk type: {type(chunk_response)} during LLM stream. Expected ChunkResponse.")
                     continue
 
+                # Aggregate full raw content
                 if chunk_response.content:
                     complete_response_text += chunk_response.content
                 if chunk_response.reasoning:
                     complete_reasoning_text += chunk_response.reasoning
 
+                # Collect usage and media from final chunks
                 if chunk_response.is_complete:
                     if chunk_response.usage:
                         token_usage = chunk_response.usage
                         logger.debug(f"Agent '{agent_id}' received final chunk with token usage: {token_usage}")
                     if chunk_response.image_urls:
                         complete_image_urls.extend(chunk_response.image_urls)
-                        logger.debug(f"Agent '{agent_id}' received final chunk with {len(chunk_response.image_urls)} image URLs.")
                     if chunk_response.audio_urls:
                         complete_audio_urls.extend(chunk_response.audio_urls)
-                        logger.debug(f"Agent '{agent_id}' received final chunk with {len(chunk_response.audio_urls)} audio URLs.")
                     if chunk_response.video_urls:
                         complete_video_urls.extend(chunk_response.video_urls)
-                        logger.debug(f"Agent '{agent_id}' received final chunk with {len(chunk_response.video_urls)} video URLs.")
+
+                # Use StreamingResponseHandler to parse and safeguard the stream
+                parsed_events = []
+                if chunk_response.content:
+                    parsed_events = streaming_handler.feed(chunk_response.content)
 
                 if notifier:
                     try:
-                        # The chunk object now contains both content and reasoning
-                        notifier.notify_agent_data_assistant_chunk(chunk_response) 
+                        # Forward safe content deltas to the frontend
+                        for segment_event in parsed_events:
+                            delta = segment_event.payload.get("delta")
+                            if delta:
+                                # Create a synthetic chunk for the parsed delta
+                                safe_chunk = ChunkResponse(content=delta)
+                                notifier.notify_agent_data_assistant_chunk(safe_chunk)
+                        
+                        # Note: We currently only forward content deltas. 
+                        # Structured start/end events are handled by the complete response processor later,
+                        # or can be added here in the future for real-time UI updates.
+                        
+                        # Also forward reasoning immediately (not parsed by our handler currently)
+                        if chunk_response.reasoning:
+                            notifier.notify_agent_data_assistant_chunk(ChunkResponse(content="", reasoning=chunk_response.reasoning))
+
                     except Exception as e_notify: 
                          logger.error(f"Agent '{agent_id}': Error notifying assistant chunk generated: {e_notify}", exc_info=True)
             
+            # Finalize the stream parser to get any held-back content
+            final_events = streaming_handler.finalize()
+            if notifier and final_events:
+                 try:
+                    for segment_event in final_events:
+                        delta = segment_event.payload.get("delta")
+                        if delta:
+                            safe_chunk = ChunkResponse(content=delta)
+                            notifier.notify_agent_data_assistant_chunk(safe_chunk)
+                 except Exception as e_notify_final:
+                     logger.error(f"Agent '{agent_id}': Error notifying final chunks: {e_notify_final}", exc_info=True)
+
             if notifier:
                 try:
                     notifier.notify_agent_data_assistant_chunk_stream_end() 
                 except Exception as e_notify_end: 
                     logger.error(f"Agent '{agent_id}': Error notifying assistant chunk stream end: {e_notify_end}", exc_info=True)
 
-            logger.debug(f"Agent '{agent_id}' LLM stream completed. Full response length: {len(complete_response_text)}. Reasoning length: {len(complete_reasoning_text)}. Chunk stream ended event emitted.")
+            logger.debug(f"Agent '{agent_id}' LLM stream completed. Full response length: {len(complete_response_text)}.")
             if complete_reasoning_text:
-                logger.debug(f"Agent '{agent_id}' aggregated full LLM reasoning:\n---\n{complete_reasoning_text}\n---")
-            logger.debug(f"Agent '{agent_id}' aggregated full LLM response:\n---\n{complete_response_text}\n---")
-
+                logger.debug(f"Agent '{agent_id}' aggregated full LLM reasoning.")
+            
         except Exception as e:
             logger.error(f"Agent '{agent_id}' error during LLM stream: {e}", exc_info=True)
             error_message_for_output = f"Error processing your request with the LLM: {str(e)}"
@@ -131,10 +165,10 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
                 is_error=True 
             )
             await context.input_event_queues.enqueue_internal_system_event(llm_complete_event_on_error)
-            logger.info(f"Agent '{agent_id}' enqueued LLMCompleteResponseReceivedEvent with error details from LLMUserMessageReadyEventHandler.")
+            logger.info(f"Agent '{agent_id}' enqueued LLMCompleteResponseReceivedEvent with error details.")
             return 
 
-        # Add message to history with reasoning and multimodal data
+        # Add message to history
         history_entry = {"role": "assistant", "content": complete_response_text}
         if complete_reasoning_text:
             history_entry["reasoning"] = complete_reasoning_text
@@ -146,7 +180,7 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
             history_entry["video_urls"] = complete_video_urls
         context.state.add_message_to_history(history_entry)
         
-        # Create complete response with reasoning and multimodal data
+        # Create complete response
         complete_response_obj = CompleteResponse(
             content=complete_response_text,
             reasoning=complete_reasoning_text,
