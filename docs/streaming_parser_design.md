@@ -1,0 +1,266 @@
+# Streaming Parser Design
+
+Date: 2026-01-01  
+Status: Implemented  
+Authors: Autobyteus Core Team
+
+## Overview
+
+The streaming parser is a state-machine-based system that incrementally parses LLM response chunks in real-time. It handles structured content blocks (`<file>`, `<bash>`, `<tool>`, `<!doctype html>`) while streaming safe content deltas to the frontend, preventing partial tags from being displayed.
+
+## Goals
+
+1. **Real-time streaming** – Parse LLM output character-by-character as chunks arrive.
+2. **Safe content emission** – Never emit partial closing tags (e.g., `</fi` before `</file>`).
+3. **Structured segment events** – Emit `SEGMENT_START`, `SEGMENT_CONTENT`, `SEGMENT_END` for each block.
+4. **Extensibility** – Add new block types by creating new state classes.
+5. **Provider-agnostic** – Works with any LLM provider's streaming output.
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    StreamingResponseHandler                     │
+│  (High-level API for feeding chunks and getting events)         │
+└────────────────────────────────┬────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      StreamingParser                             │
+│  (Orchestrates state machine, manages finalization)              │
+└────────────────────────────────┬────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                       ParserContext                              │
+│  - StreamScanner (character buffer)                              │
+│  - EventEmitter (segment event queue)                            │
+│  - Current state reference                                       │
+└────────────────────────────────┬────────────────────────────────┘
+                                 │
+        ┌────────────────────────┼────────────────────────┐
+        ▼                        ▼                        ▼
+┌───────────────┐    ┌───────────────────┐    ┌──────────────────┐
+│   TextState   │    │ XmlTagInitState   │    │ JsonInitState    │
+│ (default)     │◄──►│ (detects <tags>)  │◄──►│ (detects {json}) │
+└───────────────┘    └─────────┬─────────┘    └──────────────────┘
+                               │
+        ┌──────────────────────┼──────────────────────┐
+        ▼                      ▼                      ▼
+┌───────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│FileParsingState│   │BashParsingState │   │ToolParsingState │
+│(<file>...</file>)│   │(<bash>...</bash>)│   │(<tool>...</tool>)│
+└───────────────┘    └─────────────────┘    └─────────────────┘
+        │                      │                      │
+        └──────────────────────┼──────────────────────┘
+                               ▼
+                    ┌─────────────────────┐
+                    │ IframeParsingState  │
+                    │(<!doctype>...</html>)│
+                    └─────────────────────┘
+```
+
+## Core Components
+
+### StreamingResponseHandler
+
+Entry point for the parser. Wraps `StreamingParser` and provides a simple API:
+
+```python
+from autobyteus.agent.streaming import StreamingResponseHandler
+
+handler = StreamingResponseHandler()
+
+# Feed chunks as they arrive
+events = handler.feed("Hello <file path='/a.py'>")
+events = handler.feed("print('hi')</file>")
+
+# Finalize when stream ends
+final_events = handler.finalize()
+```
+
+### ParserContext
+
+Shared state container providing:
+
+- **StreamScanner** – Character buffer with cursor position
+- **EventEmitter** – Queues `SegmentEvent` objects
+- **State management** – `transition_to()` for state changes
+- **Configuration** – `parse_tool_calls`, `use_xml_tool_format` flags
+
+### State Classes
+
+All states extend `BaseState` and implement:
+
+| Method       | Purpose                                                 |
+| ------------ | ------------------------------------------------------- |
+| `run()`      | Main parsing loop, consumes characters, emits events    |
+| `finalize()` | Called when stream ends mid-parse, closes open segments |
+
+#### TextState (Default)
+
+Handles plain text. Watches for:
+
+- `<` → transitions to `XmlTagInitializationState`
+- `{` patterns → transitions to `JsonInitializationState`
+
+#### XmlTagInitializationState
+
+Accumulates characters after `<` to detect tag type:
+
+- `<file path="...">` → `FileParsingState`
+- `<bash>` → `BashParsingState`
+- `<tool_name>` → `ToolParsingState`
+- `<!doctype html>` → `IframeParsingState`
+- Unknown tags → emits as text, returns to `TextState`
+
+#### Content Parsing States
+
+Each content state uses the same robust buffer pattern:
+
+```python
+class FileParsingState(BaseState):
+    CLOSING_TAG = "</file>"
+
+    def __init__(self, context, opening_tag):
+        self._content_buffer = ""   # Full content
+        self._emitted_length = 0    # Tracks what's been streamed
+
+    def run(self):
+        # 1. Emit SEGMENT_START on first run
+        # 2. Consume chars, check for closing tag
+        # 3. Stream safe content (holdback pattern)
+
+    def _stream_safe_content(self):
+        # Holdback: len(CLOSING_TAG) - 1 chars from end
+        safe_length = len(self._content_buffer) - 6
+        if safe_length > self._emitted_length:
+            self.context.emit_segment_content(...)
+```
+
+## Segment Events
+
+The parser emits `SegmentEvent` objects with three lifecycle types:
+
+| Event Type        | Payload                    | When Emitted                   |
+| ----------------- | -------------------------- | ------------------------------ |
+| `SEGMENT_START`   | `segment_type`, `metadata` | Opening tag detected           |
+| `SEGMENT_CONTENT` | `delta` (text chunk)       | Content available to stream    |
+| `SEGMENT_END`     | –                          | Closing tag found or finalized |
+
+### Segment Types
+
+```python
+class SegmentType(str, Enum):
+    TEXT = "text"
+    TOOL_CALL = "tool_call"
+    FILE = "file"
+    BASH = "bash"
+    IFRAME = "iframe"
+    THOUGHT = "thought"
+```
+
+## Safe Streaming (Holdback Pattern)
+
+To prevent displaying partial closing tags in the UI, each content state holds back characters that could be part of the closing tag:
+
+```
+Buffer: "print('hi')</fi"
+                    ^^^^^^ held back (6 chars = len("</file>") - 1)
+Emitted: "print('hi')"
+```
+
+Once the full closing tag arrives:
+
+```
+Buffer: "print('hi')</file>"
+                    ^^^^^^^  closing tag detected
+Final emit: remaining content, then SEGMENT_END
+```
+
+## Integration with Event Handler
+
+The `LLMUserMessageReadyEventHandler` integrates the parser:
+
+```python
+async def handle(self, event):
+    streaming_handler = StreamingResponseHandler(on_part_event=emit_part_event)
+
+    async for chunk in llm.stream_user_message(message):
+        if chunk.content:
+            streaming_handler.feed(chunk.content)
+
+    streaming_handler.finalize()
+```
+
+## Adding a New Block Type
+
+1. Create a new state class in `parser/states/`:
+
+```python
+# my_block_parsing_state.py
+class MyBlockParsingState(BaseState):
+    CLOSING_TAG = "</myblock>"
+
+    def __init__(self, context, opening_tag):
+        # ... buffer setup
+
+    def run(self):
+        # ... parsing logic
+```
+
+2. Register detection in `XmlTagInitializationState`:
+
+```python
+if tag_name == "myblock":
+    return StateFactory.my_block_parsing_state(self.context, opening_tag)
+```
+
+3. Add to `SegmentType` enum if needed.
+
+## File Structure
+
+```
+autobyteus/agent/streaming/
+├── __init__.py
+├── streaming_response_handler.py    # High-level API
+└── parser/
+    ├── __init__.py
+    ├── streaming_parser.py          # Orchestrator
+    ├── parser_context.py            # Shared state + config
+    ├── stream_scanner.py            # Character buffer
+    ├── event_emitter.py             # Event queue
+    ├── events.py                    # SegmentEvent, SegmentType
+    ├── state_factory.py             # State creation
+    ├── invocation_adapter.py        # Converts to ToolInvocation
+    └── states/
+        ├── base_state.py
+        ├── text_state.py
+        ├── xml_tag_initialization_state.py
+        ├── json_initialization_state.py
+        ├── file_parsing_state.py
+        ├── bash_parsing_state.py
+        ├── tool_parsing_state.py
+        ├── json_tool_parsing_state.py
+        └── iframe_parsing_state.py
+```
+
+## Testing
+
+Unit tests exist for each component:
+
+```bash
+# Run all streaming parser tests
+uv run python -m pytest tests/unit_tests/agent/streaming/parser/ -v
+
+# Run integration tests
+uv run python -m pytest tests/integration_tests/agent/streaming/ -v
+```
+
+Test coverage includes:
+
+- State transitions and detection
+- Partial tag holdback behavior
+- Multi-chunk streaming
+- Finalization of incomplete blocks
+- Mixed content scenarios
