@@ -32,10 +32,12 @@ class ParserConfig:
         parse_tool_calls: bool = True,
         use_xml_tool_format: bool = True,
         json_tool_patterns: Optional[List[str]] = None,
+        strategy_order: Optional[List[str]] = None,
     ):
         self.parse_tool_calls = parse_tool_calls
         self.use_xml_tool_format = use_xml_tool_format
         self.json_tool_patterns = json_tool_patterns or self.DEFAULT_JSON_PATTERNS.copy()
+        self.strategy_order = strategy_order or ["xml_tag", "json_tool"]
 
 
 class ParserContext:
@@ -60,6 +62,8 @@ class ParserContext:
         self._scanner = StreamScanner()
         self._emitter = EventEmitter()
         self._current_state: Optional["BaseState"] = None
+        from .strategies.registry import create_detection_strategies
+        self._strategies = create_detection_strategies(self._config.strategy_order)
 
     @property
     def config(self) -> ParserConfig:
@@ -72,14 +76,19 @@ class ParserContext:
         return self._config.parse_tool_calls
 
     @property
+    def json_tool_patterns(self) -> List[str]:
+        """Get the JSON tool call patterns."""
+        return self._config.json_tool_patterns
+
+    @property
     def use_xml_tool_format(self) -> bool:
         """Whether to use XML format for tools."""
         return self._config.use_xml_tool_format
 
     @property
-    def json_tool_patterns(self) -> List[str]:
-        """Get the JSON tool call patterns."""
-        return self._config.json_tool_patterns
+    def detection_strategies(self):
+        """Get the ordered detection strategies."""
+        return self._strategies
 
     # --- State Management ---
     
@@ -125,6 +134,10 @@ class ParserContext:
         """Get the current cursor position."""
         return self._scanner.get_position()
 
+    def get_buffer_length(self) -> int:
+        """Get the total buffer length."""
+        return self._scanner.get_buffer_length()
+
     def set_position(self, position: int) -> None:
         """Set the cursor position."""
         self._scanner.set_position(position)
@@ -144,6 +157,22 @@ class ParserContext:
     def substring(self, start: int, end: Optional[int] = None) -> str:
         """Extract a substring from the buffer."""
         return self._scanner.substring(start, end)
+
+    def find(self, sub: str, start: Optional[int] = None) -> int:
+        """Find a substring in the buffer."""
+        return self._scanner.find(sub, start)
+
+    def consume(self, count: int) -> str:
+        """Consume a number of characters from the buffer."""
+        return self._scanner.consume(count)
+
+    def consume_remaining(self) -> str:
+        """Consume all remaining characters from the buffer."""
+        return self._scanner.consume_remaining()
+
+    def compact(self, min_prefix: int = 65536) -> None:
+        """Compact the scanner buffer."""
+        self._scanner.compact(min_prefix=min_prefix)
 
     # --- Event Emission (Delegated to EventEmitter) ---
     

@@ -11,7 +11,7 @@ It serves as the bridge between the LLM response stream and the parsed segment o
 from typing import Optional, List, Callable, Any
 import logging
 
-from .parser.streaming_parser import StreamingParser
+from .parser.parser_factory import create_streaming_parser, resolve_parser_name
 from .parser.events import SegmentEvent, SegmentType
 from .parser.invocation_adapter import ToolInvocationAdapter
 from .parser.parser_context import ParserConfig
@@ -44,7 +44,8 @@ class StreamingResponseHandler:
         self,
         on_segment_event: Optional[Callable[[SegmentEvent], None]] = None,
         on_tool_invocation: Optional[Callable[[ToolInvocation], None]] = None,
-        config: Optional[ParserConfig] = None
+        config: Optional[ParserConfig] = None,
+        parser_name: Optional[str] = None,
     ):
         """
         Initialize the streaming response handler.
@@ -53,8 +54,14 @@ class StreamingResponseHandler:
             on_segment_event: Callback for each SegmentEvent (for UI streaming).
             on_tool_invocation: Callback for completed ToolInvocations.
             config: Parser configuration.
+            parser_name: Optional parser strategy name (overrides env var).
         """
-        self._parser = StreamingParser(config=config)
+        self._parser_name = resolve_parser_name(parser_name)
+        self._parser_config = config
+        self._parser = create_streaming_parser(
+            config=config,
+            parser_name=self._parser_name,
+        )
         self._adapter = ToolInvocationAdapter()
         self._on_segment_event = on_segment_event
         self._on_tool_invocation = on_tool_invocation
@@ -132,7 +139,10 @@ class StreamingResponseHandler:
 
     def reset(self) -> None:
         """Reset the handler for reuse."""
-        self._parser = StreamingParser(config=self._parser._context.config)
+        self._parser = create_streaming_parser(
+            config=self._parser_config,
+            parser_name=self._parser_name,
+        )
         self._adapter.reset()
         self._all_events.clear()
         self._all_invocations.clear()

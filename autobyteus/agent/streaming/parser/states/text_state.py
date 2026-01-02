@@ -7,8 +7,6 @@ for transitioning to specialized parsing states (XML tags, JSON).
 from typing import TYPE_CHECKING
 
 from .base_state import BaseState
-from ..events import SegmentType
-
 if TYPE_CHECKING:
     from ..parser_context import ParserContext
 
@@ -33,45 +31,43 @@ class TextState(BaseState):
         """
         # Import here to avoid circular dependency
         from .xml_tag_initialization_state import XmlTagInitializationState
-        from .json_initialization_state import JsonInitializationState
         
         start_pos = self.context.get_position()
-        
-        while self.context.has_more_chars():
-            char = self.context.peek_char()
-            
-            # Check for XML tag start (always active)
-            if char == '<':
-                # Emit accumulated text before transitioning
-                text = self.context.substring(start_pos, self.context.get_position())
-                if text:
-                    self.context.append_text_segment(text)
-                
-                # Transition to XML tag initialization
-                self.context.transition_to(XmlTagInitializationState(self.context))
-                return
-            
-            # Check for JSON start (only if tool parsing enabled and not using XML format)
-            if (self.context.parse_tool_calls and 
-                not self.context.use_xml_tool_format and 
-                char in ('{', '[')):
-                # Emit accumulated text before transitioning
-                text = self.context.substring(start_pos, self.context.get_position())
-                if text:
-                    self.context.append_text_segment(text)
-                
-                # Transition to JSON initialization
-                self.context.transition_to(JsonInitializationState(self.context))
-                return
-            
-            # Regular character - continue accumulating
-            self.context.advance()
-        
-        # Buffer exhausted - emit any accumulated text
-        text = self.context.substring(start_pos)
-        if text:
-            self.context.append_text_segment(text)
 
+        if not self.context.has_more_chars():
+            return
+
+        strategies = self.context.detection_strategies
+
+        best_idx = -1
+        best_strategy = None
+        for strategy in strategies:
+            idx = strategy.next_marker(self.context, start_pos)
+            if idx == -1:
+                continue
+            if best_idx == -1 or idx < best_idx:
+                best_idx = idx
+                best_strategy = strategy
+
+        if best_idx == -1:
+            text = self.context.substring(start_pos)
+            if text:
+                self.context.append_text_segment(text)
+            self.context.set_position(self.context.get_buffer_length())
+            return
+
+        if best_idx > start_pos:
+            text = self.context.substring(start_pos, best_idx)
+            if text:
+                self.context.append_text_segment(text)
+
+        self.context.set_position(best_idx)
+
+        if best_strategy is None:
+            self.context.transition_to(XmlTagInitializationState(self.context))
+        else:
+            self.context.transition_to(best_strategy.create_state(self.context))
+        
     def finalize(self) -> None:
         """
         Called when stream ends while in TextState.

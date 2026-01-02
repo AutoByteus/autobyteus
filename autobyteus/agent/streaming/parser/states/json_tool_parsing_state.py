@@ -5,8 +5,7 @@ This state handles parsing JSON-formatted tool calls from providers
 like OpenAI that use {"name": "...", "arguments": {...}} format.
 """
 import json
-import re
-from typing import TYPE_CHECKING, Optional, Dict, Any
+from typing import TYPE_CHECKING, Optional, Dict, Any, List
 
 from .base_state import BaseState
 from ..events import SegmentType
@@ -29,12 +28,12 @@ class JsonToolParsingState(BaseState):
     def __init__(self, context: "ParserContext", signature_buffer: str):
         super().__init__(context)
         self._signature_buffer = signature_buffer
-        self._content_buffer = ""
         self._brace_count = 0
         self._bracket_count = 0
         self._in_string = False
         self._escape_next = False
         self._segment_started = False
+        self._initialized = False
         self._is_array = signature_buffer.startswith('[')
 
     def run(self) -> None:
@@ -43,53 +42,45 @@ class JsonToolParsingState(BaseState):
         """
         from .text_state import TextState
         
-        # Consume the signature buffer
-        self.context.advance_by(len(self._signature_buffer))
-        self._content_buffer = self._signature_buffer
-        
-        # Count initial braces/brackets
-        for char in self._signature_buffer:
-            self._update_brace_count(char)
-        
-        # Start segment - we'll extract name later when JSON is complete
         if not self._segment_started:
             self.context.emit_segment_start(SegmentType.TOOL_CALL)
             self._segment_started = True
-        
+
+        consumed: List[str] = []
+
+        if not self._initialized:
+            signature = self.context.consume(len(self._signature_buffer))
+            if signature:
+                consumed.append(signature)
+                for char in signature:
+                    self._update_brace_count(char)
+            self._initialized = True
+
         while self.context.has_more_chars():
             char = self.context.peek_char()
-            self._content_buffer += char
             self.context.advance()
-            
+            consumed.append(char)
             self._update_brace_count(char)
-            
-            # Check if JSON is complete
+
             if self._is_json_complete():
-                # Parse the complete JSON
-                tool_info = self._parse_json_tool_call(self._content_buffer)
-                
+                if consumed:
+                    self.context.emit_segment_content("".join(consumed))
+
+                full_json = self.context.get_current_segment_content()
+                tool_info = self._parse_json_tool_call(full_json)
+
                 if tool_info:
-                    # Update metadata with parsed info
                     self.context.update_current_segment_metadata(
                         tool_name=tool_info.get("name", "unknown"),
                         arguments=tool_info.get("arguments", {})
                     )
-                    
-                    # Emit the raw JSON as content for display
-                    self.context.emit_segment_content(self._content_buffer)
-                else:
-                    # Invalid JSON - emit as text instead
-                    self.context.emit_segment_content(self._content_buffer)
-                
+
                 self.context.emit_segment_end()
                 self.context.transition_to(TextState(self.context))
                 return
-        
-        # Buffer exhausted but JSON not complete
-        # Emit partial content for streaming display
-        if self._content_buffer:
-            self.context.emit_segment_content(self._content_buffer)
-            self._content_buffer = ""
+
+        if consumed:
+            self.context.emit_segment_content("".join(consumed))
 
     def _update_brace_count(self, char: str) -> None:
         """Update brace/bracket count, handling strings."""
@@ -178,12 +169,11 @@ class JsonToolParsingState(BaseState):
         """
         from .text_state import TextState
         
+        if self.context.has_more_chars():
+            remaining = self.context.consume_remaining()
+            if remaining:
+                self.context.emit_segment_content(remaining)
+
         if self._segment_started:
-            if self._content_buffer:
-                self.context.emit_segment_content(self._content_buffer)
             self.context.emit_segment_end()
-        else:
-            if self._content_buffer:
-                self.context.append_text_segment(self._content_buffer)
-        
         self.context.transition_to(TextState(self.context))

@@ -26,6 +26,9 @@ from .parser import (
     ParserConfig,
     parse_complete_response,
     extract_segments,
+    StreamingParserProtocol,
+    create_streaming_parser,
+    resolve_parser_name,
 )
 
 __all__ = [
@@ -39,6 +42,9 @@ __all__ = [
     "ParserConfig",
     "parse_complete_response",
     "extract_segments",
+    "StreamingParserProtocol",
+    "create_streaming_parser",
+    "resolve_parser_name",
     
     # Legacy (backward compatible)
     "StreamEventType",

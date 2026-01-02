@@ -160,6 +160,13 @@ class SegmentType(str, Enum):
     THOUGHT = "thought"
 ```
 
+Tool syntax shorthands (e.g., `FILE`, `BASH`) map to concrete tools via the
+tool syntax registry:
+
+```
+autobyteus/agent/streaming/parser/tool_syntax_registry.py
+```
+
 ## Safe Streaming (Holdback Pattern)
 
 To prevent displaying partial closing tags in the UI, each content state holds back characters that could be part of the closing tag:
@@ -192,6 +199,49 @@ async def handle(self, event):
 
     streaming_handler.finalize()
 ```
+
+## Parser Strategy Selection
+
+The streaming system supports multiple parser strategies selected at runtime.
+
+Environment variable:
+
+- `AUTOBYTEUS_STREAM_PARSER`: `fsm` (default), `native`, `sentinel`
+
+Strategy notes:
+
+- `fsm`: current state-machine parser (XML/JSON tag detection).
+- `native`: disables tool-tag parsing; tool calls are expected from the provider's native tool stream.
+- `sentinel`: sentinel-based format using explicit start/end markers.
+  - Sentinel format uses explicit start/end markers with a JSON header.
+
+### Sentinel Format
+
+Start marker:
+
+```
+[[SEG_START {"type":"file","path":"/a.py"}]]
+```
+
+End marker:
+
+```
+[[SEG_END]]
+```
+
+The `type` maps to `SegmentType`, and any other JSON fields are treated as metadata.
+
+### Detection Strategies
+
+Detection uses an ordered strategy list to decide which parser to invoke.
+
+Default order:
+
+```python
+ParserConfig(strategy_order=["xml_tag", "json_tool"])
+```
+
+Each strategy reports the next candidate marker; the earliest match wins.
 
 ## Adding a New Block Type
 

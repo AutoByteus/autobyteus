@@ -11,6 +11,7 @@ from typing import Optional, List, Dict, Any
 import logging
 
 from .events import SegmentEvent, SegmentType, SegmentEventType
+from .tool_syntax_registry import get_tool_syntax_spec
 from autobyteus.agent.tool_invocation import ToolInvocation
 
 logger = logging.getLogger(__name__)
@@ -54,15 +55,23 @@ class ToolInvocationAdapter:
     
     def _handle_start(self, event: SegmentEvent) -> None:
         """Handle SEGMENT_START events."""
-        if event.segment_type != SegmentType.TOOL_CALL:
+        if event.segment_type != SegmentType.TOOL_CALL and get_tool_syntax_spec(event.segment_type) is None:
             return None
         
         # Initialize tracking for this tool segment
         metadata = event.payload.get("metadata", {})
+        tool_name = metadata.get("tool_name")
+        syntax_spec = get_tool_syntax_spec(event.segment_type)
+        if syntax_spec:
+            tool_name = syntax_spec.tool_name
+
         self._active_segments[event.segment_id] = {
-            "tool_name": metadata.get("tool_name"),
+            "segment_type": event.segment_type,
+            "tool_name": tool_name,
             "content_buffer": "",
-            "arguments": {}
+            "arguments": {},
+            "syntax_spec": syntax_spec,
+            "metadata": metadata,
         }
         
         logger.debug(f"ToolInvocationAdapter: Started tracking segment {event.segment_id}")
@@ -91,8 +100,25 @@ class ToolInvocationAdapter:
         
         # Extract metadata from END event (parser puts parsed data here)
         metadata = event.payload.get("metadata", {})
+        segment_type = segment_data.get("segment_type")
         tool_name = metadata.get("tool_name") or segment_data.get("tool_name")
         arguments = metadata.get("arguments") or segment_data.get("arguments", {})
+        content_buffer = segment_data.get("content_buffer", "")
+        start_metadata = segment_data.get("metadata", {})
+        syntax_spec = segment_data.get("syntax_spec")
+
+        if syntax_spec:
+            tool_name = syntax_spec.tool_name
+            args = syntax_spec.build_arguments(
+                {**start_metadata, **metadata},
+                content_buffer,
+            )
+            if args is None:
+                logger.warning(
+                    f"Tool segment {event.segment_id} ended without required arguments for {tool_name}"
+                )
+                return None
+            arguments = args
         
         if not tool_name:
             logger.warning(f"Tool segment {event.segment_id} ended without tool_name")

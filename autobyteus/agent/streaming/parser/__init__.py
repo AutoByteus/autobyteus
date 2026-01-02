@@ -9,6 +9,11 @@ Main components:
 - SegmentEvent: Structured events emitted during parsing
 """
 from .streaming_parser import StreamingParser, parse_complete_response, extract_segments
+from .parser_factory import (
+    create_streaming_parser,
+    resolve_parser_name,
+    StreamingParserProtocol,
+)
 from .events import SegmentEvent, SegmentType, SegmentEventType
 from .invocation_adapter import ToolInvocationAdapter
 from .parser_context import ParserConfig
@@ -18,6 +23,9 @@ __all__ = [
     "StreamingParser",
     "ToolInvocationAdapter",
     "ParserConfig",
+    "StreamingParserProtocol",
+    "create_streaming_parser",
+    "resolve_parser_name",
     
     # Event types
     "SegmentEvent",

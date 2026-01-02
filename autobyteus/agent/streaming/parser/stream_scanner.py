@@ -74,6 +74,51 @@ class StreamScanner:
             return self._buffer[start:]
         return self._buffer[start:end]
 
+    def find(self, sub: str, start: Optional[int] = None) -> int:
+        """
+        Find a substring in the buffer starting from a position.
+
+        Args:
+            sub: The substring to search for.
+            start: Optional start index. Defaults to current position.
+
+        Returns:
+            The index of the substring, or -1 if not found.
+        """
+        if start is None:
+            start = self._pos
+        return self._buffer.find(sub, start)
+
+    def consume(self, count: int) -> str:
+        """
+        Consume a number of characters from the current position.
+
+        Args:
+            count: Number of characters to consume.
+
+        Returns:
+            The consumed substring.
+        """
+        if count <= 0:
+            return ""
+        end = min(len(self._buffer), self._pos + count)
+        result = self._buffer[self._pos:end]
+        self._pos = end
+        return result
+
+    def consume_remaining(self) -> str:
+        """
+        Consume all remaining characters in the buffer.
+
+        Returns:
+            The remaining substring from current position to end.
+        """
+        if self._pos >= len(self._buffer):
+            return ""
+        result = self._buffer[self._pos:]
+        self._pos = len(self._buffer)
+        return result
+
     def get_position(self) -> int:
         """
         Return the current zero-based position of the cursor.
@@ -100,3 +145,23 @@ class StreamScanner:
             position: The new cursor position (clamped to valid range).
         """
         self._pos = max(0, min(len(self._buffer), position))
+
+    def compact(self, min_prefix: int = 65536) -> None:
+        """
+        Compact the buffer by dropping consumed prefix data.
+
+        If all data is consumed, clears the buffer entirely.
+        Otherwise, drops the consumed prefix when it exceeds min_prefix.
+
+        Args:
+            min_prefix: Minimum consumed prefix length to trigger compaction.
+        """
+        if self._pos == 0:
+            return
+        if self._pos >= len(self._buffer):
+            self._buffer = ""
+            self._pos = 0
+            return
+        if self._pos >= min_prefix:
+            self._buffer = self._buffer[self._pos:]
+            self._pos = 0

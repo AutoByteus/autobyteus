@@ -92,6 +92,36 @@ class TestStreamingParserToolParsing:
         tool_segments = [s for s in segments if s["type"] == "tool_call"]
         assert len(tool_segments) == 0
 
+    def test_json_tool_call_split_across_chunks(self):
+        """JSON tool call parsing works across chunks."""
+        config = ParserConfig(parse_tool_calls=True, use_xml_tool_format=False)
+        parser = StreamingParser(config)
+
+        chunks = [
+            '{"name": "do_something", "arguments": {"x": ',
+            '1, "y": "ok"}} trailing'
+        ]
+
+        events = []
+        for chunk in chunks:
+            events.extend(parser.feed(chunk))
+        events.extend(parser.finalize())
+
+        tool_start = next(
+            (e for e in events if e.event_type == SegmentEventType.START and e.segment_type == SegmentType.TOOL_CALL),
+            None,
+        )
+        assert tool_start is not None
+
+        tool_end = next(
+            (e for e in events if e.event_type == SegmentEventType.END and e.segment_id == tool_start.segment_id),
+            None,
+        )
+        assert tool_end is not None
+        metadata = tool_end.payload.get("metadata", {})
+        assert metadata.get("tool_name") == "do_something"
+        assert metadata.get("arguments") == {"x": 1, "y": "ok"}
+
 
 class TestStreamingParserMixedContent:
     """Tests for mixed content responses."""

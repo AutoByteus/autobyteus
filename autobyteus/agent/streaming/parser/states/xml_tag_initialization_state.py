@@ -52,59 +52,16 @@ class XmlTagInitializationState(BaseState):
         from .bash_parsing_state import BashParsingState
         from .xml_tool_parsing_state import XmlToolParsingState
         from .iframe_parsing_state import IframeParsingState
-        
-        while self.context.has_more_chars():
-            char = self.context.peek_char()
-            self._tag_buffer += char
-            self.context.advance()
-            
+        if not self.context.has_more_chars():
+            return
+
+        start_pos = self.context.get_position()
+        end_idx = self.context.find(">", start_pos)
+
+        if end_idx == -1:
+            self._tag_buffer += self.context.consume_remaining()
+
             lower_buffer = self._tag_buffer.lower()
-            
-            # --- Tag completion check (when we see '>') ---
-            if char == '>':
-                # <file...> tag
-                if lower_buffer.startswith(self.POSSIBLE_FILE):
-                    # UNIFORM HANDOFF: Pass complete opening_tag
-                    self.context.transition_to(
-                        FileParsingState(self.context, self._tag_buffer)
-                    )
-                    return
-                
-                # <bash...> tag
-                if lower_buffer.startswith(self.POSSIBLE_BASH):
-                    # UNIFORM HANDOFF: Pass complete opening_tag
-                    self.context.transition_to(
-                        BashParsingState(self.context, self._tag_buffer)
-                    )
-                    return
-                
-                # <tool...> tag (only if tool parsing is enabled)
-                if lower_buffer.startswith(self.POSSIBLE_TOOL):
-                    if self.context.parse_tool_calls:
-                        # UNIFORM HANDOFF: Pass complete opening_tag
-                        self.context.transition_to(
-                            XmlToolParsingState(self.context, self._tag_buffer)
-                        )
-                    else:
-                        # Tool parsing disabled - emit as text
-                        self.context.append_text_segment(self._tag_buffer)
-                        self.context.transition_to(TextState(self.context))
-                    return
-                
-                # <!doctype html> - check when we see '>' (includes the >)
-                if lower_buffer == self.POSSIBLE_DOCTYPE:
-                    self.context.transition_to(
-                        IframeParsingState(self.context, self._tag_buffer)
-                    )
-                    return
-                
-                # Unknown tag - emit as text
-                self.context.append_text_segment(self._tag_buffer)
-                self.context.transition_to(TextState(self.context))
-                return
-            
-            # --- Continuity check ---
-            # If the buffer can still potentially match a known tag, continue
             could_be_file = (
                 self.POSSIBLE_FILE.startswith(lower_buffer) or 
                 lower_buffer.startswith(self.POSSIBLE_FILE)
@@ -118,15 +75,45 @@ class XmlTagInitializationState(BaseState):
                 lower_buffer.startswith(self.POSSIBLE_TOOL)
             )
             could_be_doctype = self.POSSIBLE_DOCTYPE.startswith(lower_buffer)
-            
+
             if not (could_be_file or could_be_bash or could_be_tool or could_be_doctype):
-                # No possible match - emit as text and return to TextState
                 self.context.append_text_segment(self._tag_buffer)
                 self.context.transition_to(TextState(self.context))
-                return
-        
-        # Buffer exhausted but tag incomplete - wait for more data
-        # The buffer is preserved in self._tag_buffer for next run()
+            return
+
+        self._tag_buffer += self.context.consume(end_idx - start_pos + 1)
+        lower_buffer = self._tag_buffer.lower()
+
+        if lower_buffer.startswith(self.POSSIBLE_FILE):
+            self.context.transition_to(
+                FileParsingState(self.context, self._tag_buffer)
+            )
+            return
+
+        if lower_buffer.startswith(self.POSSIBLE_BASH):
+            self.context.transition_to(
+                BashParsingState(self.context, self._tag_buffer)
+            )
+            return
+
+        if lower_buffer.startswith(self.POSSIBLE_TOOL):
+            if self.context.parse_tool_calls:
+                self.context.transition_to(
+                    XmlToolParsingState(self.context, self._tag_buffer)
+                )
+            else:
+                self.context.append_text_segment(self._tag_buffer)
+                self.context.transition_to(TextState(self.context))
+            return
+
+        if lower_buffer == self.POSSIBLE_DOCTYPE:
+            self.context.transition_to(
+                IframeParsingState(self.context, self._tag_buffer)
+            )
+            return
+
+        self.context.append_text_segment(self._tag_buffer)
+        self.context.transition_to(TextState(self.context))
 
     def finalize(self) -> None:
         """

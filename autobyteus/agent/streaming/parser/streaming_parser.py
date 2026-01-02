@@ -85,7 +85,10 @@ class StreamingParser:
         # Run the state machine until buffer is exhausted
         while self._context.has_more_chars():
             self._context.current_state.run()
-        
+
+        # Drop consumed buffer data to avoid unbounded growth
+        self._context.compact()
+
         # Return all events emitted during processing
         return self._context.get_and_clear_events()
 
@@ -111,7 +114,10 @@ class StreamingParser:
         
         # Finalize the current state
         self._context.current_state.finalize()
-        
+
+        # Clear any remaining buffer data
+        self._context.compact()
+
         # Return any remaining events
         return self._context.get_and_clear_events()
 

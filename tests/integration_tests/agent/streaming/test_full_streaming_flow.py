@@ -146,9 +146,12 @@ All done!
         assert SegmentType.BASH in segment_types
         assert SegmentType.TOOL_CALL in segment_types
         
-        # Only tool creates invocation
-        assert len(invocations) == 1
-        assert invocations[0].name == "verify_result"
+        # File, bash, and tool create invocations
+        assert len(invocations) == 3
+        names = [inv.name for inv in invocations]
+        assert "write_file" in names
+        assert "execute_bash" in names
+        assert "verify_result" in names
 
 
 class TestStreamingChunkedInput:

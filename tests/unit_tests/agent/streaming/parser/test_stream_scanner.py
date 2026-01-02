@@ -157,3 +157,31 @@ class TestStreamScannerIntegration:
         # Extract the full tag
         result = scanner.substring(0, 18)
         assert result == "<tool name='test'>"
+
+
+class TestStreamScannerAdvanced:
+    """Tests for advanced StreamScanner utilities."""
+
+    def test_find_from_position(self):
+        scanner = StreamScanner("abc<tool>def")
+        assert scanner.find("<") == 3
+        scanner.advance_by(4)
+        assert scanner.find(">") == 8
+
+    def test_consume(self):
+        scanner = StreamScanner("hello world")
+        assert scanner.consume(5) == "hello"
+        assert scanner.peek() == " "
+
+    def test_consume_remaining(self):
+        scanner = StreamScanner("hello")
+        scanner.advance_by(2)
+        assert scanner.consume_remaining() == "llo"
+        assert scanner.has_more_chars() is False
+
+    def test_compact_clears_consumed_buffer(self):
+        scanner = StreamScanner("hello")
+        scanner.advance_by(5)
+        scanner.compact()
+        assert scanner.get_buffer_length() == 0
+        assert scanner.get_position() == 0
