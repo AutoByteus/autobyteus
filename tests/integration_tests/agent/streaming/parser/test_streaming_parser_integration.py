@@ -37,6 +37,8 @@ class StreamingParserDriver:
     def finalize(self) -> None:
         """Signal end of stream."""
         self.context.current_state.finalize()
+        if self.context.get_current_segment_type() == SegmentType.TEXT:
+            self.context.emit_segment_end()
         self.all_events.extend(self.context.get_and_clear_events())
     
     def get_segments(self) -> list:

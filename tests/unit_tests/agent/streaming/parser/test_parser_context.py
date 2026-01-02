@@ -191,20 +191,31 @@ class TestParserContextTextHelper:
     """Tests for text segment helper."""
 
     def test_append_text_segment(self):
-        """Append text segment emits full lifecycle."""
+        """Append text segment starts a segment and emits content."""
         ctx = ParserContext()
         ctx.append_text_segment("Hello World")
         
         events = ctx.get_and_clear_events()
-        assert len(events) == 3
+        assert len(events) == 2
         
         assert events[0].event_type == SegmentEventType.START
         assert events[0].segment_type == SegmentType.TEXT
         
         assert events[1].event_type == SegmentEventType.CONTENT
         assert events[1].payload["delta"] == "Hello World"
-        
-        assert events[2].event_type == SegmentEventType.END
+        assert ctx.get_current_segment_type() == SegmentType.TEXT
+
+    def test_append_text_segment_reuses_open_segment(self):
+        """Subsequent text appends should reuse the open text segment."""
+        ctx = ParserContext()
+        ctx.append_text_segment("Hello ")
+        ctx.get_and_clear_events()
+
+        ctx.append_text_segment("World")
+        events = ctx.get_and_clear_events()
+        assert len(events) == 1
+        assert events[0].event_type == SegmentEventType.CONTENT
+        assert events[0].payload["delta"] == "World"
 
     def test_append_empty_text_segment(self):
         """Empty text segment emits nothing."""

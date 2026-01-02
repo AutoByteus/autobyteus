@@ -221,5 +221,5 @@ class ParserContext:
         return self._emitter.get_events()
 
     def append_text_segment(self, text: str) -> None:
-        """Convenience method to emit a complete text segment."""
+        """Append text content to the current text segment, starting one if needed."""
         self._emitter.append_text_segment(text)

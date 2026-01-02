@@ -54,13 +54,13 @@ class ToolFormattingRegistry(metaclass=SingletonMeta):
         """
         format_override = resolve_tool_call_format()
         if format_override == "xml":
-            logger.debug("XML tool format is forced by environment. Returning XML formatter pair.")
+            logger.info("Tool format resolved to XML (env override).")
             return self._xml_override_pair
         if format_override == "json":
-            logger.debug("JSON tool format is forced by environment. Returning JSON formatter pair.")
+            logger.info("Tool format resolved to JSON (env override).")
             return self._default_pair
         if format_override in {"sentinel", "native"}:
-            logger.debug(
+            logger.info(
                 "Tool format '%s' is not supported by formatter registry. "
                 "Falling back to JSON formatters.",
                 format_override,
@@ -69,8 +69,15 @@ class ToolFormattingRegistry(metaclass=SingletonMeta):
 
         if provider and provider in self._pairs:
             pair = self._pairs[provider]
-            logger.debug(f"Found specific formatter pair for provider {provider.name}: {pair}")
+            logger.info(
+                "Tool format resolved by provider '%s' to %s.",
+                provider.name,
+                "XML" if pair is self._xml_override_pair else "JSON",
+            )
             return pair
         
-        logger.debug(f"No specific formatter pair for provider {provider.name if provider else 'Unknown'}. Returning default pair.")
+        logger.info(
+            "Tool format resolved by default to JSON (provider=%s).",
+            provider.name if provider else "Unknown",
+        )
         return self._default_pair

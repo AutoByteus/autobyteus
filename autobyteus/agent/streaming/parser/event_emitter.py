@@ -8,8 +8,11 @@ This class is responsible for:
 - Managing the event queue
 """
 from typing import Optional, List, Dict, Any
+import logging
 
 from .events import SegmentEvent, SegmentType, SegmentEventType
+
+logger = logging.getLogger(__name__)
 
 
 class EventEmitter:
@@ -151,14 +154,24 @@ class EventEmitter:
         """
         Convenience method to emit a complete text segment.
         
-        Emits START, CONTENT, and END events for a text segment.
+        Emits START (if needed) and CONTENT events for a text segment.
+        The segment remains open until explicitly ended by the caller.
         
         Args:
             text: The text content to emit.
         """
         if not text:
             return
-        
-        self.emit_segment_start(SegmentType.TEXT)
+
+        if self._current_segment_type != SegmentType.TEXT:
+            if self._current_segment_id is not None:
+                logger.warning(
+                    "append_text_segment called while non-text segment is active (%s); "
+                    "ending it before starting a text segment.",
+                    self._current_segment_type,
+                )
+                self.emit_segment_end()
+
+            self.emit_segment_start(SegmentType.TEXT)
+
         self.emit_segment_content(text)
-        self.emit_segment_end()

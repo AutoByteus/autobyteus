@@ -22,15 +22,13 @@ class TestTextStateBasics:
         state.run()
         
         events = ctx.get_and_clear_events()
-        assert len(events) == 3  # START, CONTENT, END
+        assert len(events) == 2  # START, CONTENT (segment remains open)
         
         assert events[0].event_type == SegmentEventType.START
         assert events[0].segment_type == SegmentType.TEXT
         
         assert events[1].event_type == SegmentEventType.CONTENT
         assert events[1].payload["delta"] == "Hello World"
-        
-        assert events[2].event_type == SegmentEventType.END
 
     def test_empty_buffer_no_events(self):
         """Empty buffer produces no events."""
@@ -61,7 +59,7 @@ class TestTextStateXmlTrigger:
         
         # Should have emitted text before the '<'
         events = ctx.get_and_clear_events()
-        assert len(events) == 3  # START, CONTENT("Hello "), END
+        assert len(events) == 2  # START, CONTENT("Hello ")
         assert events[1].payload["delta"] == "Hello "
 
     def test_less_than_at_start_no_text_emitted(self):
@@ -89,7 +87,7 @@ class TestTextStateXmlTrigger:
         state.run()
         
         events = ctx.get_and_clear_events()
-        assert len(events) == 3
+        assert len(events) == 2
         assert events[1].payload["delta"] == "abc def ghi"
 
 
@@ -127,7 +125,7 @@ class TestTextStateJsonTrigger:
         
         # Should have emitted text before the '{'
         events = ctx.get_and_clear_events()
-        assert len(events) == 3
+        assert len(events) == 2
         assert events[1].payload["delta"] == "Before "
 
     def test_json_disabled_when_parse_tool_calls_false(self):
@@ -159,7 +157,7 @@ class TestTextStateStreaming:
         state.run()
         
         events = ctx.get_and_clear_events()
-        assert len(events) == 3
+        assert len(events) == 2
         assert events[1].payload["delta"] == "Hello "
         
         # Second chunk - still no trigger
@@ -169,8 +167,8 @@ class TestTextStateStreaming:
         state.run()
         
         events = ctx.get_and_clear_events()
-        assert len(events) == 3
-        assert events[1].payload["delta"] == "World"
+        assert len(events) == 1
+        assert events[0].payload["delta"] == "World"
 
     def test_trigger_arrives_in_later_chunk(self):
         """Trigger character can arrive in a later chunk."""
@@ -191,7 +189,7 @@ class TestTextStateStreaming:
         
         assert isinstance(ctx.current_state, XmlTagInitializationState)
         events = ctx.get_and_clear_events()
-        assert events[1].payload["delta"] == " and then "
+        assert events[0].payload["delta"] == " and then "
 
 
 class TestTextStateFinalize:

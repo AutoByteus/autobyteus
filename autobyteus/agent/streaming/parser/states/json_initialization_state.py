@@ -8,6 +8,7 @@ JSON format instead of XML.
 from typing import TYPE_CHECKING, Optional, List
 
 from .base_state import BaseState
+from ..events import SegmentType
 
 if TYPE_CHECKING:
     from ..parser_context import ParserContext
@@ -104,6 +105,8 @@ class JsonInitializationState(BaseState):
             if match == 'match':
                 # Found a tool signature
                 if self.context.parse_tool_calls:
+                    if self.context.get_current_segment_type() == SegmentType.TEXT:
+                        self.context.emit_segment_end()
                     # Signature buffer already consumed by this state; pass it along.
                     self.context.transition_to(
                         JsonToolParsingState(

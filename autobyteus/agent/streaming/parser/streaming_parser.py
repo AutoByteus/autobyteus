@@ -115,6 +115,10 @@ class StreamingParser:
         # Finalize the current state
         self._context.current_state.finalize()
 
+        # Close any open text segment to complete the lifecycle.
+        if self._context.get_current_segment_type() == SegmentType.TEXT:
+            self._context.emit_segment_end()
+
         # Clear any remaining buffer data
         self._context.compact()
 

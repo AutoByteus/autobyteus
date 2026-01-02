@@ -15,15 +15,16 @@ def resolve_tool_call_format() -> Optional[str]:
     """
     Resolve the tool-call format from environment.
 
-    Returns one of: "xml", "json", "sentinel", "native", or None if unset/invalid.
+    Returns one of: "xml", "json", "sentinel", "native".
+    Defaults to "xml" when unset/invalid to keep formatting consistent.
     """
     value = os.getenv(ENV_TOOL_CALL_FORMAT)
     if not value:
-        return None
+        return "xml"
     value = value.strip().lower()
     if value in _VALID_FORMATS:
         return value
-    return None
+    return "xml"
 
 
 def is_xml_tool_format() -> bool:

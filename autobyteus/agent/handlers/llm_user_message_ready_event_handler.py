@@ -90,11 +90,11 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
             json_tool_parser=json_profile.parser,
         )
 
-        format_override = resolve_tool_call_format()
+        format_override = context.config.tool_call_format or resolve_tool_call_format()
         if format_override in {"xml", "json", "sentinel", "native"}:
             parser_name = format_override
         else:
-            parser_name = "xml" if provider == LLMProvider.ANTHROPIC else "json"
+            parser_name = "xml"
         
         # Initialize Streaming Response Handler with config and callback
         streaming_handler = StreamingResponseHandler(

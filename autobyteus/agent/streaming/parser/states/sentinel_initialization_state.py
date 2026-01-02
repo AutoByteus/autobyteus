@@ -72,6 +72,9 @@ class SentinelInitializationState(BaseState):
         metadata = dict(data)
         metadata.pop("type", None)
 
+        if self.context.get_current_segment_type() == SegmentType.TEXT:
+            self.context.emit_segment_end()
+
         self.context.transition_to(
             SentinelContentState(
                 self.context,

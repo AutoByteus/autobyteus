@@ -10,6 +10,7 @@ their own initialization consistently.
 from typing import TYPE_CHECKING
 
 from .base_state import BaseState
+from ..events import SegmentType
 
 if TYPE_CHECKING:
     from ..parser_context import ParserContext
@@ -85,12 +86,16 @@ class XmlTagInitializationState(BaseState):
         lower_buffer = self._tag_buffer.lower()
 
         if lower_buffer.startswith(self.POSSIBLE_FILE):
+            if self.context.get_current_segment_type() == SegmentType.TEXT:
+                self.context.emit_segment_end()
             self.context.transition_to(
                 FileParsingState(self.context, self._tag_buffer)
             )
             return
 
         if lower_buffer.startswith(self.POSSIBLE_BASH):
+            if self.context.get_current_segment_type() == SegmentType.TEXT:
+                self.context.emit_segment_end()
             self.context.transition_to(
                 BashParsingState(self.context, self._tag_buffer)
             )
@@ -98,6 +103,8 @@ class XmlTagInitializationState(BaseState):
 
         if lower_buffer.startswith(self.POSSIBLE_TOOL):
             if self.context.parse_tool_calls:
+                if self.context.get_current_segment_type() == SegmentType.TEXT:
+                    self.context.emit_segment_end()
                 self.context.transition_to(
                     XmlToolParsingState(self.context, self._tag_buffer)
                 )
@@ -107,6 +114,8 @@ class XmlTagInitializationState(BaseState):
             return
 
         if lower_buffer == self.POSSIBLE_DOCTYPE:
+            if self.context.get_current_segment_type() == SegmentType.TEXT:
+                self.context.emit_segment_end()
             self.context.transition_to(
                 IframeParsingState(self.context, self._tag_buffer)
             )
