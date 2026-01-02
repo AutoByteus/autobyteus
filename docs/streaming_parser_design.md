@@ -218,6 +218,11 @@ Environment variable:
 
 - `AUTOBYTEUS_STREAM_PARSER`: `xml` (default), `json`, `native`, `sentinel`
 
+When no override is set, the agent handler selects a parser strategy based on
+provider (XML for Anthropic, JSON for most others). JSON parsing also uses
+provider-aware signature patterns and parsing strategies to match tool
+formatting examples.
+
 Strategy notes:
 
 - `xml`: state-machine parser tuned for XML tag detection.
@@ -294,6 +299,7 @@ autobyteus/agent/streaming/
     ├── events.py                    # SegmentEvent, SegmentType
     ├── state_factory.py             # State creation
     ├── invocation_adapter.py        # Converts to ToolInvocation
+    ├── json_parsing_strategies/     # Provider-aware JSON parsing
     └── states/
         ├── base_state.py
         ├── text_state.py

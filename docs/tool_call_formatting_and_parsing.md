@@ -117,6 +117,21 @@ Parsing is performed during streaming by the FSM-based `StreamingParser`.
   - `sentinel`: explicit sentinel markers.
   - `native`: disables tool-tag parsing (provider-native tool calls only).
 
+#### Provider-Aware JSON Parsing
+
+JSON parsing is provider-aware to mirror the formatter registry:
+
+- OpenAI-style formats (`tool_calls`, `tool`, `function`) use the OpenAI JSON parser.
+- Gemini formats (`name` + `args`) use the Gemini JSON parser.
+- Default JSON formats (`tool.function` + `parameters`) use the default parser.
+
+The handler wires provider selection into `ParserConfig` by supplying:
+
+- `json_tool_patterns`: signature patterns used by the JSON initialization state.
+- `json_tool_parser`: the JSON parsing strategy to extract tool name + arguments.
+
+This keeps JSON parsing aligned with provider-specific tool usage examples.
+
 The parsing pipeline is representation-driven: any syntax that can be emitted
 as a segment can become a tool call via the adapter. To add a new representation,
 introduce a new segment type or strategy and register the mapping in
@@ -125,6 +140,7 @@ introduce a new segment type or strategy and register the mapping in
 Key files:
 - `autobyteus/agent/streaming/streaming_response_handler.py`
 - `autobyteus/agent/streaming/parser/*`
+- `autobyteus/agent/streaming/parser/json_parsing_strategies/*`
 
 ### 4) LLM Response Processing and Tool Invocation
 
@@ -153,11 +169,13 @@ Key files:
 
 - `AUTOBYTEUS_STREAM_PARSER` controls both the streaming parser strategy and
   the tool-call formatting override (`xml`, `json`, `sentinel`, `native`).
-- Defaults remain provider-aware (JSON for most, XML for Anthropic).
+- Defaults remain provider-aware (JSON for most, XML for Anthropic) when no
+  override is provided.
 
 Key files:
 - `autobyteus/agent/streaming/parser/parser_factory.py`
 - `autobyteus/utils/tool_call_format.py`
+- `autobyteus/agent/handlers/llm_user_message_ready_event_handler.py`
 
 ## Design Patterns
 
