@@ -9,7 +9,8 @@ from autobyteus.llm.user_message import LLMUserMessage
 from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.agent.streaming.streaming_response_handler import StreamingResponseHandler
-from autobyteus.agent.streaming.parser.events import PartStartEvent, PartDeltaEvent, PartEndEvent
+from autobyteus.agent.streaming.parser.parser_context import ParserConfig
+from autobyteus.agent.streaming.parser.events import SegmentEvent, SegmentType, SegmentEventType
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
@@ -59,24 +60,34 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
         complete_audio_urls: List[str] = []
         complete_video_urls: List[str] = []
         
-        # Helper for emitting part events
-        def emit_part_event(event):
-            if notifier:
-                try:
-                    notifier.notify_agent_message_part_event(event.to_dict())
-                except Exception as e:
-                     logger.error(f"Agent '{agent_id}': Error notifying part event: {e}", exc_info=True)
-
-        # Initialize Streaming Response Handler
-        # We pass the emitter callback directly to the handler
-        streaming_handler = StreamingResponseHandler(on_part_event=emit_part_event)
-        
+        # Get notifier for emitting events
         notifier: Optional['AgentExternalEventNotifier'] = None
         if context.status_manager:
             notifier = context.status_manager.notifier
         
         if not notifier: # pragma: no cover
             logger.error(f"Agent '{agent_id}': Notifier not available in LLMUserMessageReadyEventHandler. Cannot emit chunk events.")
+
+        # Callback for segment events from streaming parser
+        def emit_segment_event(event: SegmentEvent):
+            if notifier:
+                try:
+                    notifier.notify_agent_segment_event(event.to_dict())
+                except Exception as e:
+                    logger.error(f"Agent '{agent_id}': Error notifying segment event: {e}", exc_info=True)
+
+        # Create parser config from agent configuration
+        parse_tool_calls = bool(context.config.tools)  # Enable tool parsing if agent has tools
+        parser_config = ParserConfig(
+            parse_tool_calls=parse_tool_calls,
+            use_xml_tool_format=context.config.use_xml_tool_format
+        )
+        
+        # Initialize Streaming Response Handler with config and callback
+        streaming_handler = StreamingResponseHandler(
+            on_segment_event=emit_segment_event,
+            config=parser_config
+        )
 
         # State for manual reasoning parts (since they might come from outside the parser)
         current_reasoning_part_id = None
@@ -106,19 +117,23 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
                     if chunk_response.video_urls:
                         complete_video_urls.extend(chunk_response.video_urls)
 
-                # Handle Reasoning (Manual Part Management)
+                # Handle Reasoning (Manual Segment Management)
                 if chunk_response.reasoning:
                     if current_reasoning_part_id is None:
                         current_reasoning_part_id = str(uuid.uuid4())
-                        emit_part_event(PartStartEvent(
-                            part_id=current_reasoning_part_id,
-                            part_type="reasoning"
-                        ))
+                        # Emit SEGMENT_START for reasoning
+                        start_event = SegmentEvent.start(
+                            segment_id=current_reasoning_part_id,
+                            segment_type=SegmentType.REASONING
+                        )
+                        emit_segment_event(start_event)
                     
-                    emit_part_event(PartDeltaEvent(
-                        part_id=current_reasoning_part_id,
+                    # Emit SEGMENT_CONTENT for reasoning delta
+                    content_event = SegmentEvent.content(
+                        segment_id=current_reasoning_part_id,
                         delta=chunk_response.reasoning
-                    ))
+                    )
+                    emit_segment_event(content_event)
 
                 # Handle Content (Through Parser)
                 if chunk_response.content:
@@ -133,11 +148,10 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
             # Finalize the stream parser to get any held-back content
             streaming_handler.finalize()
             
-            # Close any open reasoning part
+            # Close any open reasoning segment
             if current_reasoning_part_id:
-                emit_part_event(PartEndEvent(
-                    part_id=current_reasoning_part_id
-                ))
+                end_event = SegmentEvent.end(segment_id=current_reasoning_part_id)
+                emit_segment_event(end_event)
 
             if notifier:
                 try:

@@ -20,6 +20,7 @@ class EventType(Enum):
     AGENT_DATA_ASSISTANT_CHUNK = "agent_data_assistant_chunk" 
     AGENT_DATA_ASSISTANT_CHUNK_STREAM_END = "agent_data_assistant_chunk_stream_end" 
     AGENT_DATA_ASSISTANT_COMPLETE_RESPONSE = "agent_data_assistant_complete_response"
+    AGENT_DATA_SEGMENT_EVENT = "agent_data_segment_event"  # Streaming parser segment events
     AGENT_DATA_TOOL_LOG = "agent_data_tool_log" 
     AGENT_DATA_TOOL_LOG_STREAM_END = "agent_data_tool_log_stream_end" 
     AGENT_DATA_SYSTEM_TASK_NOTIFICATION_RECEIVED = "agent_data_system_task_notification_received" # NEW

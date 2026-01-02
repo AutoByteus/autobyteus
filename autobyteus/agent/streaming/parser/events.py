@@ -16,7 +16,7 @@ class SegmentType(str, Enum):
     FILE = "file"
     BASH = "bash"
     IFRAME = "iframe"
-    THOUGHT = "thought"
+    REASONING = "reasoning"
 
 
 class SegmentEventType(str, Enum):

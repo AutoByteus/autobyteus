@@ -65,6 +65,10 @@ class AgentExternalEventNotifier(EventEmitter):
     def notify_agent_data_assistant_complete_response(self, complete_response: 'CompleteResponse'):
         self._emit_event(EventType.AGENT_DATA_ASSISTANT_COMPLETE_RESPONSE, payload_content=complete_response) 
 
+    def notify_agent_segment_event(self, event_dict: Dict[str, Any]):
+        """Notify a streaming parser segment event (START, CONTENT, END)."""
+        self._emit_event(EventType.AGENT_DATA_SEGMENT_EVENT, payload_content=event_dict)
+
     def notify_agent_data_tool_log(self, log_data: Dict[str, Any]): 
         self._emit_event(EventType.AGENT_DATA_TOOL_LOG, payload_content=log_data) 
     

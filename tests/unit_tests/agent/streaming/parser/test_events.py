@@ -19,7 +19,7 @@ class TestSegmentType:
         assert SegmentType.FILE.value == "file"
         assert SegmentType.BASH.value == "bash"
         assert SegmentType.IFRAME.value == "iframe"
-        assert SegmentType.THOUGHT.value == "thought"
+        assert SegmentType.REASONING.value == "reasoning"
 
 
 class TestSegmentEventType:
