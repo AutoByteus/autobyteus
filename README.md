@@ -59,6 +59,7 @@ Autobyteus intelligently handles tool communication with LLMs while giving you f
 
 #### Flexible Communication Protocols
 Choose the collaboration pattern that best fits your use case with configurable `TaskNotificationMode`s.
+-   **Env Override**: Set `AUTOBYTEUS_TASK_NOTIFICATION_MODE=system_event_driven` (or `agent_manual_notification`) to pick the default for all teams.
 -   **`AGENT_MANUAL_NOTIFICATION` (Default)**: A traditional approach where a coordinator agent is responsible for creating a plan and then explicitly notifying other agents to begin their work via messages.
 -   **`SYSTEM_EVENT_DRIVEN`**: A more automated approach where the coordinator's only job is to publish a plan to the `TaskPlan`. The framework then monitors the board and automatically notifies agents when their tasks become unblocked, enabling parallel execution and reducing coordinator overhead.
 

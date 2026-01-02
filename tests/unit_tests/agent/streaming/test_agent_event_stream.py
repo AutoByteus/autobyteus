@@ -109,7 +109,7 @@ async def test_stream_assistant_chunks(streamer: AgentEventStream, real_notifier
         await asyncio.sleep(0.05) # Give consumer time to start awaiting.
         real_notifier.notify_agent_data_assistant_chunk(chunk1)
         real_notifier.notify_agent_data_assistant_chunk(chunk2)
-        real_notifier.notify_agent_data_assistant_chunk_stream_end()
+        # No stream-end event needed; chunk stream closes naturally.
 
     # Consumer runs in the main test event loop.
     consumer_task = asyncio.create_task(

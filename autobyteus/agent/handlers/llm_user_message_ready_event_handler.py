@@ -168,14 +168,6 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
                 end_event = SegmentEvent.end(segment_id=current_reasoning_part_id)
                 emit_segment_event(end_event)
 
-            if notifier:
-                try:
-                    # We can keep this for legacy or generic end signaling,
-                    # though PartEnd events should suffice for parts.
-                    notifier.notify_agent_data_assistant_chunk_stream_end()
-                except Exception as e_notify_end:
-                    logger.error(f"Agent '{agent_id}': Error notifying assistant chunk stream end: {e_notify_end}", exc_info=True)
-
             logger.debug(f"Agent '{agent_id}' LLM stream completed. Full response length: {len(complete_response_text)}.")
             if complete_reasoning_text:
                 logger.debug(f"Agent '{agent_id}' aggregated full LLM reasoning.")
@@ -189,7 +181,6 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
             
             if notifier:
                 try:
-                    notifier.notify_agent_data_assistant_chunk_stream_end() 
                     notifier.notify_agent_error_output_generation( 
                         error_source="LLMUserMessageReadyEventHandler.stream_user_message",
                         error_message=error_message_for_output,

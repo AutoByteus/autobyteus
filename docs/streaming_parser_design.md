@@ -167,6 +167,16 @@ tool syntax registry:
 autobyteus/agent/streaming/parser/tool_syntax_registry.py
 ```
 
+### Tool Invocation IDs (Important)
+Tool invocations created from streamed tool segments **reuse the segment ID**.
+This keeps a stable, 1:1 link between:
+- `SegmentEvent.segment_id` in the streamed UI events
+- `ToolInvocation.id` used in approval/execution
+
+So when the frontend receives a tool approval request, the `invocation_id` is the
+same value as the segment ID it already saw in the stream. This guarantees
+reliable UI correlation without extra mapping.
+
 ## Safe Streaming (Holdback Pattern)
 
 To prevent displaying partial closing tags in the UI, each content state holds back characters that could be part of the closing tag:

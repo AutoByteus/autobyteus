@@ -41,10 +41,12 @@ try:
         UpdateTaskStatus,
     )
     from autobyteus.agent.message import SendMessageTo
-    from autobyteus.agent_team.task_notification.task_notification_mode import TaskNotificationMode
 except ImportError as e:
     print(f"Error importing autobyteus components: {e}", file=sys.stderr)
     sys.exit(1)
+
+# Ensure this example runs in event-driven mode unless user overrides it.
+os.environ.setdefault("AUTOBYTEUS_TASK_NOTIFICATION_MODE", "system_event_driven")
 
 # --- A simple, self-contained workspace for this example ---
 class SimpleLocalWorkspace(BaseAgentWorkspace):
@@ -177,7 +179,6 @@ def create_code_review_team(
         .add_agent_node(engineer_config)
         .add_agent_node(reviewer_config)
         .add_agent_node(tester_config)
-        .set_task_notification_mode(TaskNotificationMode.SYSTEM_EVENT_DRIVEN)
     )
 
     code_review_team = builder.build()

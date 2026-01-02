@@ -51,6 +51,7 @@ This is a critical architectural distinction that defines how work is distribute
 
 ### 4.2 Task Notification Mode
 The `TaskNotificationMode` attribute in `AgentTeamConfig` acts as a "Style Selector" for the team.
+You can also set the default globally via `AUTOBYTEUS_TASK_NOTIFICATION_MODE` (`agent_manual_notification` or `system_event_driven`).
 
 *   **`AGENT_MANUAL_NOTIFICATION` (Default)**
     *   **Behavior:** The system is passive. It maintains the Task Plan but never interrupts agents.

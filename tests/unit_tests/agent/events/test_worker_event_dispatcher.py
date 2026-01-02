@@ -172,7 +172,7 @@ async def test_dispatch_pending_tool_invocation_auto_execute_false(worker_event_
 @pytest.mark.asyncio
 async def test_dispatch_tool_execution_approval_approved(worker_event_dispatcher, agent_context, mock_event_handler_registry, mock_event_handler):
     tool_invocation_id = "tid1"
-    agent_context.state.pending_tool_approvals = {tool_invocation_id: ToolInvocation(name="approved_tool", id=tool_invocation_id)}
+    agent_context.state.pending_tool_approvals = {tool_invocation_id: ToolInvocation(name="approved_tool", arguments={}, id=tool_invocation_id)}
     _set_status(agent_context, AgentStatus.AWAITING_TOOL_APPROVAL)
     
     event = ToolExecutionApprovalEvent(tool_invocation_id=tool_invocation_id, is_approved=True)
@@ -190,7 +190,7 @@ async def test_dispatch_tool_execution_approval_approved(worker_event_dispatcher
 @pytest.mark.asyncio
 async def test_dispatch_tool_execution_approval_denied(worker_event_dispatcher, agent_context, mock_event_handler_registry, mock_event_handler):
     tool_invocation_id = "tid2"
-    agent_context.state.pending_tool_approvals = {tool_invocation_id: ToolInvocation(name="denied_tool", id=tool_invocation_id)}
+    agent_context.state.pending_tool_approvals = {tool_invocation_id: ToolInvocation(name="denied_tool", arguments={}, id=tool_invocation_id)}
     _set_status(agent_context, AgentStatus.AWAITING_TOOL_APPROVAL)
     
     event = ToolExecutionApprovalEvent(tool_invocation_id=tool_invocation_id, is_approved=False)

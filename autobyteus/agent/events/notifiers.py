@@ -31,11 +31,43 @@ class AgentExternalEventNotifier(EventEmitter):
             f"AgentExternalEventNotifier (NotifierID: {self.object_id}, AgentID: {self.agent_id}) "
             f"emitted {event_type.name}. Kwarg keys for emit: {list(emit_kwargs.keys())}"
         )
-        # Reduce log level for high-frequency events like streaming chunks
-        if event_type == EventType.AGENT_DATA_ASSISTANT_CHUNK:
-            logger.debug(log_message)
+        # Reduce log level for high-frequency events like streaming chunks/segments
+        if event_type in {EventType.AGENT_DATA_ASSISTANT_CHUNK, EventType.AGENT_DATA_SEGMENT_EVENT}:
+            summary = self._summarize_payload(event_type, payload_content)
+            if summary:
+                logger.debug(f"{log_message} | {summary}")
+            else:
+                logger.debug(log_message)
         else:
             logger.info(log_message)
+
+    def _summarize_payload(self, event_type: EventType, payload_content: Optional[Any]) -> Optional[str]:
+        """Return a compact, non-sensitive payload summary for debug logs."""
+        if payload_content is None:
+            return None
+
+        if event_type == EventType.AGENT_DATA_SEGMENT_EVENT and isinstance(payload_content, dict):
+            seg_type = payload_content.get("segment_type")
+            seg_id = payload_content.get("segment_id")
+            seg_event_type = payload_content.get("type")
+            payload = payload_content.get("payload") or {}
+            summary_parts = [f"segment_id={seg_id}", f"segment_type={seg_type}", f"event_type={seg_event_type}"]
+            if isinstance(payload, dict):
+                if "delta" in payload:
+                    delta = payload.get("delta", "")
+                    summary_parts.append(f"delta_len={len(str(delta))}")
+                if "metadata" in payload and isinstance(payload.get("metadata"), dict):
+                    meta_keys = list(payload.get("metadata").keys())
+                    if meta_keys:
+                        summary_parts.append(f"metadata_keys={meta_keys}")
+            return " ".join(summary_parts)
+
+        if event_type == EventType.AGENT_DATA_ASSISTANT_CHUNK and hasattr(payload_content, "content"):
+            content = getattr(payload_content, "content", "") or ""
+            reasoning = getattr(payload_content, "reasoning", "") or ""
+            return f"content_len={len(str(content))} reasoning_len={len(str(reasoning))}"
+
+        return None
 
 
     def _emit_status_update(self,
@@ -58,9 +90,6 @@ class AgentExternalEventNotifier(EventEmitter):
 
     def notify_agent_data_assistant_chunk(self, chunk: 'ChunkResponse'): 
         self._emit_event(EventType.AGENT_DATA_ASSISTANT_CHUNK, payload_content=chunk) 
-
-    def notify_agent_data_assistant_chunk_stream_end(self): 
-        self._emit_event(EventType.AGENT_DATA_ASSISTANT_CHUNK_STREAM_END) 
 
     def notify_agent_data_assistant_complete_response(self, complete_response: 'CompleteResponse'):
         self._emit_event(EventType.AGENT_DATA_ASSISTANT_COMPLETE_RESPONSE, payload_content=complete_response) 

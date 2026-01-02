@@ -12,6 +12,7 @@ from autobyteus.agent.streaming.stream_event_payloads import (
     create_error_event_data,
     create_tool_invocation_approval_requested_data,
     create_tool_invocation_auto_executing_data,
+    create_segment_event_data,
     create_system_task_notification_data, # NEW
     create_inter_agent_message_data, # NEW
     create_todo_list_update_data,
@@ -21,6 +22,7 @@ from autobyteus.agent.streaming.stream_event_payloads import (
     AgentStatusUpdateData,
     ToolInvocationApprovalRequestedData,
     ToolInvocationAutoExecutingData,
+    SegmentEventData,
     ErrorEventData,
     SystemTaskNotificationData, # NEW
     InterAgentMessageData, # NEW
@@ -96,6 +98,9 @@ class AgentEventStream(EventEmitter):
             elif event_type == EventType.AGENT_TOOL_INVOCATION_AUTO_EXECUTING:
                 typed_payload_for_stream_event = create_tool_invocation_auto_executing_data(payload)
                 stream_event_type_for_generic_stream = StreamEventType.TOOL_INVOCATION_AUTO_EXECUTING
+            elif event_type == EventType.AGENT_DATA_SEGMENT_EVENT:
+                typed_payload_for_stream_event = create_segment_event_data(payload)
+                stream_event_type_for_generic_stream = StreamEventType.SEGMENT_EVENT
             elif event_type == EventType.AGENT_ERROR_OUTPUT_GENERATION:
                 typed_payload_for_stream_event = create_error_event_data(payload)
                 stream_event_type_for_generic_stream = StreamEventType.ERROR_EVENT
@@ -110,7 +115,7 @@ class AgentEventStream(EventEmitter):
                 typed_payload_for_stream_event = create_todo_list_update_data(payload)
                 stream_event_type_for_generic_stream = StreamEventType.AGENT_TODO_LIST_UPDATE
             
-            elif event_type in [EventType.AGENT_DATA_ASSISTANT_CHUNK_STREAM_END, EventType.AGENT_DATA_TOOL_LOG_STREAM_END]:
+            elif event_type == EventType.AGENT_DATA_TOOL_LOG_STREAM_END:
                  pass 
             else:
                  logger.debug(f"AgentEventStream received internal event '{event_type.name}' with no direct stream mapping.")

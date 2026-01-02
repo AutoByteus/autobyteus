@@ -134,6 +134,11 @@ Tool parsing is wired into the agent loop via the streaming handler:
 - Completed tool segments are converted into `ToolInvocation` objects.
 - The handler enqueues `PendingToolInvocationEvent` entries once the stream is finalized.
 
+**ID coupling guarantee:** the `ToolInvocation.id` for streamed tool calls is
+**exactly the same** as the `segment_id` emitted by the streaming parser. This
+means tool approval requests and UI segment rendering can be correlated without
+any additional mapping.
+
 Tool execution results are aggregated by `ToolResultEventHandler`.
 For multi-tool turns, results are reordered to match the invocation
 sequence before being sent back to the LLM.

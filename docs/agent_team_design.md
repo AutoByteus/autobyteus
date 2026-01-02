@@ -123,6 +123,7 @@ When complete, the worker enqueues `AgentTeamReadyEvent` and the status updates 
 
 ## 7. Task Plan + Notification Modes
 Teams can run in two modes (see `TaskNotificationMode`):
+You can set the default via `AUTOBYTEUS_TASK_NOTIFICATION_MODE` (`agent_manual_notification` or `system_event_driven`).
 
 ### 7.1 AGENT_MANUAL_NOTIFICATION (default)
 - Coordinator explicitly sends messages to agents using tools.

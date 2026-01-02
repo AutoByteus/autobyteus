@@ -4,7 +4,10 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
 
 from autobyteus.agent_team.context.team_node_config import TeamNodeConfig
-from autobyteus.agent_team.task_notification.task_notification_mode import TaskNotificationMode
+from autobyteus.agent_team.task_notification.task_notification_mode import (
+    TaskNotificationMode,
+    resolve_task_notification_mode,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +22,10 @@ class AgentTeamConfig:
     nodes: Tuple[TeamNodeConfig, ...]
     coordinator_node: TeamNodeConfig
     role: Optional[str] = None
-    task_notification_mode: TaskNotificationMode = TaskNotificationMode.AGENT_MANUAL_NOTIFICATION
+    task_notification_mode: TaskNotificationMode = field(init=False)
 
     def __post_init__(self):
+        object.__setattr__(self, "task_notification_mode", resolve_task_notification_mode())
         if not self.name or not isinstance(self.name, str):
             raise ValueError("The 'name' in AgentTeamConfig must be a non-empty string.")
         if not self.nodes:

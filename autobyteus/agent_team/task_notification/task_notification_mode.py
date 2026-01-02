@@ -2,6 +2,7 @@
 """
 Defines the enum for controlling how task notifications are handled in an agent team.
 """
+import os
 from enum import Enum
 
 class TaskNotificationMode(str, Enum):
@@ -22,3 +23,21 @@ class TaskNotificationMode(str, Enum):
 
     def __str__(self) -> str:
         return self.value
+
+
+ENV_TASK_NOTIFICATION_MODE = "AUTOBYTEUS_TASK_NOTIFICATION_MODE"
+DEFAULT_TASK_NOTIFICATION_MODE = TaskNotificationMode.AGENT_MANUAL_NOTIFICATION
+_VALID_TASK_NOTIFICATION_MODES = {mode.value: mode for mode in TaskNotificationMode}
+
+
+def resolve_task_notification_mode() -> TaskNotificationMode:
+    """
+    Resolve task notification mode from environment.
+
+    Env var: AUTOBYTEUS_TASK_NOTIFICATION_MODE
+    """
+    raw_value = os.getenv(ENV_TASK_NOTIFICATION_MODE)
+    if not raw_value:
+        return DEFAULT_TASK_NOTIFICATION_MODE
+    normalized = raw_value.strip().lower()
+    return _VALID_TASK_NOTIFICATION_MODES.get(normalized, DEFAULT_TASK_NOTIFICATION_MODE)

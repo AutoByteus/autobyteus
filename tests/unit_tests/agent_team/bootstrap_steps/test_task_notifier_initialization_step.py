@@ -4,7 +4,10 @@ from unittest.mock import MagicMock, patch
 
 from autobyteus.agent_team.bootstrap_steps import TaskNotifierInitializationStep
 from autobyteus.agent_team.context import AgentTeamContext, AgentTeamConfig, TeamNodeConfig, AgentTeamRuntimeState
-from autobyteus.agent_team.task_notification.task_notification_mode import TaskNotificationMode
+from autobyteus.agent_team.task_notification.task_notification_mode import (
+    ENV_TASK_NOTIFICATION_MODE,
+    TaskNotificationMode,
+)
 from autobyteus.task_management import InMemoryTaskPlan
 
 @pytest.fixture
@@ -13,17 +16,17 @@ def step_instance() -> TaskNotifierInitializationStep:
     return TaskNotifierInitializationStep()
 
 @pytest.mark.asyncio
-async def test_execute_skips_in_manual_mode(step_instance: TaskNotifierInitializationStep, agent_team_context: AgentTeamContext):
+async def test_execute_skips_in_manual_mode(step_instance: TaskNotifierInitializationStep, agent_team_context: AgentTeamContext, monkeypatch):
     """
     Tests that the step does nothing and succeeds when the team is in AGENT_MANUAL_NOTIFICATION mode.
     """
-    # Arrange - Create a new config with the desired mode
+    # Arrange - Ensure default (manual) mode
+    monkeypatch.delenv(ENV_TASK_NOTIFICATION_MODE, raising=False)
     manual_config = AgentTeamConfig(
         name=agent_team_context.config.name,
         description=agent_team_context.config.description,
         nodes=agent_team_context.config.nodes,
-        coordinator_node=agent_team_context.config.coordinator_node,
-        task_notification_mode=TaskNotificationMode.AGENT_MANUAL_NOTIFICATION
+        coordinator_node=agent_team_context.config.coordinator_node
     )
     agent_team_context.config = manual_config
     
@@ -37,17 +40,17 @@ async def test_execute_skips_in_manual_mode(step_instance: TaskNotifierInitializ
     assert agent_team_context.state.task_notifier is None
 
 @pytest.mark.asyncio
-async def test_execute_initializes_in_event_driven_mode(step_instance: TaskNotifierInitializationStep, agent_team_context: AgentTeamContext):
+async def test_execute_initializes_in_event_driven_mode(step_instance: TaskNotifierInitializationStep, agent_team_context: AgentTeamContext, monkeypatch):
     """
     Tests that the step correctly initializes the notifier in SYSTEM_EVENT_DRIVEN mode.
     """
-    # Arrange - Create a new config with the desired mode
+    # Arrange - Force event-driven mode via environment
+    monkeypatch.setenv(ENV_TASK_NOTIFICATION_MODE, TaskNotificationMode.SYSTEM_EVENT_DRIVEN.value)
     event_driven_config = AgentTeamConfig(
         name=agent_team_context.config.name,
         description=agent_team_context.config.description,
         nodes=agent_team_context.config.nodes,
-        coordinator_node=agent_team_context.config.coordinator_node,
-        task_notification_mode=TaskNotificationMode.SYSTEM_EVENT_DRIVEN
+        coordinator_node=agent_team_context.config.coordinator_node
     )
     agent_team_context.config = event_driven_config
     agent_team_context.state.task_plan = MagicMock(spec=InMemoryTaskPlan) # Ensure task plan exists
@@ -67,17 +70,17 @@ async def test_execute_initializes_in_event_driven_mode(step_instance: TaskNotif
     assert agent_team_context.state.task_notifier is mock_notifier_instance
 
 @pytest.mark.asyncio
-async def test_execute_fails_if_task_plan_missing(step_instance: TaskNotifierInitializationStep, agent_team_context: AgentTeamContext):
+async def test_execute_fails_if_task_plan_missing(step_instance: TaskNotifierInitializationStep, agent_team_context: AgentTeamContext, monkeypatch):
     """
     Tests that the step fails in event-driven mode if the task plan isn't initialized.
     """
-    # Arrange - Create a new config with the desired mode
+    # Arrange - Force event-driven mode via environment
+    monkeypatch.setenv(ENV_TASK_NOTIFICATION_MODE, TaskNotificationMode.SYSTEM_EVENT_DRIVEN.value)
     event_driven_config = AgentTeamConfig(
         name=agent_team_context.config.name,
         description=agent_team_context.config.description,
         nodes=agent_team_context.config.nodes,
-        coordinator_node=agent_team_context.config.coordinator_node,
-        task_notification_mode=TaskNotificationMode.SYSTEM_EVENT_DRIVEN
+        coordinator_node=agent_team_context.config.coordinator_node
     )
     agent_team_context.config = event_driven_config
     agent_team_context.state.task_plan = None
@@ -89,17 +92,17 @@ async def test_execute_fails_if_task_plan_missing(step_instance: TaskNotifierIni
     assert success is False
 
 @pytest.mark.asyncio
-async def test_execute_fails_if_team_manager_missing(step_instance: TaskNotifierInitializationStep, agent_team_context: AgentTeamContext):
+async def test_execute_fails_if_team_manager_missing(step_instance: TaskNotifierInitializationStep, agent_team_context: AgentTeamContext, monkeypatch):
     """
     Tests that the step fails in event-driven mode if the team manager isn't available.
     """
-    # Arrange - Create a new config with the desired mode
+    # Arrange - Force event-driven mode via environment
+    monkeypatch.setenv(ENV_TASK_NOTIFICATION_MODE, TaskNotificationMode.SYSTEM_EVENT_DRIVEN.value)
     event_driven_config = AgentTeamConfig(
         name=agent_team_context.config.name,
         description=agent_team_context.config.description,
         nodes=agent_team_context.config.nodes,
-        coordinator_node=agent_team_context.config.coordinator_node,
-        task_notification_mode=TaskNotificationMode.SYSTEM_EVENT_DRIVEN
+        coordinator_node=agent_team_context.config.coordinator_node
     )
     agent_team_context.config = event_driven_config
     agent_team_context.state.task_plan = MagicMock(spec=InMemoryTaskPlan)

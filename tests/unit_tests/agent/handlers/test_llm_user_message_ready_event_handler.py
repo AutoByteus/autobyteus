@@ -67,8 +67,5 @@ async def test_streaming_safe_parsing(handler, agent_context, mock_llm):
     assert "World" in combined
     assert "<fi" not in combined
     
-    # Verify stream end was called
-    agent_context.status_manager.notifier.notify_agent_data_assistant_chunk_stream_end.assert_called_once()
-    
     # Verify complete response enqueued
     agent_context.input_event_queues.enqueue_internal_system_event.assert_called_once()
