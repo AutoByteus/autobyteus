@@ -4,6 +4,7 @@ from autobyteus.agent.handlers.llm_user_message_ready_event_handler import LLMUs
 from autobyteus.agent.events import LLMUserMessageReadyEvent
 from autobyteus.llm.user_message import LLMUserMessage
 from autobyteus.llm.utils.response_types import ChunkResponse
+from autobyteus.llm.providers import LLMProvider
 
 @pytest.fixture
 def handler():
@@ -18,6 +19,8 @@ async def test_streaming_safe_parsing(handler, agent_context, mock_llm):
     """Test that the handler uses StreamingResponseHandler to safeguard the stream."""
     
     # Setup context
+    mock_llm.model = MagicMock()
+    mock_llm.model.provider = LLMProvider.ANTHROPIC
     agent_context.state.llm_instance = mock_llm
     # Use MagicMock because notify methods are synchronous
     if not isinstance(agent_context.status_manager.notifier, MagicMock):
@@ -69,3 +72,37 @@ async def test_streaming_safe_parsing(handler, agent_context, mock_llm):
     
     # Verify complete response enqueued
     agent_context.input_event_queues.enqueue_internal_system_event.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_provider_specific_json_tool_parsing(handler, agent_context, mock_llm):
+    """Handler should use provider-aware JSON parsing when JSON parser is enabled."""
+    # Setup context with a Gemini provider
+    mock_llm.model = MagicMock()
+    mock_llm.model.provider = LLMProvider.GEMINI
+    agent_context.state.llm_instance = mock_llm
+
+    if not isinstance(agent_context.status_manager.notifier, MagicMock):
+        agent_context.status_manager.notifier = MagicMock()
+
+    agent_context.input_event_queues.enqueue_tool_invocation_request = AsyncMock()
+    agent_context.input_event_queues.enqueue_internal_system_event = AsyncMock()
+
+    json_payload = '{"name": "search", "args": {"query": "autobyteus"}}'
+
+    async def stream_gen(_):
+        yield ChunkResponse(content=json_payload, is_complete=True)
+
+    mock_llm.stream_user_message.side_effect = stream_gen
+
+    msg = LLMUserMessage(content="prompt")
+    event = LLMUserMessageReadyEvent(llm_user_message=msg)
+
+    await handler.handle(event, agent_context)
+
+    assert agent_context.input_event_queues.enqueue_tool_invocation_request.called
+    call = agent_context.input_event_queues.enqueue_tool_invocation_request.call_args
+    invocation_event = call.args[0]
+    tool_invocation = invocation_event.tool_invocation
+    assert tool_invocation.name == "search"
+    assert tool_invocation.arguments == {"query": "autobyteus"}

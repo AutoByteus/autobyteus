@@ -104,10 +104,13 @@ class JsonInitializationState(BaseState):
             if match == 'match':
                 # Found a tool signature
                 if self.context.parse_tool_calls:
-                    # Rewind so JsonToolParsingState can consume from start
-                    self.context.rewind_by(len(self._signature_buffer))
+                    # Signature buffer already consumed by this state; pass it along.
                     self.context.transition_to(
-                        JsonToolParsingState(self.context, self._signature_buffer)
+                        JsonToolParsingState(
+                            self.context,
+                            self._signature_buffer,
+                            signature_consumed=True,
+                        )
                     )
                 else:
                     # Tool parsing disabled - emit as text

@@ -13,6 +13,7 @@ from .events import SegmentEvent, SegmentType
 
 if TYPE_CHECKING:
     from .states.base_state import BaseState
+    from .json_parsing_strategies.base import JsonToolParsingStrategy
 
 
 class ParserConfig:
@@ -20,21 +21,26 @@ class ParserConfig:
     
     # Default patterns for JSON tool call detection
     DEFAULT_JSON_PATTERNS = [
-        '{"name"',
         '{"tool"',
+        '{"tool_calls"',
+        '{"tools"',
         '{"function"',
-        '[{"name"',
-        '[{"tool"'
+        '{"name"',
+        '[{"tool"',
+        '[{"function"',
+        '[{"name"'
     ]
     
     def __init__(
         self,
         parse_tool_calls: bool = True,
         json_tool_patterns: Optional[List[str]] = None,
+        json_tool_parser: Optional["JsonToolParsingStrategy"] = None,
         strategy_order: Optional[List[str]] = None,
     ):
         self.parse_tool_calls = parse_tool_calls
         self.json_tool_patterns = json_tool_patterns or self.DEFAULT_JSON_PATTERNS.copy()
+        self.json_tool_parser = json_tool_parser
         self.strategy_order = strategy_order or ["xml_tag"]
 
 
@@ -77,6 +83,11 @@ class ParserContext:
     def json_tool_patterns(self) -> List[str]:
         """Get the JSON tool call patterns."""
         return self._config.json_tool_patterns
+
+    @property
+    def json_tool_parser(self) -> Optional["JsonToolParsingStrategy"]:
+        """Get the JSON tool parser strategy if configured."""
+        return self._config.json_tool_parser
 
     @property
     def detection_strategies(self):

@@ -10,6 +10,7 @@ from autobyteus.agent.streaming.parser.states.json_initialization_state import (
 )
 from autobyteus.agent.streaming.parser.states.json_tool_parsing_state import JsonToolParsingState
 from autobyteus.agent.streaming.parser.events import SegmentType, SegmentEventType
+from autobyteus.agent.streaming.parser.json_parsing_strategies import GeminiJsonToolParsingStrategy
 
 
 class TestJsonSignatureChecker:
@@ -29,6 +30,16 @@ class TestJsonSignatureChecker:
         """[{"name": pattern matches."""
         checker = JsonToolSignatureChecker()
         assert checker.check_signature('[{"name"') == 'match'
+
+    def test_match_tool_calls_pattern(self):
+        """{"tool_calls": pattern matches."""
+        checker = JsonToolSignatureChecker()
+        assert checker.check_signature('{"tool_calls"') == 'match'
+
+    def test_match_tools_pattern(self):
+        """{"tools": pattern matches."""
+        checker = JsonToolSignatureChecker()
+        assert checker.check_signature('{"tools"') == 'match'
 
     def test_partial_signature(self):
         """Partial signature returns partial."""
@@ -195,3 +206,26 @@ class TestJsonToolParsingState:
         events = ctx.get_and_clear_events()
         end_events = [e for e in events if e.event_type == SegmentEventType.END]
         assert len(end_events) >= 1
+
+    def test_uses_configured_json_parser(self):
+        """Configured JSON parser should drive arguments parsing."""
+        config = ParserConfig(
+            parse_tool_calls=True,
+            json_tool_patterns=['{"name"'],
+            json_tool_parser=GeminiJsonToolParsingStrategy(),
+            strategy_order=["json_tool"],
+        )
+        ctx = ParserContext(config)
+        signature = '{"name"'
+        ctx.append('{"name": "search", "args": {"query": "autobyteus"}}after')
+
+        state = JsonToolParsingState(ctx, signature)
+        ctx.current_state = state
+        state.run()
+
+        events = ctx.get_and_clear_events()
+        end_events = [e for e in events if e.event_type == SegmentEventType.END]
+        assert len(end_events) == 1
+        metadata = end_events[0].payload.get("metadata", {})
+        assert metadata.get("tool_name") == "search"
+        assert metadata.get("arguments") == {"query": "autobyteus"}

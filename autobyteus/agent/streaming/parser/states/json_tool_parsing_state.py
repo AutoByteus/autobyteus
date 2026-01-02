@@ -22,12 +22,19 @@ class JsonToolParsingState(BaseState):
     - {"name": "tool_name", "arguments": {...}}
     - [{"name": "tool_name", "arguments": {...}}]
     
-    Handles nested braces and proper JSON parsing.
+    Handles nested braces and proper JSON parsing. Parsing can be delegated to
+    a provider-aware JSON tool parser supplied via ParserConfig.
     """
     
-    def __init__(self, context: "ParserContext", signature_buffer: str):
+    def __init__(
+        self,
+        context: "ParserContext",
+        signature_buffer: str,
+        signature_consumed: bool = False,
+    ):
         super().__init__(context)
         self._signature_buffer = signature_buffer
+        self._signature_consumed = signature_consumed
         self._brace_count = 0
         self._bracket_count = 0
         self._in_string = False
@@ -49,11 +56,16 @@ class JsonToolParsingState(BaseState):
         consumed: List[str] = []
 
         if not self._initialized:
-            signature = self.context.consume(len(self._signature_buffer))
-            if signature:
-                consumed.append(signature)
-                for char in signature:
+            if self._signature_consumed:
+                consumed.append(self._signature_buffer)
+                for char in self._signature_buffer:
                     self._update_brace_count(char)
+            else:
+                signature = self.context.consume(len(self._signature_buffer))
+                if signature:
+                    consumed.append(signature)
+                    for char in signature:
+                        self._update_brace_count(char)
             self._initialized = True
 
         while self.context.has_more_chars():
@@ -67,12 +79,12 @@ class JsonToolParsingState(BaseState):
                     self.context.emit_segment_content("".join(consumed))
 
                 full_json = self.context.get_current_segment_content()
-                tool_info = self._parse_json_tool_call(full_json)
+                tool_call = self._parse_json_tool_call(full_json)
 
-                if tool_info:
+                if tool_call:
                     self.context.update_current_segment_metadata(
-                        tool_name=tool_info.get("name", "unknown"),
-                        arguments=tool_info.get("arguments", {})
+                        tool_name=tool_call.get("name", "unknown"),
+                        arguments=tool_call.get("arguments", {})
                     )
 
                 self.context.emit_segment_end()
@@ -121,44 +133,51 @@ class JsonToolParsingState(BaseState):
     def _parse_json_tool_call(self, json_str: str) -> Optional[Dict[str, Any]]:
         """
         Parse a JSON string into tool call info.
-        
+
         Returns dict with 'name' and 'arguments', or None if invalid.
         """
+        parser = self.context.json_tool_parser
+        if parser is not None:
+            parsed_calls = parser.parse(json_str)
+            if parsed_calls:
+                return parsed_calls[0]
+            return None
+
         try:
             data = json.loads(json_str)
-            
+
             # Handle array format
             if isinstance(data, list) and len(data) > 0:
                 data = data[0]
-            
+
             if isinstance(data, dict):
                 # Extract tool name from various formats
                 name = (
-                    data.get("name") or 
-                    data.get("tool") or 
-                    data.get("function", {}).get("name") or
-                    "unknown"
+                    data.get("name")
+                    or data.get("tool")
+                    or data.get("function", {}).get("name")
+                    or "unknown"
                 )
-                
+
                 # Extract arguments from various formats
                 arguments = (
-                    data.get("arguments") or 
-                    data.get("parameters") or
-                    data.get("function", {}).get("arguments") or
-                    {}
+                    data.get("arguments")
+                    or data.get("parameters")
+                    or data.get("function", {}).get("arguments")
+                    or {}
                 )
-                
+
                 # Arguments might be a JSON string
                 if isinstance(arguments, str):
                     try:
                         arguments = json.loads(arguments)
                     except json.JSONDecodeError:
                         pass
-                
+
                 return {"name": name, "arguments": arguments}
         except json.JSONDecodeError:
             pass
-        
+
         return None
 
     def finalize(self) -> None:

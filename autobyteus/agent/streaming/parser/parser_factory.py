@@ -6,7 +6,7 @@ Selects a parser implementation based on configuration or environment.
 from __future__ import annotations
 
 import os
-from typing import Callable, Dict, List, Optional, Protocol
+from typing import Callable, Dict, List, Optional, Protocol, TYPE_CHECKING
 
 from .events import SegmentEvent
 from .parser_context import ParserConfig
@@ -30,12 +30,16 @@ class StreamingParserProtocol(Protocol):
 ENV_PARSER_NAME = "AUTOBYTEUS_STREAM_PARSER"
 DEFAULT_PARSER_NAME = "xml"
 
+if TYPE_CHECKING:
+    from .json_parsing_strategies.base import JsonToolParsingStrategy
+
 
 def _clone_config(
     config: Optional[ParserConfig],
     *,
     parse_tool_calls: Optional[bool] = None,
     json_tool_patterns: Optional[List[str]] = None,
+    json_tool_parser: Optional["JsonToolParsingStrategy"] = None,
     strategy_order: Optional[List[str]] = None,
 ) -> ParserConfig:
     base = config or ParserConfig()
@@ -45,6 +49,11 @@ def _clone_config(
             base.json_tool_patterns.copy()
             if json_tool_patterns is None
             else json_tool_patterns
+        ),
+        json_tool_parser=(
+            base.json_tool_parser
+            if json_tool_parser is None
+            else json_tool_parser
         ),
         strategy_order=(
             base.strategy_order.copy()

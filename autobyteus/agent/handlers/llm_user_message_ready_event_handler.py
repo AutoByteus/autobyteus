@@ -10,8 +10,11 @@ from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.agent.streaming.streaming_response_handler import StreamingResponseHandler
 from autobyteus.agent.streaming.parser.parser_context import ParserConfig
+from autobyteus.agent.streaming.parser.json_parsing_strategies.registry import get_json_tool_parsing_profile
 from autobyteus.agent.streaming.parser.events import SegmentEvent, SegmentType, SegmentEventType
 from autobyteus.agent.tool_invocation import ToolInvocationTurn
+from autobyteus.llm.providers import LLMProvider
+from autobyteus.utils.tool_call_format import resolve_tool_call_format
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
@@ -79,12 +82,25 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
 
         # Create parser config from agent configuration
         parse_tool_calls = bool(context.config.tools)  # Enable tool parsing if agent has tools
-        parser_config = ParserConfig(parse_tool_calls=parse_tool_calls)
+        provider = context.state.llm_instance.model.provider if context.state.llm_instance else None
+        json_profile = get_json_tool_parsing_profile(provider)
+        parser_config = ParserConfig(
+            parse_tool_calls=parse_tool_calls,
+            json_tool_patterns=json_profile.signature_patterns,
+            json_tool_parser=json_profile.parser,
+        )
+
+        format_override = resolve_tool_call_format()
+        if format_override in {"xml", "json", "sentinel", "native"}:
+            parser_name = format_override
+        else:
+            parser_name = "xml" if provider == LLMProvider.ANTHROPIC else "json"
         
         # Initialize Streaming Response Handler with config and callback
         streaming_handler = StreamingResponseHandler(
             on_segment_event=emit_segment_event,
-            config=parser_config
+            config=parser_config,
+            parser_name=parser_name,
         )
 
         # State for manual reasoning parts (since they might come from outside the parser)
