@@ -30,10 +30,11 @@ def complex_tool_def():
     return ToolDefinition(
         name="AdvancedFileProcessor",
         description="Processes a file with advanced options.",
-        argument_schema=schema,
-        tool_class=DummyComplexTool,
         origin=ToolOrigin.LOCAL,
-        category=ToolCategory.GENERAL
+        category=ToolCategory.GENERAL,
+        argument_schema_provider=lambda: schema,
+        config_schema_provider=lambda: None,
+        tool_class=DummyComplexTool
     )
 
 def test_provide_openai_json_format(formatter: OpenAiJsonSchemaFormatter, complex_tool_def: ToolDefinition):

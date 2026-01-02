@@ -26,12 +26,25 @@ class SystemPromptProcessorMeta(ABCMeta):
             logger.debug(f"Skipping registration for abstract system prompt processor class: {name}")
             return
 
+        if "get_name" not in dct:
+            logger.error(
+                f"System prompt processor class {name} is missing required static/class method 'get_name'. Skipping registration."
+            )
+            return
+
         try:
             # Get static/class info from the class being defined
-            processor_name = cls.get_name()
+            try:
+                processor_name = cls.get_name()
+            except TypeError:
+                # Fallback for instance-level get_name overrides
+                instance = cls()
+                processor_name = instance.get_name()
 
             if not processor_name or not isinstance(processor_name, str):
-                logger.error(f"System prompt processor class {name} must return a valid string from static get_name(). Skipping registration.")
+                logger.error(
+                    f"System prompt processor class {name} must return a valid string from static get_name(). Skipping registration."
+                )
                 return
             
             # Create definition using name and the class itself

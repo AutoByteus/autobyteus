@@ -126,8 +126,7 @@ def create_code_review_team(
     engineer_model: str, 
     reviewer_model: str, 
     tester_model: str,
-    workspace: BaseAgentWorkspace,
-    use_xml_tool_format: bool
+    workspace: BaseAgentWorkspace
 ):
     """Creates the code review agent team."""
     
@@ -179,10 +178,6 @@ def create_code_review_team(
         .add_agent_node(tester_config)
     )
 
-    if use_xml_tool_format:
-        builder.set_use_xml_tool_format(True)
-        print("--> Forcing XML tool format for all agents in the team.")
-
     code_review_team = builder.build()
 
     return code_review_team
@@ -220,8 +215,7 @@ async def main(args: argparse.Namespace, log_file: Path):
             engineer_model=engineer_model,
             reviewer_model=reviewer_model,
             tester_model=tester_model,
-            workspace=workspace,
-            use_xml_tool_format=args.use_xml_tool_format
+            workspace=workspace
         )
         app = AgentTeamApp(team=team)
         await app.run_async()
@@ -240,7 +234,6 @@ if __name__ == "__main__":
     parser.add_argument("--reviewer-model", type=str, help="Specific LLM model for the CodeReviewer. Defaults to --llm-model.")
     parser.add_argument("--tester-model", type=str, help="Specific LLM model for the Tester. Defaults to --llm-model.")
     parser.add_argument("--output-dir", type=str, default="./code_review_output", help="Directory for the shared workspace.")
-    parser.add_argument("--use-xml-tool-format", action="store_true", help="Force the use of XML format for tool definitions and parsing.")
     parser.add_argument("--help-models", action="store_true", help="Display available LLM models and exit.")
     
     if "--help-models" in sys.argv:

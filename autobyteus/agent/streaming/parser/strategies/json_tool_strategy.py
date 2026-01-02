@@ -14,7 +14,7 @@ class JsonToolStrategy:
     name = "json_tool"
 
     def next_marker(self, context: "ParserContext", start_pos: int) -> int:
-        if not context.parse_tool_calls or context.use_xml_tool_format:
+        if not context.parse_tool_calls:
             return -1
         next_curly = context.find("{", start_pos)
         next_bracket = context.find("[", start_pos)

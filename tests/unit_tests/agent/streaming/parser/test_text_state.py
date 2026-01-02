@@ -96,9 +96,9 @@ class TestTextStateXmlTrigger:
 class TestTextStateJsonTrigger:
     """Tests for JSON trigger detection."""
 
-    def test_json_disabled_by_default_xml_format(self):
-        """With use_xml_tool_format=True (default), '{' is not a trigger."""
-        ctx = ParserContext()  # Default: use_xml_tool_format=True
+    def test_json_disabled_by_default_strategy_order(self):
+        """Default strategy order excludes JSON, so '{' is not a trigger."""
+        ctx = ParserContext()  # Default: strategy_order=["xml_tag"]
         ctx.append("Test {json}")
         
         state = TextState(ctx)
@@ -113,8 +113,8 @@ class TestTextStateJsonTrigger:
         assert any(e.payload.get("delta") == "Test {json}" for e in events if e.event_type == SegmentEventType.CONTENT)
 
     def test_json_enabled_triggers_json_state(self):
-        """With use_xml_tool_format=False, '{' triggers JSON state."""
-        config = ParserConfig(parse_tool_calls=True, use_xml_tool_format=False)
+        """With JSON strategy enabled, '{' triggers JSON state."""
+        config = ParserConfig(parse_tool_calls=True, strategy_order=["json_tool"])
         ctx = ParserContext(config)
         ctx.append("Before {json}")
         
@@ -132,7 +132,7 @@ class TestTextStateJsonTrigger:
 
     def test_json_disabled_when_parse_tool_calls_false(self):
         """With parse_tool_calls=False, '{' is not a trigger."""
-        config = ParserConfig(parse_tool_calls=False, use_xml_tool_format=False)
+        config = ParserConfig(parse_tool_calls=False, strategy_order=["json_tool"])
         ctx = ParserContext(config)
         ctx.append("Test {json}")
         

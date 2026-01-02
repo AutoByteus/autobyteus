@@ -39,10 +39,11 @@ def complex_tool_def():
     return ToolDefinition(
         name="AdvancedFileProcessor",
         description="Processes a file with advanced options.",
-        argument_schema=main_schema,
-        tool_class=BaseTool, # A dummy class is sufficient
         origin=ToolOrigin.LOCAL,
-        category=ToolCategory.GENERAL
+        category=ToolCategory.GENERAL,
+        argument_schema_provider=lambda: main_schema,
+        config_schema_provider=lambda: None,
+        tool_class=BaseTool, # A dummy class is sufficient
     )
 
 def test_provide_default_json_format_for_complex_tool(formatter: DefaultJsonSchemaFormatter, complex_tool_def: ToolDefinition):

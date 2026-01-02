@@ -12,9 +12,9 @@ from autobyteus.agent.streaming.parser.parser_context import ParserConfig
 from autobyteus.agent.streaming.parser.streaming_parser import StreamingParser
 
 
-def test_resolve_parser_name_defaults_to_fsm(monkeypatch):
+def test_resolve_parser_name_defaults_to_xml(monkeypatch):
     monkeypatch.delenv(ENV_PARSER_NAME, raising=False)
-    assert resolve_parser_name() == "fsm"
+    assert resolve_parser_name() == "xml"
 
 
 def test_resolve_parser_name_env_override(monkeypatch):
@@ -22,13 +22,13 @@ def test_resolve_parser_name_env_override(monkeypatch):
     assert resolve_parser_name() == "native"
 
 
-def test_create_fsm_parser():
-    parser = create_streaming_parser(parser_name="fsm")
+def test_create_xml_parser():
+    parser = create_streaming_parser(parser_name="xml")
     assert isinstance(parser, StreamingParser)
 
 
 def test_create_native_parser_disables_tool_parsing():
-    config = ParserConfig(parse_tool_calls=True, use_xml_tool_format=True)
+    config = ParserConfig(parse_tool_calls=True, strategy_order=["xml_tag"])
     parser = create_streaming_parser(config=config, parser_name="native")
     assert parser.config.parse_tool_calls is False
 

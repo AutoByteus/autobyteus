@@ -96,6 +96,36 @@ class TestXmlToolParsingStateArguments:
         end_events = [e for e in events if e.event_type == SegmentEventType.END]
         assert len(end_events) == 1
 
+    def test_named_arguments_with_items(self):
+        """Named <arg> tags and <item> arrays are parsed into structured arguments."""
+        ctx = ParserContext()
+        signature = "<tool name='update_task_status'>"
+        content = (
+            "<arguments>"
+            "<arg name='task_name'>task_a</arg>"
+            "<arg name='deliverables'>"
+            "<item>"
+            "<arg name='file_path'>src/main.py</arg>"
+            "<arg name='summary'>Final version</arg>"
+            "</item>"
+            "</arg>"
+            "</arguments></tool>"
+        )
+        ctx.append(signature + content)
+
+        state = XmlToolParsingState(ctx, signature)
+        ctx.current_state = state
+        state.run()
+
+        events = ctx.get_and_clear_events()
+        end_events = [e for e in events if e.event_type == SegmentEventType.END]
+        assert len(end_events) == 1
+        arguments = end_events[0].payload.get("metadata", {}).get("arguments", {})
+        assert arguments["task_name"] == "task_a"
+        assert arguments["deliverables"] == [
+            {"file_path": "src/main.py", "summary": "Final version"}
+        ]
+
 
 class TestXmlToolParsingStateStreaming:
     """Tests for streaming tool content."""

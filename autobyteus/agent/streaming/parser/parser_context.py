@@ -30,14 +30,12 @@ class ParserConfig:
     def __init__(
         self,
         parse_tool_calls: bool = True,
-        use_xml_tool_format: bool = True,
         json_tool_patterns: Optional[List[str]] = None,
         strategy_order: Optional[List[str]] = None,
     ):
         self.parse_tool_calls = parse_tool_calls
-        self.use_xml_tool_format = use_xml_tool_format
         self.json_tool_patterns = json_tool_patterns or self.DEFAULT_JSON_PATTERNS.copy()
-        self.strategy_order = strategy_order or ["xml_tag", "json_tool"]
+        self.strategy_order = strategy_order or ["xml_tag"]
 
 
 class ParserContext:
@@ -79,11 +77,6 @@ class ParserContext:
     def json_tool_patterns(self) -> List[str]:
         """Get the JSON tool call patterns."""
         return self._config.json_tool_patterns
-
-    @property
-    def use_xml_tool_format(self) -> bool:
-        """Whether to use XML format for tools."""
-        return self._config.use_xml_tool_format
 
     @property
     def detection_strategies(self):

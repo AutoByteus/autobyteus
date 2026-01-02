@@ -13,13 +13,12 @@ from autobyteus.llm.providers import LLMProvider
 @pytest.fixture
 def mock_context_factory():
     """A factory fixture to create a mock AgentContext for testing."""
-    def _factory(use_xml: bool, provider: LLMProvider):
+    def _factory(provider: LLMProvider):
         mock_model = MagicMock(spec=LLMModel)
         mock_model.provider = provider
         mock_llm_instance = MagicMock(spec=BaseLLM)
         mock_llm_instance.model = mock_model
         mock_config = MagicMock(spec=AgentConfig)
-        mock_config.use_xml_tool_format = use_xml
         context = MagicMock(spec=AgentContext)
         context.agent_id = "test_agent_123"
         context.config = mock_config
@@ -38,7 +37,7 @@ def test_get_name(processor: ToolManifestInjectorProcessor):
 
 def test_process_prompt_without_placeholder(processor: ToolManifestInjectorProcessor, mock_context_factory):
     """Tests that the prompt is unchanged if the placeholder is missing."""
-    mock_context = mock_context_factory(use_xml=True, provider=LLMProvider.OPENAI)
+    mock_context = mock_context_factory(provider=LLMProvider.OPENAI)
     original_prompt = "This is a simple prompt without variables."
     processed_prompt = processor.process(original_prompt, {"SomeTool": MagicMock(spec=BaseTool)}, mock_context.agent_id, mock_context)
     assert processed_prompt == original_prompt
@@ -46,7 +45,7 @@ def test_process_prompt_without_placeholder(processor: ToolManifestInjectorProce
 def test_process_with_no_tools(processor: ToolManifestInjectorProcessor, mock_context_factory, caplog):
     """Tests that a 'no tools' message is injected when no tools are provided."""
     caplog.set_level(logging.INFO)
-    mock_context = mock_context_factory(use_xml=True, provider=LLMProvider.OPENAI)
+    mock_context = mock_context_factory(provider=LLMProvider.OPENAI)
     prompt_with_placeholder = "Tools: {{tools}}"
     processed_prompt = processor.process(prompt_with_placeholder, {}, mock_context.agent_id, mock_context)
     
@@ -56,7 +55,7 @@ def test_process_with_no_tools(processor: ToolManifestInjectorProcessor, mock_co
 
 def test_process_only_placeholder_prepends_default_prefix(processor: ToolManifestInjectorProcessor, mock_context_factory):
     """Tests that the default prefix is added when the prompt only contains the placeholder."""
-    mock_context = mock_context_factory(use_xml=True, provider=LLMProvider.OPENAI)
+    mock_context = mock_context_factory(provider=LLMProvider.OPENAI)
     # Test with different amounts of whitespace to confirm robustness
     for prompt_only_placeholder in ["{{tools}}", "  {{ tools }}  ", "\n{{tools}}\n"]:
         processed_prompt = processor.process(prompt_only_placeholder, {}, mock_context.agent_id, mock_context)
@@ -67,7 +66,7 @@ def test_process_only_placeholder_prepends_default_prefix(processor: ToolManifes
 @patch('autobyteus.agent.system_prompt_processor.tool_manifest_injector_processor.ToolManifestProvider')
 def test_process_with_mocked_manifest(MockToolManifestProvider, processor: ToolManifestInjectorProcessor, mock_context_factory):
     """Tests successful injection of a tool manifest from the provider."""
-    mock_context = mock_context_factory(use_xml=True, provider=LLMProvider.ANTHROPIC)
+    mock_context = mock_context_factory(provider=LLMProvider.ANTHROPIC)
     mock_provider_instance = MockToolManifestProvider.return_value
     mock_provider_instance.provide.return_value = "---MOCK TOOL MANIFEST---"
 
@@ -85,7 +84,7 @@ def test_process_with_mocked_manifest(MockToolManifestProvider, processor: ToolM
 def test_process_when_manifest_provider_fails(MockToolManifestProvider, processor: ToolManifestInjectorProcessor, mock_context_factory, caplog):
     """Tests that the processor injects an error message if the manifest provider fails."""
     caplog.set_level(logging.ERROR)
-    mock_context = mock_context_factory(use_xml=True, provider=LLMProvider.ANTHROPIC)
+    mock_context = mock_context_factory(provider=LLMProvider.ANTHROPIC)
     mock_provider_instance = MockToolManifestProvider.return_value
     mock_provider_instance.provide.side_effect = RuntimeError("Manifest Generation Failed")
 
@@ -102,7 +101,7 @@ def test_process_when_manifest_provider_fails(MockToolManifestProvider, processo
 def test_process_with_invalid_jinja_template(processor: ToolManifestInjectorProcessor, mock_context_factory, caplog):
     """Tests that an invalid Jinja2 template is returned as-is."""
     caplog.set_level(logging.ERROR)
-    mock_context = mock_context_factory(use_xml=True, provider=LLMProvider.OPENAI)
+    mock_context = mock_context_factory(provider=LLMProvider.OPENAI)
     # This prompt has an unclosed Jinja2 expression
     invalid_prompt = "This is an invalid template {{ tools "
     

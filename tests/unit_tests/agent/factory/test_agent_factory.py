@@ -64,9 +64,7 @@ def test_get_default_event_handler_registry(agent_factory: AgentFactory):
     assert registry.get_handler(AgentStoppedEvent) is lifecycle_logger_instance
     assert registry.get_handler(AgentErrorEvent) is lifecycle_logger_instance
 
-    # Check that the bootstrap event handler is no longer registered
-    from autobyteus.agent.events.agent_events import AgentPreparationEvent
-    assert registry.get_handler(AgentPreparationEvent) is None
+    # Bootstrap events are registered by default.
 
 
 def test_create_agent_success(agent_factory: AgentFactory, valid_agent_config: AgentConfig):
@@ -80,7 +78,7 @@ def test_create_agent_success(agent_factory: AgentFactory, valid_agent_config: A
     # Define a side_effect function for our mock. This function will be called
     # instead of the real _create_runtime. It allows us to capture the randomly
     # generated agent_id and attach it to our mock_runtime_instance.
-    def mock_create_runtime_side_effect(agent_id: str, config: AgentConfig, workspace: Any):
+    def mock_create_runtime_side_effect(agent_id: str, config: AgentConfig):
         # The Agent constructor reads the agent_id from runtime.context.agent_id.
         # We set it here so the created Agent object has the correct ID.
         mock_runtime_instance.context.agent_id = agent_id
@@ -95,8 +93,7 @@ def test_create_agent_success(agent_factory: AgentFactory, valid_agent_config: A
         # Verify that _create_runtime was called correctly with the agent_id that the agent ended up with
         mock_create_runtime.assert_called_once_with(
             agent_id=agent.agent_id, 
-            config=valid_agent_config, 
-            workspace=None
+            config=valid_agent_config,
         )
         
         # Verify the agent is stored in the factory under the correct ID
@@ -146,7 +143,6 @@ def test_create_runtime_populates_state(MockAgentRuntimeState, MockAgentContext,
     runtime = agent_factory._create_runtime(
         agent_id="test-runtime-agent",
         config=valid_agent_config,
-        workspace=None
     )
 
     # Check that the mock AgentRuntime constructor was called with the correct context.

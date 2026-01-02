@@ -5,7 +5,8 @@ from typing import List, Optional, Union, Tuple, TYPE_CHECKING, Dict, Any
 
 # Correctly import the new master processor and the base class
 from autobyteus.agent.system_prompt_processor import ToolManifestInjectorProcessor, BaseSystemPromptProcessor, AvailableSkillsProcessor
-from autobyteus.agent.llm_response_processor import ProviderAwareToolUsageProcessor, BaseLLMResponseProcessor
+from autobyteus.agent.llm_response_processor import BaseLLMResponseProcessor
+from autobyteus.utils.tool_call_format import resolve_tool_call_format
 
 
 if TYPE_CHECKING:
@@ -25,8 +26,8 @@ class AgentConfig:
     This is the single source of truth for an agent's definition, including
     its identity, capabilities, and default behaviors.
     """
-    # Use the new ProviderAwareToolUsageProcessor as the default
-    DEFAULT_LLM_RESPONSE_PROCESSORS = [ProviderAwareToolUsageProcessor()]
+    # Default to no LLM response processors; tool parsing happens during streaming.
+    DEFAULT_LLM_RESPONSE_PROCESSORS: List['BaseLLMResponseProcessor'] = []
     # Use the new, single, unified processor as the default
     DEFAULT_SYSTEM_PROMPT_PROCESSORS = [ToolManifestInjectorProcessor(), AvailableSkillsProcessor()]
 
@@ -38,7 +39,6 @@ class AgentConfig:
                  system_prompt: Optional[str] = None,
                  tools: Optional[List['BaseTool']] = None,
                  auto_execute_tools: bool = True,
-                 use_xml_tool_format: bool = False,
                  input_processors: Optional[List['BaseAgentUserInputMessageProcessor']] = None,
                  llm_response_processors: Optional[List['BaseLLMResponseProcessor']] = None,
                  system_prompt_processors: Optional[List['BaseSystemPromptProcessor']] = None,
@@ -61,8 +61,6 @@ class AgentConfig:
                            llm_instance's config will be used as the base.
             tools: An optional list of pre-initialized tool instances (subclasses of BaseTool).
             auto_execute_tools: If True, the agent will execute tools without approval.
-            use_xml_tool_format: If True, forces the agent to use XML format for tool
-                                 definitions and parsing, overriding provider defaults.
             input_processors: A list of input processor instances.
             llm_response_processors: A list of LLM response processor instances.
             system_prompt_processors: A list of system prompt processor instances.
@@ -81,7 +79,7 @@ class AgentConfig:
         self.tools = tools or []
         self.workspace = workspace
         self.auto_execute_tools = auto_execute_tools
-        self.use_xml_tool_format = use_xml_tool_format
+        self.tool_call_format = resolve_tool_call_format()
         self.input_processors = input_processors or []
         self.llm_response_processors = llm_response_processors if llm_response_processors is not None else list(self.DEFAULT_LLM_RESPONSE_PROCESSORS)
         self.system_prompt_processors = system_prompt_processors if system_prompt_processors is not None else list(self.DEFAULT_SYSTEM_PROMPT_PROCESSORS)
@@ -91,7 +89,12 @@ class AgentConfig:
         self.initial_custom_data = initial_custom_data
         self.skills = skills or []
 
-        logger.debug(f"AgentConfig created for name '{self.name}', role '{self.role}'. XML tool format override: {self.use_xml_tool_format}")
+        logger.debug(
+            "AgentConfig created for name '%s', role '%s'. Tool call format: %s",
+            self.name,
+            self.role,
+            self.tool_call_format,
+        )
 
     def copy(self) -> 'AgentConfig':
         """
@@ -108,7 +111,6 @@ class AgentConfig:
             system_prompt=self.system_prompt,
             tools=self.tools.copy(),  # Shallow copy the list, but reference the original tool instances
             auto_execute_tools=self.auto_execute_tools,
-            use_xml_tool_format=self.use_xml_tool_format,
             input_processors=self.input_processors.copy(), # Shallow copy the list
             llm_response_processors=self.llm_response_processors.copy(), # Shallow copy the list
             system_prompt_processors=self.system_prompt_processors.copy(), # Shallow copy the list

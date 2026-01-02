@@ -62,11 +62,9 @@ def mock_tool_json_error() -> MockTool:
 def mock_context_for_system_prompt_processors_factory():
     """
     Factory fixture to create a mock AgentContext for system prompt processor tests.
-    Allows specifying the use_xml_tool_format flag.
     """
-    def _factory(use_xml_format: bool = True):
+    def _factory():
         mock_config = MagicMock(spec=AgentConfig)
-        mock_config.use_xml_tool_format = use_xml_format
         mock_config.name = "test_config_for_spp"
         mock_config.role = "spp_tester"
 

@@ -87,7 +87,7 @@ You can assign different LLM models to each agent to simulate a team with differ
 -   `--reviewer-model`: Sets the model for the `Code Reviewer`.
 -   `--tester-model`: Sets the model for the `Tester`.
 -   `--output-dir`: Specifies the shared workspace directory for the agents. Defaults to `./code_review_output`.
--   `--use-xml-tool-format`: Forces all agents in the team to use XML for tool definitions and parsing, overriding any provider defaults (e.g., for Anthropic models).
+-   `AUTOBYTEUS_STREAM_PARSER`: Set to `xml` or `json` to override tool-call formatting/parsing for all agents.
 
 **Example:** Run the team with `gpt-4o` as the engineer and `kimi-latest` for all other roles.
 
@@ -104,12 +104,11 @@ python examples/agent_team/event_driven/run_software_engineering_team.py \
 **Example:** Run a team where each member uses a different LLM. This is useful for testing a "diverse" team composition.
 
 ```bash
-python examples/agent_team/event_driven/run_software_engineering_team.py \
-    --coordinator-model qwen/qwen3-coder-30b:lmstudio@192.168.2.126:1234 \
-    --engineer-model qwen/qwen3-coder-30b:lmstudio@192.168.2.126:1234 \
-    --reviewer-model qwen/qwen3-coder-30b:lmstudio@192.168.2.126:1234 \
-    --tester-model qwen/qwen3-coder-30b:lmstudio@192.168.2.126:1234 \
-    --use-xml-tool-format
+AUTOBYTEUS_STREAM_PARSER=xml python examples/agent_team/event_driven/run_software_engineering_team.py \
+    --coordinator-model mistralai/devstral-small-2-2512:lmstudio@192.168.2.158:1234 \
+    --engineer-model mistralai/devstral-small-2-2512:lmstudio@192.168.2.158:1234 \
+    --reviewer-model mistralai/devstral-small-2-2512:lmstudio@192.168.2.158:1234 \
+    --tester-model mistralai/devstral-small-2-2512:lmstudio@192.168.2.158:1234
 ```
 
 python examples/agent_team/event_driven/run_software_engineering_team.py \

@@ -13,13 +13,13 @@ class TestParserConfig:
         """Default config has expected values."""
         config = ParserConfig()
         assert config.parse_tool_calls is True
-        assert config.use_xml_tool_format is True
+        assert config.strategy_order == ["xml_tag"]
 
     def test_custom_config(self):
         """Custom config values are respected."""
-        config = ParserConfig(parse_tool_calls=False, use_xml_tool_format=False)
+        config = ParserConfig(parse_tool_calls=False, strategy_order=["json_tool"])
         assert config.parse_tool_calls is False
-        assert config.use_xml_tool_format is False
+        assert config.strategy_order == ["json_tool"]
 
 
 class TestParserContextInit:
@@ -29,7 +29,7 @@ class TestParserContextInit:
         """Context initializes with default config."""
         ctx = ParserContext()
         assert ctx.parse_tool_calls is True
-        assert ctx.use_xml_tool_format is True
+        assert ctx.config.strategy_order == ["xml_tag"]
         assert ctx.has_more_chars() is False
         assert ctx.get_current_segment_id() is None
 

@@ -45,7 +45,6 @@ class AgentTeamBuilder:
         self._coordinator_config: Optional[AgentConfig] = None
         self._added_node_names: Set[str] = set()
         self._task_notification_mode: TaskNotificationMode = TaskNotificationMode.AGENT_MANUAL_NOTIFICATION
-        self._use_xml_tool_format: Optional[bool] = None
         logger.info(f"AgentTeamBuilder initialized for team: '{self._name}'.")
 
     def add_agent_node(self, agent_config: AgentConfig, dependencies: Optional[List[NodeDefinition]] = None) -> 'AgentTeamBuilder':
@@ -143,25 +142,6 @@ class AgentTeamBuilder:
         logger.debug(f"Task notification mode set to '{mode.value}'.")
         return self
 
-    def set_use_xml_tool_format(self, use_xml: bool) -> 'AgentTeamBuilder':
-        """
-        Sets the team-level override for using XML tool format.
-
-        If set, this will override the setting on all individual agents within the team.
-
-        Args:
-            use_xml: If True, forces the team to use XML format for tool
-                     definitions and parsing.
-
-        Returns:
-            The builder instance for fluent chaining.
-        """
-        if not isinstance(use_xml, bool):
-            raise TypeError("use_xml must be a boolean.")
-        self._use_xml_tool_format = use_xml
-        logger.debug(f"Team-level XML tool format override set to '{use_xml}'.")
-        return self
-
     def build(self) -> AgentTeam:
         """
         Constructs and returns the final AgentTeam instance using the
@@ -195,8 +175,7 @@ class AgentTeamBuilder:
             role=self._role,
             nodes=tuple(final_nodes),
             coordinator_node=coordinator_node_instance,
-            task_notification_mode=self._task_notification_mode,
-            use_xml_tool_format=self._use_xml_tool_format
+            task_notification_mode=self._task_notification_mode
         )
         
         logger.info(f"AgentTeamConfig created successfully. Name: '{team_config.name}'. Total nodes: {len(final_nodes)}. Coordinator: '{coordinator_node_instance.name}'.")

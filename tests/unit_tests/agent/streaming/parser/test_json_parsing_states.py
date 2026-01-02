@@ -58,7 +58,7 @@ class TestJsonInitializationState:
 
     def test_tool_signature_transitions(self):
         """Tool signature triggers transition to JsonToolParsingState."""
-        config = ParserConfig(parse_tool_calls=True, use_xml_tool_format=False)
+        config = ParserConfig(parse_tool_calls=True, strategy_order=["json_tool"])
         ctx = ParserContext(config)
         ctx.append('{"name": "test", "arguments": {}}more')
         
@@ -71,7 +71,7 @@ class TestJsonInitializationState:
 
     def test_non_tool_becomes_text(self):
         """Non-tool JSON becomes text."""
-        config = ParserConfig(parse_tool_calls=True, use_xml_tool_format=False)
+        config = ParserConfig(parse_tool_calls=True, strategy_order=["json_tool"])
         ctx = ParserContext(config)
         ctx.append('{"data": [1,2,3]}more')
         
@@ -89,7 +89,7 @@ class TestJsonInitializationState:
 
     def test_tool_disabled_becomes_text(self):
         """Tool signature becomes text when parsing disabled."""
-        config = ParserConfig(parse_tool_calls=False, use_xml_tool_format=False)
+        config = ParserConfig(parse_tool_calls=False, strategy_order=["json_tool"])
         ctx = ParserContext(config)
         ctx.append('{"name": "test"}more')
         
@@ -102,7 +102,7 @@ class TestJsonInitializationState:
 
     def test_finalize_emits_buffer(self):
         """Finalize emits buffered content as text."""
-        config = ParserConfig(parse_tool_calls=True, use_xml_tool_format=False)
+        config = ParserConfig(parse_tool_calls=True, strategy_order=["json_tool"])
         ctx = ParserContext(config)
         ctx.append('{"na')  # Partial signature
         

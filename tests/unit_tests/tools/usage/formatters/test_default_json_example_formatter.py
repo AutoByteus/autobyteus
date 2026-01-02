@@ -31,10 +31,11 @@ def simple_tool_def():
     return ToolDefinition(
         name="SimpleTool",
         description="A simple tool.",
-        argument_schema=schema,
-        custom_factory=lambda: None,
         origin=ToolOrigin.LOCAL,
-        category=ToolCategory.GENERAL
+        category=ToolCategory.GENERAL,
+        argument_schema_provider=lambda: schema,
+        config_schema_provider=lambda: None,
+        custom_factory=lambda: None
     )
 
 @pytest.fixture
@@ -47,10 +48,11 @@ def complex_tool_def():
     return ToolDefinition(
         name="ComplexTool",
         description="A complex tool.",
-        argument_schema=schema,
-        custom_factory=lambda: None,
         origin=ToolOrigin.LOCAL,
-        category=ToolCategory.GENERAL
+        category=ToolCategory.GENERAL,
+        argument_schema_provider=lambda: schema,
+        config_schema_provider=lambda: None,
+        custom_factory=lambda: None
     )
 
 # --- Test Cases ---

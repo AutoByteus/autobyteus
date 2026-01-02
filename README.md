@@ -54,8 +54,8 @@ research_team = (
 
 #### Flexible Tool Formatting (JSON & XML)
 Autobyteus intelligently handles tool communication with LLMs while giving you full control.
--   **Provider-Aware by Default**: The framework automatically generates tool manifests and parses responses in the optimal format for the selected LLM provider (e.g., JSON for OpenAI/Gemini, XML for Anthropic).
--   **XML Override for Efficiency**: You can set `use_xml_tool_format=True` on an `AgentConfig` or `AgentTeamBuilder` to force the use of XML for tool calls, which can be more efficient and reliable than JSON for complex tool schemas.
+-   **Provider-Aware by Default**: The framework automatically generates tool manifests in the optimal format for the selected LLM provider (e.g., JSON for OpenAI/Gemini, XML for Anthropic).
+-   **Format Override via Env**: Set `AUTOBYTEUS_STREAM_PARSER=xml` (or `json`) to force tool-call formatting to that format regardless of provider. This can be useful for consistency or for large, complex schemas.
 
 #### Flexible Communication Protocols
 Choose the collaboration pattern that best fits your use case with configurable `TaskNotificationMode`s.

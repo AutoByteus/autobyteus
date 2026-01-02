@@ -52,22 +52,20 @@ class ToolManifestProvider:
 
     def provide(self,
                 tool_definitions: List['ToolDefinition'],
-                provider: Optional[LLMProvider] = None,
-                use_xml_tool_format: bool = False) -> str:
+                provider: Optional[LLMProvider] = None) -> str:
         """
         Generates the manifest string for a list of tools.
 
         Args:
             tool_definitions: A list of ToolDefinition objects.
             provider: The LLM provider, for provider-specific formatting.
-            use_xml_tool_format: If True, forces the use of XML formatters.
 
         Returns:
             A single string containing the formatted manifest.
         """
         tool_blocks = []
 
-        formatter_pair = self._formatting_registry.get_formatter_pair(provider, use_xml_tool_format=use_xml_tool_format)
+        formatter_pair = self._formatting_registry.get_formatter_pair(provider)
         schema_formatter = formatter_pair.schema_formatter
         example_formatter = formatter_pair.example_formatter
 

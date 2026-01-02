@@ -1,7 +1,7 @@
 # file: autobyteus/tests/unit_tests/agent/context/test_agent_context_registry.py
 import pytest
 import gc
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from autobyteus.agent.context.agent_context_registry import AgentContextRegistry
 from autobyteus.agent.context import AgentContext
@@ -9,16 +9,17 @@ from autobyteus.agent.context import AgentContext
 @pytest.fixture
 def clean_registry():
     """Fixture to ensure the AgentContextRegistry singleton is clean for each test."""
-    # The SingletonMeta stores instances in a class attribute `_instances`.
-    if hasattr(AgentContextRegistry, '_instances'):
-        AgentContextRegistry._instances.clear()
+    instances = getattr(AgentContextRegistry, "_instances", None)
+    if isinstance(instances, dict):
+        instances.pop(AgentContextRegistry, None)
     
     registry = AgentContextRegistry()
     yield registry
     
     # Clean up after the test
-    if hasattr(AgentContextRegistry, '_instances'):
-        AgentContextRegistry._instances.clear()
+    instances = getattr(AgentContextRegistry, "_instances", None)
+    if isinstance(instances, dict):
+        instances.pop(AgentContextRegistry, None)
 
 @pytest.fixture
 def mock_context() -> AgentContext:

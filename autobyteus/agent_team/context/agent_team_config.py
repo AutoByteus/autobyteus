@@ -20,7 +20,6 @@ class AgentTeamConfig:
     coordinator_node: TeamNodeConfig
     role: Optional[str] = None
     task_notification_mode: TaskNotificationMode = TaskNotificationMode.AGENT_MANUAL_NOTIFICATION
-    use_xml_tool_format: Optional[bool] = None
 
     def __post_init__(self):
         if not self.name or not isinstance(self.name, str):

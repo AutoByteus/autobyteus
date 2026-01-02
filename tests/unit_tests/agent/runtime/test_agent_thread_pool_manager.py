@@ -26,8 +26,9 @@ def manager_instance():
     Provides a clean AgentThreadPoolManager instance for each test
     and ensures it's properly shut down afterwards.
     """
-    if hasattr(AgentThreadPoolManager, '_instances'):
-        AgentThreadPoolManager._instances.clear()
+    instances = getattr(AgentThreadPoolManager, "_instances", None)
+    if isinstance(instances, dict):
+        instances.pop(AgentThreadPoolManager, None)
     
     manager = AgentThreadPoolManager()
     yield manager
@@ -35,8 +36,9 @@ def manager_instance():
     if not manager._is_shutdown:
         manager.shutdown(wait=True)
     
-    if hasattr(AgentThreadPoolManager, '_instances'):
-        AgentThreadPoolManager._instances.clear()
+    instances = getattr(AgentThreadPoolManager, "_instances", None)
+    if isinstance(instances, dict):
+        instances.pop(AgentThreadPoolManager, None)
 
 class TestAgentThreadPoolManager:
 
@@ -55,8 +57,9 @@ class TestAgentThreadPoolManager:
     @patch('concurrent.futures.ThreadPoolExecutor')
     def test_initialization_with_max_workers(self, mock_executor_class):
         """Tests initialization with a specific max_workers count."""
-        if hasattr(AgentThreadPoolManager, '_instances'):
-            AgentThreadPoolManager._instances.clear()
+        instances = getattr(AgentThreadPoolManager, "_instances", None)
+        if isinstance(instances, dict):
+            instances.pop(AgentThreadPoolManager, None)
         
         mock_executor_instance = MagicMock()
         mock_executor_class.return_value = mock_executor_instance
@@ -72,8 +75,9 @@ class TestAgentThreadPoolManager:
         
         if not manager._is_shutdown:
             manager.shutdown(wait=True)
-        if hasattr(AgentThreadPoolManager, '_instances'):
-            AgentThreadPoolManager._instances.clear()
+        instances = getattr(AgentThreadPoolManager, "_instances", None)
+        if isinstance(instances, dict):
+            instances.pop(AgentThreadPoolManager, None)
 
 
     def test_submit_task_executes_successfully(self, manager_instance):
@@ -183,8 +187,9 @@ class TestAgentThreadPoolManager:
         """
         Tests if __del__ attempts to shutdown if not already done.
         """
-        if hasattr(AgentThreadPoolManager, '_instances'):
-            AgentThreadPoolManager._instances.clear()
+        instances = getattr(AgentThreadPoolManager, "_instances", None)
+        if isinstance(instances, dict):
+            instances.pop(AgentThreadPoolManager, None)
         
         manager_to_delete = AgentThreadPoolManager(max_workers=1)
         assert not manager_to_delete._is_shutdown
@@ -200,8 +205,9 @@ class TestAgentThreadPoolManager:
                     pytest.skip("`__del__` was not called, manually shutting down. Test of __del__ itself is inconclusive.")
                  original_pool.shutdown(wait=True) # type: ignore
 
-        if hasattr(AgentThreadPoolManager, '_instances'):
-            AgentThreadPoolManager._instances.clear()
+        instances = getattr(AgentThreadPoolManager, "_instances", None)
+        if isinstance(instances, dict):
+            instances.pop(AgentThreadPoolManager, None)
 
 
     def test_submit_multiple_tasks(self, manager_instance):

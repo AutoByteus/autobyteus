@@ -18,15 +18,17 @@ from autobyteus.agent.events.agent_events import BootstrapStartedEvent
 @pytest.fixture(scope="module", autouse=True)
 def module_scoped_thread_pool_manager():
     """Ensure AgentThreadPoolManager is managed at the module level for all tests."""
-    if hasattr(AgentThreadPoolManager, '_instances'):
-        AgentThreadPoolManager._instances.clear()
+    instances = getattr(AgentThreadPoolManager, "_instances", None)
+    if isinstance(instances, dict):
+        instances.pop(AgentThreadPoolManager, None)
         
     manager = AgentThreadPoolManager(max_workers=3)
     yield manager
     if not manager._is_shutdown:
         manager.shutdown(wait=True)
-    if hasattr(AgentThreadPoolManager, '_instances'):
-        AgentThreadPoolManager._instances.clear()
+    instances = getattr(AgentThreadPoolManager, "_instances", None)
+    if isinstance(instances, dict):
+        instances.pop(AgentThreadPoolManager, None)
 
 @pytest.fixture
 def mock_dispatcher():

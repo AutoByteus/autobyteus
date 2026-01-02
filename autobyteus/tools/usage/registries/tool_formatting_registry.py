@@ -5,6 +5,7 @@ from typing import Dict, Optional
 from autobyteus.llm.providers import LLMProvider
 from autobyteus.utils.singleton import SingletonMeta
 from .tool_formatter_pair import ToolFormatterPair
+from autobyteus.utils.tool_call_format import resolve_tool_call_format
 
 # Import all necessary formatters
 from autobyteus.tools.usage.formatters import (
@@ -41,20 +42,30 @@ class ToolFormattingRegistry(metaclass=SingletonMeta):
         
         logger.info("ToolFormattingRegistry initialized with direct provider-to-formatter mappings.")
 
-    def get_formatter_pair(self, provider: Optional[LLMProvider], use_xml_tool_format: bool = False) -> ToolFormatterPair:
+    def get_formatter_pair(self, provider: Optional[LLMProvider]) -> ToolFormatterPair:
         """
-        Retrieves the appropriate formatting pair for a given provider, honoring the XML override.
+        Retrieves the appropriate formatting pair for a given provider, honoring the env format override.
 
         Args:
             provider: The LLMProvider enum member.
-            use_xml_tool_format: If True, forces the use of XML formatters.
 
         Returns:
             The corresponding ToolFormatterPair instance.
         """
-        if use_xml_tool_format:
-            logger.debug("XML tool format is forced by configuration. Returning XML formatter pair.")
+        format_override = resolve_tool_call_format()
+        if format_override == "xml":
+            logger.debug("XML tool format is forced by environment. Returning XML formatter pair.")
             return self._xml_override_pair
+        if format_override == "json":
+            logger.debug("JSON tool format is forced by environment. Returning JSON formatter pair.")
+            return self._default_pair
+        if format_override in {"sentinel", "native"}:
+            logger.debug(
+                "Tool format '%s' is not supported by formatter registry. "
+                "Falling back to JSON formatters.",
+                format_override,
+            )
+            return self._default_pair
 
         if provider and provider in self._pairs:
             pair = self._pairs[provider]

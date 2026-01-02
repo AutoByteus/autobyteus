@@ -140,7 +140,7 @@ class TestToolCallParsing:
 
     def test_tool_tag_enabled(self):
         """Parse tool tag with tool parsing enabled."""
-        config = ParserConfig(parse_tool_calls=True, use_xml_tool_format=True)
+        config = ParserConfig(parse_tool_calls=True, strategy_order=["xml_tag"])
         driver = StreamingParserDriver(config)
         driver.feed("Let me check:<tool name='weather'>city=NYC</tool>")
         driver.finalize()

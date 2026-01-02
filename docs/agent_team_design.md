@@ -37,8 +37,7 @@ The facade forwards all calls to the runtime, ensuring concurrency and event-dri
 - enforces unique node names,
 - captures dependencies,
 - sets the coordinator,
-- configures `TaskNotificationMode`,
-- optionally enforces XML tool format at the team level.
+- configures `TaskNotificationMode`.
 
 The builder compiles everything into a single immutable **AgentTeamConfig**.
 
@@ -73,10 +72,15 @@ Each team has a dedicated worker thread (via the shared `AgentThreadPoolManager`
 The worker waits on both using `asyncio.wait(FIRST_COMPLETED)`.
 
 ### 4.3 Event Dispatcher
-`AgentTeamEventDispatcher` routes events to handlers and triggers status changes:
+`AgentTeamEventDispatcher` routes events to handlers and triggers status updates:
 
 - `AgentTeamReadyEvent` -> `IDLE`
 - Errors -> `ERROR`
+
+**External status contract**
+
+Teams emit status via the unified team stream. The payload is:
+- `AgentTeamStatusUpdateData` with `new_status`, optional `old_status`, and optional `error_message`.
 
 ---
 
@@ -110,10 +114,10 @@ Team initialization runs inside the worker loop via `AgentTeamBootstrapper`:
 2. **TaskPlan setup + event bridging** (`TeamContextInitializationStep`)
 3. **Optional notifier** (SYSTEM_EVENT_DRIVEN only)
 4. **Team manifest injection** (inject `{{team}}` into prompts)
-5. **Final agent config preparation** (context injection + tool format override)
+5. **Final agent config preparation** (context injection)
 6. **Coordinator initialization** (ensure coordinator starts early)
 
-When complete, the worker enqueues `AgentTeamReadyEvent` and the status transitions to IDLE.
+When complete, the worker enqueues `AgentTeamReadyEvent` and the status updates to IDLE.
 
 ---
 
@@ -148,7 +152,7 @@ This avoids direct agent-to-agent calls and keeps routing consistent.
 ## 9. Streaming + Observability
 Agent Teams expose a unified stream via `AgentTeamExternalEventNotifier`:
 
-- **TEAM**: status transitions
+- **TEAM**: status updates
 - **AGENT**: re-broadcast agent events
 - **SUB_TEAM**: re-broadcast sub-team streams
 - **TASK_PLAN**: task plan updates

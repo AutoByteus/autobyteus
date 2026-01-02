@@ -27,10 +27,11 @@ def simple_tool_def():
     return ToolDefinition(
         name="SimpleCopyTool",
         description="A simple tool.",
-        argument_schema=schema,
-        custom_factory=lambda: None,
         origin=ToolOrigin.LOCAL,
-        category=ToolCategory.GENERAL
+        category=ToolCategory.GENERAL,
+        argument_schema_provider=lambda: schema,
+        config_schema_provider=lambda: None,
+        custom_factory=lambda: None
     )
 
 @pytest.fixture
@@ -44,10 +45,11 @@ def complex_tool_def():
     return ToolDefinition(
         name="ComplexTool",
         description="A complex tool.",
-        argument_schema=schema,
-        custom_factory=lambda: None,
         origin=ToolOrigin.LOCAL,
-        category=ToolCategory.GENERAL
+        category=ToolCategory.GENERAL,
+        argument_schema_provider=lambda: schema,
+        config_schema_provider=lambda: None,
+        custom_factory=lambda: None
     )
 
 @pytest.fixture
@@ -60,7 +62,15 @@ def nested_object_tool_def() -> ToolDefinition:
     main_schema = ParameterSchema()
     main_schema.add_parameter(ParameterDefinition(name="address", param_type=ParameterType.OBJECT, description="An address.", required=True, object_schema=nested_schema))
     
-    return ToolDefinition("AddressTool", "A tool for addresses.", main_schema, ToolOrigin.LOCAL, "test", custom_factory=lambda: None)
+    return ToolDefinition(
+        name="AddressTool",
+        description="A tool for addresses.",
+        origin=ToolOrigin.LOCAL,
+        category="test",
+        argument_schema_provider=lambda: main_schema,
+        config_schema_provider=lambda: None,
+        custom_factory=lambda: None
+    )
 
 @pytest.fixture
 def array_of_strings_tool_def() -> ToolDefinition:
@@ -73,7 +83,15 @@ def array_of_strings_tool_def() -> ToolDefinition:
         required=False,
         array_item_schema=ParameterType.STRING
     ))
-    return ToolDefinition("TaggerTool", "A tool for tagging.", main_schema, ToolOrigin.LOCAL, "test", custom_factory=lambda: None)
+    return ToolDefinition(
+        name="TaggerTool",
+        description="A tool for tagging.",
+        origin=ToolOrigin.LOCAL,
+        category="test",
+        argument_schema_provider=lambda: main_schema,
+        config_schema_provider=lambda: None,
+        custom_factory=lambda: None
+    )
 
 # --- Tests ---
 

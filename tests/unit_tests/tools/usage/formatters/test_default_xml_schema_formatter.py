@@ -41,10 +41,11 @@ def complex_tool_def():
     return ToolDefinition(
         name="AdvancedFileProcessor",
         description="Processes a file with advanced options.",
-        argument_schema=schema,
-        custom_factory=lambda: None,
         origin=ToolOrigin.LOCAL,
-        category=ToolCategory.GENERAL
+        category=ToolCategory.GENERAL,
+        argument_schema_provider=lambda: schema,
+        config_schema_provider=lambda: None,
+        custom_factory=lambda: None
     )
 
 @pytest.fixture
@@ -53,10 +54,11 @@ def no_arg_tool_def():
     return ToolDefinition(
         name="NoArgTool",
         description="A tool with no arguments.",
-        argument_schema=None,
-        custom_factory=lambda: None,
         origin=ToolOrigin.LOCAL,
-        category=ToolCategory.GENERAL
+        category=ToolCategory.GENERAL,
+        argument_schema_provider=lambda: None,
+        config_schema_provider=lambda: None,
+        custom_factory=lambda: None
     )
 
 @pytest.fixture
@@ -77,7 +79,15 @@ def nested_object_tool_def(nested_object_schema: ParameterSchema) -> ToolDefinit
         description="The user's profile.",
         object_schema=nested_object_schema
     ))
-    return ToolDefinition("UserProfileTool", "A tool for user profiles.", main_schema, ToolOrigin.LOCAL, "test", custom_factory=lambda: None)
+    return ToolDefinition(
+        name="UserProfileTool",
+        description="A tool for user profiles.",
+        origin=ToolOrigin.LOCAL,
+        category="test",
+        argument_schema_provider=lambda: main_schema,
+        config_schema_provider=lambda: None,
+        custom_factory=lambda: None
+    )
 
 @pytest.fixture
 def array_of_objects_tool_def(nested_object_schema: ParameterSchema) -> ToolDefinition:
@@ -89,7 +99,15 @@ def array_of_objects_tool_def(nested_object_schema: ParameterSchema) -> ToolDefi
         description="A list of users.",
         array_item_schema=nested_object_schema
     ))
-    return ToolDefinition("UserListTool", "A tool for user lists.", main_schema, ToolOrigin.LOCAL, "test", custom_factory=lambda: None)
+    return ToolDefinition(
+        name="UserListTool",
+        description="A tool for user lists.",
+        origin=ToolOrigin.LOCAL,
+        category="test",
+        argument_schema_provider=lambda: main_schema,
+        config_schema_provider=lambda: None,
+        custom_factory=lambda: None
+    )
 
 @pytest.fixture
 def array_of_objects_dict_schema_tool_def() -> ToolDefinition:
@@ -108,7 +126,15 @@ def array_of_objects_dict_schema_tool_def() -> ToolDefinition:
             "required": ["name"]
         }
     ))
-    return ToolDefinition("UserListTool", "A tool for user lists.", main_schema, ToolOrigin.LOCAL, "test", custom_factory=lambda: None)
+    return ToolDefinition(
+        name="UserListTool",
+        description="A tool for user lists.",
+        origin=ToolOrigin.LOCAL,
+        category="test",
+        argument_schema_provider=lambda: main_schema,
+        config_schema_provider=lambda: None,
+        custom_factory=lambda: None
+    )
 
 
 @pytest.fixture
@@ -121,7 +147,15 @@ def array_of_strings_tool_def() -> ToolDefinition:
         description="A list of tags.",
         array_item_schema=ParameterType.STRING
     ))
-    return ToolDefinition("TaggerTool", "A tool for tagging.", main_schema, ToolOrigin.LOCAL, "test", custom_factory=lambda: None)
+    return ToolDefinition(
+        name="TaggerTool",
+        description="A tool for tagging.",
+        origin=ToolOrigin.LOCAL,
+        category="test",
+        argument_schema_provider=lambda: main_schema,
+        config_schema_provider=lambda: None,
+        custom_factory=lambda: None
+    )
 
 
 # --- TESTS ---
@@ -227,10 +261,11 @@ def test_provide_with_schema_from_pydantic_converter(formatter: DefaultXmlSchema
     tool_def = ToolDefinition(
         name="PydanticContainerTool",
         description="A tool for Pydantic containers.",
-        argument_schema=generated_schema,
-        custom_factory=lambda: None,
         origin=ToolOrigin.LOCAL,
-        category=ToolCategory.GENERAL
+        category=ToolCategory.GENERAL,
+        argument_schema_provider=lambda: generated_schema,
+        config_schema_provider=lambda: None,
+        custom_factory=lambda: None
     )
 
     # 3. Format the schema to XML

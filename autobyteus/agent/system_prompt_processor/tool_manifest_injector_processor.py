@@ -25,7 +25,7 @@ class ToolManifestInjectorProcessor(BaseSystemPromptProcessor):
     DEFAULT_PREFIX_FOR_TOOLS_ONLY_PROMPT = "You have access to a set of tools. Use them by outputting the appropriate tool call format. The user can only see the output of the tool, not the call itself. The available tools are:\n\n"
 
     def __init__(self):
-        self._manifest_provider = ToolManifestProvider()
+        self._manifest_provider = None
         logger.debug(f"{self.get_name()} initialized.")
 
     @classmethod
@@ -58,9 +58,6 @@ class ToolManifestInjectorProcessor(BaseSystemPromptProcessor):
         if context.llm_instance and context.llm_instance.model:
             llm_provider = context.llm_instance.model.provider
         
-        # Retrieve the override flag from the agent's configuration.
-        use_xml_tool_format = context.config.use_xml_tool_format
-
         # Generate the manifest string for the 'tools' variable.
         tools_manifest: str
         if not tool_instances:
@@ -72,11 +69,12 @@ class ToolManifestInjectorProcessor(BaseSystemPromptProcessor):
             ]
 
             try:
-                # Delegate manifest generation to the provider, passing the override flag.
+                if self._manifest_provider is None:
+                    self._manifest_provider = ToolManifestProvider()
+                # Delegate manifest generation to the provider.
                 tools_manifest = self._manifest_provider.provide(
                     tool_definitions=tool_definitions,
                     provider=llm_provider,
-                    use_xml_tool_format=use_xml_tool_format
                 )
             except Exception as e:
                 logger.exception(f"An unexpected error occurred during tool manifest generation for agent '{agent_id}': {e}")

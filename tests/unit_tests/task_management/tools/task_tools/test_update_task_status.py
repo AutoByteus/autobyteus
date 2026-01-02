@@ -6,8 +6,8 @@ from autobyteus.task_management import InMemoryTaskPlan, Task, TaskStatus
 from autobyteus.task_management.schemas import TaskDefinitionSchema
 from autobyteus.task_management.tools import UpdateTaskStatus
 from autobyteus.task_management.deliverable import FileDeliverable
-from autobyteus.tools.usage.parsers import DefaultXmlToolUsageParser
-from autobyteus.llm.utils.response_types import CompleteResponse
+from autobyteus.agent.streaming.streaming_response_handler import StreamingResponseHandler
+from autobyteus.agent.streaming.parser.parser_context import ParserConfig
 
 @pytest.fixture
 def task_plan() -> InMemoryTaskPlan:
@@ -121,9 +121,14 @@ async def test_execute_with_input_from_xml_parser(agent_context: Mock, task_plan
     </tool>
     """
     
-    # 1. Simulate the parser's output
-    parser = DefaultXmlToolUsageParser()
-    invocations = parser.parse(CompleteResponse(content=xml_tool_call))
+    # 1. Simulate the streaming parser's output
+    handler = StreamingResponseHandler(
+        config=ParserConfig(parse_tool_calls=True),
+        parser_name="xml",
+    )
+    handler.feed(xml_tool_call)
+    handler.finalize()
+    invocations = handler.get_all_invocations()
     assert len(invocations) == 1
     parsed_arguments = invocations[0].arguments
 

@@ -182,7 +182,6 @@ async def main(args: argparse.Namespace):
             system_prompt=system_prompt,
             tools=tools_for_agent,
             workspace=workspace,
-            use_xml_tool_format=True,  # As specified in the prompt
             auto_execute_tools=False   # Require user approval for safety
         )
 

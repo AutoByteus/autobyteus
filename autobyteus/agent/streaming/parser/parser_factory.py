@@ -28,21 +28,19 @@ class StreamingParserProtocol(Protocol):
 
 
 ENV_PARSER_NAME = "AUTOBYTEUS_STREAM_PARSER"
-DEFAULT_PARSER_NAME = "fsm"
+DEFAULT_PARSER_NAME = "xml"
 
 
 def _clone_config(
     config: Optional[ParserConfig],
     *,
     parse_tool_calls: Optional[bool] = None,
-    use_xml_tool_format: Optional[bool] = None,
     json_tool_patterns: Optional[List[str]] = None,
     strategy_order: Optional[List[str]] = None,
 ) -> ParserConfig:
     base = config or ParserConfig()
     return ParserConfig(
         parse_tool_calls=base.parse_tool_calls if parse_tool_calls is None else parse_tool_calls,
-        use_xml_tool_format=base.use_xml_tool_format if use_xml_tool_format is None else use_xml_tool_format,
         json_tool_patterns=(
             base.json_tool_patterns.copy()
             if json_tool_patterns is None
@@ -56,8 +54,22 @@ def _clone_config(
     )
 
 
-def _build_fsm(config: Optional[ParserConfig]) -> StreamingParserProtocol:
-    return StreamingParser(config=config)
+def _build_xml(config: Optional[ParserConfig]) -> StreamingParserProtocol:
+    xml_config = _clone_config(
+        config,
+        parse_tool_calls=True,
+        strategy_order=["xml_tag"],
+    )
+    return StreamingParser(config=xml_config)
+
+
+def _build_json(config: Optional[ParserConfig]) -> StreamingParserProtocol:
+    json_config = _clone_config(
+        config,
+        parse_tool_calls=True,
+        strategy_order=["json_tool"],
+    )
+    return StreamingParser(config=json_config)
 
 
 def _build_native(config: Optional[ParserConfig]) -> StreamingParserProtocol:
@@ -70,13 +82,14 @@ def _build_sentinel(config: Optional[ParserConfig]) -> StreamingParserProtocol:
     sentinel_config = _clone_config(
         config,
         strategy_order=["sentinel"],
-        use_xml_tool_format=True,
+        parse_tool_calls=True,
     )
     return StreamingParser(config=sentinel_config)
 
 
 PARSER_REGISTRY: Dict[str, Callable[[Optional[ParserConfig]], StreamingParserProtocol]] = {
-    "fsm": _build_fsm,
+    "xml": _build_xml,
+    "json": _build_json,
     "native": _build_native,
     "sentinel": _build_sentinel,
 }

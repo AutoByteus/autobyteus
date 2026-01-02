@@ -86,7 +86,7 @@ Shared state container providing:
 - **StreamScanner** – Character buffer with cursor position
 - **EventEmitter** – Queues `SegmentEvent` objects
 - **State management** – `transition_to()` for state changes
-- **Configuration** – `parse_tool_calls`, `use_xml_tool_format` flags
+- **Configuration** – `parse_tool_calls`, `strategy_order` flags
 
 ### State Classes
 
@@ -206,11 +206,12 @@ The streaming system supports multiple parser strategies selected at runtime.
 
 Environment variable:
 
-- `AUTOBYTEUS_STREAM_PARSER`: `fsm` (default), `native`, `sentinel`
+- `AUTOBYTEUS_STREAM_PARSER`: `xml` (default), `json`, `native`, `sentinel`
 
 Strategy notes:
 
-- `fsm`: current state-machine parser (XML/JSON tag detection).
+- `xml`: state-machine parser tuned for XML tag detection.
+- `json`: state-machine parser tuned for JSON tool detection.
 - `native`: disables tool-tag parsing; tool calls are expected from the provider's native tool stream.
 - `sentinel`: sentinel-based format using explicit start/end markers.
   - Sentinel format uses explicit start/end markers with a JSON header.
@@ -238,7 +239,7 @@ Detection uses an ordered strategy list to decide which parser to invoke.
 Default order:
 
 ```python
-ParserConfig(strategy_order=["xml_tag", "json_tool"])
+ParserConfig(strategy_order=["xml_tag"])
 ```
 
 Each strategy reports the next candidate marker; the earliest match wins.

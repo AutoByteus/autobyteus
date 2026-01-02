@@ -55,13 +55,17 @@ async def test_streaming_safe_parsing(handler, agent_context, mock_llm):
     
     await handler.handle(event, agent_context)
     
-    # Verify notifications
-    calls = agent_context.status_manager.notifier.notify_agent_data_assistant_chunk.call_args_list
-    
-    # We expect exactly 2 calls with content "Hello " and "World"
-    assert len(calls) == 2
-    assert calls[0][0][0].content == "Hello "
-    assert calls[1][0][0].content == "World"
+    # Verify segment events were emitted with safe deltas
+    calls = agent_context.status_manager.notifier.notify_agent_segment_event.call_args_list
+    deltas = [
+        call.args[0]["payload"].get("delta")
+        for call in calls
+        if call.args and call.args[0].get("type") == "SEGMENT_CONTENT"
+    ]
+    combined = "".join([d for d in deltas if isinstance(d, str)])
+    assert "Hello " in combined
+    assert "World" in combined
+    assert "<fi" not in combined
     
     # Verify stream end was called
     agent_context.status_manager.notifier.notify_agent_data_assistant_chunk_stream_end.assert_called_once()

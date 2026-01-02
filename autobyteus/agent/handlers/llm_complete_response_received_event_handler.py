@@ -6,7 +6,6 @@ from autobyteus.agent.handlers.base_event_handler import AgentEventHandler
 from autobyteus.agent.events import LLMCompleteResponseReceivedEvent 
 from autobyteus.llm.utils.response_types import CompleteResponse
 from autobyteus.agent.llm_response_processor import BaseLLMResponseProcessor
-from autobyteus.tools.usage.parsers.exceptions import ToolUsageParseException
 
 
 if TYPE_CHECKING:
@@ -100,17 +99,6 @@ class LLMCompleteResponseReceivedEventHandler(AgentEventHandler):
                             )
                         else:
                             logger.debug(f"Agent '{agent_id}': LLMResponseProcessor '{processor_name_for_log}' did not handle the response.")
-
-                    except ToolUsageParseException as e_parse:
-                        # This is the key change: Catch the specific parsing exception
-                        logger.warning(f"Agent '{agent_id}': LLMResponseProcessor '{processor_name_for_log}' failed to parse tool usage: {e_parse}")
-                        if notifier:
-                            notifier.notify_agent_error_output_generation( 
-                                error_source=f"LLMResponseProcessor.{processor_name_for_log}",
-                                error_message="The model's response contained a malformed tool call that could not be understood.",
-                                error_details=str(e_parse)
-                            )
-                        # A parsing failure should not prevent other processors from running.
 
                     except Exception as e: # pragma: no cover
                         logger.error(f"Agent '{agent_id}': Error while using LLMResponseProcessor '{processor_name_for_log}': {e}. This processor is skipped.", exc_info=True)

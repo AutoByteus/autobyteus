@@ -30,10 +30,11 @@ def complex_tool_def():
     return ToolDefinition(
         name="ComplexTool",
         description="A complex tool.",
-        argument_schema=schema,
-        tool_class=DummyComplexTool,
         origin=ToolOrigin.LOCAL,
-        category=ToolCategory.GENERAL
+        category=ToolCategory.GENERAL,
+        argument_schema_provider=lambda: schema,
+        config_schema_provider=lambda: None,
+        tool_class=DummyComplexTool
     )
 
 def test_provide_anthropic_example(formatter: AnthropicJsonExampleFormatter, complex_tool_def: ToolDefinition):
@@ -42,5 +43,5 @@ def test_provide_anthropic_example(formatter: AnthropicJsonExampleFormatter, com
     assert isinstance(xml_output, str)
     # Anthropic uses XML, which is handled by the DefaultXmlExampleFormatter
     assert '<tool name="ComplexTool">' in xml_output
-    assert '<arg name="input_path">example_input_path</arg>' in xml_output
+    assert '<arg name="input_path">A valid string for \'input_path\'</arg>' in xml_output
     assert '<arg name="retries">3</arg>' in xml_output

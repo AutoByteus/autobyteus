@@ -11,16 +11,23 @@ formats (JSON variants for OpenAI-style models, XML for Anthropic). The system m
 
 - Generate correct, provider-aware tool manifests for prompts.
 - Parse provider-specific tool calls from LLM responses into a unified internal model.
-- Allow a configuration override to force XML formatting/parsing when desired.
+- Allow a configuration override to force XML/JSON formatting/parsing when desired.
 - Keep the pipeline extensible without coupling core agent logic to any one provider.
 
 This document describes the current implementation as reflected in the codebase.
+
+Related documentation:
+- Streaming parser design and segment lifecycle: `docs/streaming_parser_design.md`
+
+If you're new to the parsing flow, start with the streaming design doc above.
+This document assumes the FSM emits segment events and the `ToolInvocationAdapter`
+maps those segments into tool calls.
 
 ## Goals
 
 1. Provider-aware tool manifests that include schema + usage examples.
 2. Provider-aware parsing that yields a uniform `ToolInvocation` model.
-3. Configurable override (`use_xml_tool_format`) at agent and team levels.
+3. Configurable override via `AUTOBYTEUS_STREAM_PARSER` when needed.
 4. Resilience to mixed-content responses (tool calls embedded in free text).
 5. Extensible registries for adding new providers or formats.
 
@@ -44,16 +51,13 @@ ToolManifestInjectorProcessor
       ▼
 LLM
       ▼
-LLMCompleteResponseReceivedEventHandler
+LLMUserMessageReadyEventHandler
+      │  (StreamingResponseHandler)
+      ▼
+StreamingParser + ToolInvocationAdapter
       │
       ▼
-ProviderAwareToolUsageProcessor
-      │  (ProviderAwareToolUsageParser + ToolUsageParserRegistry)
-      ▼
-Provider-specific parser (JSON/XML)
-      │
-      ▼
-ToolInvocation list
+ToolInvocation list (per stream)
       │
       ▼
 PendingToolInvocationEvent -> tool execution -> ToolResultEventHandler
@@ -83,7 +87,7 @@ Formatting is handled by a provider-aware registry of formatter pairs:
 - `ToolFormattingRegistry` maps `LLMProvider` -> `ToolFormatterPair`.
 - Each pair includes a schema formatter and an example formatter.
 - Default fallback is JSON when a provider is unknown.
-- XML override forces XML formatters even for JSON providers.
+- Env override (`AUTOBYTEUS_STREAM_PARSER=xml|json`) forces a specific formatter.
 
 The manifest itself is composed by `ToolManifestProvider`:
 
@@ -101,77 +105,60 @@ Key files:
 - `autobyteus/tools/usage/registries/tool_formatting_registry.py`
 - `autobyteus/tools/usage/formatters/*`
 
-### 3) Provider-aware Parsing
+### 3) Streaming Parsing (FSM)
 
-Parsing is the inverse of formatting and is implemented in two layers:
+Parsing is performed during streaming by the FSM-based `StreamingParser`.
 
-1) `ProviderAwareToolUsageParser` selects a parser based on the agent’s
-   provider and the XML override flag.
-2) `ToolUsageParserRegistry` maps `LLMProvider` -> parser instance.
+- `StreamingResponseHandler` feeds chunks and emits `SegmentEvent`s.
+- `ToolInvocationAdapter` converts completed tool segments into `ToolInvocation`.
+- Parser strategies are selected by `AUTOBYTEUS_STREAM_PARSER`:
+  - `xml` (default): XML tag detection.
+  - `json`: JSON tool detection.
+  - `sentinel`: explicit sentinel markers.
+  - `native`: disables tool-tag parsing (provider-native tool calls only).
 
-Provider parsers currently in use:
-
-- OpenAI-style JSON (`OpenAiJsonToolUsageParser`) for OPENAI, MISTRAL,
-  DEEPSEEK, GROK.
-- Gemini JSON (`GeminiJsonToolUsageParser`).
-- XML (`DefaultXmlToolUsageParser`) for ANTHROPIC and XML override.
-- A default JSON parser (`DefaultJsonToolUsageParser`) as fallback.
-
-JSON parsing uses a robust extractor that scans both inline JSON and
-```json``` fenced blocks, keeping order. Each JSON parser supports multiple
-response shapes to tolerate provider or prompt variations.
-
-XML parsing scans for `<tool name="...">` blocks and delegates argument
-parsing to a state-machine-based XML arguments parser. Arrays are modeled
-as repeated `<item>` tags, consistent with the XML examples in the manifest.
+The parsing pipeline is representation-driven: any syntax that can be emitted
+as a segment can become a tool call via the adapter. To add a new representation,
+introduce a new segment type or strategy and register the mapping in
+`autobyteus/agent/streaming/parser/tool_syntax_registry.py`.
 
 Key files:
-- `autobyteus/tools/usage/parsers/provider_aware_tool_usage_parser.py`
-- `autobyteus/tools/usage/registries/tool_usage_parser_registry.py`
-- `autobyteus/tools/usage/parsers/*`
-- `autobyteus/tools/usage/parsers/_json_extractor.py`
+- `autobyteus/agent/streaming/streaming_response_handler.py`
+- `autobyteus/agent/streaming/parser/*`
 
 ### 4) LLM Response Processing and Tool Invocation
 
-Tool parsing is wired into the agent loop via a mandatory
-`ProviderAwareToolUsageProcessor`:
+Tool parsing is wired into the agent loop via the streaming handler:
 
-- Executed early in the LLM response processing chain.
-- Converts parsed tool calls into `ToolInvocation` objects.
-- Assigns session-unique IDs (deterministic base ID + counter suffix).
-- Enqueues `PendingToolInvocationEvent` for each invocation.
-
-If parsing fails with a `ToolUsageParseException`, the
-`LLMCompleteResponseReceivedEventHandler` logs and notifies the frontend
-without killing the rest of the pipeline.
+- `LLMUserMessageReadyEventHandler` streams chunks through `StreamingResponseHandler`.
+- Completed tool segments are converted into `ToolInvocation` objects.
+- The handler enqueues `PendingToolInvocationEvent` entries once the stream is finalized.
 
 Tool execution results are aggregated by `ToolResultEventHandler`.
 For multi-tool turns, results are reordered to match the invocation
 sequence before being sent back to the LLM.
 
 Key files:
-- `autobyteus/agent/llm_response_processor/provider_aware_tool_usage_processor.py`
-- `autobyteus/agent/handlers/llm_complete_response_received_event_handler.py`
+- `autobyteus/agent/handlers/llm_user_message_ready_event_handler.py`
+- `autobyteus/agent/streaming/streaming_response_handler.py`
 - `autobyteus/agent/tool_invocation.py`
 - `autobyteus/agent/handlers/tool_result_event_handler.py`
 
 ### 5) Configuration and Overrides
 
-- `AgentConfig.use_xml_tool_format` forces XML formatting + parsing.
-- `AgentTeamConfig.use_xml_tool_format` overrides all agents when set.
-- Defaults are provider-aware (JSON for most, XML for Anthropic).
+- `AUTOBYTEUS_STREAM_PARSER` controls both the streaming parser strategy and
+  the tool-call formatting override (`xml`, `json`, `sentinel`, `native`).
+- Defaults remain provider-aware (JSON for most, XML for Anthropic).
 
 Key files:
-- `autobyteus/agent/context/agent_config.py`
-- `autobyteus/agent_team/bootstrap_steps/agent_configuration_preparation_step.py`
+- `autobyteus/agent/streaming/parser/parser_factory.py`
+- `autobyteus/utils/tool_call_format.py`
 
 ## Design Patterns
 
-- Strategy: Provider-specific formatters and parsers implement common interfaces.
-- Registry + Singleton: Central mappings from provider -> formatter/parser.
-- Template Method: Base formatter/parser classes define required interfaces.
-- Adapter: Provider-specific formats are adapted into uniform `ToolInvocation`.
-- Chain of Responsibility: LLM response processors run in ordered sequence.
+- Strategy: Provider-specific formatters implement common interfaces.
+- Registry + Singleton: Central mappings from provider -> formatter pair.
+- Adapter: Segment events are adapted into uniform `ToolInvocation`.
 - Factory: ToolRegistry constructs tool instances from ToolDefinition metadata.
 
 ## Extensibility Guidelines
@@ -179,9 +166,8 @@ Key files:
 To add a new provider format:
 
 1. Implement a schema formatter + example formatter.
-2. Implement a parser that yields `ToolInvocation` objects.
-3. Register both in `ToolFormattingRegistry` and `ToolUsageParserRegistry`.
-4. Ensure the provider enum is defined in `LLMProvider`.
+2. Register the pair in `ToolFormattingRegistry`.
+3. Ensure the provider enum is defined in `LLMProvider`.
 
 To add a new tool:
 
@@ -191,9 +177,5 @@ To add a new tool:
 
 ## Notes and Caveats
 
-- JSON parsing is intentionally permissive to tolerate provider output variance.
-- XML parsing treats unknown tags as literal text and only interprets
-  `<tool>`, `<arguments>`, `<arg>`, and `<item>`.
-- The XML override should be used carefully for providers with strict
-  tool-call expectations, as it bypasses provider-native formats.
-
+- The streaming parser only interprets configured tag formats; unknown tags are streamed as text.
+- For provider-native tool calls, set `AUTOBYTEUS_STREAM_PARSER=native` and rely on the provider stream.

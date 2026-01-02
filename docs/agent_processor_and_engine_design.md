@@ -67,10 +67,10 @@ All processors share a common architectural pattern:
 
 #### C. LLM Response Processors (`agent/llm_response_processor`)
 
-- **Role**: Analyze the `CompleteResponse` received from the LLM. This is the critical "decision-making" stage.
-- **Key Implementation**: `ProviderAwareToolUsageProcessor`.
-  - **Parsing**: Uses a strategy pattern (`ProviderAwareToolUsageParser`) to detect tool calls in provider-specific formats (JSON, XML, etc.).
-  - **Action**: If a tool call is detected, it creates a `ToolInvocation` object and enqueues a `PendingToolInvocationEvent`, effectively steering the agent from "thinking" to "acting".
+- **Role**: Optional post-processing of the `CompleteResponse` received from the LLM.
+- **Tool Parsing Note**: Tool invocation parsing is handled during streaming by
+  `LLMUserMessageReadyEventHandler` using `StreamingResponseHandler` and the
+  `ToolInvocationAdapter`. LLM response processors are no longer required by default.
 
 #### D. Tool Invocation Preprocessors (`agent/tool_invocation_preprocessor`)
 
@@ -107,13 +107,10 @@ The system must tell the LLM how to call tools. This is handled by **Formatters*
 
 ### 4.3. Parsing (Execution)
 
-When the LLM responds, the system must interpret its intent.
+When the LLM responds, the system interprets intent during streaming:
 
-- **`ProviderAwareToolUsageParser`**: Selects the correct parsing strategy based on the active LLM provider.
-- **Strategies**:
-  - **JSON Strategy**: Extracts OpenAI-style function calls.
-  - **XML Strategy**: Parses Anthropic-style `<tool_use>` tags.
-  - **Universal/Fallback**: Can handle loose JSON or custom delimiters if configured.
+- **`StreamingParser`**: FSM-based streaming parser that detects XML/JSON/sentinel tool blocks.
+- **`ToolInvocationAdapter`**: Converts completed tool segments into `ToolInvocation` objects.
 
 ---
 
@@ -125,7 +122,7 @@ When the LLM responds, the system must interpret its intent.
 4.  **System Prompt Processor (Bootstrap)**: `ToolManifestInjectorProcessor` has already inserted the schema for `list_directory` into the system prompt during bootstrapping.
 5.  **LLM Call**: Agent sends prompt to LLM.
 6.  **LLM Response**: LLM returns text/JSON requesting `list_directory(path="src")`.
-7.  **LLM Response Processor**: `ProviderAwareToolUsageProcessor` parses this, identifies the tool call, and enqueues `PendingToolInvocationEvent`.
+7.  **Streaming Parser**: `LLMUserMessageReadyEventHandler` parses the stream, identifies tool calls, and enqueues `PendingToolInvocationEvent`.
 8.  **Preprocessor**: Checks if `list_directory` is allowed (e.g., within sandbox).
 9.  **Execution**: Tool runs, returns list of files.
 10. **Result Processor**: Formats the file list.

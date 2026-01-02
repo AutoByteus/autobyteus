@@ -16,6 +16,10 @@ class AvailableSkillsProcessor(BaseSystemPromptProcessor):
     For other skills, it injects a summary (awareness).
     """
 
+    @classmethod
+    def get_name(cls) -> str:
+        return "AvailableSkillsProcessor"
+
     def process(self,
                 system_prompt: str,
                 tool_instances: Dict[str, 'BaseTool'],

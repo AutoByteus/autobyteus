@@ -19,9 +19,9 @@ def _parameter_type_to_json_schema_type(param_type: ParameterType) -> str:
 
 class MockTool(BaseTool):
     """A configurable mock tool for testing system prompt processing."""
-    
     _class_level_name = "MockToolClassDefaultName"
     _class_level_description = "Mock tool class default description."
+    _class_level_args_schema: Optional[ParameterSchema] = None
 
     def __init__(self, 
                  name: str, 
@@ -43,14 +43,17 @@ class MockTool(BaseTool):
         
         super().__init__()
 
-    def get_name(self) -> str: # Overriding the classmethod for instance-specific name
-        return self._instance_name
+    @classmethod
+    def get_name(cls) -> str:
+        return cls._class_level_name
 
-    def get_description(self) -> str: # Overriding for instance-specific description
-        return self._instance_description
+    @classmethod
+    def get_description(cls) -> str:
+        return cls._class_level_description
     
-    def get_argument_schema(self) -> Optional[ParameterSchema]: # Overriding for instance-specific schema
-        return self._instance_args_schema
+    @classmethod
+    def get_argument_schema(cls) -> Optional[ParameterSchema]:
+        return cls._class_level_args_schema
 
     def tool_usage_xml(self) -> str: 
         if self._xml_should_raise:
@@ -70,11 +73,11 @@ class MockTool(BaseTool):
 
         # Re-implement a simplified version of BaseTool's logic since we can't call it directly
         # without a circular dependency or more complex mocking.
-        schema_to_use = self.get_argument_schema()
+        schema_to_use = self._instance_args_schema
         
         json_schema: Dict[str, Any] = {
-            "name": self.get_name(),
-            "description": self.get_description(),
+            "name": self._instance_name,
+            "description": self._instance_description,
             "input_schema": {
                 "type": "object",
                 "properties": {},

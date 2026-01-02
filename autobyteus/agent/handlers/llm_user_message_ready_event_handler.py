@@ -4,13 +4,14 @@ import traceback
 from typing import TYPE_CHECKING, cast, Optional, List
 
 from autobyteus.agent.handlers.base_event_handler import AgentEventHandler
-from autobyteus.agent.events import LLMUserMessageReadyEvent, LLMCompleteResponseReceivedEvent 
+from autobyteus.agent.events import LLMUserMessageReadyEvent, LLMCompleteResponseReceivedEvent, PendingToolInvocationEvent 
 from autobyteus.llm.user_message import LLMUserMessage
 from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.agent.streaming.streaming_response_handler import StreamingResponseHandler
 from autobyteus.agent.streaming.parser.parser_context import ParserConfig
 from autobyteus.agent.streaming.parser.events import SegmentEvent, SegmentType, SegmentEventType
+from autobyteus.agent.tool_invocation import ToolInvocationTurn
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
@@ -78,10 +79,7 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
 
         # Create parser config from agent configuration
         parse_tool_calls = bool(context.config.tools)  # Enable tool parsing if agent has tools
-        parser_config = ParserConfig(
-            parse_tool_calls=parse_tool_calls,
-            use_xml_tool_format=context.config.use_xml_tool_format
-        )
+        parser_config = ParserConfig(parse_tool_calls=parse_tool_calls)
         
         # Initialize Streaming Response Handler with config and callback
         streaming_handler = StreamingResponseHandler(
@@ -144,10 +142,27 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
                     streaming_handler.feed(chunk_response.content)
 
             # End of stream loop
-            
+
             # Finalize the stream parser to get any held-back content
             streaming_handler.finalize()
-            
+
+            # After finalization, enqueue any parsed tool invocations.
+            if parse_tool_calls:
+                tool_invocations = streaming_handler.get_all_invocations()
+                if tool_invocations:
+                    context.state.active_multi_tool_call_turn = ToolInvocationTurn(
+                        invocations=tool_invocations
+                    )
+                    logger.info(
+                        "Agent '%s': Parsed %d tool invocations from streaming parser.",
+                        agent_id,
+                        len(tool_invocations),
+                    )
+                    for invocation in tool_invocations:
+                        await context.input_event_queues.enqueue_tool_invocation_request(
+                            PendingToolInvocationEvent(tool_invocation=invocation)
+                        )
+
             # Close any open reasoning segment
             if current_reasoning_part_id:
                 end_event = SegmentEvent.end(segment_id=current_reasoning_part_id)
@@ -155,10 +170,10 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
 
             if notifier:
                 try:
-                    # We can keep this for legacy or generic end signaling, 
+                    # We can keep this for legacy or generic end signaling,
                     # though PartEnd events should suffice for parts.
-                    notifier.notify_agent_data_assistant_chunk_stream_end() 
-                except Exception as e_notify_end: 
+                    notifier.notify_agent_data_assistant_chunk_stream_end()
+                except Exception as e_notify_end:
                     logger.error(f"Agent '{agent_id}': Error notifying assistant chunk stream end: {e_notify_end}", exc_info=True)
 
             logger.debug(f"Agent '{agent_id}' LLM stream completed. Full response length: {len(complete_response_text)}.")
@@ -218,4 +233,3 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
         )
         await context.input_event_queues.enqueue_internal_system_event(llm_complete_event)
         logger.info(f"Agent '{agent_id}' enqueued LLMCompleteResponseReceivedEvent from LLMUserMessageReadyEventHandler.")
-

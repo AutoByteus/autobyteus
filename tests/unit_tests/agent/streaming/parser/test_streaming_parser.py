@@ -70,7 +70,7 @@ class TestStreamingParserToolParsing:
 
     def test_tool_call_enabled(self):
         """Parse tool call with parsing enabled."""
-        config = ParserConfig(parse_tool_calls=True, use_xml_tool_format=True)
+        config = ParserConfig(parse_tool_calls=True, strategy_order=["xml_tag"])
         parser = StreamingParser(config)
         
         events = parser.feed_and_finalize(
@@ -94,7 +94,7 @@ class TestStreamingParserToolParsing:
 
     def test_json_tool_call_split_across_chunks(self):
         """JSON tool call parsing works across chunks."""
-        config = ParserConfig(parse_tool_calls=True, use_xml_tool_format=False)
+        config = ParserConfig(parse_tool_calls=True, strategy_order=["json_tool"])
         parser = StreamingParser(config)
 
         chunks = [
