@@ -16,6 +16,7 @@ from .stream_event_payloads import (
     ErrorEventData,
     ToolInvocationApprovalRequestedData,
     ToolInvocationAutoExecutingData,
+    SegmentEventData,
     SystemTaskNotificationData, # NEW
     InterAgentMessageData, # NEW
     ToDoListUpdateData,
@@ -35,6 +36,7 @@ class StreamEventType(str, Enum):
     ERROR_EVENT = "error_event" 
     TOOL_INVOCATION_APPROVAL_REQUESTED = "tool_invocation_approval_requested" 
     TOOL_INVOCATION_AUTO_EXECUTING = "tool_invocation_auto_executing"
+    SEGMENT_EVENT = "segment_event"
     SYSTEM_TASK_NOTIFICATION = "system_task_notification" # NEW
     INTER_AGENT_MESSAGE = "inter_agent_message"  # NEW
     AGENT_TODO_LIST_UPDATE = "agent_todo_list_updated"
@@ -48,6 +50,7 @@ _STREAM_EVENT_TYPE_TO_PAYLOAD_CLASS: Dict[StreamEventType, Type[BaseModel]] = {
     StreamEventType.ERROR_EVENT: ErrorEventData,
     StreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED: ToolInvocationApprovalRequestedData,
     StreamEventType.TOOL_INVOCATION_AUTO_EXECUTING: ToolInvocationAutoExecutingData,
+    StreamEventType.SEGMENT_EVENT: SegmentEventData,
     StreamEventType.SYSTEM_TASK_NOTIFICATION: SystemTaskNotificationData, # NEW
     StreamEventType.INTER_AGENT_MESSAGE: InterAgentMessageData, # NEW
     StreamEventType.AGENT_TODO_LIST_UPDATE: ToDoListUpdateData,

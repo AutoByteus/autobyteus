@@ -1,6 +1,6 @@
 # file: autobyteus/autobyteus/agent/streaming/stream_event_payloads.py
 import logging
-from typing import Dict, Any, Optional, List, Union 
+from typing import Dict, Any, Optional, List, Union
 from pydantic import BaseModel, Field
 
 from autobyteus.llm.utils.token_usage import TokenUsage 
@@ -61,6 +61,15 @@ class ToolInvocationAutoExecutingData(BaseStreamPayload):
     tool_name: str
     arguments: Dict[str, Any]
 
+class SegmentEventData(BaseStreamPayload):
+    event_type: str = Field(alias="type")
+    segment_id: str
+    segment_type: Optional[str] = None
+    payload: Dict[str, Any] = Field(default_factory=dict)
+
+    class Config:
+        populate_by_name = True
+
 # NEW PAYLOAD
 class SystemTaskNotificationData(BaseStreamPayload):
     sender_id: str
@@ -93,6 +102,7 @@ StreamDataPayload = Union[
     ErrorEventData,
     ToolInvocationApprovalRequestedData,
     ToolInvocationAutoExecutingData,
+    SegmentEventData,
     SystemTaskNotificationData, # NEW
     InterAgentMessageData, # NEW
     ToDoListUpdateData,
@@ -206,6 +216,13 @@ def create_tool_invocation_auto_executing_data(auto_exec_data_dict: Any) -> Tool
     if isinstance(auto_exec_data_dict, dict):
         return ToolInvocationAutoExecutingData(**auto_exec_data_dict)
     raise ValueError(f"Cannot create ToolInvocationAutoExecutingData from {type(auto_exec_data_dict)}")
+
+def create_segment_event_data(event_data: Any) -> SegmentEventData:
+    if isinstance(event_data, SegmentEventData):
+        return event_data
+    if isinstance(event_data, dict):
+        return SegmentEventData(**event_data)
+    raise ValueError(f"Cannot create SegmentEventData from {type(event_data)}")
 
 def create_inter_agent_message_data(msg_data: Any) -> InterAgentMessageData:
     if isinstance(msg_data, dict):

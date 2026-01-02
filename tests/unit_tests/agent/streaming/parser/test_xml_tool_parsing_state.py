@@ -126,6 +126,31 @@ class TestXmlToolParsingStateArguments:
             {"file_path": "src/main.py", "summary": "Final version"}
         ]
 
+    def test_arguments_with_unescaped_lt_in_text(self):
+        """Text containing '<' is sanitized so XML parsing still succeeds."""
+        ctx = ParserContext()
+        signature = "<tool name='create_tasks'>"
+        content = (
+            "<arguments>"
+            "<arg name='tasks'>"
+            "<item>"
+            "<arg name='description'>Handle n <= 0 case</arg>"
+            "</item>"
+            "</arg>"
+            "</arguments></tool>"
+        )
+        ctx.append(signature + content)
+
+        state = XmlToolParsingState(ctx, signature)
+        ctx.current_state = state
+        state.run()
+
+        events = ctx.get_and_clear_events()
+        end_events = [e for e in events if e.event_type == SegmentEventType.END]
+        assert len(end_events) == 1
+        arguments = end_events[0].payload.get("metadata", {}).get("arguments", {})
+        assert arguments["tasks"] == [{"description": "Handle n <= 0 case"}]
+
 
 class TestXmlToolParsingStateStreaming:
     """Tests for streaming tool content."""

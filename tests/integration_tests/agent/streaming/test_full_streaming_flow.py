@@ -153,6 +153,80 @@ All done!
         assert "execute_bash" in names
         assert "verify_result" in names
 
+    def test_write_file_file_segment_with_raw_html_comment(self):
+        """File shorthand supports raw HTML (including comments) without escaping."""
+        handler = StreamingResponseHandler()
+
+        response = """<file path="/site/index.html">
+<!doctype html>
+<html>
+  <body>
+    <!-- hero -->
+    <div class="hero">& welcome</div>
+  </body>
+</html>
+</file>"""
+        handler.feed(response)
+        handler.finalize()
+
+        invocations = handler.get_all_invocations()
+        assert len(invocations) == 1
+        assert invocations[0].name == "write_file"
+        assert invocations[0].arguments["path"] == "/site/index.html"
+        content = invocations[0].arguments["content"]
+        assert "<!-- hero -->" in content
+        assert "<div class=\"hero\">& welcome</div>" in content
+
+    def test_write_file_tool_with_cdata_content(self):
+        """XML tool calls can use CDATA for raw content without entity escaping."""
+        handler = StreamingResponseHandler()
+
+        response = (
+            "<tool name=\"write_file\">"
+            "<path>/site/app.js</path>"
+            "<content><![CDATA["
+            "const html = '<div class=\"app\">& ready</div>';\n"
+            "// ok\n"
+            "]]></content>"
+            "</tool>"
+        )
+        handler.feed(response)
+        handler.finalize()
+
+        invocations = handler.get_all_invocations()
+        assert len(invocations) == 1
+        assert invocations[0].name == "write_file"
+        assert invocations[0].arguments["path"] == "/site/app.js"
+        content = invocations[0].arguments["content"]
+        assert "<div class=\"app\">& ready</div>" in content
+        assert "// ok" in content
+
+    def test_tool_call_full_chunk_with_unescaped_lt(self):
+        """Single-chunk tool call handles unescaped '<' in arg text."""
+        handler = StreamingResponseHandler()
+
+        response = (
+            "<tool name=\"create_tasks\">"
+            "<arguments>"
+            "<arg name=\"tasks\">"
+            "<item>"
+            "<arg name=\"task_name\">implement_fibonacci</arg>"
+            "<arg name=\"description\">Handle n <= 0 case</arg>"
+            "</item>"
+            "</arg>"
+            "</arguments>"
+            "</tool>"
+        )
+        handler.feed(response)
+        handler.finalize()
+
+        invocations = handler.get_all_invocations()
+        assert len(invocations) == 1
+        inv = invocations[0]
+        assert inv.name == "create_tasks"
+        tasks = inv.arguments.get("tasks")
+        assert tasks == [{"task_name": "implement_fibonacci", "description": "Handle n <= 0 case"}]
+
 
 class TestStreamingChunkedInput:
     """Tests for realistic chunked input scenarios."""
@@ -184,3 +258,60 @@ class TestStreamingChunkedInput:
         invocations = handler.get_all_invocations()
         assert len(invocations) == 1
         assert invocations[0].name == "x"
+
+    def test_tool_call_chunked_with_unescaped_lt(self):
+        """Chunked tool call handles unescaped '<' in arg text."""
+        handler = StreamingResponseHandler()
+
+        chunks = [
+            "<tool name=\"create_tasks\"><arguments><arg name=\"tasks\"><item>"
+            "<arg name=\"description\">Handle n <",
+            "= 0 case</arg></item></arg></arguments></tool>",
+        ]
+        for chunk in chunks:
+            handler.feed(chunk)
+        handler.finalize()
+
+        invocations = handler.get_all_invocations()
+        assert len(invocations) == 1
+        inv = invocations[0]
+        tasks = inv.arguments.get("tasks")
+        assert tasks == [{"description": "Handle n <= 0 case"}]
+
+    def test_sentinel_tool_call_full_chunk_with_unescaped_lt(self):
+        """Sentinel tool call works with a single complete chunk."""
+        handler = StreamingResponseHandler(parser_name="sentinel")
+
+        response = (
+            '[[SEG_START {"type":"tool","tool_name":"create_tasks","arguments":'
+            '{"tasks":[{"task_name":"implement_fibonacci","description":"Handle n <= 0 case"}]}}]]'
+            '[[SEG_END]]'
+        )
+        handler.feed(response)
+        handler.finalize()
+
+        invocations = handler.get_all_invocations()
+        assert len(invocations) == 1
+        inv = invocations[0]
+        assert inv.name == "create_tasks"
+        tasks = inv.arguments.get("tasks")
+        assert tasks == [{"task_name": "implement_fibonacci", "description": "Handle n <= 0 case"}]
+
+    def test_sentinel_tool_call_chunked_with_unescaped_lt(self):
+        """Sentinel tool call works when chunked across markers."""
+        handler = StreamingResponseHandler(parser_name="sentinel")
+
+        chunks = [
+            '[[SEG_START {"type":"tool","tool_name":"create_tasks","arguments":',
+            '{"tasks":[{"description":"Handle n <',
+            '= 0 case"}]}}]]',
+            '[[SEG_END]]',
+        ]
+        for chunk in chunks:
+            handler.feed(chunk)
+        handler.finalize()
+
+        invocations = handler.get_all_invocations()
+        assert len(invocations) == 1
+        tasks = invocations[0].arguments.get("tasks")
+        assert tasks == [{"description": "Handle n <= 0 case"}]

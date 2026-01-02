@@ -14,7 +14,9 @@ from autobyteus.agent.streaming.stream_event_payloads import (
     AgentStatusUpdateData,
     ErrorEventData,
     ToolInvocationAutoExecutingData,
+    SegmentEventData,
 )
+from autobyteus.agent.streaming.parser.events import SegmentEventType, SegmentType
 
 logger = logging.getLogger(__name__) 
 
@@ -35,12 +37,16 @@ class InteractiveCLIDisplay:
         self.awaiting_approval: bool = False
         self.is_thinking = False
         self.is_in_content_block = False
+        self._segment_types_by_id = {}
+        self._saw_segment_event = False
 
     def reset_turn_state(self):
         """Resets flags that are tracked on a per-turn basis."""
         self._end_thinking_block()
         self.agent_has_spoken_this_turn = False
         self.is_in_content_block = False
+        self._segment_types_by_id.clear()
+        self._saw_segment_event = False
 
     def _ensure_new_line(self):
         """Ensures the cursor is on a new line if the current one isn't empty."""
@@ -56,6 +62,159 @@ class InteractiveCLIDisplay:
             sys.stdout.flush()
             self.is_thinking = False
             self.current_line_empty = False
+
+    def _ensure_agent_prefix(self):
+        """Prints the Agent prefix once per turn."""
+        if not self.agent_has_spoken_this_turn:
+            self._ensure_new_line()
+            sys.stdout.write("Agent:\n")
+            sys.stdout.flush()
+            self.agent_has_spoken_this_turn = True
+            self.current_line_empty = True
+
+    def _handle_segment_event(self, segment_event: SegmentEventData):
+        """Render segment events emitted by the streaming parser."""
+        try:
+            event_type = SegmentEventType(segment_event.event_type)
+        except ValueError:
+            logger.debug(f"CLI Display: Unknown segment event type '{segment_event.event_type}'.")
+            return
+
+        self._saw_segment_event = True
+
+        segment_type = None
+        if segment_event.segment_type:
+            try:
+                segment_type = SegmentType(segment_event.segment_type)
+            except ValueError:
+                logger.debug(f"CLI Display: Unknown segment type '{segment_event.segment_type}'.")
+
+        if segment_type is None and segment_event.segment_id in self._segment_types_by_id:
+            segment_type = self._segment_types_by_id.get(segment_event.segment_id)
+
+        metadata = {}
+        if isinstance(segment_event.payload, dict):
+            metadata = segment_event.payload.get("metadata", {}) or {}
+
+        if event_type == SegmentEventType.START:
+            if segment_type is not None:
+                self._segment_types_by_id[segment_event.segment_id] = segment_type
+
+            if segment_type != SegmentType.REASONING:
+                self._end_thinking_block()
+
+            self._ensure_agent_prefix()
+
+            if segment_type == SegmentType.REASONING:
+                if not self.is_thinking:
+                    sys.stdout.write("<Thinking>\n")
+                    sys.stdout.flush()
+                    self.is_thinking = True
+                    self.current_line_empty = True
+                return
+
+            if segment_type == SegmentType.FILE:
+                path = metadata.get("path", "")
+                header = f"<file path=\"{path}\">" if path else "<file>"
+                sys.stdout.write(f"{header}\n")
+                sys.stdout.flush()
+                self.current_line_empty = True
+                self.is_in_content_block = True
+                return
+
+            if segment_type == SegmentType.BASH:
+                sys.stdout.write("<bash>\n")
+                sys.stdout.flush()
+                self.current_line_empty = True
+                self.is_in_content_block = True
+                return
+
+            if segment_type == SegmentType.TOOL_CALL:
+                tool_name = metadata.get("tool_name", "")
+                header = f"<tool name=\"{tool_name}\">" if tool_name else "<tool>"
+                sys.stdout.write(f"{header}\n")
+                sys.stdout.flush()
+                self.current_line_empty = True
+                self.is_in_content_block = True
+                return
+
+            if segment_type == SegmentType.IFRAME:
+                sys.stdout.write("<iframe>\n")
+                sys.stdout.flush()
+                self.current_line_empty = True
+                self.is_in_content_block = True
+                return
+
+            # Text segment start does not need a visible marker.
+            self.is_in_content_block = True
+            return
+
+        if event_type == SegmentEventType.CONTENT:
+            if segment_type == SegmentType.REASONING:
+                if not self.is_thinking:
+                    self._ensure_agent_prefix()
+                    sys.stdout.write("<Thinking>\n")
+                    sys.stdout.flush()
+                    self.is_thinking = True
+                delta = segment_event.payload.get("delta", "")
+                sys.stdout.write(str(delta))
+                sys.stdout.flush()
+                self.current_line_empty = str(delta).endswith("\n")
+                return
+
+            delta = segment_event.payload.get("delta", "")
+            if delta:
+                self._ensure_agent_prefix()
+                sys.stdout.write(str(delta))
+                sys.stdout.flush()
+                self.current_line_empty = str(delta).endswith("\n")
+                self.is_in_content_block = True
+            return
+
+        if event_type == SegmentEventType.END:
+            if segment_type == SegmentType.REASONING:
+                self._end_thinking_block()
+                self._segment_types_by_id.pop(segment_event.segment_id, None)
+                return
+
+            if segment_type == SegmentType.FILE:
+                sys.stdout.write("\n</file>\n")
+                sys.stdout.flush()
+                self.current_line_empty = True
+                self.is_in_content_block = False
+                self._segment_types_by_id.pop(segment_event.segment_id, None)
+                return
+
+            if segment_type == SegmentType.BASH:
+                sys.stdout.write("\n</bash>\n")
+                sys.stdout.flush()
+                self.current_line_empty = True
+                self.is_in_content_block = False
+                self._segment_types_by_id.pop(segment_event.segment_id, None)
+                return
+
+            if segment_type == SegmentType.TOOL_CALL:
+                sys.stdout.write("\n</tool>\n")
+                sys.stdout.flush()
+                self.current_line_empty = True
+                self.is_in_content_block = False
+                self._segment_types_by_id.pop(segment_event.segment_id, None)
+                return
+
+            if segment_type == SegmentType.IFRAME:
+                sys.stdout.write("\n</iframe>\n")
+                sys.stdout.flush()
+                self.current_line_empty = True
+                self.is_in_content_block = False
+                self._segment_types_by_id.pop(segment_event.segment_id, None)
+                return
+
+            if segment_type == SegmentType.TEXT:
+                self.is_in_content_block = False
+                self._segment_types_by_id.pop(segment_event.segment_id, None)
+                return
+
+            self._segment_types_by_id.pop(segment_event.segment_id, None)
 
     def _display_tool_approval_prompt(self):
         """Displays the tool approval prompt using stored pending data."""
@@ -83,6 +242,10 @@ class InteractiveCLIDisplay:
 
     async def handle_stream_event(self, event: StreamEvent):
         """Processes a single StreamEvent and updates the CLI display."""
+        if event.event_type == StreamEventType.SEGMENT_EVENT and isinstance(event.data, SegmentEventData):
+            self._handle_segment_event(event.data)
+            return
+
         # A block of thinking ends if any event other than a reasoning chunk arrives.
         is_reasoning_only_chunk = (
             event.event_type == StreamEventType.ASSISTANT_CHUNK and
@@ -137,7 +300,7 @@ class InteractiveCLIDisplay:
         elif event.event_type == StreamEventType.ASSISTANT_COMPLETE_RESPONSE and isinstance(event.data, AssistantCompleteResponseData):
             # The reasoning has already been streamed. Do not log it again.
             
-            if not self.agent_has_spoken_this_turn:
+            if not self._saw_segment_event and not self.agent_has_spoken_this_turn:
                 # This case handles responses that might not have streamed any content chunks (e.g., only a tool call).
                 # We still need to ensure the agent's turn is visibly terminated with a newline.
                 self._ensure_new_line()

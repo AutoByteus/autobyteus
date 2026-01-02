@@ -20,8 +20,9 @@ from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamE
 from autobyteus.agent.streaming.stream_event_payloads import (
     AgentStatusUpdateData, AssistantChunkData, AssistantCompleteResponseData,
     ErrorEventData, ToolInteractionLogEntryData, ToolInvocationApprovalRequestedData, ToolInvocationAutoExecutingData,
-    SystemTaskNotificationData
+    SystemTaskNotificationData, SegmentEventData
 )
+from autobyteus.agent.streaming.parser.events import SegmentEventType, SegmentType
 from .shared import (
     AGENT_STATUS_ICONS, TEAM_STATUS_ICONS, SUB_TEAM_ICON, DEFAULT_ICON,
     USER_ICON, ASSISTANT_ICON, TEAM_ICON, AGENT_ICON, SYSTEM_TASK_ICON
@@ -65,6 +66,8 @@ class FocusPane(Static):
         # Buffers for batched UI updates to improve performance
         self._reasoning_buffer: str = ""
         self._content_buffer: str = ""
+        self._segment_types_by_id: Dict[str, SegmentType] = {}
+        self._saw_segment_event: bool = False
 
     def compose(self):
         yield Static("Select a node from the sidebar", id="focus-pane-title")
@@ -252,9 +255,108 @@ class FocusPane(Static):
         if scrolled:
             self.query_one("#focus-pane-log-container").scroll_end(animate=False)
 
+    async def _ensure_thinking_widget(self, log_container: VerticalScroll) -> None:
+        if self._thinking_widget is None:
+            self.flush_stream_buffers()
+            await log_container.mount(Static(""))
+            self._thinking_text = Text("<Thinking>\n", style="dim italic cyan")
+            self._thinking_widget = Static(self._thinking_text)
+            await log_container.mount(self._thinking_widget)
+
+    async def _ensure_assistant_content_widget(self, log_container: VerticalScroll) -> None:
+        if self._assistant_content_widget is None:
+            await log_container.mount(Static(""))
+            self._assistant_content_text = Text(f"{ASSISTANT_ICON} assistant: ", style="bold green")
+            self._assistant_content_widget = Static(self._assistant_content_text)
+            await log_container.mount(self._assistant_content_widget)
+
+    async def _handle_segment_event(self, data: SegmentEventData) -> None:
+        log_container = self.query_one("#focus-pane-log-container")
+        self._saw_segment_event = True
+        try:
+            event_type = SegmentEventType(data.event_type)
+        except ValueError:
+            logger.debug(f"TUI FocusPane: Unknown segment event type '{data.event_type}'.")
+            return
+
+        segment_type = None
+        if data.segment_type:
+            try:
+                segment_type = SegmentType(data.segment_type)
+            except ValueError:
+                logger.debug(f"TUI FocusPane: Unknown segment type '{data.segment_type}'.")
+
+        if segment_type is None and data.segment_id in self._segment_types_by_id:
+            segment_type = self._segment_types_by_id.get(data.segment_id)
+
+        metadata = {}
+        if isinstance(data.payload, dict):
+            metadata = data.payload.get("metadata", {}) or {}
+
+        if event_type == SegmentEventType.START:
+            if segment_type is not None:
+                self._segment_types_by_id[data.segment_id] = segment_type
+
+            if segment_type != SegmentType.REASONING:
+                await self._close_thinking_block(scroll=False)
+
+            if segment_type == SegmentType.REASONING:
+                await self._ensure_thinking_widget(log_container)
+                return
+
+            await self._ensure_assistant_content_widget(log_container)
+
+            if segment_type == SegmentType.FILE:
+                path = metadata.get("path", "")
+                header = f"<file path=\"{path}\">" if path else "<file>"
+                self._content_buffer += f"{header}\n"
+            elif segment_type == SegmentType.BASH:
+                self._content_buffer += "<bash>\n"
+            elif segment_type == SegmentType.TOOL_CALL:
+                tool_name = metadata.get("tool_name", "")
+                header = f"<tool name=\"{tool_name}\">" if tool_name else "<tool>"
+                self._content_buffer += f"{header}\n"
+            elif segment_type == SegmentType.IFRAME:
+                self._content_buffer += "<iframe>\n"
+            return
+
+        if event_type == SegmentEventType.CONTENT:
+            delta = ""
+            if isinstance(data.payload, dict):
+                delta = data.payload.get("delta", "")
+
+            if segment_type == SegmentType.REASONING:
+                await self._ensure_thinking_widget(log_container)
+                self._reasoning_buffer += str(delta)
+            else:
+                await self._ensure_assistant_content_widget(log_container)
+                self._content_buffer += str(delta)
+            return
+
+        if event_type == SegmentEventType.END:
+            if segment_type == SegmentType.REASONING:
+                await self._close_thinking_block()
+                self._segment_types_by_id.pop(data.segment_id, None)
+                return
+
+            if segment_type in {SegmentType.FILE, SegmentType.BASH, SegmentType.TOOL_CALL, SegmentType.IFRAME}:
+                tag = "file" if segment_type == SegmentType.FILE else (
+                    "bash" if segment_type == SegmentType.BASH else (
+                        "tool" if segment_type == SegmentType.TOOL_CALL else "iframe"
+                    )
+                )
+                self._content_buffer += f"\n</{tag}>\n"
+
+            self._segment_types_by_id.pop(data.segment_id, None)
+            return
+
     async def add_agent_event(self, event: AgentStreamEvent):
         log_container = self.query_one("#focus-pane-log-container")
         event_type = event.event_type
+
+        if event_type == AgentStreamEventType.SEGMENT_EVENT and isinstance(event.data, SegmentEventData):
+            await self._handle_segment_event(event.data)
+            return
 
         if event_type == AgentStreamEventType.ASSISTANT_CHUNK:
             data: AssistantChunkData = event.data
@@ -282,12 +384,13 @@ class FocusPane(Static):
             await self._close_thinking_block()
             self._assistant_content_widget = None
             self._assistant_content_text = None
-            if not was_streaming_content:
+            if not self._saw_segment_event and not was_streaming_content:
                 renderables_list = renderables.render_assistant_complete_response(event.data)
                 if renderables_list:
                     await log_container.mount(Static(""))
                     for item in renderables_list: await log_container.mount(Static(item))
                     log_container.scroll_end(animate=False)
+            self._saw_segment_event = False
             return
 
         is_stream_breaking_event = event_type in [

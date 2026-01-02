@@ -38,6 +38,8 @@ class XmlToolParsingState(DelimitedContentState):
     SEGMENT_TYPE = SegmentType.TOOL_CALL
     ARGS_OPEN = "<arguments>"
     ARGS_CLOSE = "</arguments>"
+    _TAG_SPLIT_PATTERN = re.compile(r"(<[A-Za-z!/][^>]*>)")
+    _ENTITY_PATTERN = re.compile(r"&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)")
     
     def __init__(self, context: "ParserContext", opening_tag: str):
         """
@@ -97,8 +99,14 @@ class XmlToolParsingState(DelimitedContentState):
             self._parsed_arguments = self._parse_xml_children(root)
             return
         except ET.ParseError:
-            # Fall back to legacy regex parsing for malformed XML.
-            self._parsed_arguments = self._parse_legacy_arguments(args_content)
+            sanitized = self._sanitize_xml_fragment(args_content)
+            try:
+                root = ET.fromstring(f"<root>{sanitized}</root>")
+                self._parsed_arguments = self._parse_xml_children(root)
+                return
+            except ET.ParseError:
+                # Fall back to legacy regex parsing for malformed XML.
+                self._parsed_arguments = self._parse_legacy_arguments(args_content)
 
     def _parse_xml_children(self, element: ET.Element) -> Dict[str, Any]:
         arguments: Dict[str, Any] = {}
@@ -143,5 +151,20 @@ class XmlToolParsingState(DelimitedContentState):
             arg_value = match.group(2).strip()
             arguments[arg_name] = arg_value
         return arguments
+
+    def _sanitize_xml_fragment(self, fragment: str) -> str:
+        """Escape raw text to make fragment XML-safe without touching tags."""
+        parts = self._TAG_SPLIT_PATTERN.split(fragment)
+        sanitized_parts = []
+        for part in parts:
+            if not part:
+                continue
+            if part.startswith("<") and part.endswith(">"):
+                sanitized_parts.append(part)
+                continue
+            escaped = self._ENTITY_PATTERN.sub("&amp;", part)
+            escaped = escaped.replace("<", "&lt;")
+            sanitized_parts.append(escaped)
+        return "".join(sanitized_parts)
 
     # finalize inherited from DelimitedContentState
