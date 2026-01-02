@@ -246,19 +246,6 @@ class InteractiveCLIDisplay:
             self._handle_segment_event(event.data)
             return
 
-        # A block of thinking ends if any event other than a reasoning chunk arrives.
-        is_reasoning_only_chunk = (
-            event.event_type == StreamEventType.ASSISTANT_CHUNK and
-            isinstance(event.data, AssistantChunkData) and
-            bool(event.data.reasoning) and not bool(event.data.content)
-        )
-        if not is_reasoning_only_chunk:
-            self._end_thinking_block()
-
-        # Most events should start on a new line.
-        if event.event_type != StreamEventType.ASSISTANT_CHUNK:
-            self._ensure_new_line()
-
         if event.event_type == StreamEventType.ASSISTANT_CHUNK and isinstance(event.data, AssistantChunkData):
             # If this is the first output from the agent this turn, print the "Agent: " prefix.
             if not self.agent_has_spoken_this_turn:
@@ -274,7 +261,7 @@ class InteractiveCLIDisplay:
                     sys.stdout.write("<Thinking>\n")
                     sys.stdout.flush()
                     self.is_thinking = True
-                    self.current_line_empty = True # We just printed a newline
+                    self.current_line_empty = True
                 
                 sys.stdout.write(event.data.reasoning)
                 sys.stdout.flush()
@@ -283,7 +270,7 @@ class InteractiveCLIDisplay:
             # Stream content to stdout.
             if event.data.content:
                 if not self.is_in_content_block:
-                    self._ensure_new_line() # Ensures content starts on a new line after </Thinking>
+                    self._ensure_new_line()
                     self.is_in_content_block = True
                 sys.stdout.write(event.data.content)
                 sys.stdout.flush()
@@ -296,8 +283,12 @@ class InteractiveCLIDisplay:
                     f"[Token Usage: Prompt={usage.prompt_tokens}, "
                     f"Completion={usage.completion_tokens}, Total={usage.total_tokens}]"
                 )
+            return
 
-        elif event.event_type == StreamEventType.ASSISTANT_COMPLETE_RESPONSE and isinstance(event.data, AssistantCompleteResponseData):
+        self._end_thinking_block()
+        self._ensure_new_line()
+
+        if event.event_type == StreamEventType.ASSISTANT_COMPLETE_RESPONSE and isinstance(event.data, AssistantCompleteResponseData):
             # The reasoning has already been streamed. Do not log it again.
             
             if not self._saw_segment_event and not self.agent_has_spoken_this_turn:

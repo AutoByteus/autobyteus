@@ -105,10 +105,10 @@ python examples/agent_team/event_driven/run_software_engineering_team.py \
 
 ```bash
 AUTOBYTEUS_STREAM_PARSER=xml python examples/agent_team/event_driven/run_software_engineering_team.py \
-    --coordinator-model mistralai/devstral-small-2-2512:lmstudio@192.168.2.158:1234 \
-    --engineer-model mistralai/devstral-small-2-2512:lmstudio@192.168.2.158:1234 \
-    --reviewer-model mistralai/devstral-small-2-2512:lmstudio@192.168.2.158:1234 \
-    --tester-model mistralai/devstral-small-2-2512:lmstudio@192.168.2.158:1234
+    --coordinator-model qwen/qwen3-next-80b:lmstudio@192.168.2.158:1234 \
+    --engineer-model qwen/qwen3-next-80b:lmstudio@192.168.2.158:1234 \
+    --reviewer-model qwen/qwen3-next-80b:lmstudio@192.168.2.158:1234 \
+    --tester-model qwen/qwen3-next-80b:lmstudio@192.168.2.158:1234
 ```
 
 python examples/agent_team/event_driven/run_software_engineering_team.py \

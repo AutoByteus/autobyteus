@@ -12,7 +12,7 @@ from autobyteus.agent_team.status.agent_team_status import AgentTeamStatus
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent, StreamEventType as AgentStreamEventType
 from autobyteus.agent.streaming.stream_event_payloads import (
     AgentStatusUpdateData, ToolInvocationApprovalRequestedData, 
-    AssistantChunkData, AssistantCompleteResponseData
+    AssistantCompleteResponseData
 )
 from autobyteus.agent_team.streaming.agent_team_stream_events import AgentTeamStreamEvent
 from autobyteus.agent_team.streaming.agent_team_stream_event_payloads import AgentEventRebroadcastPayload, SubTeamEventRebroadcastPayload, AgentTeamStatusUpdateData

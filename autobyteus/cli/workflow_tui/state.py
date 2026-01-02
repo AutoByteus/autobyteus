@@ -13,7 +13,7 @@ from autobyteus.workflow.status.workflow_status import WorkflowStatus
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent, StreamEventType as AgentStreamEventType
 from autobyteus.agent.streaming.stream_event_payloads import (
     AgentStatusUpdateData, ToolInvocationApprovalRequestedData, 
-    AssistantChunkData, AssistantCompleteResponseData
+    AssistantCompleteResponseData
 )
 from autobyteus.workflow.streaming.workflow_stream_events import WorkflowStreamEvent
 from autobyteus.workflow.streaming.workflow_stream_event_payloads import AgentEventRebroadcastPayload, SubWorkflowEventRebroadcastPayload, WorkflowStatusUpdateData
