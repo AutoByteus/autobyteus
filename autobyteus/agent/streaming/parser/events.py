@@ -64,12 +64,30 @@ class SegmentEvent:
         )
 
     @classmethod
-    def content(cls, segment_id: str, delta: Any) -> "SegmentEvent":
-        """Factory method to create a SEGMENT_CONTENT event."""
+    def content(
+        cls,
+        segment_id: str,
+        delta: Any,
+        arg_name: Optional[str] = None,
+        arg_state: Optional[str] = None,
+    ) -> "SegmentEvent":
+        """Factory method to create a SEGMENT_CONTENT event.
+        
+        Args:
+            segment_id: ID of the segment this content belongs to.
+            delta: The content delta to emit.
+            arg_name: Optional argument name context for tool call streaming.
+            arg_state: Optional argument boundary state ("start", "delta", "end").
+        """
+        payload = {"delta": delta}
+        if arg_name is not None:
+            payload["arg_name"] = arg_name
+        if arg_state is not None:
+            payload["arg_state"] = arg_state
         return cls(
             event_type=SegmentEventType.CONTENT,
             segment_id=segment_id,
-            payload={"delta": delta}
+            payload=payload
         )
 
     @classmethod

@@ -74,7 +74,7 @@ class TestStreamingParserToolParsing:
         parser = StreamingParser(config)
         
         events = parser.feed_and_finalize(
-            "Let me check:<tool name='weather'><arguments><city>NYC</city></arguments></tool>"
+            "Let me check:<tool name='weather'><arguments><arg name='city'>NYC</arg></arguments></tool>"
         )
         
         segments = extract_segments(events)

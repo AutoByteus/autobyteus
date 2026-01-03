@@ -16,7 +16,7 @@ class TestToolInvocationAdapterBasics:
         # Simulate tool segment: START → CONTENT → END
         events = [
             SegmentEvent.start("seg_5", SegmentType.TOOL_CALL, tool_name="read_file"),
-            SegmentEvent.content("seg_5", "<arguments><path>/src/main.py</path></arguments>"),
+            SegmentEvent.content("seg_5", "<arguments><arg name='path'>/src/main.py</arg></arguments>"),
             SegmentEvent(
                 event_type=SegmentEventType.END,
                 segment_id="seg_5",

@@ -64,12 +64,19 @@ class EventEmitter:
         self._event_queue.append(event)
         return segment_id
 
-    def emit_segment_content(self, delta: Any) -> None:
+    def emit_segment_content(
+        self,
+        delta: Any,
+        arg_name: Optional[str] = None,
+        arg_state: Optional[str] = None,
+    ) -> None:
         """
         Emit a SEGMENT_CONTENT event for the current segment.
         
         Args:
             delta: The content delta to emit.
+            arg_name: Optional argument name context for tool call streaming.
+            arg_state: Optional argument boundary state ("start", "delta", "end").
             
         Raises:
             RuntimeError: If no segment is active.
@@ -81,7 +88,7 @@ class EventEmitter:
         if isinstance(delta, str):
             self._current_segment_content += delta
         
-        event = SegmentEvent.content(self._current_segment_id, delta)
+        event = SegmentEvent.content(self._current_segment_id, delta, arg_name, arg_state)
         self._event_queue.append(event)
 
     def emit_segment_end(self) -> Optional[str]:

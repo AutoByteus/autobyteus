@@ -144,7 +144,7 @@ class TestToolCallParsing:
         """Parse tool tag with tool parsing enabled."""
         config = ParserConfig(parse_tool_calls=True, strategy_order=["xml_tag"])
         driver = StreamingParserDriver(config)
-        driver.feed("Let me check:<tool name='weather'>city=NYC</tool>")
+        driver.feed("Let me check:<tool name='weather'><arguments><arg name='city'>NYC</arg></arguments></tool>")
         driver.finalize()
         
         segments = driver.get_segments()
@@ -155,7 +155,7 @@ class TestToolCallParsing:
         """Tool tag becomes text when parsing disabled."""
         config = ParserConfig(parse_tool_calls=False)
         driver = StreamingParserDriver(config)
-        driver.feed("Here:<tool name='test'>args</tool>Done")
+        driver.feed("Here:<tool name='test'><arguments><arg name='args'>args</arg></arguments></tool>Done")
         driver.finalize()
         
         segments = driver.get_segments()

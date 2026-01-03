@@ -69,7 +69,7 @@ class TestStreamingResponseHandlerCallbacks:
         )
         
         # Feed a tool call with proper XML format
-        handler.feed('<tool name="test_tool"><key>value</key></tool>')
+        handler.feed('<tool name="test_tool"><arguments><arg name="key">value</arg></arguments></tool>')
         handler.finalize()
         
         assert len(invocations) == 1
@@ -94,7 +94,7 @@ class TestStreamingResponseHandlerToolIntegration:
         handler = StreamingResponseHandler()
         
         # Use proper XML argument format
-        handler.feed('<tool name="read_file"><path>/test.py</path></tool>')
+        handler.feed('<tool name="read_file"><arguments><arg name="path">/test.py</arg></arguments></tool>')
         handler.finalize()
         
         invocations = handler.get_all_invocations()
@@ -106,8 +106,8 @@ class TestStreamingResponseHandlerToolIntegration:
         """Multiple tool segments create multiple invocations."""
         handler = StreamingResponseHandler()
         
-        handler.feed('Some text <tool name="tool_a"><a>1</a></tool>')
-        handler.feed(' more text <tool name="tool_b"><b>2</b></tool>')
+        handler.feed('Some text <tool name="tool_a"><arguments><arg name="a">1</arg></arguments></tool>')
+        handler.feed(' more text <tool name="tool_b"><arguments><arg name="b">2</arg></arguments></tool>')
         handler.finalize()
         
         invocations = handler.get_all_invocations()

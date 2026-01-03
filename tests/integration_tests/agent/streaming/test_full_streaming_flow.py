@@ -31,7 +31,7 @@ class TestFullStreamingFlow:
         chunks = [
             "I'll read the file for you.\n\n",
             '<tool name="read_file">',
-            "<path>/src/main.py</path>",
+            "<arguments><arg name=\"path\">/src/main.py</arg></arguments>",
             "</tool>",
             "\n\nHere's what I found."
         ]
@@ -61,10 +61,10 @@ class TestFullStreamingFlow:
         
         response = '''
 First I'll read file A:
-<tool name="read_file"><path>/a.py</path></tool>
+<tool name="read_file"><arguments><arg name="path">/a.py</arg></arguments></tool>
 
 Now I'll read file B:
-<tool name="read_file"><path>/b.py</path></tool>
+<tool name="read_file"><arguments><arg name="path">/b.py</arg></arguments></tool>
 
 Done!
 '''
@@ -98,7 +98,7 @@ Done!
         
         handler = StreamingResponseHandler(on_segment_event=track_event)
         
-        handler.feed('<tool name="write_file"><path>/out.txt</path><content>Hello</content></tool>')
+        handler.feed('<tool name="write_file"><arguments><arg name="path">/out.txt</arg><arg name="content">Hello</arg></arguments></tool>')
         handler.finalize()
         
         inv = handler.get_all_invocations()[0]
@@ -128,7 +128,7 @@ def hello():
 python output.py
 </run_terminal_cmd>
 
-<tool name="verify_result"><expected>hello</expected></tool>
+    <tool name="verify_result"><arguments><arg name="expected">hello</arg></arguments></tool>
 
 All done!
 '''
@@ -177,17 +177,21 @@ All done!
         assert "<!-- hero -->" in content
         assert "<div class=\"hero\">& welcome</div>" in content
 
-    def test_write_file_tool_with_cdata_content(self):
-        """XML tool calls can use CDATA for raw content without entity escaping."""
+    def test_write_file_tool_with_raw_marker_content(self):
+        """XML tool calls can use raw content markers without entity escaping."""
         handler = StreamingResponseHandler()
 
         response = (
             "<tool name=\"write_file\">"
-            "<path>/site/app.js</path>"
-            "<content><![CDATA["
+            "<arguments>"
+            "<arg name=\"path\">/site/app.js</arg>"
+            "<arg name=\"content\">"
+            "__START_CONTENT__\n"
             "const html = '<div class=\"app\">& ready</div>';\n"
             "// ok\n"
-            "]]></content>"
+            "__END_CONTENT__"
+            "</arg>"
+            "</arguments>"
             "</tool>"
         )
         handler.feed(response)
@@ -236,8 +240,8 @@ class TestStreamingChunkedInput:
         handler = StreamingResponseHandler()
         
         handler.feed('<tool name="te')
-        handler.feed('st"><arg>val')
-        handler.feed('ue</arg></to')
+        handler.feed('st"><arguments><arg name="arg">val')
+        handler.feed('ue</arg></arguments></to')
         handler.feed('ol>')
         handler.finalize()
         
@@ -250,7 +254,7 @@ class TestStreamingChunkedInput:
         """Extreme case: each character as separate chunk."""
         handler = StreamingResponseHandler()
         
-        content = '<tool name="x"><a>1</a></tool>'
+        content = '<tool name="x"><arguments><arg name="a">1</arg></arguments></tool>'
         for char in content:
             handler.feed(char)
         handler.finalize()
