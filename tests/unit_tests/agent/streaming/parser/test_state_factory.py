@@ -28,17 +28,17 @@ class TestStateFactory:
         assert state.__class__.__name__ == "XmlTagInitializationState"
 
     def test_create_write_file_parsing_state(self):
-        """Factory creates WriteFileParsingState with opening_tag."""
+        """Factory creates CustomXmlTagWriteFileParsingState with opening_tag."""
         ctx = ParserContext()
         ctx.append("content</write_file>")
         state = StateFactory.write_file_parsing_state(ctx, "<write_file path='/test.py'>")
-        assert state.__class__.__name__ == "WriteFileParsingState"
+        assert state.__class__.__name__ == "CustomXmlTagWriteFileParsingState"
 
     def test_create_run_terminal_cmd_parsing_state(self):
-        """Factory creates RunTerminalCmdParsingState."""
+        """Factory creates CustomXmlTagRunTerminalCmdParsingState."""
         ctx = ParserContext()
         state = StateFactory.run_terminal_cmd_parsing_state(ctx, "<run_terminal_cmd>")
-        assert state.__class__.__name__ == "RunTerminalCmdParsingState"
+        assert state.__class__.__name__ == "CustomXmlTagRunTerminalCmdParsingState"
 
     def test_create_xml_tool_parsing_state(self):
         """Factory creates XmlToolParsingState."""

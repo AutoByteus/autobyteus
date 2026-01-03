@@ -1,22 +1,22 @@
 """
-Unit tests for WriteFileParsingState.
+Unit tests for CustomXmlTagWriteFileParsingState.
 """
 import pytest
 from autobyteus.agent.streaming.parser.parser_context import ParserContext
-from autobyteus.agent.streaming.parser.events import SegmentType, SegmentEventType
-from autobyteus.agent.streaming.parser.states.write_file_parsing_state import WriteFileParsingState
 from autobyteus.agent.streaming.parser.states.text_state import TextState
+from autobyteus.agent.streaming.parser.states.custom_xml_tag_write_file_parsing_state import CustomXmlTagWriteFileParsingState
+from autobyteus.agent.streaming.parser.events import SegmentType, SegmentEventType
 
 
-class TestWriteFileParsingStateBasics:
-    """Tests for basic WriteFileParsingState functionality."""
+class TestCustomXmlTagWriteFileParsingStateBasics:
+    """Tests for basic CustomXmlTagWriteFileParsingState functionality."""
 
     def test_simple_file_content(self):
         """File with path attribute parses correctly."""
         ctx = ParserContext()
         ctx.append("print('hello')</write_file>")
         
-        state = WriteFileParsingState(ctx, "<write_file path='/test.py'>")
+        state = CustomXmlTagWriteFileParsingState(ctx, "<write_file path='/test.py'>")
         ctx.current_state = state
         state.run()
         
@@ -41,7 +41,7 @@ class TestWriteFileParsingStateBasics:
         ctx = ParserContext()
         ctx.append("content</write_file>")
         
-        state = WriteFileParsingState(ctx, "<write_file>")  # No path
+        state = CustomXmlTagWriteFileParsingState(ctx, "<write_file>")  # No path
         ctx.current_state = state
         state.run()
         
@@ -53,8 +53,8 @@ class TestWriteFileParsingStateBasics:
         assert start_events[0].segment_type == SegmentType.TEXT
 
 
-class TestWriteFileParsingStateStreaming:
-    """Tests for streaming behavior in WriteFileParsingState."""
+class TestCustomXmlTagWriteFileParsingStateStreaming:
+    """Tests for streaming behavior in CustomXmlTagWriteFileParsingState."""
 
     def test_partial_tag_held_back(self):
         """Partial closing tags are not emitted prematurely."""
@@ -62,7 +62,7 @@ class TestWriteFileParsingStateStreaming:
         # Use longer content so we can verify holdback works
         ctx.append("hello world content</wri")  # Partial closing tag
         
-        state = WriteFileParsingState(ctx, "<write_file path='/a.py'>")
+        state = CustomXmlTagWriteFileParsingState(ctx, "<write_file path='/a.py'>")
         ctx.current_state = state
         state.run()
         
@@ -79,15 +79,15 @@ class TestWriteFileParsingStateStreaming:
         assert "hello world" in content  # Early content should be emitted
 
 
-class TestWriteFileParsingStateFinalize:
-    """Tests for finalize behavior in WriteFileParsingState."""
+class TestCustomXmlTagWriteFileParsingStateFinalize:
+    """Tests for finalize behavior in CustomXmlTagWriteFileParsingState."""
 
     def test_finalize_emits_remaining(self):
         """Finalize emits remaining content."""
         ctx = ParserContext()
         ctx.append("partial content")
         
-        state = WriteFileParsingState(ctx, "<write_file path='/a.py'>")
+        state = CustomXmlTagWriteFileParsingState(ctx, "<write_file path='/a.py'>")
         ctx.current_state = state
         state.run()
         state.finalize()

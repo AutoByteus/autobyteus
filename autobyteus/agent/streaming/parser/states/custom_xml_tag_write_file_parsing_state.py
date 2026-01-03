@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from ..parser_context import ParserContext
 
 
-class WriteFileParsingState(DelimitedContentState):
+class CustomXmlTagWriteFileParsingState(DelimitedContentState):
     """
     Parses write_file content blocks.
     

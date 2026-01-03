@@ -48,9 +48,12 @@ class XmlTagInitializationState(BaseState):
         Transitions to specialized states or reverts to text if unknown.
         """
         from .text_state import TextState
-        from .write_file_parsing_state import WriteFileParsingState
-        from .run_terminal_cmd_parsing_state import RunTerminalCmdParsingState
+        from .custom_xml_tag_write_file_parsing_state import CustomXmlTagWriteFileParsingState
+        from .custom_xml_tag_run_terminal_cmd_parsing_state import CustomXmlTagRunTerminalCmdParsingState
         from .xml_tool_parsing_state import XmlToolParsingState
+        from .xml_write_file_tool_parsing_state import XmlWriteFileToolParsingState
+        from .xml_run_terminal_cmd_tool_parsing_state import XmlRunTerminalCmdToolParsingState
+
         if not self.context.has_more_chars():
             return
 
@@ -82,11 +85,12 @@ class XmlTagInitializationState(BaseState):
         self._tag_buffer += self.context.consume(end_idx - start_pos + 1)
         lower_buffer = self._tag_buffer.lower()
 
+        # Handle legacy <write_file> tag
         if lower_buffer.startswith(self.POSSIBLE_WRITE_FILE):
             if self.context.get_current_segment_type() == SegmentType.TEXT:
                 self.context.emit_segment_end()
             self.context.transition_to(
-                WriteFileParsingState(self.context, self._tag_buffer)
+                CustomXmlTagWriteFileParsingState(self.context, self._tag_buffer)
             )
             return
 
@@ -94,7 +98,7 @@ class XmlTagInitializationState(BaseState):
             if self.context.get_current_segment_type() == SegmentType.TEXT:
                 self.context.emit_segment_end()
             self.context.transition_to(
-                RunTerminalCmdParsingState(self.context, self._tag_buffer)
+                CustomXmlTagRunTerminalCmdParsingState(self.context, self._tag_buffer)
             )
             return
 
@@ -102,9 +106,24 @@ class XmlTagInitializationState(BaseState):
             if self.context.parse_tool_calls:
                 if self.context.get_current_segment_type() == SegmentType.TEXT:
                     self.context.emit_segment_end()
-                self.context.transition_to(
-                    XmlToolParsingState(self.context, self._tag_buffer)
-                )
+                
+                # Check for specialized <tool name="write_file"> or <tool name="run_terminal_cmd">
+                import re
+                is_write_file = re.search(r'name\s*=\s*["\']write_file["\']', self._tag_buffer, re.IGNORECASE)
+                is_run_term = re.search(r'name\s*=\s*["\']run_terminal_cmd["\']', self._tag_buffer, re.IGNORECASE)
+                
+                if is_write_file:
+                    self.context.transition_to(
+                        XmlWriteFileToolParsingState(self.context, self._tag_buffer)
+                    )
+                elif is_run_term:
+                    self.context.transition_to(
+                        XmlRunTerminalCmdToolParsingState(self.context, self._tag_buffer)
+                    )
+                else:
+                    self.context.transition_to(
+                        XmlToolParsingState(self.context, self._tag_buffer)
+                    )
             else:
                 self.context.append_text_segment(self._tag_buffer)
                 self.context.transition_to(TextState(self.context))

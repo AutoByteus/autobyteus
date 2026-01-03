@@ -5,9 +5,11 @@ import pytest
 from autobyteus.agent.streaming.parser.parser_context import ParserContext, ParserConfig
 from autobyteus.agent.streaming.parser.states.text_state import TextState
 from autobyteus.agent.streaming.parser.states.xml_tag_initialization_state import XmlTagInitializationState
-from autobyteus.agent.streaming.parser.states.write_file_parsing_state import WriteFileParsingState
-from autobyteus.agent.streaming.parser.states.run_terminal_cmd_parsing_state import RunTerminalCmdParsingState
+from autobyteus.agent.streaming.parser.states.custom_xml_tag_write_file_parsing_state import CustomXmlTagWriteFileParsingState
+from autobyteus.agent.streaming.parser.states.custom_xml_tag_run_terminal_cmd_parsing_state import CustomXmlTagRunTerminalCmdParsingState
 from autobyteus.agent.streaming.parser.states.xml_tool_parsing_state import XmlToolParsingState
+from autobyteus.agent.streaming.parser.states.xml_write_file_tool_parsing_state import XmlWriteFileToolParsingState
+from autobyteus.agent.streaming.parser.states.xml_run_terminal_cmd_tool_parsing_state import XmlRunTerminalCmdToolParsingState
 from autobyteus.agent.streaming.parser.events import SegmentEventType
 
 
@@ -32,7 +34,7 @@ class TestXmlTagInitWriteFileDetection:
     """Tests for <write_file tag detection."""
 
     def test_write_file_tag_transitions_to_write_file_state(self):
-        """<write_file path="..."> triggers transition to WriteFileParsingState."""
+        """<write_file path="..."> triggers transition to CustomXmlTagWriteFileParsingState."""
         ctx = ParserContext()
         ctx.append('<write_file path="/test.py">')
         
@@ -40,10 +42,10 @@ class TestXmlTagInitWriteFileDetection:
         ctx.current_state = state
         state.run()
         
-        assert isinstance(ctx.current_state, WriteFileParsingState)
+        assert isinstance(ctx.current_state, CustomXmlTagWriteFileParsingState)
 
     def test_write_file_tag_case_insensitive(self):
-        """<WRITE_FILE (uppercase) also triggers WriteFileParsingState."""
+        """<WRITE_FILE (uppercase) also triggers CustomXmlTagWriteFileParsingState."""
         ctx = ParserContext()
         ctx.append('<WRITE_FILE path="/test.py">')
         
@@ -51,7 +53,7 @@ class TestXmlTagInitWriteFileDetection:
         ctx.current_state = state
         state.run()
         
-        assert isinstance(ctx.current_state, WriteFileParsingState)
+        assert isinstance(ctx.current_state, CustomXmlTagWriteFileParsingState)
 
 
 
@@ -59,7 +61,7 @@ class TestXmlTagInitRunTerminalCmdDetection:
     """Tests for <run_terminal_cmd> tag detection."""
 
     def test_run_terminal_cmd_tag_transitions_to_state(self):
-        """<run_terminal_cmd> triggers transition to RunTerminalCmdParsingState."""
+        """<run_terminal_cmd> triggers transition to CustomXmlTagRunTerminalCmdParsingState."""
         ctx = ParserContext()
         ctx.append("<run_terminal_cmd>command</run_terminal_cmd>")
         
@@ -67,10 +69,10 @@ class TestXmlTagInitRunTerminalCmdDetection:
         ctx.current_state = state
         state.run()
         
-        assert isinstance(ctx.current_state, RunTerminalCmdParsingState)
+        assert isinstance(ctx.current_state, CustomXmlTagRunTerminalCmdParsingState)
 
     def test_run_terminal_cmd_with_attributes(self):
-        """<run_terminal_cmd description='test'> also triggers RunTerminalCmdParsingState."""
+        """<run_terminal_cmd description='test'> also triggers CustomXmlTagRunTerminalCmdParsingState."""
         ctx = ParserContext()
         ctx.append("<run_terminal_cmd description='test'>")
         
@@ -78,7 +80,7 @@ class TestXmlTagInitRunTerminalCmdDetection:
         ctx.current_state = state
         state.run()
         
-        assert isinstance(ctx.current_state, RunTerminalCmdParsingState)
+        assert isinstance(ctx.current_state, CustomXmlTagRunTerminalCmdParsingState)
 
 
 class TestXmlTagInitToolDetection:
@@ -183,3 +185,58 @@ class TestXmlTagInitFinalize:
         events = ctx.get_and_clear_events()
         content_events = [e for e in events if e.event_type == SegmentEventType.CONTENT]
         assert any("<tool" in e.payload.get("delta", "") for e in content_events)
+
+    def test_write_file_tool_detection(self):
+        """<tool name="write_file"> triggers transition to XmlWriteFileToolParsingState."""
+        ctx = ParserContext()
+        ctx.append('<tool name="write_file">')
+        
+        state = XmlTagInitializationState(ctx)
+        ctx.current_state = state
+        state.run()
+        
+        assert isinstance(ctx.current_state, XmlWriteFileToolParsingState)
+
+    def test_write_file_tool_case_insensitive_name(self):
+        """<tool name="WRITE_FILE"> triggers transition to XmlWriteFileToolParsingState."""
+        ctx = ParserContext()
+        ctx.append('<tool name="WRITE_FILE">')
+        
+        state = XmlTagInitializationState(ctx)
+        ctx.current_state = state
+        state.run()
+        
+        assert isinstance(ctx.current_state, XmlWriteFileToolParsingState)
+
+    def test_other_tool_transitions_to_generic_tool_state(self):
+        """<tool name="other"> triggers transition to XmlToolParsingState."""
+        ctx = ParserContext()
+        ctx.append('<tool name="other">')
+        
+        state = XmlTagInitializationState(ctx)
+        ctx.current_state = state
+        state.run()
+        
+        assert isinstance(ctx.current_state, XmlToolParsingState)
+
+    def test_run_terminal_cmd_tool_detection(self):
+        """<tool name="run_terminal_cmd"> triggers transition to XmlRunTerminalCmdToolParsingState."""
+        ctx = ParserContext()
+        ctx.append('<tool name="run_terminal_cmd">')
+        
+        state = XmlTagInitializationState(ctx)
+        ctx.current_state = state
+        state.run()
+        
+        assert isinstance(ctx.current_state, XmlRunTerminalCmdToolParsingState)
+
+    def test_run_terminal_cmd_tool_case_insensitive_name(self):
+        """<tool name="RUN_TERMINAL_CMD"> triggers transition to XmlRunTerminalCmdToolParsingState."""
+        ctx = ParserContext()
+        ctx.append('<tool name="RUN_TERMINAL_CMD">')
+        
+        state = XmlTagInitializationState(ctx)
+        ctx.current_state = state
+        state.run()
+        
+        assert isinstance(ctx.current_state, XmlRunTerminalCmdToolParsingState)

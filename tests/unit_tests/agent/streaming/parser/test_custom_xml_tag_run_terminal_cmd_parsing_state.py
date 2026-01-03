@@ -1,22 +1,22 @@
 """
-Unit tests for RunTerminalCmdParsingState.
+Unit tests for CustomXmlTagRunTerminalCmdParsingState.
 """
 import pytest
 from autobyteus.agent.streaming.parser.parser_context import ParserContext
 from autobyteus.agent.streaming.parser.events import SegmentType, SegmentEventType
-from autobyteus.agent.streaming.parser.states.run_terminal_cmd_parsing_state import RunTerminalCmdParsingState
+from autobyteus.agent.streaming.parser.states.custom_xml_tag_run_terminal_cmd_parsing_state import CustomXmlTagRunTerminalCmdParsingState
 from autobyteus.agent.streaming.parser.states.text_state import TextState
 
 
-class TestRunTerminalCmdParsingStateBasics:
-    """Tests for basic RunTerminalCmdParsingState functionality."""
+class TestCustomXmlTagRunTerminalCmdParsingStateBasics:
+    """Tests for basic CustomXmlTagRunTerminalCmdParsingState functionality."""
 
     def test_simple_command(self):
         """Simple command is parsed correctly."""
         ctx = ParserContext()
         ctx.append("ls -la</run_terminal_cmd>")
         
-        state = RunTerminalCmdParsingState(ctx, "<run_terminal_cmd>")
+        state = CustomXmlTagRunTerminalCmdParsingState(ctx, "<run_terminal_cmd>")
         ctx.current_state = state
         state.run()
         
@@ -41,7 +41,7 @@ class TestRunTerminalCmdParsingStateBasics:
         ctx.append("ls -la</run_terminal_cmd>")
         
         # Even if attributes are present, they are ignored
-        state = RunTerminalCmdParsingState(ctx, "<run_terminal_cmd description='List files'>")
+        state = CustomXmlTagRunTerminalCmdParsingState(ctx, "<run_terminal_cmd description='List files'>")
         ctx.current_state = state
         state.run()
         
@@ -56,7 +56,7 @@ class TestRunTerminalCmdParsingStateBasics:
         ctx = ParserContext()
         ctx.append("# Install deps\nnpm install</run_terminal_cmd>")
         
-        state = RunTerminalCmdParsingState(ctx, "<run_terminal_cmd>")
+        state = CustomXmlTagRunTerminalCmdParsingState(ctx, "<run_terminal_cmd>")
         ctx.current_state = state
         state.run()
         
@@ -69,8 +69,8 @@ class TestRunTerminalCmdParsingStateBasics:
         assert "npm install" in content
 
 
-class TestRunTerminalCmdParsingStateStreaming:
-    """Tests for streaming behavior in RunTerminalCmdParsingState."""
+class TestCustomXmlTagRunTerminalCmdParsingStateStreaming:
+    """Tests for streaming behavior in CustomXmlTagRunTerminalCmdParsingState."""
 
     def test_partial_tag_held_back(self):
         """Partial closing tags are not emitted prematurely."""
@@ -79,7 +79,7 @@ class TestRunTerminalCmdParsingStateStreaming:
         # </run_terminal_cmd> is 18 chars, so holdback is 17 chars
         ctx.append("echo hello world command</run_t")  # Partial closing tag
         
-        state = RunTerminalCmdParsingState(ctx, "<run_terminal_cmd>")
+        state = CustomXmlTagRunTerminalCmdParsingState(ctx, "<run_terminal_cmd>")
         ctx.current_state = state
         state.run()
         
@@ -91,15 +91,15 @@ class TestRunTerminalCmdParsingStateStreaming:
         assert "echo hello" in content  # Early content should be emitted
 
 
-class TestRunTerminalCmdParsingStateFinalize:
-    """Tests for finalize behavior in RunTerminalCmdParsingState."""
+class TestCustomXmlTagRunTerminalCmdParsingStateFinalize:
+    """Tests for finalize behavior in CustomXmlTagRunTerminalCmdParsingState."""
 
     def test_finalize_incomplete(self):
         """Incomplete command at stream end is closed properly."""
         ctx = ParserContext()
         ctx.append("partial command")
         
-        state = RunTerminalCmdParsingState(ctx, "<run_terminal_cmd>")
+        state = CustomXmlTagRunTerminalCmdParsingState(ctx, "<run_terminal_cmd>")
         ctx.current_state = state
         state.run()
         state.finalize()

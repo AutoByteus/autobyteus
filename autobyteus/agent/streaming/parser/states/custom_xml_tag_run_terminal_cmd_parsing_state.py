@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from ..parser_context import ParserContext
 
 
-class RunTerminalCmdParsingState(DelimitedContentState):
+class CustomXmlTagRunTerminalCmdParsingState(DelimitedContentState):
     """
     Parses terminal command blocks.
     
