@@ -32,7 +32,7 @@ try:
     from autobyteus.llm.llm_factory import default_llm_factory, LLMFactory
     from autobyteus.agent_team.agent_team_builder import AgentTeamBuilder
     from autobyteus.cli.agent_team_tui.app import AgentTeamApp
-    from autobyteus.tools import write_file, read_file, bash_executor
+    from autobyteus.tools import write_file, read_file, run_terminal_cmd
     from autobyteus.agent.workspace import BaseAgentWorkspace, WorkspaceConfig
     from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
     from autobyteus.task_management.tools import (
@@ -166,7 +166,7 @@ def create_code_review_team(
         name="Tester", role="QA Automation", description="Executes pytest tests and reports results.",
         llm_instance=default_llm_factory.create_llm(model_identifier=tester_model),
         system_prompt=load_prompt("tester.prompt"),
-        tools=[bash_executor, UpdateTaskStatus(), GetTaskPlanStatus(), SendMessageTo()],
+        tools=[run_terminal_cmd, UpdateTaskStatus(), GetTaskPlanStatus(), SendMessageTo()],
         workspace=workspace
     )
 

@@ -150,7 +150,7 @@ All done!
         assert len(invocations) == 3
         names = [inv.name for inv in invocations]
         assert "write_file" in names
-        assert "execute_bash" in names
+        assert "run_terminal_cmd" in names
         assert "verify_result" in names
 
     def test_write_file_file_segment_with_raw_html_comment(self):

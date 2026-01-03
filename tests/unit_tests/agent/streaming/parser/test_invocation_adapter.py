@@ -76,8 +76,8 @@ class TestToolInvocationAdapterBasics:
         assert invocations[0].name == "write_file"
         assert invocations[0].arguments == {"path": "/test.py", "content": "code"}
 
-    def test_bash_segment_creates_execute_bash_invocation(self):
-        """Bash segments create execute_bash invocations."""
+    def test_bash_segment_creates_run_terminal_cmd_invocation(self):
+        """Bash segments create run_terminal_cmd invocations."""
         adapter = ToolInvocationAdapter()
 
         events = [
@@ -88,7 +88,7 @@ class TestToolInvocationAdapterBasics:
 
         invocations = adapter.process_events(events)
         assert len(invocations) == 1
-        assert invocations[0].name == "execute_bash"
+        assert invocations[0].name == "run_terminal_cmd"
         assert invocations[0].arguments == {"command": "ls -la"}
 
     def test_multiple_tool_segments(self):

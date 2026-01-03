@@ -20,11 +20,16 @@ logger = logging.getLogger(__name__)
 # --- Re-export specific tools for easier access ---
 
 # Functional tools (decorated functions are now instances)
-from .bash.bash_executor import bash_executor
 from .file.read_file import read_file
 from .file.write_file import write_file
 from .file.patch_file import patch_file
 from .skill.load_skill import load_skill
+
+# Terminal tools (PTY-based stateful terminal)
+from .terminal.tools.run_terminal_cmd import run_terminal_cmd
+from .terminal.tools.start_background_process import start_background_process
+from .terminal.tools.get_process_output import get_process_output
+from .terminal.tools.stop_background_process import stop_background_process
 
 # General Class-based tools
 try:
@@ -93,7 +98,10 @@ __all__ = [
     "ToolCategory",
 
     # Re-exported functional tool instances
-    "bash_executor",
+    "run_terminal_cmd",
+    "start_background_process",
+    "get_process_output",
+    "stop_background_process",
     "read_file",
     "write_file",
     "patch_file",

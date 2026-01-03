@@ -26,7 +26,7 @@ def _build_write_file_args(metadata: dict, content: str) -> Optional[dict]:
     return {"path": path, "content": content}
 
 
-def _build_execute_bash_args(metadata: dict, content: str) -> Optional[dict]:
+def _build_run_terminal_cmd_args(metadata: dict, content: str) -> Optional[dict]:
     command = content or metadata.get("cmd") or ""
     if not command:
         return None
@@ -39,8 +39,8 @@ _TOOL_SYNTAX_REGISTRY: Dict[SegmentType, ToolSyntaxSpec] = {
         build_arguments=_build_write_file_args,
     ),
     SegmentType.BASH: ToolSyntaxSpec(
-        tool_name="execute_bash",
-        build_arguments=_build_execute_bash_args,
+        tool_name="run_terminal_cmd",
+        build_arguments=_build_run_terminal_cmd_args,
     ),
 }
 
