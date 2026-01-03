@@ -6,7 +6,7 @@ Authors: Autobyteus Core Team
 
 ## Overview
 
-The streaming parser is a state-machine-based system that incrementally parses LLM response chunks in real-time. It handles structured content blocks (`<write_file>`, `<run_terminal_cmd>`, `<tool>`, `<!doctype html>`) while streaming safe content deltas to the frontend, preventing partial tags from being displayed.
+The streaming parser is a state-machine-based system that incrementally parses LLM response chunks in real-time. It handles structured content blocks (`<write_file>`, `<run_terminal_cmd>`, `<tool>`) while streaming safe content deltas to the frontend, preventing partial tags from being displayed.
 
 ## Goals
 
@@ -51,13 +51,6 @@ The streaming parser is a state-machine-based system that incrementally parses L
 │WriteFileParsingState│  │RunTerminalCmdParsingState│  │XmlToolParsingState│
 │(<write_file>...</write_file>)│  │(<run_terminal_cmd>...</run_terminal_cmd>)│  │(<tool>...</tool>)│
 └──────────────────┘  └───────────────────────┘  └──────────────────┘
-        │                      │                      │
-        └──────────────────────┼──────────────────────┘
-                               ▼
-                    ┌─────────────────────┐
-                    │ IframeParsingState  │
-                    │(<!doctype>...</html>)│
-                    └─────────────────────┘
 ```
 
 ## Core Components
@@ -111,7 +104,6 @@ Accumulates characters after `<` to detect tag type:
 - `<write_file path="...">` → `WriteFileParsingState`
 - `<run_terminal_cmd>` → `RunTerminalCmdParsingState`
 - `<tool_name>` → `XmlToolParsingState`
-- `<!doctype html>` → `IframeParsingState`
 - Unknown tags → emits as text, returns to `TextState`
 
 #### Content Parsing States
@@ -142,11 +134,11 @@ class WriteFileParsingState(BaseState):
 
 The parser emits `SegmentEvent` objects with three lifecycle types:
 
-| Event Type        | Payload                                           | When Emitted                   |
-| ----------------- | ------------------------------------------------- | ------------------------------ |
-| `SEGMENT_START`   | `segment_type`, `metadata`                        | Opening tag detected           |
-| `SEGMENT_CONTENT` | `delta`, optional `arg_name`, optional `arg_state`| Content available to stream    |
-| `SEGMENT_END`     | `metadata` (incl. parsed arguments)               | Closing tag found or finalized |
+| Event Type        | Payload                                            | When Emitted                   |
+| ----------------- | -------------------------------------------------- | ------------------------------ |
+| `SEGMENT_START`   | `segment_type`, `metadata`                         | Opening tag detected           |
+| `SEGMENT_CONTENT` | `delta`, optional `arg_name`, optional `arg_state` | Content available to stream    |
+| `SEGMENT_END`     | `metadata` (incl. parsed arguments)                | Closing tag found or finalized |
 
 ### Incremental Argument Streaming (Tool Calls)
 
@@ -166,6 +158,7 @@ This allows the UI to display argument values in real-time. XML structural tags
 are not emitted in `SEGMENT_CONTENT`; only raw argument text is streamed.
 
 `arg_state` can be used for explicit boundaries:
+
 - `start` when an argument begins
 - `delta` for streaming content chunks
 - `end` when the argument closes
@@ -205,6 +198,7 @@ Markers are optional and may be used for any argument value. The parser strips
 the markers and streams only the raw content with `arg_name` for real-time display.
 
 Notes:
+
 - Recommended when argument values may contain XML-like text such as `<arg>`, `</arg>`,
   `<item>`, `</item>`, or `</tool>`.
 - Markers should appear alone on their own line (as shown above) to avoid accidental
@@ -220,7 +214,6 @@ class SegmentType(str, Enum):
     TOOL_CALL = "tool_call"
     WRITE_FILE = "write_file"
     RUN_TERMINAL_CMD = "run_terminal_cmd"
-    IFRAME = "iframe"
     REASONING = "reasoning"
 ```
 
@@ -384,8 +377,7 @@ autobyteus/agent/streaming/
         ├── write_file_parsing_state.py
         ├── run_terminal_cmd_parsing_state.py
         ├── xml_tool_parsing_state.py
-        ├── json_tool_parsing_state.py
-        └── iframe_parsing_state.py
+        └── json_tool_parsing_state.py
 ```
 
 ## Testing

@@ -1,8 +1,8 @@
 """
 XmlTagInitializationState: Analyzes potential XML tags after a '<' is detected.
 
-This state buffers characters to identify special tags like <tool, <file, <bash,
-<!doctype html> and transitions to the appropriate specialized state.
+This state buffers characters to identify special tags like <tool, <write_file,
+<run_terminal_cmd and transitions to the appropriate specialized state.
 
 UNIFORM HANDOFF: All content states receive the complete opening_tag and handle
 their own initialization consistently.
@@ -21,7 +21,7 @@ class XmlTagInitializationState(BaseState):
     Analyzes a potential XML tag to determine the correct specialized state.
     
     This state is entered when a '<' is detected. It buffers characters
-    to identify tags like <tool, <write_file, <run_terminal_cmd, <!doctype html>.
+    to identify tags like <tool, <write_file, <run_terminal_cmd.
     
     If no known tag is detected, the buffered content is emitted as text.
     
@@ -34,7 +34,6 @@ class XmlTagInitializationState(BaseState):
     POSSIBLE_WRITE_FILE = "<write_file"
     POSSIBLE_RUN_TERMINAL_CMD = "<run_terminal_cmd"
     POSSIBLE_TOOL = "<tool"
-    POSSIBLE_DOCTYPE = "<!doctype html>"
     
     def __init__(self, context: "ParserContext"):
         super().__init__(context)
@@ -52,7 +51,6 @@ class XmlTagInitializationState(BaseState):
         from .write_file_parsing_state import WriteFileParsingState
         from .run_terminal_cmd_parsing_state import RunTerminalCmdParsingState
         from .xml_tool_parsing_state import XmlToolParsingState
-        from .iframe_parsing_state import IframeParsingState
         if not self.context.has_more_chars():
             return
 
@@ -75,9 +73,8 @@ class XmlTagInitializationState(BaseState):
                 self.POSSIBLE_TOOL.startswith(lower_buffer) or 
                 lower_buffer.startswith(self.POSSIBLE_TOOL)
             )
-            could_be_doctype = self.POSSIBLE_DOCTYPE.startswith(lower_buffer)
 
-            if not (could_be_write_file or could_be_run_terminal_cmd or could_be_tool or could_be_doctype):
+            if not (could_be_write_file or could_be_run_terminal_cmd or could_be_tool):
                 self.context.append_text_segment(self._tag_buffer)
                 self.context.transition_to(TextState(self.context))
             return
@@ -111,14 +108,6 @@ class XmlTagInitializationState(BaseState):
             else:
                 self.context.append_text_segment(self._tag_buffer)
                 self.context.transition_to(TextState(self.context))
-            return
-
-        if lower_buffer == self.POSSIBLE_DOCTYPE:
-            if self.context.get_current_segment_type() == SegmentType.TEXT:
-                self.context.emit_segment_end()
-            self.context.transition_to(
-                IframeParsingState(self.context, self._tag_buffer)
-            )
             return
 
         self.context.append_text_segment(self._tag_buffer)

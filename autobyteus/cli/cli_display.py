@@ -138,13 +138,6 @@ class InteractiveCLIDisplay:
                 self.is_in_content_block = True
                 return
 
-            if segment_type == SegmentType.IFRAME:
-                sys.stdout.write("<iframe>\n")
-                sys.stdout.flush()
-                self.current_line_empty = True
-                self.is_in_content_block = True
-                return
-
             # Text segment start does not need a visible marker.
             self.is_in_content_block = True
             return
@@ -195,14 +188,6 @@ class InteractiveCLIDisplay:
 
             if segment_type == SegmentType.TOOL_CALL:
                 sys.stdout.write("\n</tool>\n")
-                sys.stdout.flush()
-                self.current_line_empty = True
-                self.is_in_content_block = False
-                self._segment_types_by_id.pop(segment_event.segment_id, None)
-                return
-
-            if segment_type == SegmentType.IFRAME:
-                sys.stdout.write("\n</iframe>\n")
                 sys.stdout.flush()
                 self.current_line_empty = True
                 self.is_in_content_block = False
