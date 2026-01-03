@@ -1,6 +1,7 @@
 # file: autobyteus/autobyteus/agent/handlers/llm_user_message_ready_event_handler.py
 import logging
 import traceback
+import uuid
 from typing import TYPE_CHECKING, cast, Optional, List
 
 from autobyteus.agent.handlers.base_event_handler import AgentEventHandler
@@ -84,10 +85,12 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
         parse_tool_calls = bool(context.config.tools)  # Enable tool parsing if agent has tools
         provider = context.state.llm_instance.model.provider if context.state.llm_instance else None
         json_profile = get_json_tool_parsing_profile(provider)
+        segment_id_prefix = f"turn_{uuid.uuid4().hex}:"
         parser_config = ParserConfig(
             parse_tool_calls=parse_tool_calls,
             json_tool_patterns=json_profile.signature_patterns,
             json_tool_parser=json_profile.parser,
+            segment_id_prefix=segment_id_prefix,
         )
 
         format_override = context.config.tool_call_format or resolve_tool_call_format()
@@ -105,7 +108,6 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
 
         # State for manual reasoning parts (since they might come from outside the parser)
         current_reasoning_part_id = None
-        import uuid # Ensure uuid is imported
 
         try:
             async for chunk_response in context.state.llm_instance.stream_user_message(llm_user_message):
@@ -134,7 +136,7 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
                 # Handle Reasoning (Manual Segment Management)
                 if chunk_response.reasoning:
                     if current_reasoning_part_id is None:
-                        current_reasoning_part_id = str(uuid.uuid4())
+                        current_reasoning_part_id = f"{segment_id_prefix}reasoning_{uuid.uuid4().hex}"
                         # Emit SEGMENT_START for reasoning
                         start_event = SegmentEvent.start(
                             segment_id=current_reasoning_part_id,

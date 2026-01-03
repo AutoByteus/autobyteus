@@ -32,18 +32,18 @@ async def test_streaming_safe_parsing(handler, agent_context, mock_llm):
     
     # Setup chunks: 
     # 1. "Hello " -> Safe text
-    # 2. "<fi" -> Partial tag (should be held back)
-    # 3. 'le path="x">' -> Completes tag (Parsed as START, no delta)
+    # 2. "<wr" -> Partial tag (should be held back)
+    # 3. 'ite_file path="x">' -> Completes tag (Parsed as START, no delta)
     # 4. "World" -> Content (should be emitted)
-    # 5. "</fi" -> Partial closing tag (held back)
-    # 6. "le>" -> Completes closing tag (Parsed as END, no delta)
+    # 5. "</wr" -> Partial closing tag (held back)
+    # 6. "ite_file>" -> Completes closing tag (Parsed as END, no delta)
     chunks = [
         ChunkResponse(content="Hello "),
-        ChunkResponse(content="<fi"),
-        ChunkResponse(content='le path="x">'),
+        ChunkResponse(content="<wr"),
+        ChunkResponse(content='ite_file path="x">'),
         ChunkResponse(content="World"),
-        ChunkResponse(content="</fi"),
-        ChunkResponse(content="le>")
+        ChunkResponse(content="</wr"),
+        ChunkResponse(content="ite_file>")
     ]
     
     async def stream_gen(_):
@@ -68,7 +68,7 @@ async def test_streaming_safe_parsing(handler, agent_context, mock_llm):
     combined = "".join([d for d in deltas if isinstance(d, str)])
     assert "Hello " in combined
     assert "World" in combined
-    assert "<fi" not in combined
+    assert "<wr" not in combined
     
     # Verify complete response enqueued
     agent_context.input_event_queues.enqueue_internal_system_event.assert_called_once()
@@ -81,6 +81,7 @@ async def test_provider_specific_json_tool_parsing(handler, agent_context, mock_
     mock_llm.model = MagicMock()
     mock_llm.model.provider = LLMProvider.GEMINI
     agent_context.state.llm_instance = mock_llm
+    agent_context.config.tool_call_format = "json"
 
     if not isinstance(agent_context.status_manager.notifier, MagicMock):
         agent_context.status_manager.notifier = MagicMock()

@@ -37,11 +37,13 @@ class ParserConfig:
         json_tool_patterns: Optional[List[str]] = None,
         json_tool_parser: Optional["JsonToolParsingStrategy"] = None,
         strategy_order: Optional[List[str]] = None,
+        segment_id_prefix: Optional[str] = None,
     ):
         self.parse_tool_calls = parse_tool_calls
         self.json_tool_patterns = json_tool_patterns or self.DEFAULT_JSON_PATTERNS.copy()
         self.json_tool_parser = json_tool_parser
         self.strategy_order = strategy_order or ["xml_tag"]
+        self.segment_id_prefix = segment_id_prefix
 
 
 class ParserContext:
@@ -64,7 +66,7 @@ class ParserContext:
         """
         self._config = config or ParserConfig()
         self._scanner = StreamScanner()
-        self._emitter = EventEmitter()
+        self._emitter = EventEmitter(segment_id_prefix=self._config.segment_id_prefix)
         self._current_state: Optional["BaseState"] = None
         from .strategies.registry import create_detection_strategies
         self._strategies = create_detection_strategies(self._config.strategy_order)

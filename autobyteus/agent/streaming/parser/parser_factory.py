@@ -41,6 +41,7 @@ def _clone_config(
     json_tool_patterns: Optional[List[str]] = None,
     json_tool_parser: Optional["JsonToolParsingStrategy"] = None,
     strategy_order: Optional[List[str]] = None,
+    segment_id_prefix: Optional[str] = None,
 ) -> ParserConfig:
     base = config or ParserConfig()
     return ParserConfig(
@@ -59,6 +60,11 @@ def _clone_config(
             base.strategy_order.copy()
             if strategy_order is None
             else strategy_order
+        ),
+        segment_id_prefix=(
+            base.segment_id_prefix
+            if segment_id_prefix is None
+            else segment_id_prefix
         ),
     )
 

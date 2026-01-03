@@ -22,18 +22,22 @@ class EventEmitter:
     Extracted from ParserContext to improve single responsibility.
     """
     
-    def __init__(self):
+    def __init__(self, segment_id_prefix: Optional[str] = None):
         self._event_queue: List[SegmentEvent] = []
         self._segment_counter: int = 0
         self._current_segment_id: Optional[str] = None
         self._current_segment_type: Optional[SegmentType] = None
         self._current_segment_content: str = ""
         self._current_segment_metadata: Dict[str, Any] = {}
+        self._segment_id_prefix: Optional[str] = segment_id_prefix
 
     def _generate_segment_id(self) -> str:
         """Generate a unique segment ID."""
         self._segment_counter += 1
-        return f"seg_{self._segment_counter}"
+        base_id = f"seg_{self._segment_counter}"
+        if self._segment_id_prefix:
+            return f"{self._segment_id_prefix}{base_id}"
+        return base_id
 
     def emit_segment_start(
         self, 

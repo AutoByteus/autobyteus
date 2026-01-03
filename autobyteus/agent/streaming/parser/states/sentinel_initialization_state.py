@@ -114,6 +114,5 @@ class SentinelInitializationState(BaseState):
             "write_file": SegmentType.WRITE_FILE,
             "run_terminal_cmd": SegmentType.RUN_TERMINAL_CMD,
             "iframe": SegmentType.IFRAME,
-            "reasoning": SegmentType.REASONING,
         }
         return mapping.get(value)
