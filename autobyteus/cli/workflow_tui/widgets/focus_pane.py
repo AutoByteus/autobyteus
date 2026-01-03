@@ -317,6 +317,8 @@ class FocusPane(Static):
                 tool_name = metadata.get("tool_name", "")
                 header = f"<tool name=\"{tool_name}\">" if tool_name else "<tool>"
                 self._content_buffer += f"{header}\n"
+            elif segment_type == SegmentType.IFRAME:
+                self._content_buffer += "<iframe>\n"
             return
 
         if event_type == SegmentEventType.CONTENT:
@@ -338,9 +340,11 @@ class FocusPane(Static):
                 self._segment_types_by_id.pop(data.segment_id, None)
                 return
 
-            if segment_type in {SegmentType.WRITE_FILE, SegmentType.RUN_TERMINAL_CMD, SegmentType.TOOL_CALL}:
+            if segment_type in {SegmentType.WRITE_FILE, SegmentType.RUN_TERMINAL_CMD, SegmentType.TOOL_CALL, SegmentType.IFRAME}:
                 tag = "write_file" if segment_type == SegmentType.WRITE_FILE else (
-                    "run_terminal_cmd" if segment_type == SegmentType.RUN_TERMINAL_CMD else "tool"
+                    "run_terminal_cmd" if segment_type == SegmentType.RUN_TERMINAL_CMD else (
+                        "tool" if segment_type == SegmentType.TOOL_CALL else "iframe"
+                    )
                 )
                 self._content_buffer += f"\n</{tag}>\n"
 

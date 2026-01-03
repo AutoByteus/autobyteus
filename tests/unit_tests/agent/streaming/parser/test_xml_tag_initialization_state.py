@@ -8,6 +8,7 @@ from autobyteus.agent.streaming.parser.states.xml_tag_initialization_state impor
 from autobyteus.agent.streaming.parser.states.write_file_parsing_state import WriteFileParsingState
 from autobyteus.agent.streaming.parser.states.run_terminal_cmd_parsing_state import RunTerminalCmdParsingState
 from autobyteus.agent.streaming.parser.states.xml_tool_parsing_state import XmlToolParsingState
+from autobyteus.agent.streaming.parser.states.iframe_parsing_state import IframeParsingState
 from autobyteus.agent.streaming.parser.events import SegmentEventType
 
 
@@ -112,6 +113,32 @@ class TestXmlTagInitToolDetection:
         events = ctx.get_and_clear_events()
         content_events = [e for e in events if e.event_type == SegmentEventType.CONTENT]
         assert any("<tool name='test'>" in e.payload.get("delta", "") for e in content_events)
+
+
+class TestXmlTagInitDoctypeDetection:
+    """Tests for <!doctype html> detection."""
+
+    def test_doctype_transitions_to_iframe_state(self):
+        """<!doctype html> triggers transition to IframeParsingState."""
+        ctx = ParserContext()
+        ctx.append("<!doctype html><html>")
+        
+        state = XmlTagInitializationState(ctx)
+        ctx.current_state = state
+        state.run()
+        
+        assert isinstance(ctx.current_state, IframeParsingState)
+
+    def test_doctype_case_insensitive(self):
+        """<!DOCTYPE HTML> also triggers IframeParsingState."""
+        ctx = ParserContext()
+        ctx.append("<!DOCTYPE HTML><html>")
+        
+        state = XmlTagInitializationState(ctx)
+        ctx.current_state = state
+        state.run()
+        
+        assert isinstance(ctx.current_state, IframeParsingState)
 
 
 class TestXmlTagInitUnknownTags:

@@ -50,6 +50,12 @@ class StateFactory:
         return XmlToolParsingState(context, signature_buffer)
     
     @staticmethod
+    def iframe_parsing_state(context: "ParserContext", initial_content: str) -> "BaseState":
+        """Create an IframeParsingState instance."""
+        from .states.iframe_parsing_state import IframeParsingState
+        return IframeParsingState(context, initial_content)
+    
+    @staticmethod
     def json_init_state(context: "ParserContext") -> "BaseState":
         """Create a JsonInitializationState instance."""
         from .states.json_initialization_state import JsonInitializationState

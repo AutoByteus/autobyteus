@@ -18,6 +18,7 @@ class TestSegmentType:
         assert SegmentType.TOOL_CALL.value == "tool_call"
         assert SegmentType.WRITE_FILE.value == "write_file"
         assert SegmentType.RUN_TERMINAL_CMD.value == "run_terminal_cmd"
+        assert SegmentType.IFRAME.value == "iframe"
         assert SegmentType.REASONING.value == "reasoning"
 
 
