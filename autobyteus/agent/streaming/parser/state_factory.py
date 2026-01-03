@@ -32,16 +32,16 @@ class StateFactory:
         return XmlTagInitializationState(context)
     
     @staticmethod
-    def file_parsing_state(context: "ParserContext", opening_tag: str) -> "BaseState":
-        """Create a FileParsingState instance."""
-        from .states.file_parsing_state import FileParsingState
-        return FileParsingState(context, opening_tag)
+    def write_file_parsing_state(context: "ParserContext", opening_tag: str) -> "BaseState":
+        """Create a WriteFileParsingState instance."""
+        from .states.write_file_parsing_state import WriteFileParsingState
+        return WriteFileParsingState(context, opening_tag)
     
     @staticmethod
-    def bash_parsing_state(context: "ParserContext", opening_tag: str) -> "BaseState":
-        """Create a BashParsingState instance."""
-        from .states.bash_parsing_state import BashParsingState
-        return BashParsingState(context, opening_tag)
+    def run_terminal_cmd_parsing_state(context: "ParserContext", opening_tag: str) -> "BaseState":
+        """Create a RunTerminalCmdParsingState instance."""
+        from .states.run_terminal_cmd_parsing_state import RunTerminalCmdParsingState
+        return RunTerminalCmdParsingState(context, opening_tag)
     
     @staticmethod
     def xml_tool_parsing_state(context: "ParserContext", signature_buffer: str) -> "BaseState":

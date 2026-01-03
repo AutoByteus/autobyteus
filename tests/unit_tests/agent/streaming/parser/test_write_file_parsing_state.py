@@ -1,22 +1,22 @@
 """
-Unit tests for FileParsingState.
+Unit tests for WriteFileParsingState.
 """
 import pytest
 from autobyteus.agent.streaming.parser.parser_context import ParserContext
 from autobyteus.agent.streaming.parser.events import SegmentType, SegmentEventType
-from autobyteus.agent.streaming.parser.states.file_parsing_state import FileParsingState
+from autobyteus.agent.streaming.parser.states.write_file_parsing_state import WriteFileParsingState
 from autobyteus.agent.streaming.parser.states.text_state import TextState
 
 
-class TestFileParsingStateBasics:
-    """Tests for basic FileParsingState functionality."""
+class TestWriteFileParsingStateBasics:
+    """Tests for basic WriteFileParsingState functionality."""
 
     def test_simple_file_content(self):
         """File with path attribute parses correctly."""
         ctx = ParserContext()
-        ctx.append("print('hello')</file>")
+        ctx.append("print('hello')</write_file>")
         
-        state = FileParsingState(ctx, "<file path='/test.py'>")
+        state = WriteFileParsingState(ctx, "<write_file path='/test.py'>")
         ctx.current_state = state
         state.run()
         
@@ -25,7 +25,7 @@ class TestFileParsingStateBasics:
         # Find START event
         start_events = [e for e in events if e.event_type == SegmentEventType.START]
         assert len(start_events) == 1
-        assert start_events[0].segment_type == SegmentType.FILE
+        assert start_events[0].segment_type == SegmentType.WRITE_FILE
         assert start_events[0].payload.get("metadata", {}).get("path") == "/test.py"
         
         # Find CONTENT event
@@ -39,9 +39,9 @@ class TestFileParsingStateBasics:
     def test_file_no_path_treated_as_text(self):
         """File tag without path is treated as text."""
         ctx = ParserContext()
-        ctx.append("content</file>")
+        ctx.append("content</write_file>")
         
-        state = FileParsingState(ctx, "<file>")  # No path
+        state = WriteFileParsingState(ctx, "<write_file>")  # No path
         ctx.current_state = state
         state.run()
         
@@ -53,16 +53,16 @@ class TestFileParsingStateBasics:
         assert start_events[0].segment_type == SegmentType.TEXT
 
 
-class TestFileParsingStateStreaming:
-    """Tests for streaming behavior in FileParsingState."""
+class TestWriteFileParsingStateStreaming:
+    """Tests for streaming behavior in WriteFileParsingState."""
 
     def test_partial_tag_held_back(self):
         """Partial closing tags are not emitted prematurely."""
         ctx = ParserContext()
         # Use longer content so we can verify holdback works
-        ctx.append("hello world content</fi")  # Partial closing tag
+        ctx.append("hello world content</wri")  # Partial closing tag
         
-        state = FileParsingState(ctx, "<file path='/a.py'>")
+        state = WriteFileParsingState(ctx, "<write_file path='/a.py'>")
         ctx.current_state = state
         state.run()
         
@@ -72,23 +72,22 @@ class TestFileParsingStateStreaming:
         start_events = [e for e in events if e.event_type == SegmentEventType.START]
         assert len(start_events) == 1
         
-        # CONTENT should NOT include "</fi" (held back)
-        # Safe streaming holds back len("</file>")-1 = 6 chars from end
+        # CONTENT should NOT include "</wri" (held back)
         content_events = [e for e in events if e.event_type == SegmentEventType.CONTENT]
         content = "".join(e.payload.get("delta", "") for e in content_events)
-        assert "</fi" not in content
+        assert "</wri" not in content
         assert "hello world" in content  # Early content should be emitted
 
 
-class TestFileParsingStateFinalize:
-    """Tests for finalize behavior in FileParsingState."""
+class TestWriteFileParsingStateFinalize:
+    """Tests for finalize behavior in WriteFileParsingState."""
 
     def test_finalize_emits_remaining(self):
         """Finalize emits remaining content."""
         ctx = ParserContext()
         ctx.append("partial content")
         
-        state = FileParsingState(ctx, "<file path='/a.py'>")
+        state = WriteFileParsingState(ctx, "<write_file path='/a.py'>")
         ctx.current_state = state
         state.run()
         state.finalize()

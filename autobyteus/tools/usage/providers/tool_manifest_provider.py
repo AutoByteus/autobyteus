@@ -65,14 +65,16 @@ class ToolManifestProvider:
         """
         tool_blocks = []
 
-        formatter_pair = self._formatting_registry.get_formatter_pair(provider)
-        schema_formatter = formatter_pair.schema_formatter
-        example_formatter = formatter_pair.example_formatter
-
-        is_xml_format = isinstance(schema_formatter, DefaultXmlSchemaFormatter)
-
         for td in tool_definitions:
             try:
+                # Get formatter pair per-tool (with fallback to provider)
+                formatter_pair = self._formatting_registry.get_formatter_pair_for_tool(
+                    td.name, provider
+                )
+                schema_formatter = formatter_pair.schema_formatter
+                example_formatter = formatter_pair.example_formatter
+                is_xml_format = isinstance(schema_formatter, DefaultXmlSchemaFormatter)
+
                 schema = schema_formatter.provide(td)
                 example = example_formatter.provide(td) # This is now a pre-formatted string for both XML and JSON
 

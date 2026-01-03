@@ -113,17 +113,17 @@ class InteractiveCLIDisplay:
                     self.current_line_empty = True
                 return
 
-            if segment_type == SegmentType.FILE:
+            if segment_type == SegmentType.WRITE_FILE:
                 path = metadata.get("path", "")
-                header = f"<file path=\"{path}\">" if path else "<file>"
+                header = f"<write_file path=\"{path}\">" if path else "<write_file>"
                 sys.stdout.write(f"{header}\n")
                 sys.stdout.flush()
                 self.current_line_empty = True
                 self.is_in_content_block = True
                 return
 
-            if segment_type == SegmentType.BASH:
-                sys.stdout.write("<bash>\n")
+            if segment_type == SegmentType.RUN_TERMINAL_CMD:
+                sys.stdout.write("<run_terminal_cmd>\n")
                 sys.stdout.flush()
                 self.current_line_empty = True
                 self.is_in_content_block = True
@@ -177,16 +177,16 @@ class InteractiveCLIDisplay:
                 self._segment_types_by_id.pop(segment_event.segment_id, None)
                 return
 
-            if segment_type == SegmentType.FILE:
-                sys.stdout.write("\n</file>\n")
+            if segment_type == SegmentType.WRITE_FILE:
+                sys.stdout.write("\n</write_file>\n")
                 sys.stdout.flush()
                 self.current_line_empty = True
                 self.is_in_content_block = False
                 self._segment_types_by_id.pop(segment_event.segment_id, None)
                 return
 
-            if segment_type == SegmentType.BASH:
-                sys.stdout.write("\n</bash>\n")
+            if segment_type == SegmentType.RUN_TERMINAL_CMD:
+                sys.stdout.write("\n</run_terminal_cmd>\n")
                 sys.stdout.flush()
                 self.current_line_empty = True
                 self.is_in_content_block = False

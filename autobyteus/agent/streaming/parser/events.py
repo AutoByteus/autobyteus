@@ -13,8 +13,8 @@ class SegmentType(str, Enum):
     """Types of content segments that can be parsed from LLM responses."""
     TEXT = "text"
     TOOL_CALL = "tool_call"
-    FILE = "file"
-    BASH = "bash"
+    WRITE_FILE = "write_file"
+    RUN_TERMINAL_CMD = "run_terminal_cmd"
     IFRAME = "iframe"
     REASONING = "reasoning"
 

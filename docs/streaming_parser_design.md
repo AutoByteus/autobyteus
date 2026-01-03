@@ -6,12 +6,12 @@ Authors: Autobyteus Core Team
 
 ## Overview
 
-The streaming parser is a state-machine-based system that incrementally parses LLM response chunks in real-time. It handles structured content blocks (`<file>`, `<bash>`, `<tool>`, `<!doctype html>`) while streaming safe content deltas to the frontend, preventing partial tags from being displayed.
+The streaming parser is a state-machine-based system that incrementally parses LLM response chunks in real-time. It handles structured content blocks (`<write_file>`, `<run_terminal_cmd>`, `<tool>`, `<!doctype html>`) while streaming safe content deltas to the frontend, preventing partial tags from being displayed.
 
 ## Goals
 
 1. **Real-time streaming** – Parse LLM output character-by-character as chunks arrive.
-2. **Safe content emission** – Never emit partial closing tags (e.g., `</fi` before `</file>`).
+2. **Safe content emission** – Never emit partial closing tags (e.g., `</wr` before `</write_file>`).
 3. **Structured segment events** – Emit `SEGMENT_START`, `SEGMENT_CONTENT`, `SEGMENT_END` for each block.
 4. **Extensibility** – Add new block types by creating new state classes.
 5. **Provider-agnostic** – Works with any LLM provider's streaming output.
@@ -47,10 +47,10 @@ The streaming parser is a state-machine-based system that incrementally parses L
                                │
         ┌──────────────────────┼──────────────────────┐
         ▼                      ▼                      ▼
-┌───────────────┐    ┌─────────────────┐    ┌──────────────────┐
-│FileParsingState│   │BashParsingState │   │XmlToolParsingState│
-│(<file>...</file>)│   │(<bash>...</bash>)│   │(<tool>...</tool>)│
-└───────────────┘    └─────────────────┘    └──────────────────┘
+┌──────────────────┐  ┌───────────────────────┐  ┌──────────────────┐
+│WriteFileParsingState│  │RunTerminalCmdParsingState│  │XmlToolParsingState│
+│(<write_file>...</write_file>)│  │(<run_terminal_cmd>...</run_terminal_cmd>)│  │(<tool>...</tool>)│
+└──────────────────┘  └───────────────────────┘  └──────────────────┘
         │                      │                      │
         └──────────────────────┼──────────────────────┘
                                ▼
@@ -72,8 +72,8 @@ from autobyteus.agent.streaming import StreamingResponseHandler
 handler = StreamingResponseHandler()
 
 # Feed chunks as they arrive
-events = handler.feed("Hello <file path='/a.py'>")
-events = handler.feed("print('hi')</file>")
+events = handler.feed("Hello <write_file path='/a.py'>")
+events = handler.feed("print('hi')</write_file>")
 
 # Finalize when stream ends
 final_events = handler.finalize()
@@ -108,9 +108,9 @@ Handles plain text. Watches for:
 
 Accumulates characters after `<` to detect tag type:
 
-- `<file path="...">` → `FileParsingState`
-- `<bash>` → `BashParsingState`
-- `<tool_name>` → `ToolParsingState`
+- `<write_file path="...">` → `WriteFileParsingState`
+- `<run_terminal_cmd>` → `RunTerminalCmdParsingState`
+- `<tool_name>` → `XmlToolParsingState`
 - `<!doctype html>` → `IframeParsingState`
 - Unknown tags → emits as text, returns to `TextState`
 
@@ -119,8 +119,8 @@ Accumulates characters after `<` to detect tag type:
 Each content state uses the same robust buffer pattern:
 
 ```python
-class FileParsingState(BaseState):
-    CLOSING_TAG = "</file>"
+class WriteFileParsingState(BaseState):
+    CLOSING_TAG = "</write_file>"
 
     def __init__(self, context, opening_tag):
         self._content_buffer = ""   # Full content
@@ -133,7 +133,7 @@ class FileParsingState(BaseState):
 
     def _stream_safe_content(self):
         # Holdback: len(CLOSING_TAG) - 1 chars from end
-        safe_length = len(self._content_buffer) - 6
+        safe_length = len(self._content_buffer) - 12  # len("</write_file>") - 1
         if safe_length > self._emitted_length:
             self.context.emit_segment_content(...)
 ```
@@ -154,22 +154,34 @@ The parser emits `SegmentEvent` objects with three lifecycle types:
 class SegmentType(str, Enum):
     TEXT = "text"
     TOOL_CALL = "tool_call"
-    FILE = "file"
-    BASH = "bash"
+    WRITE_FILE = "write_file"
+    RUN_TERMINAL_CMD = "run_terminal_cmd"
     IFRAME = "iframe"
-    THOUGHT = "thought"
+    REASONING = "reasoning"
 ```
 
-Tool syntax shorthands (e.g., `FILE`, `BASH`) map to concrete tools via the
+Tool syntax shorthands (e.g., `WRITE_FILE`, `RUN_TERMINAL_CMD`) map to concrete tools via the
 tool syntax registry:
 
 ```
 autobyteus/agent/streaming/parser/tool_syntax_registry.py
 ```
 
+### Tool Syntax Mapping (SegmentType -> ToolInvocation)
+
+The FSM only emits segment types; tool names are resolved later by the
+`ToolInvocationAdapter` using the tool syntax registry.
+
+| SegmentType      | Segment Syntax                             | Tool Name          | Argument Source                 |
+| ---------------- | ------------------------------------------ | ------------------ | ------------------------------- |
+| WRITE_FILE       | `<write_file path="...">`                  | `write_file`       | `path` from tag + segment body  |
+| RUN_TERMINAL_CMD | `<run_terminal_cmd>...</run_terminal_cmd>` | `run_terminal_cmd` | `command` from body or metadata |
+
 ### Tool Invocation IDs (Important)
+
 Tool invocations created from streamed tool segments **reuse the segment ID**.
 This keeps a stable, 1:1 link between:
+
 - `SegmentEvent.segment_id` in the streamed UI events
 - `ToolInvocation.id` used in approval/execution
 
@@ -182,16 +194,16 @@ reliable UI correlation without extra mapping.
 To prevent displaying partial closing tags in the UI, each content state holds back characters that could be part of the closing tag:
 
 ```
-Buffer: "print('hi')</fi"
-                    ^^^^^^ held back (6 chars = len("</file>") - 1)
+Buffer: "print('hi')</wr"
+                    ^^^^ held back (chars = len("</write_file>") - 1)
 Emitted: "print('hi')"
 ```
 
 Once the full closing tag arrives:
 
 ```
-Buffer: "print('hi')</file>"
-                    ^^^^^^^  closing tag detected
+Buffer: "print('hi')</write_file>"
+                    ^^^^^^^^^^^^^  closing tag detected
 Final emit: remaining content, then SEGMENT_END
 ```
 
@@ -236,7 +248,7 @@ Strategy notes:
 Start marker:
 
 ```
-[[SEG_START {"type":"file","path":"/a.py"}]]
+[[SEG_START {"type":"write_file","path":"/a.py"}]]
 ```
 
 End marker:
@@ -305,8 +317,8 @@ autobyteus/agent/streaming/
         ├── text_state.py
         ├── xml_tag_initialization_state.py
         ├── json_initialization_state.py
-        ├── file_parsing_state.py
-        ├── bash_parsing_state.py
+        ├── write_file_parsing_state.py
+        ├── run_terminal_cmd_parsing_state.py
         ├── xml_tool_parsing_state.py
         ├── json_tool_parsing_state.py
         └── iframe_parsing_state.py

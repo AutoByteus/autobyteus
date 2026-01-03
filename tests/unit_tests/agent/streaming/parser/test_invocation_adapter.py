@@ -61,12 +61,12 @@ class TestToolInvocationAdapterBasics:
         invocations = adapter.process_events(events)
         assert len(invocations) == 0
 
-    def test_file_segment_creates_write_file_invocation(self):
-        """File segments create write_file invocations."""
+    def test_write_file_segment_creates_write_file_invocation(self):
+        """Write_file segments create write_file invocations."""
         adapter = ToolInvocationAdapter()
 
         events = [
-            SegmentEvent.start("seg_2", SegmentType.FILE, path="/test.py"),
+            SegmentEvent.start("seg_2", SegmentType.WRITE_FILE, path="/test.py"),
             SegmentEvent.content("seg_2", "code"),
             SegmentEvent.end("seg_2"),
         ]
@@ -76,12 +76,12 @@ class TestToolInvocationAdapterBasics:
         assert invocations[0].name == "write_file"
         assert invocations[0].arguments == {"path": "/test.py", "content": "code"}
 
-    def test_bash_segment_creates_run_terminal_cmd_invocation(self):
-        """Bash segments create run_terminal_cmd invocations."""
+    def test_run_terminal_cmd_segment_creates_invocation(self):
+        """Run_terminal_cmd segments create run_terminal_cmd invocations."""
         adapter = ToolInvocationAdapter()
 
         events = [
-            SegmentEvent.start("seg_3", SegmentType.BASH),
+            SegmentEvent.start("seg_3", SegmentType.RUN_TERMINAL_CMD),
             SegmentEvent.content("seg_3", "ls -la"),
             SegmentEvent.end("seg_3"),
         ]
@@ -112,12 +112,12 @@ class TestToolInvocationAdapterBasics:
         assert invocations[1].id == "seg_2"
         assert invocations[1].name == "tool_b"
 
-    def test_file_segment_without_path_is_ignored(self):
-        """File segments without path do not create invocations."""
+    def test_write_file_segment_without_path_is_ignored(self):
+        """Write_file segments without path do not create invocations."""
         adapter = ToolInvocationAdapter()
 
         events = [
-            SegmentEvent.start("seg_x", SegmentType.FILE),
+            SegmentEvent.start("seg_x", SegmentType.WRITE_FILE),
             SegmentEvent.content("seg_x", "code"),
             SegmentEvent.end("seg_x"),
         ]

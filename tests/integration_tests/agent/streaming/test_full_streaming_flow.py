@@ -119,14 +119,14 @@ Done!
         response = '''
 Let me help you:
 
-<file path="/output.py">
+<write_file path="/output.py">
 def hello():
     print("hello")
-</file>
+</write_file>
 
-<bash>
+<run_terminal_cmd>
 python output.py
-</bash>
+</run_terminal_cmd>
 
 <tool name="verify_result"><expected>hello</expected></tool>
 
@@ -142,8 +142,8 @@ All done!
         segment_types = [e.segment_type for e in events if e.segment_type]
         
         assert SegmentType.TEXT in segment_types
-        assert SegmentType.FILE in segment_types
-        assert SegmentType.BASH in segment_types
+        assert SegmentType.WRITE_FILE in segment_types
+        assert SegmentType.RUN_TERMINAL_CMD in segment_types
         assert SegmentType.TOOL_CALL in segment_types
         
         # File, bash, and tool create invocations
@@ -153,11 +153,11 @@ All done!
         assert "run_terminal_cmd" in names
         assert "verify_result" in names
 
-    def test_write_file_file_segment_with_raw_html_comment(self):
-        """File shorthand supports raw HTML (including comments) without escaping."""
+    def test_write_file_shorthand_with_raw_html_comment(self):
+        """Write_file shorthand supports raw HTML (including comments) without escaping."""
         handler = StreamingResponseHandler()
 
-        response = """<file path="/site/index.html">
+        response = """<write_file path="/site/index.html">
 <!doctype html>
 <html>
   <body>
@@ -165,7 +165,7 @@ All done!
     <div class="hero">& welcome</div>
   </body>
 </html>
-</file>"""
+</write_file>"""
         handler.feed(response)
         handler.finalize()
 

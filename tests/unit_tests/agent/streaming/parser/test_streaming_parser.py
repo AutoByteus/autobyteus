@@ -48,21 +48,21 @@ class TestStreamingParserBasics:
 
 
 class TestStreamingParserFileParsing:
-    """Tests for file tag parsing through the driver."""
+    """Tests for write_file tag parsing through the driver."""
 
-    def test_complete_file_tag(self):
-        """Parse a complete file tag."""
+    def test_complete_write_file_tag(self):
+        """Parse a complete write_file tag."""
         parser = StreamingParser()
         events = parser.feed_and_finalize(
-            "Here is the code:<file path='/test.py'>print('hello')</file>Done!"
+            "Here is the code:<write_file path='/test.py'>print('hello')</write_file>Done!"
         )
         
         segments = extract_segments(events)
         
-        # Should have file segment
-        file_segments = [s for s in segments if s["type"] == "file"]
-        assert len(file_segments) >= 1
-        assert file_segments[0]["metadata"].get("path") == "/test.py"
+        # Should have write_file segment
+        write_file_segments = [s for s in segments if s["type"] == "write_file"]
+        assert len(write_file_segments) >= 1
+        assert write_file_segments[0]["metadata"].get("path") == "/test.py"
 
 
 class TestStreamingParserToolParsing:
@@ -126,29 +126,29 @@ class TestStreamingParserToolParsing:
 class TestStreamingParserMixedContent:
     """Tests for mixed content responses."""
 
-    def test_text_and_file(self):
-        """Parse mix of text and file."""
+    def test_text_and_write_file(self):
+        """Parse mix of text and write_file."""
         parser = StreamingParser()
         events = parser.feed_and_finalize(
-            "Here is the solution:\n<file path='/main.py'>print('done')</file>\nLet me know!"
+            "Here is the solution:\n<write_file path='/main.py'>print('done')</write_file>\nLet me know!"
         )
         
         segments = extract_segments(events)
         types = set(s["type"] for s in segments)
         
         assert "text" in types
-        assert "file" in types
+        assert "write_file" in types
 
-    def test_multiple_file_blocks(self):
-        """Parse multiple file blocks."""
+    def test_multiple_write_file_blocks(self):
+        """Parse multiple write_file blocks."""
         parser = StreamingParser()
         events = parser.feed_and_finalize(
-            "<file path='/a.py'>a</file><file path='/b.py'>b</file>"
+            "<write_file path='/a.py'>a</write_file><write_file path='/b.py'>b</write_file>"
         )
         
         segments = extract_segments(events)
-        file_segments = [s for s in segments if s["type"] == "file"]
-        assert len(file_segments) >= 2
+        write_file_segments = [s for s in segments if s["type"] == "write_file"]
+        assert len(write_file_segments) >= 2
 
 
 class TestStreamingParserStateManagement:
@@ -226,13 +226,13 @@ class TestStreamingParserStreaming:
         combined_text = "".join(s["content"] for s in segments if s["type"] == "text")
         assert "Hello, I can help you!" in combined_text
 
-    def test_file_split_across_chunks(self):
-        """File tag content split across chunks."""
+    def test_write_file_split_across_chunks(self):
+        """Write_file tag content split across chunks."""
         parser = StreamingParser()
         
         all_events = []
         
-        chunks = ["<fi", "le path='/test.py'>print", "('hello')</file>"]
+        chunks = ["<wri", "te_file path='/test.py'>print", "('hello')</write_file>"]
         for chunk in chunks:
             events = parser.feed(chunk)
             all_events.extend(events)
@@ -241,5 +241,5 @@ class TestStreamingParserStreaming:
         all_events.extend(final_events)
         
         segments = extract_segments(all_events)
-        file_segments = [s for s in segments if s["type"] == "file"]
-        assert len(file_segments) >= 1
+        write_file_segments = [s for s in segments if s["type"] == "write_file"]
+        assert len(write_file_segments) >= 1

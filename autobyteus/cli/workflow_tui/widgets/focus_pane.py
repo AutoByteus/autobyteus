@@ -307,12 +307,12 @@ class FocusPane(Static):
 
             await self._ensure_assistant_content_widget(log_container)
 
-            if segment_type == SegmentType.FILE:
+            if segment_type == SegmentType.WRITE_FILE:
                 path = metadata.get("path", "")
-                header = f"<file path=\"{path}\">" if path else "<file>"
+                header = f"<write_file path=\"{path}\">" if path else "<write_file>"
                 self._content_buffer += f"{header}\n"
-            elif segment_type == SegmentType.BASH:
-                self._content_buffer += "<bash>\n"
+            elif segment_type == SegmentType.RUN_TERMINAL_CMD:
+                self._content_buffer += "<run_terminal_cmd>\n"
             elif segment_type == SegmentType.TOOL_CALL:
                 tool_name = metadata.get("tool_name", "")
                 header = f"<tool name=\"{tool_name}\">" if tool_name else "<tool>"
@@ -340,9 +340,9 @@ class FocusPane(Static):
                 self._segment_types_by_id.pop(data.segment_id, None)
                 return
 
-            if segment_type in {SegmentType.FILE, SegmentType.BASH, SegmentType.TOOL_CALL, SegmentType.IFRAME}:
-                tag = "file" if segment_type == SegmentType.FILE else (
-                    "bash" if segment_type == SegmentType.BASH else (
+            if segment_type in {SegmentType.WRITE_FILE, SegmentType.RUN_TERMINAL_CMD, SegmentType.TOOL_CALL, SegmentType.IFRAME}:
+                tag = "write_file" if segment_type == SegmentType.WRITE_FILE else (
+                    "run_terminal_cmd" if segment_type == SegmentType.RUN_TERMINAL_CMD else (
                         "tool" if segment_type == SegmentType.TOOL_CALL else "iframe"
                     )
                 )

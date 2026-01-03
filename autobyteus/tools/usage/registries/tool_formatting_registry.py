@@ -11,7 +11,10 @@ from autobyteus.utils.tool_call_format import resolve_tool_call_format
 from autobyteus.tools.usage.formatters import (
     DefaultJsonSchemaFormatter, OpenAiJsonSchemaFormatter, AnthropicJsonSchemaFormatter, GeminiJsonSchemaFormatter,
     DefaultJsonExampleFormatter, OpenAiJsonExampleFormatter, AnthropicJsonExampleFormatter, GeminiJsonExampleFormatter,
-    DefaultXmlSchemaFormatter, DefaultXmlExampleFormatter
+    DefaultXmlSchemaFormatter, DefaultXmlExampleFormatter,
+    # Tool-specific formatters
+    WriteFileXmlSchemaFormatter, WriteFileXmlExampleFormatter,
+    RunTerminalCmdXmlSchemaFormatter, RunTerminalCmdXmlExampleFormatter,
 )
 
 logger = logging.getLogger(__name__)
@@ -20,6 +23,9 @@ class ToolFormattingRegistry(metaclass=SingletonMeta):
     """
     A consolidated registry that maps an LLMProvider directly to its required
     ToolFormatterPair, which contains both schema and example formatters.
+    
+    Also supports tool-specific formatter pairs that take priority over provider defaults.
+    Priority cascade: tool-specific → provider-specific → default
     """
 
     def __init__(self):
@@ -39,8 +45,62 @@ class ToolFormattingRegistry(metaclass=SingletonMeta):
         self._default_pair = ToolFormatterPair(DefaultJsonSchemaFormatter(), DefaultJsonExampleFormatter())
         # A specific pair for the XML override
         self._xml_override_pair = ToolFormatterPair(DefaultXmlSchemaFormatter(), DefaultXmlExampleFormatter())
+        # Tool-specific formatter pairs (tool_name -> ToolFormatterPair)
+        self._tool_pairs: Dict[str, ToolFormatterPair] = {}
+        
+        # Register tool-specific formatters
+        self._register_tool_formatters()
         
         logger.info("ToolFormattingRegistry initialized with direct provider-to-formatter mappings.")
+
+    def _register_tool_formatters(self) -> None:
+        """Register built-in tool-specific formatters."""
+        # write_file uses shorthand <write_file> syntax
+        self._tool_pairs["write_file"] = ToolFormatterPair(
+            WriteFileXmlSchemaFormatter(),
+            WriteFileXmlExampleFormatter()
+        )
+        # run_terminal_cmd uses shorthand <run_terminal_cmd> syntax
+        self._tool_pairs["run_terminal_cmd"] = ToolFormatterPair(
+            RunTerminalCmdXmlSchemaFormatter(),
+            RunTerminalCmdXmlExampleFormatter()
+        )
+
+    def register_tool_formatter(self, tool_name: str, formatter_pair: ToolFormatterPair) -> None:
+        """
+        Register a tool-specific formatter pair.
+        
+        Args:
+            tool_name: The name of the tool (e.g., 'write_file').
+            formatter_pair: The formatter pair to use for this tool.
+        """
+        self._tool_pairs[tool_name] = formatter_pair
+        logger.info(f"Registered tool-specific formatter for '{tool_name}'.")
+
+    def get_formatter_pair_for_tool(
+        self, 
+        tool_name: str, 
+        provider: Optional[LLMProvider]
+    ) -> ToolFormatterPair:
+        """
+        Get the formatter pair for a specific tool with priority cascade.
+        
+        Priority:
+        1. Tool-specific pair (if registered)
+        2. Provider-specific pair (if provider known)
+        3. Default pair
+        
+        Args:
+            tool_name: The name of the tool.
+            provider: The LLM provider.
+            
+        Returns:
+            The appropriate ToolFormatterPair.
+        """
+        if tool_name in self._tool_pairs:
+            logger.debug(f"Using tool-specific formatter for '{tool_name}'.")
+            return self._tool_pairs[tool_name]
+        return self.get_formatter_pair(provider)
 
     def get_formatter_pair(self, provider: Optional[LLMProvider]) -> ToolFormatterPair:
         """

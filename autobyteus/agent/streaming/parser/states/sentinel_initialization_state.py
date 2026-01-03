@@ -111,8 +111,8 @@ class SentinelInitializationState(BaseState):
             "text": SegmentType.TEXT,
             "tool": SegmentType.TOOL_CALL,
             "tool_call": SegmentType.TOOL_CALL,
-            "file": SegmentType.FILE,
-            "bash": SegmentType.BASH,
+            "write_file": SegmentType.WRITE_FILE,
+            "run_terminal_cmd": SegmentType.RUN_TERMINAL_CMD,
             "iframe": SegmentType.IFRAME,
             "reasoning": SegmentType.REASONING,
         }

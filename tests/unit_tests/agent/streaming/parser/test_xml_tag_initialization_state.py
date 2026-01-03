@@ -5,8 +5,8 @@ import pytest
 from autobyteus.agent.streaming.parser.parser_context import ParserContext, ParserConfig
 from autobyteus.agent.streaming.parser.states.text_state import TextState
 from autobyteus.agent.streaming.parser.states.xml_tag_initialization_state import XmlTagInitializationState
-from autobyteus.agent.streaming.parser.states.file_parsing_state import FileParsingState
-from autobyteus.agent.streaming.parser.states.bash_parsing_state import BashParsingState
+from autobyteus.agent.streaming.parser.states.write_file_parsing_state import WriteFileParsingState
+from autobyteus.agent.streaming.parser.states.run_terminal_cmd_parsing_state import RunTerminalCmdParsingState
 from autobyteus.agent.streaming.parser.states.xml_tool_parsing_state import XmlToolParsingState
 from autobyteus.agent.streaming.parser.states.iframe_parsing_state import IframeParsingState
 from autobyteus.agent.streaming.parser.events import SegmentEventType
@@ -29,57 +29,57 @@ class TestXmlTagInitConstructor:
         assert ctx.get_position() == 1
 
 
-class TestXmlTagInitFileDetection:
-    """Tests for <file tag detection."""
+class TestXmlTagInitWriteFileDetection:
+    """Tests for <write_file tag detection."""
 
-    def test_file_tag_transitions_to_file_state(self):
-        """<file path="..."> triggers transition to FileParsingState."""
+    def test_write_file_tag_transitions_to_write_file_state(self):
+        """<write_file path="..."> triggers transition to WriteFileParsingState."""
         ctx = ParserContext()
-        ctx.append('<file path="/test.py">')
+        ctx.append('<write_file path="/test.py">')
         
         state = XmlTagInitializationState(ctx)
         ctx.current_state = state
         state.run()
         
-        assert isinstance(ctx.current_state, FileParsingState)
+        assert isinstance(ctx.current_state, WriteFileParsingState)
 
-    def test_file_tag_case_insensitive(self):
-        """<FILE (uppercase) also triggers FileParsingState."""
+    def test_write_file_tag_case_insensitive(self):
+        """<WRITE_FILE (uppercase) also triggers WriteFileParsingState."""
         ctx = ParserContext()
-        ctx.append('<FILE path="/test.py">')
+        ctx.append('<WRITE_FILE path="/test.py">')
         
         state = XmlTagInitializationState(ctx)
         ctx.current_state = state
         state.run()
         
-        assert isinstance(ctx.current_state, FileParsingState)
+        assert isinstance(ctx.current_state, WriteFileParsingState)
 
 
 
-class TestXmlTagInitBashDetection:
-    """Tests for <bash> tag detection."""
+class TestXmlTagInitRunTerminalCmdDetection:
+    """Tests for <run_terminal_cmd> tag detection."""
 
-    def test_bash_tag_transitions_to_bash_state(self):
-        """<bash> triggers transition to BashParsingState."""
+    def test_run_terminal_cmd_tag_transitions_to_state(self):
+        """<run_terminal_cmd> triggers transition to RunTerminalCmdParsingState."""
         ctx = ParserContext()
-        ctx.append("<bash>command</bash>")
+        ctx.append("<run_terminal_cmd>command</run_terminal_cmd>")
         
         state = XmlTagInitializationState(ctx)
         ctx.current_state = state
         state.run()
         
-        assert isinstance(ctx.current_state, BashParsingState)
+        assert isinstance(ctx.current_state, RunTerminalCmdParsingState)
 
-    def test_bash_with_attributes(self):
-        """<bash description='test'> also triggers BashParsingState."""
+    def test_run_terminal_cmd_with_attributes(self):
+        """<run_terminal_cmd description='test'> also triggers RunTerminalCmdParsingState."""
         ctx = ParserContext()
-        ctx.append("<bash description='test'>")
+        ctx.append("<run_terminal_cmd description='test'>")
         
         state = XmlTagInitializationState(ctx)
         ctx.current_state = state
         state.run()
         
-        assert isinstance(ctx.current_state, BashParsingState)
+        assert isinstance(ctx.current_state, RunTerminalCmdParsingState)
 
 
 class TestXmlTagInitToolDetection:
@@ -178,18 +178,14 @@ class TestXmlTagInitUnknownTags:
 class TestXmlTagInitPartialBuffer:
     """Tests for partial/incomplete tags."""
 
-    def test_partial_file_waits_for_more(self):
-        """Partial '<fil' waits for more characters."""
+    def test_partial_write_file_waits_for_more(self):
+        """Partial '<write_fil' waits for more characters."""
         ctx = ParserContext()
-        ctx.append("<fil")  # Incomplete - could be <file
+        ctx.append("<write_fil")  # Incomplete - could be <write_file
         
         state = XmlTagInitializationState(ctx)
         ctx.current_state = state
         state.run()
-        
-        # State should still be XmlTagInitializationState (waiting)
-        # Actually, after run() with exhausted buffer, we stay in same state
-        # unless we explicitly transition
         
         # No events should be emitted yet
         events = ctx.get_and_clear_events()

@@ -34,11 +34,11 @@ def _build_run_terminal_cmd_args(metadata: dict, content: str) -> Optional[dict]
 
 
 _TOOL_SYNTAX_REGISTRY: Dict[SegmentType, ToolSyntaxSpec] = {
-    SegmentType.FILE: ToolSyntaxSpec(
+    SegmentType.WRITE_FILE: ToolSyntaxSpec(
         tool_name="write_file",
         build_arguments=_build_write_file_args,
     ),
-    SegmentType.BASH: ToolSyntaxSpec(
+    SegmentType.RUN_TERMINAL_CMD: ToolSyntaxSpec(
         tool_name="run_terminal_cmd",
         build_arguments=_build_run_terminal_cmd_args,
     ),

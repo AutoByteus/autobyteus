@@ -96,45 +96,45 @@ class TestPureTextParsing:
         assert combined == "Hello, I can help you!"
 
 
-class TestFileTagParsing:
-    """Tests for parsing <file> tags."""
+class TestWriteFileTagParsing:
+    """Tests for parsing <write_file> tags."""
 
-    def test_file_tag_single_chunk(self):
-        """Parse a complete file tag in one chunk."""
+    def test_write_file_tag_single_chunk(self):
+        """Parse a complete write_file tag in one chunk."""
         driver = StreamingParserDriver()
-        driver.feed("Here is the file:<file path='/test.py'>print('hello')</file>Done!")
+        driver.feed("Here is the file:<write_file path='/test.py'>print('hello')</write_file>Done!")
         driver.finalize()
         
         segments = driver.get_segments()
-        # Should have: text, file, text
+        # Should have: text, write_file, text
         types = [s["type"] for s in segments]
-        assert "file" in types
+        assert "write_file" in types
 
-    def test_file_tag_streaming(self):
-        """Parse a file tag arriving in chunks."""
+    def test_write_file_tag_streaming(self):
+        """Parse a write_file tag arriving in chunks."""
         driver = StreamingParserDriver()
-        driver.feed("Code:<fi")
-        driver.feed("le path='/test.py'>def ")
-        driver.feed("hello():\n    pass</file>")
+        driver.feed("Code:<wri")
+        driver.feed("te_file path='/test.py'>def ")
+        driver.feed("hello():\n    pass</write_file>")
         driver.finalize()
         
         segments = driver.get_segments()
-        file_segments = [s for s in segments if s["type"] == "file"]
-        assert len(file_segments) >= 1
+        write_file_segments = [s for s in segments if s["type"] == "write_file"]
+        assert len(write_file_segments) >= 1
 
 
-class TestBashTagParsing:
-    """Tests for parsing <bash> tags."""
+class TestRunTerminalCmdTagParsing:
+    """Tests for parsing <run_terminal_cmd> tags."""
 
-    def test_bash_tag_complete(self):
-        """Parse a complete bash tag."""
+    def test_run_terminal_cmd_tag_complete(self):
+        """Parse a complete run_terminal_cmd tag."""
         driver = StreamingParserDriver()
-        driver.feed("Run this:<bash>ls -la</bash>")
+        driver.feed("Run this:<run_terminal_cmd>ls -la</run_terminal_cmd>")
         driver.finalize()
         
         segments = driver.get_segments()
-        bash_segments = [s for s in segments if s["type"] == "bash"]
-        assert len(bash_segments) >= 1
+        cmd_segments = [s for s in segments if s["type"] == "run_terminal_cmd"]
+        assert len(cmd_segments) >= 1
 
 
 class TestToolCallParsing:
@@ -171,25 +171,25 @@ class TestMixedContent:
         """Parse response with text and code blocks."""
         driver = StreamingParserDriver()
         driver.feed("Here is the solution:\n")
-        driver.feed("<file path='/main.py'>print('done')</file>\n")
+        driver.feed("<write_file path='/main.py'>print('done')</write_file>\n")
         driver.feed("Let me know if you need more help!")
         driver.finalize()
         
         segments = driver.get_segments()
         types = set(s["type"] for s in segments)
         assert "text" in types
-        assert "file" in types
+        assert "write_file" in types
 
-    def test_multiple_file_blocks(self):
-        """Parse response with multiple file blocks."""
+    def test_multiple_write_file_blocks(self):
+        """Parse response with multiple write_file blocks."""
         driver = StreamingParserDriver()
-        driver.feed("<file path='/a.py'>a</file>")
-        driver.feed("<file path='/b.py'>b</file>")
+        driver.feed("<write_file path='/a.py'>a</write_file>")
+        driver.feed("<write_file path='/b.py'>b</write_file>")
         driver.finalize()
         
         segments = driver.get_segments()
-        file_segments = [s for s in segments if s["type"] == "file"]
-        assert len(file_segments) >= 2
+        write_file_segments = [s for s in segments if s["type"] == "write_file"]
+        assert len(write_file_segments) >= 2
 
 
 class TestDoctypeHtmlParsing:
@@ -214,12 +214,12 @@ class TestEdgeCases:
     def test_incomplete_tag_at_stream_end(self):
         """Incomplete tag at end of stream is emitted as text."""
         driver = StreamingParserDriver()
-        driver.feed("Some text <fi")  # Incomplete <file tag
+        driver.feed("Some text <wri")  # Incomplete <write_file tag
         driver.finalize()
         
         segments = driver.get_segments()
         combined = "".join(s["content"] for s in segments if s["type"] == "text")
-        assert "<fi" in combined or "fi" in combined
+        assert "<wri" in combined or "wri" in combined
 
     def test_unknown_xml_tag(self):
         """Unknown XML tags like <div> are treated as text."""

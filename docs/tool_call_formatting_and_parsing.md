@@ -17,6 +17,7 @@ formats (JSON variants for OpenAI-style models, XML for Anthropic). The system m
 This document describes the current implementation as reflected in the codebase.
 
 Related documentation:
+
 - Streaming parser design and segment lifecycle: `docs/streaming_parser_design.md`
 
 If you're new to the parsing flow, start with the streaming design doc above.
@@ -63,6 +64,42 @@ ToolInvocation list (per stream)
 PendingToolInvocationEvent -> tool execution -> ToolResultEventHandler
 ```
 
+## Formatter / Example / Parser Contract
+
+Tool call formatting and parsing are tightly coupled. The formatter pair
+(schema + example) defines the **shape** the LLM should emit, and the streaming
+parser must recognize that exact shape.
+
+```
+ToolDefinition
+  ├─ SchemaFormatter  -> tool schema
+  └─ ExampleFormatter -> canonical example
+             │
+             ▼
+      Tool manifest in prompt
+             │
+             ▼
+      LLM output (matches example shape)
+             │
+             ▼
+      StreamingParser + ToolInvocationAdapter
+```
+
+Key alignment rules:
+
+- The **example formatter** establishes the surface syntax the parser expects.
+- The **parser** must stay in lockstep with any example changes (XML tags or JSON envelopes).
+- The **adapter** maps parsed segments to tool names/args (e.g., `<write_file>` -> `write_file`).
+
+Concrete alignment points in code:
+
+- XML examples (`DefaultXmlExampleFormatter`) emit `<tool>`/`<write_file>`/`<run_terminal_cmd>` shapes that
+  the XML tag parser recognizes (`XmlTagInitializationState`, `WriteFileParsingState`, etc.).
+- JSON examples are provider-specific (OpenAI/Gemini/default) and must match the JSON
+  parsing strategies in `autobyteus/agent/streaming/parser/json_parsing_strategies/`.
+- The tool syntax registry (`autobyteus/agent/streaming/parser/tool_syntax_registry.py`)
+  defines how parsed segments become tool invocations.
+
 ## Core Components
 
 ### 1) ToolDefinition and Tool Registry
@@ -73,10 +110,12 @@ PendingToolInvocationEvent -> tool execution -> ToolResultEventHandler
 - The registry (`ToolRegistry`) stores definitions and is used by manifest generation.
 
 Why it matters:
+
 - All formatting and parsing flows rely on `ToolDefinition` for stable names, schema,
   and descriptions.
 
 Key files:
+
 - `autobyteus/tools/registry/tool_definition.py`
 - `autobyteus/tools/registry/tool_registry.py`
 
@@ -100,6 +139,7 @@ The manifest is injected into the system prompt by
 If the prompt is tools-only, a default instruction prefix is added.
 
 Key files:
+
 - `autobyteus/agent/system_prompt_processor/tool_manifest_injector_processor.py`
 - `autobyteus/tools/usage/providers/tool_manifest_provider.py`
 - `autobyteus/tools/usage/registries/tool_formatting_registry.py`
@@ -138,6 +178,7 @@ introduce a new segment type or strategy and register the mapping in
 `autobyteus/agent/streaming/parser/tool_syntax_registry.py`.
 
 Key files:
+
 - `autobyteus/agent/streaming/streaming_response_handler.py`
 - `autobyteus/agent/streaming/parser/*`
 - `autobyteus/agent/streaming/parser/json_parsing_strategies/*`
@@ -160,6 +201,7 @@ For multi-tool turns, results are reordered to match the invocation
 sequence before being sent back to the LLM.
 
 Key files:
+
 - `autobyteus/agent/handlers/llm_user_message_ready_event_handler.py`
 - `autobyteus/agent/streaming/streaming_response_handler.py`
 - `autobyteus/agent/tool_invocation.py`
@@ -173,6 +215,7 @@ Key files:
   override is provided.
 
 Key files:
+
 - `autobyteus/agent/streaming/parser/parser_factory.py`
 - `autobyteus/utils/tool_call_format.py`
 - `autobyteus/agent/handlers/llm_user_message_ready_event_handler.py`

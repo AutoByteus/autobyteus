@@ -150,7 +150,7 @@ class TestParserContextSegmentEmission:
         id1 = ctx.emit_segment_start(SegmentType.TEXT)
         ctx.emit_segment_end()
         
-        id2 = ctx.emit_segment_start(SegmentType.FILE)
+        id2 = ctx.emit_segment_start(SegmentType.WRITE_FILE)
         ctx.emit_segment_end()
         
         id3 = ctx.emit_segment_start(SegmentType.TOOL_CALL)

@@ -27,19 +27,18 @@ class TestStateFactory:
         state = StateFactory.xml_tag_init_state(ctx)
         assert state.__class__.__name__ == "XmlTagInitializationState"
 
-    def test_create_file_parsing_state(self):
-        """Factory creates FileParsingState with opening_tag."""
+    def test_create_write_file_parsing_state(self):
+        """Factory creates WriteFileParsingState with opening_tag."""
         ctx = ParserContext()
-        ctx.append("content</file>")
-        # Now requires opening_tag parameter
-        state = StateFactory.file_parsing_state(ctx, "<file path='/test.py'>")
-        assert state.__class__.__name__ == "FileParsingState"
+        ctx.append("content</write_file>")
+        state = StateFactory.write_file_parsing_state(ctx, "<write_file path='/test.py'>")
+        assert state.__class__.__name__ == "WriteFileParsingState"
 
-    def test_create_bash_parsing_state(self):
-        """Factory creates BashParsingState."""
+    def test_create_run_terminal_cmd_parsing_state(self):
+        """Factory creates RunTerminalCmdParsingState."""
         ctx = ParserContext()
-        state = StateFactory.bash_parsing_state(ctx, "<bash>")
-        assert state.__class__.__name__ == "BashParsingState"
+        state = StateFactory.run_terminal_cmd_parsing_state(ctx, "<run_terminal_cmd>")
+        assert state.__class__.__name__ == "RunTerminalCmdParsingState"
 
     def test_create_xml_tool_parsing_state(self):
         """Factory creates XmlToolParsingState."""
@@ -69,10 +68,11 @@ class TestStateFactory:
         
         states = [
             StateFactory.text_state(ctx),
-            StateFactory.file_parsing_state(ctx, "<file path='/test'>"),
-            StateFactory.bash_parsing_state(ctx, "<bash>"),
+            StateFactory.write_file_parsing_state(ctx, "<write_file path='/test'>"),
+            StateFactory.run_terminal_cmd_parsing_state(ctx, "<run_terminal_cmd>"),
         ]
         
         for state in states:
             assert hasattr(state, 'run')
             assert hasattr(state, 'finalize')
+

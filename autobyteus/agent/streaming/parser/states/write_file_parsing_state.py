@@ -1,8 +1,8 @@
 """
-FileParsingState: Parses <file path="...">...</file> blocks.
+WriteFileParsingState: Parses <write_file path="...">...</write_file> blocks.
 
 This state handles the extraction of file path from the tag attributes
-and streams the file content until the closing </file> tag is found.
+and streams the file content until the closing </write_file> tag is found.
 """
 import re
 from typing import TYPE_CHECKING, Optional
@@ -14,31 +14,31 @@ if TYPE_CHECKING:
     from ..parser_context import ParserContext
 
 
-class FileParsingState(DelimitedContentState):
+class WriteFileParsingState(DelimitedContentState):
     """
-    Parses file content blocks.
+    Parses write_file content blocks.
     
-    Expected format: <file path="...">content</file>
+    Expected format: <write_file path="...">content</write_file>
     
     The state:
     1. Extracts the path attribute from the opening tag
     2. Emits SEGMENT_START with path metadata
     3. Streams content characters as SEGMENT_CONTENT events
-    4. Emits SEGMENT_END when </file> is found
+    4. Emits SEGMENT_END when </write_file> is found
     """
     
-    # Pattern to extract path from <file path="..."> or <file path='...'>
+    # Pattern to extract path from <write_file path="..."> or <write_file path='...'>
     PATH_PATTERN = re.compile(r'path\s*=\s*["\']([^"\']+)["\']', re.IGNORECASE)
-    CLOSING_TAG = "</file>"
-    SEGMENT_TYPE = SegmentType.FILE
+    CLOSING_TAG = "</write_file>"
+    SEGMENT_TYPE = SegmentType.WRITE_FILE
     
     def __init__(self, context: "ParserContext", opening_tag: str):
         """
-        Initialize the file parsing state.
+        Initialize the write_file parsing state.
         
         Args:
             context: The parser context.
-            opening_tag: The complete opening tag (e.g., '<file path="/a.py">').
+            opening_tag: The complete opening tag (e.g., '<write_file path="/a.py">').
         """
         super().__init__(context, opening_tag)
         self._file_path: Optional[str] = None

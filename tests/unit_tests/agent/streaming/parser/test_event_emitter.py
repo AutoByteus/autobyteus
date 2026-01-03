@@ -38,7 +38,7 @@ class TestEventEmitterBasics:
         id1 = emitter.emit_segment_start(SegmentType.TEXT)
         emitter.emit_segment_end()
         
-        id2 = emitter.emit_segment_start(SegmentType.FILE)
+        id2 = emitter.emit_segment_start(SegmentType.WRITE_FILE)
         emitter.emit_segment_end()
         
         assert id1 == "seg_1"
@@ -64,7 +64,7 @@ class TestEventEmitterMetadata:
     def test_emit_with_metadata(self):
         """Segment start with metadata."""
         emitter = EventEmitter()
-        emitter.emit_segment_start(SegmentType.FILE, path="/test.py")
+        emitter.emit_segment_start(SegmentType.WRITE_FILE, path="/test.py")
         
         metadata = emitter.get_current_segment_metadata()
         assert metadata == {"path": "/test.py"}
@@ -83,15 +83,14 @@ class TestEventEmitterTextHelper:
     """Tests for text segment helper."""
 
     def test_append_text_segment(self):
-        """append_text_segment emits full lifecycle."""
+        """append_text_segment emits START and CONTENT (no END until explicit close)."""
         emitter = EventEmitter()
         emitter.append_text_segment("Hello World")
         
         events = emitter.get_and_clear_events()
-        assert len(events) == 3
+        assert len(events) == 2  # START + CONTENT (no auto END)
         assert events[0].event_type == SegmentEventType.START
         assert events[1].event_type == SegmentEventType.CONTENT
-        assert events[2].event_type == SegmentEventType.END
 
     def test_append_empty_text(self):
         """Empty text emits nothing."""
