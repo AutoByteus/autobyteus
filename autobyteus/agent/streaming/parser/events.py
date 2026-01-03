@@ -15,7 +15,6 @@ class SegmentType(str, Enum):
     TOOL_CALL = "tool_call"
     WRITE_FILE = "write_file"
     RUN_TERMINAL_CMD = "run_terminal_cmd"
-    IFRAME = "iframe"
     REASONING = "reasoning"
 
 
