@@ -134,77 +134,11 @@ class WriteFileParsingState(BaseState):
 
 The parser emits `SegmentEvent` objects with three lifecycle types:
 
-| Event Type        | Payload                                            | When Emitted                   |
-| ----------------- | -------------------------------------------------- | ------------------------------ |
-| `SEGMENT_START`   | `segment_type`, `metadata`                         | Opening tag detected           |
-| `SEGMENT_CONTENT` | `delta`, optional `arg_name`, optional `arg_state` | Content available to stream    |
-| `SEGMENT_END`     | `metadata` (incl. parsed arguments)                | Closing tag found or finalized |
-
-### Incremental Argument Streaming (Tool Calls)
-
-For `TOOL_CALL` segments, CONTENT events include `arg_name` context for UI display:
-
-```python
-# For <tool name="write"><arguments><arg name="path">/a.py</arg></arguments></tool>
-
-SEGMENT_START {segment_type: TOOL_CALL, metadata: {tool_name: "write"}}
-SEGMENT_CONTENT {delta: "", arg_name: "path", arg_state: "start"}
-SEGMENT_CONTENT {delta: "/a.py", arg_name: "path", arg_state: "delta"}
-SEGMENT_CONTENT {delta: "", arg_name: "path", arg_state: "end"}
-SEGMENT_END {metadata: {tool_name: "write", arguments: {path: "/a.py"}}}
-```
-
-This allows the UI to display argument values in real-time. XML structural tags
-are not emitted in `SEGMENT_CONTENT`; only raw argument text is streamed.
-
-`arg_state` can be used for explicit boundaries:
-
-- `start` when an argument begins
-- `delta` for streaming content chunks
-- `end` when the argument closes
-
-Example with multiple arguments:
-
-```python
-# For <tool name="write"><arguments>
-#   <arg name="path">/a.py</arg>
-#   <arg name="content">print("hi")</arg>
-# </arguments></tool>
-
-SEGMENT_START {segment_type: TOOL_CALL, metadata: {tool_name: "write"}}
-SEGMENT_CONTENT {delta: "", arg_name: "path", arg_state: "start"}
-SEGMENT_CONTENT {delta: "/a.py", arg_name: "path", arg_state: "delta"}
-SEGMENT_CONTENT {delta: "", arg_name: "path", arg_state: "end"}
-SEGMENT_CONTENT {delta: "", arg_name: "content", arg_state: "start"}
-SEGMENT_CONTENT {delta: "print(\"hi\")", arg_name: "content", arg_state: "delta"}
-SEGMENT_CONTENT {delta: "", arg_name: "content", arg_state: "end"}
-SEGMENT_END {metadata: {tool_name: "write", arguments: {path: "/a.py", content: "print(\"hi\")"}}}
-```
-
-#### Raw Content Markers
-
-For large or raw argument values (code, HTML, etc.), wrap content with markers:
-
-```
-<arg name="content">
-__START_CONTENT__
-if x < y:
-  print("<div>")
-__END_CONTENT__
-</arg>
-```
-
-Markers are optional and may be used for any argument value. The parser strips
-the markers and streams only the raw content with `arg_name` for real-time display.
-
-Notes:
-
-- Recommended when argument values may contain XML-like text such as `<arg>`, `</arg>`,
-  `<item>`, `</item>`, or `</tool>`.
-- Markers should appear alone on their own line (as shown above) to avoid accidental
-  matches in content.
-- If content may include the marker tokens themselves, choose alternative tokens or
-  escape/transform the content before emitting it.
+| Event Type        | Payload                    | When Emitted                   |
+| ----------------- | -------------------------- | ------------------------------ |
+| `SEGMENT_START`   | `segment_type`, `metadata` | Opening tag detected           |
+| `SEGMENT_CONTENT` | `delta` (text chunk)       | Content available to stream    |
+| `SEGMENT_END`     | –                          | Closing tag found or finalized |
 
 ### Segment Types
 

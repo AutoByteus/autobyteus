@@ -186,14 +186,9 @@ class ParserContext:
         """Emit a SEGMENT_START event."""
         return self._emitter.emit_segment_start(segment_type, **metadata)
 
-    def emit_segment_content(
-        self,
-        delta: Any,
-        arg_name: Optional[str] = None,
-        arg_state: Optional[str] = None,
-    ) -> None:
-        """Emit a SEGMENT_CONTENT event with optional argument context."""
-        self._emitter.emit_segment_content(delta, arg_name, arg_state)
+    def emit_segment_content(self, delta: Any) -> None:
+        """Emit a SEGMENT_CONTENT event."""
+        self._emitter.emit_segment_content(delta)
 
     def emit_segment_end(self) -> Optional[str]:
         """Emit a SEGMENT_END event."""
