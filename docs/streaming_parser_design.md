@@ -101,34 +101,29 @@ Handles plain text. Watches for:
 
 Accumulates characters after `<` to detect tag type:
 
-- `<write_file path="...">` → `WriteFileParsingState`
-- `<run_terminal_cmd>` → `RunTerminalCmdParsingState`
-- `<tool_name>` → `XmlToolParsingState`
+- `<tool name="...">` → Dispatches to specific `Xml...ToolParsingState` based on tool name.
+- `<write_file path="...">` → `CustomXmlTagWriteFileParsingState` (Legacy)
+- `<run_terminal_cmd>` → `CustomXmlTagRunTerminalCmdParsingState` (Legacy)
 - Unknown tags → emits as text, returns to `TextState`
 
-#### Content Parsing States
+#### Content Parsing States (Legacy Custom Tags)
 
-Each content state uses the same robust buffer pattern:
+The legacy states (`CustomXmlTagWriteFileParsingState`) use a robust buffer pattern (Holdback Pattern) to ensure safe emission, holding back characters to prevent partial closing tags from leaking.
 
-```python
-class WriteFileParsingState(BaseState):
-    CLOSING_TAG = "</write_file>"
+#### Specialized XML Tool States (New Standard)
 
-    def __init__(self, context, opening_tag):
-        self._content_buffer = ""   # Full content
-        self._emitted_length = 0    # Tracks what's been streamed
+To ensure compatibility with the standard XML tool format (`<tool name="write_file">`) while mimicking the behavior of legacy custom tags, specialized states are used:
 
-    def run(self):
-        # 1. Emit SEGMENT_START on first run
-        # 2. Consume chars, check for closing tag
-        # 3. Stream safe content (holdback pattern)
+- **XmlWriteFileToolParsingState**:
 
-    def _stream_safe_content(self):
-        # Holdback: len(CLOSING_TAG) - 1 chars from end
-        safe_length = len(self._content_buffer) - 12  # len("</write_file>") - 1
-        if safe_length > self._emitted_length:
-            self.context.emit_segment_content(...)
-```
+  - **Deferred Start**: Buffers the initial stream until the `path` argument is found, ensuring `SEGMENT_START` always includes file path metadata.
+  - **Pure Content Piping**: Extracts the inner text of `<arg name="content">` and streams _only_ that content, preventing XML markup from leaking to the frontend.
+  - **Tag Swallowing**: Aggressively consumes and discards closing tags (`</arguments></tool>`) after content ends.
+
+- **XmlRunTerminalCmdToolParsingState**:
+  - Similar piping logic for the `command` argument.
+  - Ensures `SEGMENT_START` is emitted, then streams only the command text.
+  - Swallows trailing XML artifacts.
 
 ## Segment Events
 
@@ -308,9 +303,11 @@ autobyteus/agent/streaming/
         ├── text_state.py
         ├── xml_tag_initialization_state.py
         ├── json_initialization_state.py
-        ├── write_file_parsing_state.py
-        ├── run_terminal_cmd_parsing_state.py
+        ├── custom_xml_tag_write_file_parsing_state.py
+        ├── custom_xml_tag_run_terminal_cmd_parsing_state.py
         ├── xml_tool_parsing_state.py
+        ├── xml_write_file_tool_parsing_state.py
+        ├── xml_run_terminal_cmd_tool_parsing_state.py
         └── json_tool_parsing_state.py
 ```
 
