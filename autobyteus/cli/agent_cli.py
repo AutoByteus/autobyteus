@@ -70,16 +70,24 @@ async def run(agent: Agent, show_tool_logs: bool = True, show_token_usage: bool 
             agent_turn_complete_event.clear()
 
             if cli_display.pending_approval_data:
-                approval_input = await asyncio.get_event_loop().run_in_executor(None, sys.stdin.readline)
-                approval_input = approval_input.strip().lower()
-                
-                approval_data = cli_display.pending_approval_data
-                cli_display.clear_pending_approval()
-                
-                is_approved = approval_input in ["y", "yes"]
-                reason = "User approved via CLI" if is_approved else "User denied via CLI"
-                
-                await agent.post_tool_execution_approval(approval_data.invocation_id, is_approved, reason)
+                approval_prompt = cli_display.get_approval_prompt()
+                if approval_prompt:
+                    approval_input = await asyncio.get_event_loop().run_in_executor(None, lambda: input(approval_prompt))
+                    approval_input = approval_input.strip().lower()
+                    
+                    approval_data = cli_display.pending_approval_data
+                    cli_display.clear_pending_approval()
+                    
+                    is_approved = approval_input in ["y", "yes"]
+                    reason = "User approved via CLI"
+                    
+                    if not is_approved:
+                        reason_input = await asyncio.get_event_loop().run_in_executor(None, lambda: input("Reason (optional): "))
+                        reason = reason_input.strip()
+                        if not reason:
+                            reason = "User denied via CLI"
+                    
+                    await agent.post_tool_execution_approval(approval_data.invocation_id, is_approved, reason)
 
             else:
                 sys.stdout.write("You: ")

@@ -92,7 +92,15 @@ class FocusPane(Static):
             return
 
         is_approved = event.button.id == "approve-btn"
-        reason = "User approved via TUI." if is_approved else "User denied via TUI."
+        
+        info_input = self.query_one(Input)
+        user_reason = info_input.value.strip()
+        info_input.value = "" # Clear the input
+        
+        if user_reason:
+            reason = user_reason
+        else:
+            reason = "User approved via TUI." if is_approved else "User denied via TUI."
         
         log_container = self.query_one("#focus-pane-log-container")
         approval_text = "APPROVED" if is_approved else "DENIED"
@@ -124,8 +132,8 @@ class FocusPane(Static):
     async def _show_approval_prompt(self):
         if not self._pending_approval_data: return
         input_widget = self.query_one(Input)
-        input_widget.placeholder = "Please approve or deny the tool call..."
-        input_widget.disabled = True
+        input_widget.placeholder = "Optional: Enter a reason for your decision..."
+        input_widget.disabled = False
         button_container = self.query_one("#approval-buttons")
         await button_container.remove_children()
         await button_container.mount(

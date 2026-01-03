@@ -216,10 +216,10 @@ class InteractiveCLIDisplay:
 
             self._segment_types_by_id.pop(segment_event.segment_id, None)
 
-    def _display_tool_approval_prompt(self):
-        """Displays the tool approval prompt using stored pending data."""
-        if not self.pending_approval_data or self.approval_prompt_shown:
-            return
+    def get_approval_prompt(self) -> Optional[str]:
+        """Returns the tool approval prompt string using stored pending data."""
+        if not self.pending_approval_data:
+            return None
             
         try:
             args_str = json.dumps(self.pending_approval_data.arguments, indent=2)
@@ -231,10 +231,7 @@ class InteractiveCLIDisplay:
             f"Tool Call: '{self.pending_approval_data.tool_name}' requests permission to run with arguments:\n"
             f"{args_str}\nApprove? (y/n): "
         )
-        sys.stdout.write(prompt_message)
-        sys.stdout.flush()
-        self.current_line_empty = False
-        self.approval_prompt_shown = True
+        return prompt_message
 
     def clear_pending_approval(self):
         self.pending_approval_data = None
@@ -315,7 +312,6 @@ class InteractiveCLIDisplay:
         elif event.event_type == StreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED and isinstance(event.data, ToolInvocationApprovalRequestedData):
             self.pending_approval_data = event.data
             if self.awaiting_approval or self.current_status == AgentStatus.AWAITING_TOOL_APPROVAL:
-                self._display_tool_approval_prompt()
                 self.agent_turn_complete_event.set()
 
         elif event.event_type == StreamEventType.TOOL_INVOCATION_AUTO_EXECUTING and isinstance(event.data, ToolInvocationAutoExecutingData):
@@ -337,7 +333,6 @@ class InteractiveCLIDisplay:
             if event.data.new_status == AgentStatus.AWAITING_TOOL_APPROVAL:
                 self.awaiting_approval = True
                 if self.pending_approval_data:
-                    self._display_tool_approval_prompt()
                     self.agent_turn_complete_event.set()
             else:
                 self.awaiting_approval = False
