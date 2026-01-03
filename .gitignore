@@ -156,3 +156,5 @@ CURRENT_BULLETIN.md
 
 config.toml
 note
+local_llm_provider
+scripts
