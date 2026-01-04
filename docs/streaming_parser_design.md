@@ -144,6 +144,57 @@ The parser emits `SegmentEvent` objects with three lifecycle types:
 - Tool arguments are built later by the `ToolInvocationAdapter` and are surfaced via
   tool lifecycle events (approval/auto-executing).
 
+### Payload Schema (All Segment Events)
+
+```json
+// SEGMENT_START
+{
+  "type": "SEGMENT_START",
+  "segment_id": "seg_1",
+  "segment_type": "write_file",
+  "payload": {
+    "metadata": { "path": "/tmp/a.py" }
+  }
+}
+
+// SEGMENT_CONTENT
+{
+  "type": "SEGMENT_CONTENT",
+  "segment_id": "seg_1",
+  "payload": { "delta": "print('hi')\\n" }
+}
+
+// SEGMENT_END
+{
+  "type": "SEGMENT_END",
+  "segment_id": "seg_1",
+  "payload": {}
+}
+```
+
+### Segment Type Semantics
+
+| Segment Type      | `SEGMENT_START.metadata`           | `SEGMENT_CONTENT.delta`                                    | `SEGMENT_END.payload` |
+| ----------------- | ---------------------------------- | ----------------------------------------------------------- | --------------------- |
+| `text`            | `{}`                               | Plain text                                                  | `{}`                  |
+| `tool_call`       | `{"tool_name": "..."}` (if known)  | Raw XML/JSON tool content                                   | `{}`                  |
+| `write_file`      | `{"path": "..."}` (deferred)       | File content only (no XML tags)                             | `{}`                  |
+| `run_terminal_cmd`| `{}`                               | Command text only                                           | `{}`                  |
+| `reasoning`       | `{}`                               | Reasoning text                                              | `{}`                  |
+
+### State → Emitted Segment Events
+
+| State                                   | Segment Type          | Start Metadata                  | Content Emission                         |
+| --------------------------------------- | --------------------- | -------------------------------- | ---------------------------------------- |
+| `TextState`                             | `text`                | `{}`                             | Streams plain text                       |
+| `XmlToolParsingState`                   | `tool_call`           | `tool_name` (from tag)           | Raw `<arguments>...</arguments>`         |
+| `JsonToolParsingState`                  | `tool_call`           | `{}`                             | Raw JSON tool blob                       |
+| `XmlWriteFileToolParsingState`          | `write_file`          | `path` (deferred until found)    | Content only (no XML tags)               |
+| `XmlRunTerminalCmdToolParsingState`     | `run_terminal_cmd`    | `{}`                             | Command only (no XML tags)               |
+| `CustomXmlTagWriteFileParsingState`     | `write_file`          | `path` (from tag)                | Content only                             |
+| `CustomXmlTagRunTerminalCmdParsingState`| `run_terminal_cmd`    | `{}`                             | Command only                             |
+| `SentinelContentState`                  | as header `type`      | header JSON (minus `type`)       | Raw content between sentinel markers     |
+
 ### Segment Types
 
 ```python
