@@ -206,3 +206,69 @@ class TestXmlWriteFileToolParsingState:
         assert "Post tool text" in full_dump
         assert "</arguments>" not in full_dump
         assert "</tool>" not in full_dump
+
+    def test_content_markers_stream_raw(self):
+        """Content markers stream only the raw text between markers."""
+        ctx = ParserContext()
+        signature = '<tool name="write_file">'
+        content = (
+            "<arguments>"
+            "<arg name='path'>/tmp/marker.py</arg>"
+            "<arg name='content'>"
+            "__START_CONTENT__\n"
+            "print('<div>')\n"
+            "<arg name=\"x\">y</arg>\n"
+            "__END_CONTENT__"
+            "</arg>"
+            "</arguments></tool>"
+        )
+        ctx.append(signature + content)
+
+        state = XmlWriteFileToolParsingState(ctx, signature)
+        ctx.current_state = state
+        state.run()
+
+        events = ctx.get_and_clear_events()
+        content_events = [e for e in events if e.event_type == SegmentEventType.CONTENT]
+        full_content = "".join(e.payload.get("delta", "") for e in content_events)
+
+        assert "__START_CONTENT__" not in full_content
+        assert "__END_CONTENT__" not in full_content
+        assert "<arg name=\"x\">y</arg>" in full_content
+        assert full_content == "\nprint('<div>')\n<arg name=\"x\">y</arg>\n"
+
+        final_meta = ctx.get_current_segment_metadata()
+        args = final_meta.get("arguments", {})
+        assert args.get("path") == "/tmp/marker.py"
+        assert args.get("content") == "\nprint('<div>')\n<arg name=\"x\">y</arg>\n"
+
+    def test_content_markers_split_across_chunks(self):
+        """Content markers can be split across streaming chunks."""
+        ctx = ParserContext()
+        signature = '<tool name="write_file">'
+        chunks = [
+            "<arguments><arg name='path'>/tmp/chunk.py</arg><arg name='content'>__STAR",
+            "T_CONTENT__print('hi')\n<arg>ok</arg>\n__END",
+            "_CONTENT__</arg></arguments></tool>",
+        ]
+
+        ctx.append(signature)
+        state = XmlWriteFileToolParsingState(ctx, signature)
+        ctx.current_state = state
+
+        for chunk in chunks:
+            ctx.append(chunk)
+            state.run()
+
+        events = ctx.get_and_clear_events()
+        content_events = [e for e in events if e.event_type == SegmentEventType.CONTENT]
+        full_content = "".join(e.payload.get("delta", "") for e in content_events)
+
+        assert "__START_CONTENT__" not in full_content
+        assert "__END_CONTENT__" not in full_content
+        assert full_content == "print('hi')\n<arg>ok</arg>\n"
+
+        final_meta = ctx.get_current_segment_metadata()
+        args = final_meta.get("arguments", {})
+        assert args.get("path") == "/tmp/chunk.py"
+        assert args.get("content") == "print('hi')\n<arg>ok</arg>\n"

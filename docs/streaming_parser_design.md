@@ -118,6 +118,7 @@ To ensure compatibility with the standard XML tool format (`<tool name="write_fi
 
   - **Deferred Start**: Buffers the initial stream until the `path` argument is found, ensuring `SEGMENT_START` always includes file path metadata.
   - **Pure Content Piping**: Extracts the inner text of `<arg name="content">` and streams _only_ that content, preventing XML markup from leaking to the frontend.
+  - **Optional Raw Markers**: If `__START_CONTENT__`/`__END_CONTENT__` appear inside the `content` arg, only the text between them is streamed and the markers are stripped.
   - **Tag Swallowing**: Aggressively consumes and discards closing tags (`</arguments></tool>`) after content ends.
 
 - **XmlRunTerminalCmdToolParsingState**:
