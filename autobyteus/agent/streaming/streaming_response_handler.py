@@ -62,7 +62,9 @@ class StreamingResponseHandler:
             config=config,
             parser_name=self._parser_name,
         )
-        self._adapter = ToolInvocationAdapter()
+        self._adapter = ToolInvocationAdapter(
+            json_tool_parser=self._parser.config.json_tool_parser
+        )
         self._on_segment_event = on_segment_event
         self._on_tool_invocation = on_tool_invocation
         self._is_finalized = False
@@ -143,7 +145,9 @@ class StreamingResponseHandler:
             config=self._parser_config,
             parser_name=self._parser_name,
         )
-        self._adapter.reset()
+        self._adapter = ToolInvocationAdapter(
+            json_tool_parser=self._parser.config.json_tool_parser
+        )
         self._all_events.clear()
         self._all_invocations.clear()
         self._is_finalized = False

@@ -119,8 +119,7 @@ class TestStreamingParserToolParsing:
         )
         assert tool_end is not None
         metadata = tool_end.payload.get("metadata", {})
-        assert metadata.get("tool_name") == "do_something"
-        assert metadata.get("arguments") == {"x": 1, "y": "ok"}
+        assert "arguments" not in metadata
 
 
 class TestStreamingParserMixedContent:

@@ -37,11 +37,8 @@ class TestXmlRunTerminalCmdToolParsingState:
         full_content = "".join(e.payload.get("delta", "") for e in content_events)
         assert "ls -la" in full_content
         assert "<arg" not in full_content
-        
-        # Check END event and ARGUMENTS
-        final_meta = ctx.get_current_segment_metadata()
-        args = final_meta.get("arguments", {})
-        assert args.get("command") == "ls -la"
+        end_events = [e for e in events if e.event_type == SegmentEventType.END]
+        assert len(end_events) == 1
 
     def test_segment_type_is_run_terminal_cmd(self):
         """Ensures the segment type is RUN_TERMINAL_CMD."""
@@ -79,10 +76,8 @@ class TestXmlRunTerminalCmdToolParsingState:
         
         assert "ls -la /var/log" in full_content
         assert "<arg" not in full_content
-        
-        final_meta = ctx.get_current_segment_metadata()
-        args = final_meta.get("arguments", {})
-        assert args.get("command") == "ls -la /var/log"
+        end_events = [e for e in events if e.event_type == SegmentEventType.END]
+        assert len(end_events) == 1
 
     def test_swallows_closing_tags(self):
         """

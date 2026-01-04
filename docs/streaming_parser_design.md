@@ -136,6 +136,14 @@ The parser emits `SegmentEvent` objects with three lifecycle types:
 | `SEGMENT_CONTENT` | `delta` (text chunk)       | Content available to stream    |
 | `SEGMENT_END`     | –                          | Closing tag found or finalized |
 
+### Contract Boundary (Streaming vs. Semantics)
+
+- The **parser only streams content** and boundaries. It does **not** parse tool arguments.
+- `SEGMENT_START` may include minimal display metadata (e.g., `tool_name`, `path`).
+- `SEGMENT_END` is purely a boundary signal and should not carry parsed arguments.
+- Tool arguments are built later by the `ToolInvocationAdapter` and are surfaced via
+  tool lifecycle events (approval/auto-executing).
+
 ### Segment Types
 
 ```python
@@ -161,8 +169,8 @@ The FSM only emits segment types; tool names are resolved later by the
 
 | SegmentType      | Segment Syntax                             | Tool Name          | Argument Source                 |
 | ---------------- | ------------------------------------------ | ------------------ | ------------------------------- |
-| WRITE_FILE       | `<write_file path="...">`                  | `write_file`       | `path` from tag + segment body  |
-| RUN_TERMINAL_CMD | `<run_terminal_cmd>...</run_terminal_cmd>` | `run_terminal_cmd` | `command` from body or metadata |
+| WRITE_FILE       | `<write_file path="...">`                  | `write_file`       | adapter: `path` + segment body  |
+| RUN_TERMINAL_CMD | `<run_terminal_cmd>...</run_terminal_cmd>` | `run_terminal_cmd` | adapter: command from body/metadata |
 
 ### Tool Invocation IDs (Important)
 

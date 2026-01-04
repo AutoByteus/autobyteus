@@ -1,11 +1,11 @@
 """
-XmlRunTerminalCmdToolParsingState: Parses <tool name="run_terminal_cmd"> blocks.
+XmlRunTerminalCmdToolParsingState: Streams <tool name="run_terminal_cmd"> blocks.
 
-This state specializes the generic XmlToolParsingState to handle terminal command
-execution semantics, specifically ensuring 'command' arguments are parsed
-and content is streamed appropriately.
+This state specializes the generic XmlToolParsingState to stream the command
+content without parsing arguments. Argument parsing is handled later by the
+ToolInvocationAdapter.
 """
-from typing import TYPE_CHECKING, Optional, Dict, Any
+from typing import TYPE_CHECKING
 
 from .xml_tool_parsing_state import XmlToolParsingState
 from ..events import SegmentType
@@ -31,7 +31,6 @@ class XmlRunTerminalCmdToolParsingState(XmlToolParsingState):
             
         self._found_content_start = False
         self._content_buffering = "" 
-        self._captured_args = {}
         self._swallowing_remaining = False
         
     def run(self) -> None:
@@ -127,8 +126,4 @@ class XmlRunTerminalCmdToolParsingState(XmlToolParsingState):
                 self._content_buffering = self._content_buffering[-holdback_len:]
 
     def _on_segment_complete(self) -> None:
-        # Retrieve the streamed content which is the command
-        final_args = {
-            "command": self.context.get_current_segment_content()
-        }
-        self.context.update_current_segment_metadata(arguments=final_args)
+        return None

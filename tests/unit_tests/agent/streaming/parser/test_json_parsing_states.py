@@ -10,7 +10,6 @@ from autobyteus.agent.streaming.parser.states.json_initialization_state import (
 )
 from autobyteus.agent.streaming.parser.states.json_tool_parsing_state import JsonToolParsingState
 from autobyteus.agent.streaming.parser.events import SegmentType, SegmentEventType
-from autobyteus.agent.streaming.parser.json_parsing_strategies import GeminiJsonToolParsingStrategy
 
 
 class TestJsonSignatureChecker:
@@ -207,15 +206,9 @@ class TestJsonToolParsingState:
         end_events = [e for e in events if e.event_type == SegmentEventType.END]
         assert len(end_events) >= 1
 
-    def test_uses_configured_json_parser(self):
-        """Configured JSON parser should drive arguments parsing."""
-        config = ParserConfig(
-            parse_tool_calls=True,
-            json_tool_patterns=['{"name"'],
-            json_tool_parser=GeminiJsonToolParsingStrategy(),
-            strategy_order=["json_tool"],
-        )
-        ctx = ParserContext(config)
+    def test_streams_raw_json_content(self):
+        """JSON tool content is streamed raw; no arguments parsed in metadata."""
+        ctx = ParserContext()
         signature = '{"name"'
         ctx.append('{"name": "search", "args": {"query": "autobyteus"}}after')
 
@@ -224,8 +217,10 @@ class TestJsonToolParsingState:
         state.run()
 
         events = ctx.get_and_clear_events()
+        content_events = [e for e in events if e.event_type == SegmentEventType.CONTENT]
+        full_content = "".join(e.payload.get("delta", "") for e in content_events)
+        assert '"args"' in full_content
         end_events = [e for e in events if e.event_type == SegmentEventType.END]
         assert len(end_events) == 1
         metadata = end_events[0].payload.get("metadata", {})
-        assert metadata.get("tool_name") == "search"
-        assert metadata.get("arguments") == {"query": "autobyteus"}
+        assert "arguments" not in metadata

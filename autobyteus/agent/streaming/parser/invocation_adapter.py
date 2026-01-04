@@ -7,14 +7,18 @@ and the agent's tool execution system (which expects ToolInvocation objects).
 Key Design: The segment_id from the parser becomes the invocationId, ensuring
 consistent ID tracking from parse time through approval and execution.
 """
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, TYPE_CHECKING
 import logging
 
 from .events import SegmentEvent, SegmentType, SegmentEventType
 from .tool_syntax_registry import get_tool_syntax_spec
+from .tool_call_parsing import parse_json_tool_call, parse_xml_arguments
 from autobyteus.agent.tool_invocation import ToolInvocation
 
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from .json_parsing_strategies.base import JsonToolParsingStrategy
 
 
 class ToolInvocationAdapter:
@@ -31,9 +35,10 @@ class ToolInvocationAdapter:
                 enqueue_tool_invocation(result)
     """
     
-    def __init__(self):
+    def __init__(self, json_tool_parser: Optional["JsonToolParsingStrategy"] = None):
         # Track active tool segments: segment_id -> accumulated data
         self._active_segments: Dict[str, Dict[str, Any]] = {}
+        self._json_tool_parser = json_tool_parser
     
     def process_event(self, event: SegmentEvent) -> Optional[ToolInvocation]:
         """
@@ -98,11 +103,11 @@ class ToolInvocationAdapter:
         
         segment_data = self._active_segments.pop(event.segment_id)
         
-        # Extract metadata from END event (parser puts parsed data here)
+        # Extract metadata from END event (display metadata only)
         metadata = event.payload.get("metadata", {})
         segment_type = segment_data.get("segment_type")
         tool_name = metadata.get("tool_name") or segment_data.get("tool_name")
-        arguments = metadata.get("arguments") or segment_data.get("arguments", {})
+        arguments: Dict[str, Any] = segment_data.get("arguments", {})
         content_buffer = segment_data.get("content_buffer", "")
         start_metadata = segment_data.get("metadata", {})
         syntax_spec = segment_data.get("syntax_spec")
@@ -119,7 +124,19 @@ class ToolInvocationAdapter:
                 )
                 return None
             arguments = args
-        
+        elif segment_type == SegmentType.TOOL_CALL:
+            content = content_buffer
+            stripped = content.lstrip()
+            parsed_call = None
+            if stripped.startswith("{") or stripped.startswith("["):
+                parsed_call = parse_json_tool_call(stripped, self._json_tool_parser)
+            else:
+                arguments = parse_xml_arguments(content)
+
+            if parsed_call:
+                tool_name = tool_name or parsed_call.get("name")
+                arguments = parsed_call.get("arguments") or {}
+
         if not tool_name:
             logger.warning(f"Tool segment {event.segment_id} ended without tool_name")
             return None

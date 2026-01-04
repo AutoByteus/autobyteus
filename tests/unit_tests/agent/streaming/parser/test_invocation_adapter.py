@@ -20,7 +20,7 @@ class TestToolInvocationAdapterBasics:
             SegmentEvent(
                 event_type=SegmentEventType.END,
                 segment_id="seg_5",
-                payload={"metadata": {"tool_name": "read_file", "arguments": {"path": "/src/main.py"}}}
+                payload={"metadata": {"tool_name": "read_file"}}
             )
         ]
         
@@ -39,7 +39,7 @@ class TestToolInvocationAdapterBasics:
         end = SegmentEvent(
             event_type=SegmentEventType.END,
             segment_id="my-unique-id-123",
-            payload={"metadata": {"tool_name": "write_file", "arguments": {"path": "/out.txt", "content": "data"}}}
+            payload={"metadata": {"tool_name": "write_file"}}
         )
         
         adapter.process_event(start)
@@ -91,17 +91,34 @@ class TestToolInvocationAdapterBasics:
         assert invocations[0].name == "run_terminal_cmd"
         assert invocations[0].arguments == {"command": "ls -la"}
 
+    def test_json_tool_call_creates_invocation(self):
+        """JSON tool call segments are parsed into ToolInvocations."""
+        adapter = ToolInvocationAdapter()
+
+        events = [
+            SegmentEvent.start("seg_json", SegmentType.TOOL_CALL),
+            SegmentEvent.content("seg_json", '{"name": "search", "arguments": {"query": "autobyteus"}}'),
+            SegmentEvent.end("seg_json"),
+        ]
+
+        invocations = adapter.process_events(events)
+        assert len(invocations) == 1
+        assert invocations[0].name == "search"
+        assert invocations[0].arguments == {"query": "autobyteus"}
+
     def test_multiple_tool_segments(self):
         """Multiple tool segments create multiple invocations."""
         adapter = ToolInvocationAdapter()
         
         events = [
             SegmentEvent.start("seg_1", SegmentType.TOOL_CALL, tool_name="tool_a"),
+            SegmentEvent.content("seg_1", "<arguments><x>1</x></arguments>"),
             SegmentEvent(event_type=SegmentEventType.END, segment_id="seg_1", 
-                        payload={"metadata": {"tool_name": "tool_a", "arguments": {"x": 1}}}),
+                        payload={"metadata": {"tool_name": "tool_a"}}),
             SegmentEvent.start("seg_2", SegmentType.TOOL_CALL, tool_name="tool_b"),
+            SegmentEvent.content("seg_2", "<arguments><y>2</y></arguments>"),
             SegmentEvent(event_type=SegmentEventType.END, segment_id="seg_2",
-                        payload={"metadata": {"tool_name": "tool_b", "arguments": {"y": 2}}}),
+                        payload={"metadata": {"tool_name": "tool_b"}}),
         ]
         
         invocations = adapter.process_events(events)
@@ -109,8 +126,10 @@ class TestToolInvocationAdapterBasics:
         assert len(invocations) == 2
         assert invocations[0].id == "seg_1"
         assert invocations[0].name == "tool_a"
+        assert invocations[0].arguments == {"x": "1"}
         assert invocations[1].id == "seg_2"
         assert invocations[1].name == "tool_b"
+        assert invocations[1].arguments == {"y": "2"}
 
     def test_write_file_segment_without_path_is_ignored(self):
         """Write_file segments without path do not create invocations."""
@@ -139,7 +158,7 @@ class TestToolInvocationAdapterState:
         
         adapter.process_event(SegmentEvent(
             event_type=SegmentEventType.END, segment_id="seg_1",
-            payload={"metadata": {"tool_name": "test", "arguments": {}}}
+            payload={"metadata": {"tool_name": "test"}}
         ))
         
         assert "seg_1" not in adapter.get_active_segment_ids()

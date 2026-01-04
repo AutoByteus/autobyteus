@@ -1,11 +1,10 @@
 """
-JsonToolParsingState: Parses JSON tool call content.
+JsonToolParsingState: Streams JSON tool call content.
 
-This state handles parsing JSON-formatted tool calls from providers
-like OpenAI that use {"name": "...", "arguments": {...}} format.
+This state identifies JSON tool-call boundaries and streams raw JSON content.
+Tool arguments are parsed later by the ToolInvocationAdapter.
 """
-import json
-from typing import TYPE_CHECKING, Optional, Dict, Any, List
+from typing import TYPE_CHECKING, List
 
 from .base_state import BaseState
 from ..events import SegmentType
@@ -16,14 +15,13 @@ if TYPE_CHECKING:
 
 class JsonToolParsingState(BaseState):
     """
-    Parses JSON tool call content.
+    Streams JSON tool call content.
     
     Expected formats:
     - {"name": "tool_name", "arguments": {...}}
     - [{"name": "tool_name", "arguments": {...}}]
     
-    Handles nested braces and proper JSON parsing. Parsing can be delegated to
-    a provider-aware JSON tool parser supplied via ParserConfig.
+    Handles nested braces and proper JSON boundary detection.
     """
     
     def __init__(
@@ -78,15 +76,6 @@ class JsonToolParsingState(BaseState):
                 if consumed:
                     self.context.emit_segment_content("".join(consumed))
 
-                full_json = self.context.get_current_segment_content()
-                tool_call = self._parse_json_tool_call(full_json)
-
-                if tool_call:
-                    self.context.update_current_segment_metadata(
-                        tool_name=tool_call.get("name", "unknown"),
-                        arguments=tool_call.get("arguments", {})
-                    )
-
                 self.context.emit_segment_end()
                 self.context.transition_to(TextState(self.context))
                 return
@@ -129,56 +118,6 @@ class JsonToolParsingState(BaseState):
             return self._bracket_count == 0 and self._brace_count == 0
         else:
             return self._brace_count == 0
-
-    def _parse_json_tool_call(self, json_str: str) -> Optional[Dict[str, Any]]:
-        """
-        Parse a JSON string into tool call info.
-
-        Returns dict with 'name' and 'arguments', or None if invalid.
-        """
-        parser = self.context.json_tool_parser
-        if parser is not None:
-            parsed_calls = parser.parse(json_str)
-            if parsed_calls:
-                return parsed_calls[0]
-            return None
-
-        try:
-            data = json.loads(json_str)
-
-            # Handle array format
-            if isinstance(data, list) and len(data) > 0:
-                data = data[0]
-
-            if isinstance(data, dict):
-                # Extract tool name from various formats
-                name = (
-                    data.get("name")
-                    or data.get("tool")
-                    or data.get("function", {}).get("name")
-                    or "unknown"
-                )
-
-                # Extract arguments from various formats
-                arguments = (
-                    data.get("arguments")
-                    or data.get("parameters")
-                    or data.get("function", {}).get("arguments")
-                    or {}
-                )
-
-                # Arguments might be a JSON string
-                if isinstance(arguments, str):
-                    try:
-                        arguments = json.loads(arguments)
-                    except json.JSONDecodeError:
-                        pass
-
-                return {"name": name, "arguments": arguments}
-        except json.JSONDecodeError:
-            pass
-
-        return None
 
     def finalize(self) -> None:
         """

@@ -1,11 +1,11 @@
 """
-XmlWriteFileToolParsingState: Parses <tool name="write_file"> blocks.
+XmlWriteFileToolParsingState: Streams <tool name="write_file"> blocks.
 
-This state specializes the generic XmlToolParsingState to handle file writing
-semantics, specifically ensuring 'path' and 'content' arguments are parsed
-and content is streamed appropriately.
+This state specializes the generic XmlToolParsingState to stream file content
+and capture the path for display. Argument parsing is handled later by the
+ToolInvocationAdapter.
 """
-from typing import TYPE_CHECKING, Optional, Dict, Any
+from typing import TYPE_CHECKING, Optional
 
 from .xml_tool_parsing_state import XmlToolParsingState
 from ..events import SegmentType
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 class XmlWriteFileToolParsingState(XmlToolParsingState):
     """
-    Parses <tool name="write_file"> tool calls.
+    Streams <tool name="write_file"> tool calls.
     
     This state operates identically to XmlToolParsingState but provides
     a distinct type (WRITE_FILE) and specialized metadata handling if needed.
@@ -254,9 +254,4 @@ class XmlWriteFileToolParsingState(XmlToolParsingState):
                 self._content_buffering = self._content_buffering[-holdback_len:]
 
     def _on_segment_complete(self) -> None:
-        final_args = {}
-        if self._captured_path:
-            final_args["path"] = self._captured_path
-        
-        final_args["content"] = self.context.get_current_segment_content()
-        self.context.update_current_segment_metadata(arguments=final_args)
+        return None
