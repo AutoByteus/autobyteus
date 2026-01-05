@@ -124,6 +124,7 @@ class ToolResultEvent(AgentOperationalEvent):
     result: Any
     tool_invocation_id: Optional[str] = None 
     error: Optional[str] = None
+    tool_args: Optional[Dict[str, Any]] = None # Carries original arguments for internal processing (e.g. artifacts)
 
 @dataclass
 class ToolExecutionApprovalEvent(AgentOperationalEvent): 

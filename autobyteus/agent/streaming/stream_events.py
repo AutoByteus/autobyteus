@@ -20,6 +20,7 @@ from .stream_event_payloads import (
     SystemTaskNotificationData, # NEW
     InterAgentMessageData, # NEW
     ToDoListUpdateData,
+    ArtifactPersistedData, # NEW
 )
 
 logger = logging.getLogger(__name__)
@@ -40,6 +41,7 @@ class StreamEventType(str, Enum):
     SYSTEM_TASK_NOTIFICATION = "system_task_notification" # NEW
     INTER_AGENT_MESSAGE = "inter_agent_message"  # NEW
     AGENT_TODO_LIST_UPDATE = "agent_todo_list_updated"
+    ARTIFACT_PERSISTED = "artifact_persisted" # NEW
 
 
 _STREAM_EVENT_TYPE_TO_PAYLOAD_CLASS: Dict[StreamEventType, Type[BaseModel]] = {
@@ -54,6 +56,7 @@ _STREAM_EVENT_TYPE_TO_PAYLOAD_CLASS: Dict[StreamEventType, Type[BaseModel]] = {
     StreamEventType.SYSTEM_TASK_NOTIFICATION: SystemTaskNotificationData, # NEW
     StreamEventType.INTER_AGENT_MESSAGE: InterAgentMessageData, # NEW
     StreamEventType.AGENT_TODO_LIST_UPDATE: ToDoListUpdateData,
+    StreamEventType.ARTIFACT_PERSISTED: ArtifactPersistedData, # NEW
 }
 
 

@@ -1,4 +1,3 @@
-# file: autobyteus/autobyteus/agent/streaming/stream_event_payloads.py
 import logging
 from typing import Dict, Any, Optional, List, Union
 from pydantic import BaseModel, Field
@@ -90,6 +89,12 @@ class ToDoItemData(BaseStreamPayload):
 class ToDoListUpdateData(BaseStreamPayload):
     todos: List[ToDoItemData]
 
+class ArtifactPersistedData(BaseStreamPayload):
+    artifact_id: str
+    path: str
+    agent_id: str
+    type: str
+
 class EmptyData(BaseStreamPayload):
     pass
 
@@ -103,15 +108,17 @@ StreamDataPayload = Union[
     ToolInvocationApprovalRequestedData,
     ToolInvocationAutoExecutingData,
     SegmentEventData,
-    SystemTaskNotificationData, # NEW
-    InterAgentMessageData, # NEW
+    SystemTaskNotificationData,
+    InterAgentMessageData,
     ToDoListUpdateData,
+    ArtifactPersistedData,
     EmptyData
 ]
 
 # Factory functions to create payload models from various inputs
 
 def create_assistant_chunk_data(chunk_obj: Any) -> AssistantChunkData:
+    """Factory function to create AssistantChunkData from a chunk object."""
     usage_data = None
     if hasattr(chunk_obj, 'usage'):
         usage_data = getattr(chunk_obj, 'usage')
@@ -233,7 +240,6 @@ def create_inter_agent_message_data(msg_data: Any) -> InterAgentMessageData:
         return InterAgentMessageData(**msg_data)
     raise ValueError(f"Cannot create InterAgentMessageData from {type(msg_data)}")
 
-# NEW FACTORY FUNCTION
 def create_system_task_notification_data(notification_data_dict: Any) -> SystemTaskNotificationData:
     if isinstance(notification_data_dict, dict):
         return SystemTaskNotificationData(**notification_data_dict)
@@ -255,3 +261,8 @@ def create_todo_list_update_data(todo_data_dict: Any) -> ToDoListUpdateData:
                 logger.warning(f"Failed to parse todo entry into ToDoItemData: {todo_entry!r}; error: {exc}")
         return ToDoListUpdateData(todos=todo_items)
     raise ValueError(f"Cannot create ToDoListUpdateData from {type(todo_data_dict)}")
+
+def create_artifact_persisted_data(data_dict: Any) -> ArtifactPersistedData:
+    if isinstance(data_dict, dict):
+        return ArtifactPersistedData(**data_dict)
+    raise ValueError(f"Cannot create ArtifactPersistedData from {type(data_dict)}")

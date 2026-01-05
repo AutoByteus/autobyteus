@@ -130,3 +130,8 @@ class AgentExternalEventNotifier(EventEmitter):
             "details": error_details
         }
         self._emit_event(EventType.AGENT_ERROR_OUTPUT_GENERATION, payload_content=payload_dict)
+
+    def notify_agent_artifact_persisted(self, artifact_data: Dict[str, Any]):
+        """Notifies that an artifact has been successfully persisted to the database."""
+        self._emit_event(EventType.AGENT_ARTIFACT_PERSISTED, payload_content=artifact_data)
+

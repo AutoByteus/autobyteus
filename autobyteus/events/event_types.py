@@ -25,6 +25,7 @@ class EventType(Enum):
     AGENT_DATA_SYSTEM_TASK_NOTIFICATION_RECEIVED = "agent_data_system_task_notification_received" # NEW
     AGENT_DATA_INTER_AGENT_MESSAGE_RECEIVED = "agent_data_inter_agent_message_received"  # NEW: surface inter-agent messages
     AGENT_DATA_TODO_LIST_UPDATED = "agent_data_todo_list_updated"
+    AGENT_ARTIFACT_PERSISTED = "agent_artifact_persisted" # NEW: artifact persistence confirmation
     
     # --- Agent Requests for External Interaction ---
     AGENT_REQUEST_TOOL_INVOCATION_APPROVAL = "agent_request_tool_invocation_approval" 

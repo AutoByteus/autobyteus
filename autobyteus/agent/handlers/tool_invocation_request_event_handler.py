@@ -121,7 +121,13 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
                     result_json_for_log = json.dumps(str(execution_result))
 
                 logger.info(f"Tool '{tool_name}' (ID: {invocation_id}) executed by agent '{agent_id}'.")
-                result_event = ToolResultEvent(tool_name=tool_name, result=execution_result, error=None, tool_invocation_id=invocation_id)
+                result_event = ToolResultEvent(
+                    tool_name=tool_name, 
+                    result=execution_result, 
+                    error=None, 
+                    tool_invocation_id=invocation_id,
+                    tool_args=arguments
+                )
                 
                 history_content = str(execution_result) 
                 context.add_message_to_history({ 
