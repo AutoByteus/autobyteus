@@ -17,21 +17,15 @@ class WriteFileXmlSchemaFormatter(BaseSchemaFormatter):
 
     def provide(self, tool_definition: 'ToolDefinition') -> str:
         """
-        Generates the schema description for write_file using shorthand syntax.
+        Generates the schema description for write_file using standard XML syntax
+        but with specific instructions for sentinel tags to support robust streaming.
         """
-        return '''## write_file
-
-Creates or overwrites a file with specified content.
-
-**Syntax:**
-```xml
-<write_file path="file_path">
-file_content
-</write_file>
-```
-
-**Parameters:**
-- `path` (required): The absolute or relative path where the file will be written.
-- Content between tags: The string content to write to the file.
-
-Creates parent directories if they don't exist.'''
+        return '''<tool name="write_file">
+    <arguments>
+        <arg name="path" type="string" description="The absolute or relative path where the file will be written." required="true" />
+        <arg name="content" type="string" description="The content to write to the file." required="true">
+            IMPORTANT: To ensure reliable streaming, you MUST enclose the file content with the sentinel tags __START_CONTENT__ and __END_CONTENT__.
+            The parser will strip these tags, but they are critical for preventing XML parsing errors if the content contains special characters.
+        </arg>
+    </arguments>
+</tool>'''

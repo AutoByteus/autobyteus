@@ -20,20 +20,34 @@ class WriteFileXmlExampleFormatter(BaseExampleFormatter):
         Generates usage examples for write_file.
         """
         return '''### Example 1: Create a Python file
-
-<write_file path="/path/to/hello.py">
+        
+<tool name="write_file">
+    <arguments>
+        <arg name="path">/path/to/hello.py</arg>
+        <arg name="content">
+__START_CONTENT__
 def hello():
     print("Hello, World!")
 
 if __name__ == "__main__":
     hello()
-</write_file>
+__END_CONTENT__
+        </arg>
+    </arguments>
+</tool>
 
 ### Example 2: Create a configuration file
 
-<write_file path="config/settings.json">
+<tool name="write_file">
+    <arguments>
+        <arg name="path">config/settings.json</arg>
+        <arg name="content">
+__START_CONTENT__
 {
     "debug": true,
     "log_level": "INFO"
 }
-</write_file>'''
+__END_CONTENT__
+        </arg>
+    </arguments>
+</tool>'''

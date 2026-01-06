@@ -56,10 +56,11 @@ class ToolFormattingRegistry(metaclass=SingletonMeta):
     def _register_tool_formatters(self) -> None:
         """Register built-in tool-specific formatters."""
         # write_file uses shorthand <write_file> syntax
-        #self._tool_pairs["write_file"] = ToolFormatterPair(
-        #    WriteFileXmlSchemaFormatter(),
-        #    WriteFileXmlExampleFormatter()
-        #)
+        # write_file uses standard <tool name="write_file"> syntax with custom sentinel instructions
+        self._tool_pairs["write_file"] = ToolFormatterPair(
+            WriteFileXmlSchemaFormatter(),
+            WriteFileXmlExampleFormatter()
+        )
         # run_terminal_cmd uses shorthand <run_terminal_cmd> syntax
         #self._tool_pairs["run_terminal_cmd"] = ToolFormatterPair(
         #    RunTerminalCmdXmlSchemaFormatter(),

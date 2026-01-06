@@ -155,6 +155,12 @@ def _get_parameter_type_from_hint(py_type: Any, param_name: str) -> Tuple[Parame
     logger.warning(f"Unmapped type hint {py_type} (actual_type: {actual_type}) for param '{param_name}'. Defaulting to ParameterType.STRING.")
     return ParameterType.STRING, None
 
+
+try:
+    from pydantic.fields import FieldInfo
+except ImportError:
+    FieldInfo = None  # type: ignore
+
 def _parse_signature(sig: inspect.Signature, tool_name: str) -> Tuple[TypingList[str], bool, bool, ParameterSchema]:
     func_param_names = []
     expects_context = False
@@ -175,25 +181,50 @@ def _parse_signature(sig: inspect.Signature, tool_name: str) -> Tuple[TypingList
         param_type_enum, item_schema = _get_parameter_type_from_hint(param_type_hint, param_name)
         
         is_required = param_obj.default == inspect.Parameter.empty
-        if get_origin(param_type_hint) is Union and type(None) in get_args(param_type_hint):
-            is_required = False
-
+        default_val = param_obj.default if param_obj.default != inspect.Parameter.empty else None
+        
+        # --- Pydantic Field Extraction Logic ---
         param_desc = f"Parameter '{param_name}' for tool '{tool_name}'."
         param_name_lower = param_name.lower()
         if "path" in param_name_lower or "file" in param_name_lower or "dir" in param_name_lower or "folder" in param_name_lower:
-            param_desc += " This is expected to be a path."
+             param_desc += " This is expected to be a path."
+
+        if FieldInfo and isinstance(param_obj.default, FieldInfo):
+            field_info = param_obj.default
             
+            # 1. Description
+            if field_info.description:
+                param_desc = field_info.description
+            
+            # 2. Default Value & Requiredness
+            # If PydanticUndefined (or similar sentinel), it means required.
+            # Otherwise, use the default value from Field.
+            # Note: Pydantic v1 uses Undefined, v2 uses PydanticUndefined. 
+            # We check if it is the special undefined value via representation or direct check.
+            
+            # Simple heuristic for "Undefined" without importing the specific sentinel
+            if str(field_info.default) == "PydanticUndefined" or field_info.default == ...:
+                is_required = True
+                default_val = None
+            else:
+                is_required = False
+                default_val = field_info.default
+        
+        if get_origin(param_type_hint) is Union and type(None) in get_args(param_type_hint):
+            is_required = False
+
         schema_param = ParameterDefinition(
             name=param_name,
             param_type=param_type_enum,
             description=param_desc,
             required=is_required,
-            default_value=param_obj.default if param_obj.default != inspect.Parameter.empty else None,
+            default_value=default_val,
             array_item_schema=item_schema
         )
         generated_arg_schema.add_parameter(schema_param)
         
     return func_param_names, expects_context, expects_tool_state, generated_arg_schema
+
 
 # --- The refactored @tool decorator ---
 
