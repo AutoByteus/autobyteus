@@ -311,8 +311,8 @@ class FocusPane(Static):
                 path = metadata.get("path", "")
                 header = f"<write_file path=\"{path}\">" if path else "<write_file>"
                 self._content_buffer += f"{header}\n"
-            elif segment_type == SegmentType.RUN_TERMINAL_CMD:
-                self._content_buffer += "<run_terminal_cmd>\n"
+            elif segment_type == SegmentType.RUN_BASH:
+                self._content_buffer += "<run_bash>\n"
             elif segment_type == SegmentType.TOOL_CALL:
                 tool_name = metadata.get("tool_name", "")
                 header = f"<tool name=\"{tool_name}\">" if tool_name else "<tool>"
@@ -338,9 +338,9 @@ class FocusPane(Static):
                 self._segment_types_by_id.pop(data.segment_id, None)
                 return
 
-            if segment_type in {SegmentType.WRITE_FILE, SegmentType.RUN_TERMINAL_CMD, SegmentType.TOOL_CALL}:
+            if segment_type in {SegmentType.WRITE_FILE, SegmentType.RUN_BASH, SegmentType.TOOL_CALL}:
                 tag = "write_file" if segment_type == SegmentType.WRITE_FILE else (
-                    "run_terminal_cmd" if segment_type == SegmentType.RUN_TERMINAL_CMD else "tool"
+                    "run_bash" if segment_type == SegmentType.RUN_BASH else "tool"
                 )
                 self._content_buffer += f"\n</{tag}>\n"
 

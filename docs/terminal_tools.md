@@ -11,12 +11,12 @@ These tools replace the legacy `bash_executor` with a PTY-based implementation w
 
 ## Tools
 
-### `run_terminal_cmd`
+### `run_bash`
 
 Execute a command in a stateful terminal session.
 
 ```python
-await run_terminal_cmd(context, command="npm install", timeout_seconds=120)
+await run_bash(context, command="npm install", timeout_seconds=120)
 ```
 
 **Parameters:**

@@ -64,8 +64,8 @@ def _get_cwd(context: Optional['AgentContext']) -> str:
     return tempfile.gettempdir()
 
 
-@tool(name="run_terminal_cmd", category=ToolCategory.SYSTEM)
-async def run_terminal_cmd(
+@tool(name="run_bash", category=ToolCategory.SYSTEM)
+async def run_bash(
     context: Optional['AgentContext'],
     command: str,
     timeout_seconds: int = 30
@@ -92,9 +92,9 @@ async def run_terminal_cmd(
         - timed_out: True if command exceeded timeout
     
     Examples:
-        - run_terminal_cmd("ls -la")
-        - run_terminal_cmd("cd src && npm install", timeout_seconds=120)
-        - run_terminal_cmd("export PATH=$PATH:/custom/bin")
+        - run_bash("ls -la")
+        - run_bash("cd src && npm install", timeout_seconds=120)
+        - run_bash("export PATH=$PATH:/custom/bin")
     """
     manager = _get_terminal_manager(context)
     cwd = _get_cwd(context)

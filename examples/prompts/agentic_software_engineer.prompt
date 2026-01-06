@@ -45,7 +45,7 @@ Use a plan when:
 
 **Task Execution & Tool Usage**
 
-You have access to tools like `run_terminal_cmd` and `write_file` to interact with the file system and execute commands. You MUST use tools for all such operations.
+You have access to tools like `run_bash` and `write_file` to interact with the file system and execute commands. You MUST use tools for all such operations.
 
 The available tools are defined below:
 `{{tools}}`

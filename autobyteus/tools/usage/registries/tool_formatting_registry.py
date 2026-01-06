@@ -14,7 +14,7 @@ from autobyteus.tools.usage.formatters import (
     DefaultXmlSchemaFormatter, DefaultXmlExampleFormatter,
     # Tool-specific formatters
     WriteFileXmlSchemaFormatter, WriteFileXmlExampleFormatter,
-    RunTerminalCmdXmlSchemaFormatter, RunTerminalCmdXmlExampleFormatter,
+    RunBashXmlSchemaFormatter, RunBashXmlExampleFormatter,
 )
 
 logger = logging.getLogger(__name__)
@@ -61,10 +61,10 @@ class ToolFormattingRegistry(metaclass=SingletonMeta):
             WriteFileXmlSchemaFormatter(),
             WriteFileXmlExampleFormatter()
         )
-        # run_terminal_cmd uses shorthand <run_terminal_cmd> syntax
-        #self._tool_pairs["run_terminal_cmd"] = ToolFormatterPair(
-        #    RunTerminalCmdXmlSchemaFormatter(),
-        #    RunTerminalCmdXmlExampleFormatter()
+        # run_bash uses shorthand <run_bash> syntax
+        #self._tool_pairs["run_bash"] = ToolFormatterPair(
+        #    RunBashXmlSchemaFormatter(),
+        #    RunBashXmlExampleFormatter()
         #)
 
     def register_tool_formatter(self, tool_name: str, formatter_pair: ToolFormatterPair) -> None:

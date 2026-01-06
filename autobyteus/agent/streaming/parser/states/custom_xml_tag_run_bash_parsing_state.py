@@ -1,5 +1,5 @@
 """
-RunTerminalCmdParsingState: Parses <run_terminal_cmd>...</run_terminal_cmd> blocks.
+RunBashParsingState: Parses <run_bash>...</run_bash> blocks.
 
 Simplified implementation that parses terminal commands.
 """
@@ -12,27 +12,27 @@ if TYPE_CHECKING:
     from ..parser_context import ParserContext
 
 
-class CustomXmlTagRunTerminalCmdParsingState(DelimitedContentState):
+class CustomXmlTagRunBashParsingState(DelimitedContentState):
     """
     Parses terminal command blocks.
     
-    Supported format: <run_terminal_cmd>command</run_terminal_cmd>
+    Supported format: <run_bash>command</run_bash>
     
     The state:
     1. Emits SEGMENT_START (no metadata)
     2. Streams command content as SEGMENT_CONTENT events
-    3. Emits SEGMENT_END when </run_terminal_cmd> is found
+    3. Emits SEGMENT_END when </run_bash> is found
     """
     
-    CLOSING_TAG = "</run_terminal_cmd>"
-    SEGMENT_TYPE = SegmentType.RUN_TERMINAL_CMD
+    CLOSING_TAG = "</run_bash>"
+    SEGMENT_TYPE = SegmentType.RUN_BASH
     
     def __init__(self, context: "ParserContext", opening_tag: str):
         """
-        Initialize the run_terminal_cmd parsing state.
+        Initialize the run_bash parsing state.
         
         Args:
             context: The parser context.
-            opening_tag: The opening tag (e.g., '<run_terminal_cmd>').
+            opening_tag: The opening tag (e.g., '<run_bash>').
         """
         super().__init__(context, opening_tag)

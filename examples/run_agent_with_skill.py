@@ -127,10 +127,10 @@ async def main(args: argparse.Namespace):
         llm_instance = default_llm_factory.create_llm(model_identifier=args.llm_model)
 
         # 3. Create Tools
-        # We need 'run_terminal_cmd' to execute the skill's script
+        # We need 'run_bash' to execute the skill's script
         # We need 'read_file' if the agent wants to inspect the script (optional but good practice)
         tools = [
-            default_tool_registry.create_tool("run_terminal_cmd"), 
+            default_tool_registry.create_tool("run_bash"), 
             default_tool_registry.create_tool("read_file")
         ]
 

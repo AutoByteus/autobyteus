@@ -6,7 +6,7 @@ Authors: Autobyteus Core Team
 
 ## Overview
 
-The streaming parser is a state-machine-based system that incrementally parses LLM response chunks in real-time. It handles structured content blocks (`<write_file>`, `<run_terminal_cmd>`, `<tool>`) while streaming safe content deltas to the frontend, preventing partial tags from being displayed.
+The streaming parser is a state-machine-based system that incrementally parses LLM response chunks in real-time. It handles structured content blocks (`<write_file>`, `<run_bash>`, `<tool>`) while streaming safe content deltas to the frontend, preventing partial tags from being displayed.
 
 ## Goals
 
@@ -48,8 +48,8 @@ The streaming parser is a state-machine-based system that incrementally parses L
         ┌──────────────────────┼──────────────────────┐
         ▼                      ▼                      ▼
 ┌──────────────────┐  ┌───────────────────────┐  ┌──────────────────┐
-│WriteFileParsingState│  │RunTerminalCmdParsingState│  │XmlToolParsingState│
-│(<write_file>...</write_file>)│  │(<run_terminal_cmd>...</run_terminal_cmd>)│  │(<tool>...</tool>)│
+│WriteFileParsingState│  │RunBashParsingState│  │XmlToolParsingState│
+│(<write_file>...</write_file>)│  │(<run_bash>...</run_bash>)│  │(<tool>...</tool>)│
 └──────────────────┘  └───────────────────────┘  └──────────────────┘
 ```
 
@@ -103,7 +103,7 @@ Accumulates characters after `<` to detect tag type:
 
 - `<tool name="...">` → Dispatches to specific `Xml...ToolParsingState` based on tool name.
 - `<write_file path="...">` → `CustomXmlTagWriteFileParsingState` (Legacy)
-- `<run_terminal_cmd>` → `CustomXmlTagRunTerminalCmdParsingState` (Legacy)
+- `<run_bash>` → `CustomXmlTagRunBashParsingState` (Legacy)
 - Unknown tags → emits as text, returns to `TextState`
 
 #### Content Parsing States (Legacy Custom Tags)
@@ -121,7 +121,7 @@ To ensure compatibility with the standard XML tool format (`<tool name="write_fi
   - **Optional Raw Markers**: If `__START_CONTENT__`/`__END_CONTENT__` appear inside the `content` arg, only the text between them is streamed and the markers are stripped.
   - **Tag Swallowing**: Aggressively consumes and discards closing tags (`</arguments></tool>`) after content ends.
 
-- **XmlRunTerminalCmdToolParsingState**:
+- **XmlRunBashToolParsingState**:
   - Similar piping logic for the `command` argument.
   - Ensures `SEGMENT_START` is emitted, then streams only the command text.
   - Swallows trailing XML artifacts.
@@ -174,26 +174,26 @@ The parser emits `SegmentEvent` objects with three lifecycle types:
 
 ### Segment Type Semantics
 
-| Segment Type      | `SEGMENT_START.metadata`           | `SEGMENT_CONTENT.delta`                                    | `SEGMENT_END.payload` |
-| ----------------- | ---------------------------------- | ----------------------------------------------------------- | --------------------- |
-| `text`            | `{}`                               | Plain text                                                  | `{}`                  |
-| `tool_call`       | `{"tool_name": "..."}` (if known)  | Raw XML/JSON tool content                                   | `{}`                  |
-| `write_file`      | `{"path": "..."}` (deferred)       | File content only (no XML tags)                             | `{}`                  |
-| `run_terminal_cmd`| `{}`                               | Command text only                                           | `{}`                  |
-| `reasoning`       | `{}`                               | Reasoning text                                              | `{}`                  |
+| Segment Type | `SEGMENT_START.metadata`          | `SEGMENT_CONTENT.delta`         | `SEGMENT_END.payload` |
+| ------------ | --------------------------------- | ------------------------------- | --------------------- |
+| `text`       | `{}`                              | Plain text                      | `{}`                  |
+| `tool_call`  | `{"tool_name": "..."}` (if known) | Raw XML/JSON tool content       | `{}`                  |
+| `write_file` | `{"path": "..."}` (deferred)      | File content only (no XML tags) | `{}`                  |
+| `run_bash`   | `{}`                              | Command text only               | `{}`                  |
+| `reasoning`  | `{}`                              | Reasoning text                  | `{}`                  |
 
 ### State → Emitted Segment Events
 
-| State                                   | Segment Type          | Start Metadata                  | Content Emission                         |
-| --------------------------------------- | --------------------- | -------------------------------- | ---------------------------------------- |
-| `TextState`                             | `text`                | `{}`                             | Streams plain text                       |
-| `XmlToolParsingState`                   | `tool_call`           | `tool_name` (from tag)           | Raw `<arguments>...</arguments>`         |
-| `JsonToolParsingState`                  | `tool_call`           | `{}`                             | Raw JSON tool blob                       |
-| `XmlWriteFileToolParsingState`          | `write_file`          | `path` (deferred until found)    | Content only (no XML tags)               |
-| `XmlRunTerminalCmdToolParsingState`     | `run_terminal_cmd`    | `{}`                             | Command only (no XML tags)               |
-| `CustomXmlTagWriteFileParsingState`     | `write_file`          | `path` (from tag)                | Content only                             |
-| `CustomXmlTagRunTerminalCmdParsingState`| `run_terminal_cmd`    | `{}`                             | Command only                             |
-| `SentinelContentState`                  | as header `type`      | header JSON (minus `type`)       | Raw content between sentinel markers     |
+| State                               | Segment Type     | Start Metadata                | Content Emission                     |
+| ----------------------------------- | ---------------- | ----------------------------- | ------------------------------------ |
+| `TextState`                         | `text`           | `{}`                          | Streams plain text                   |
+| `XmlToolParsingState`               | `tool_call`      | `tool_name` (from tag)        | Raw `<arguments>...</arguments>`     |
+| `JsonToolParsingState`              | `tool_call`      | `{}`                          | Raw JSON tool blob                   |
+| `XmlWriteFileToolParsingState`      | `write_file`     | `path` (deferred until found) | Content only (no XML tags)           |
+| `XmlRunBashToolParsingState`        | `run_bash`       | `{}`                          | Command only (no XML tags)           |
+| `CustomXmlTagWriteFileParsingState` | `write_file`     | `path` (from tag)             | Content only                         |
+| `CustomXmlTagRunBashParsingState`   | `run_bash`       | `{}`                          | Command only                         |
+| `SentinelContentState`              | as header `type` | header JSON (minus `type`)    | Raw content between sentinel markers |
 
 ### Segment Types
 
@@ -202,7 +202,7 @@ class SegmentType(str, Enum):
     TEXT = "text"
     TOOL_CALL = "tool_call"
     WRITE_FILE = "write_file"
-    RUN_TERMINAL_CMD = "run_terminal_cmd"
+    RUN_TERMINAL_CMD = "run_bash"
     REASONING = "reasoning"
 ```
 
@@ -218,10 +218,10 @@ autobyteus/agent/streaming/parser/tool_syntax_registry.py
 The FSM only emits segment types; tool names are resolved later by the
 `ToolInvocationAdapter` using the tool syntax registry.
 
-| SegmentType      | Segment Syntax                             | Tool Name          | Argument Source                 |
-| ---------------- | ------------------------------------------ | ------------------ | ------------------------------- |
-| WRITE_FILE       | `<write_file path="...">`                  | `write_file`       | adapter: `path` + segment body  |
-| RUN_TERMINAL_CMD | `<run_terminal_cmd>...</run_terminal_cmd>` | `run_terminal_cmd` | adapter: command from body/metadata |
+| SegmentType      | Segment Syntax             | Tool Name    | Argument Source                     |
+| ---------------- | -------------------------- | ------------ | ----------------------------------- |
+| WRITE_FILE       | `<write_file path="...">`  | `write_file` | adapter: `path` + segment body      |
+| RUN_TERMINAL_CMD | `<run_bash>...</run_bash>` | `run_bash`   | adapter: command from body/metadata |
 
 ### Tool Invocation IDs (Important)
 
@@ -364,10 +364,10 @@ autobyteus/agent/streaming/
         ├── xml_tag_initialization_state.py
         ├── json_initialization_state.py
         ├── custom_xml_tag_write_file_parsing_state.py
-        ├── custom_xml_tag_run_terminal_cmd_parsing_state.py
+        ├── custom_xml_tag_run_bash_parsing_state.py
         ├── xml_tool_parsing_state.py
         ├── xml_write_file_tool_parsing_state.py
-        ├── xml_run_terminal_cmd_tool_parsing_state.py
+        ├── xml_run_bash_tool_parsing_state.py
         └── json_tool_parsing_state.py
 ```
 

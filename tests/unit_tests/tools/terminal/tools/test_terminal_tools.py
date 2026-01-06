@@ -7,7 +7,7 @@ import pytest
 import tempfile
 
 # Import the underlying functions, not the FunctionalTool wrappers
-from autobyteus.tools.terminal.tools.run_terminal_cmd import run_terminal_cmd as run_cmd_tool
+from autobyteus.tools.terminal.tools.run_bash import run_bash as run_cmd_tool
 from autobyteus.tools.terminal.tools.start_background_process import start_background_process as start_bg_tool
 from autobyteus.tools.terminal.tools.get_process_output import get_process_output as get_output_tool
 from autobyteus.tools.terminal.tools.stop_background_process import stop_background_process as stop_bg_tool
@@ -40,8 +40,8 @@ class MockWorkspace:
 
 
 @pytest.mark.integration
-class TestRunTerminalCmdTool:
-    """Integration tests for run_terminal_cmd tool."""
+class TestRunBashTool:
+    """Integration tests for run_bash tool."""
     
     @pytest.mark.asyncio
     async def test_simple_echo(self, temp_dir):

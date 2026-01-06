@@ -112,6 +112,6 @@ class SentinelInitializationState(BaseState):
             "tool": SegmentType.TOOL_CALL,
             "tool_call": SegmentType.TOOL_CALL,
             "write_file": SegmentType.WRITE_FILE,
-            "run_terminal_cmd": SegmentType.RUN_TERMINAL_CMD,
+            "run_bash": SegmentType.RUN_BASH,
         }
         return mapping.get(value)

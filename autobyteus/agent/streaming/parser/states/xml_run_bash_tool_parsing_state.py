@@ -1,5 +1,5 @@
 """
-XmlRunTerminalCmdToolParsingState: Streams <tool name="run_terminal_cmd"> blocks.
+XmlRunBashToolParsingState: Streams <tool name="run_bash"> blocks.
 
 This state specializes the generic XmlToolParsingState to stream the command
 content without parsing arguments. Argument parsing is handled later by the
@@ -14,19 +14,19 @@ if TYPE_CHECKING:
     from ..parser_context import ParserContext
 
 
-class XmlRunTerminalCmdToolParsingState(XmlToolParsingState):
+class XmlRunBashToolParsingState(XmlToolParsingState):
     """
-    Parses <tool name="run_terminal_cmd"> tool calls.
+    Parses <tool name="run_bash"> tool calls.
     
     This state operates identically to XmlToolParsingState but provides
-    a distinct type (RUN_TERMINAL_CMD) and specialized metadata handling if needed.
+    a distinct type (RUN_BASH) and specialized metadata handling if needed.
     """
     
-    SEGMENT_TYPE = SegmentType.RUN_TERMINAL_CMD
+    SEGMENT_TYPE = SegmentType.RUN_BASH
     
     def __init__(self, context: "ParserContext", opening_tag: str):
         super().__init__(context, opening_tag)
-        if self._tool_name != "run_terminal_cmd":
+        if self._tool_name != "run_bash":
             pass
             
         self._found_content_start = False

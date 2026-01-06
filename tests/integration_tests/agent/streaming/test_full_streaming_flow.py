@@ -98,7 +98,7 @@ Done!
         
         handler = StreamingResponseHandler(on_segment_event=track_event)
         
-        handler.feed('<tool name="write_file"><path>/out.txt</path><content>Hello</content></tool>')
+        handler.feed('<tool name="write_file"><arg name="path">/out.txt</arg><arg name="content">Hello</arg></tool>')
         handler.finalize()
         
         inv = handler.get_all_invocations()[0]
@@ -124,9 +124,9 @@ def hello():
     print("hello")
 </write_file>
 
-<run_terminal_cmd>
+<run_bash>
 python output.py
-</run_terminal_cmd>
+</run_bash>
 
 <tool name="verify_result"><expected>hello</expected></tool>
 
@@ -143,14 +143,14 @@ All done!
         
         assert SegmentType.TEXT in segment_types
         assert SegmentType.WRITE_FILE in segment_types
-        assert SegmentType.RUN_TERMINAL_CMD in segment_types
+        assert SegmentType.RUN_BASH in segment_types
         assert SegmentType.TOOL_CALL in segment_types
         
         # File, bash, and tool create invocations
         assert len(invocations) == 3
         names = [inv.name for inv in invocations]
         assert "write_file" in names
-        assert "run_terminal_cmd" in names
+        assert "run_bash" in names
         assert "verify_result" in names
 
     def test_write_file_shorthand_with_raw_html_comment(self):
@@ -182,14 +182,14 @@ All done!
         handler = StreamingResponseHandler()
 
         response = (
-            "<tool name=\"write_file\">"
-            "<path>/site/app.js</path>"
-            "<content><![CDATA["
-            "const html = '<div class=\"app\">& ready</div>';\n"
-            "// ok\n"
-            "]]></content>"
-            "</tool>"
-        )
+        "<tool name=\"write_file\">"
+        "<arg name=\"path\">/site/app.js</arg>"
+        "<arg name=\"content\"><![CDATA["
+        "const html = '<div class=\"app\">& ready</div>';\n"
+        "// ok\n"
+        "]]></arg>"
+        "</tool>"
+    )
         handler.feed(response)
         handler.finalize()
 

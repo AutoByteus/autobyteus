@@ -21,7 +21,7 @@ class XmlTagInitializationState(BaseState):
     Analyzes a potential XML tag to determine the correct specialized state.
     
     This state is entered when a '<' is detected. It buffers characters
-    to identify tags like <tool, <write_file, <run_terminal_cmd.
+    to identify tags like <tool, <write_file, <run_bash.
     
     If no known tag is detected, the buffered content is emitted as text.
     
@@ -32,7 +32,7 @@ class XmlTagInitializationState(BaseState):
     
     # Known tag prefixes (lowercase for case-insensitive matching)
     POSSIBLE_WRITE_FILE = "<write_file"
-    POSSIBLE_RUN_TERMINAL_CMD = "<run_terminal_cmd"
+    POSSIBLE_RUN_BASH = "<run_bash"
     POSSIBLE_TOOL = "<tool"
     
     def __init__(self, context: "ParserContext"):
@@ -49,10 +49,10 @@ class XmlTagInitializationState(BaseState):
         """
         from .text_state import TextState
         from .custom_xml_tag_write_file_parsing_state import CustomXmlTagWriteFileParsingState
-        from .custom_xml_tag_run_terminal_cmd_parsing_state import CustomXmlTagRunTerminalCmdParsingState
+        from .custom_xml_tag_run_bash_parsing_state import CustomXmlTagRunBashParsingState
         from .xml_tool_parsing_state import XmlToolParsingState
         from .xml_write_file_tool_parsing_state import XmlWriteFileToolParsingState
-        from .xml_run_terminal_cmd_tool_parsing_state import XmlRunTerminalCmdToolParsingState
+        from .xml_run_bash_tool_parsing_state import XmlRunBashToolParsingState
 
         if not self.context.has_more_chars():
             return
@@ -68,16 +68,16 @@ class XmlTagInitializationState(BaseState):
                 self.POSSIBLE_WRITE_FILE.startswith(lower_buffer) or 
                 lower_buffer.startswith(self.POSSIBLE_WRITE_FILE)
             )
-            could_be_run_terminal_cmd = (
-                self.POSSIBLE_RUN_TERMINAL_CMD.startswith(lower_buffer) or 
-                lower_buffer.startswith(self.POSSIBLE_RUN_TERMINAL_CMD)
+            could_be_run_bash = (
+                self.POSSIBLE_RUN_BASH.startswith(lower_buffer) or 
+                lower_buffer.startswith(self.POSSIBLE_RUN_BASH)
             )
             could_be_tool = (
                 self.POSSIBLE_TOOL.startswith(lower_buffer) or 
                 lower_buffer.startswith(self.POSSIBLE_TOOL)
             )
 
-            if not (could_be_write_file or could_be_run_terminal_cmd or could_be_tool):
+            if not (could_be_write_file or could_be_run_bash or could_be_tool):
                 self.context.append_text_segment(self._tag_buffer)
                 self.context.transition_to(TextState(self.context))
             return
@@ -94,11 +94,11 @@ class XmlTagInitializationState(BaseState):
             )
             return
 
-        if lower_buffer.startswith(self.POSSIBLE_RUN_TERMINAL_CMD):
+        if lower_buffer.startswith(self.POSSIBLE_RUN_BASH):
             if self.context.get_current_segment_type() == SegmentType.TEXT:
                 self.context.emit_segment_end()
             self.context.transition_to(
-                CustomXmlTagRunTerminalCmdParsingState(self.context, self._tag_buffer)
+                CustomXmlTagRunBashParsingState(self.context, self._tag_buffer)
             )
             return
 
@@ -107,10 +107,10 @@ class XmlTagInitializationState(BaseState):
                 if self.context.get_current_segment_type() == SegmentType.TEXT:
                     self.context.emit_segment_end()
                 
-                # Check for specialized <tool name="write_file"> or <tool name="run_terminal_cmd">
+                # Check for specialized <tool name="write_file"> or <tool name="run_bash">
                 import re
                 is_write_file = re.search(r'name\s*=\s*["\']write_file["\']', self._tag_buffer, re.IGNORECASE)
-                is_run_term = re.search(r'name\s*=\s*["\']run_terminal_cmd["\']', self._tag_buffer, re.IGNORECASE)
+                is_run_term = re.search(r'name\s*=\s*["\']run_bash["\']', self._tag_buffer, re.IGNORECASE)
                 
                 if is_write_file:
                     self.context.transition_to(
@@ -118,7 +118,7 @@ class XmlTagInitializationState(BaseState):
                     )
                 elif is_run_term:
                     self.context.transition_to(
-                        XmlRunTerminalCmdToolParsingState(self.context, self._tag_buffer)
+                        XmlRunBashToolParsingState(self.context, self._tag_buffer)
                     )
                 else:
                     self.context.transition_to(

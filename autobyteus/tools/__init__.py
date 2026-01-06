@@ -26,7 +26,7 @@ from .file.patch_file import patch_file
 from .skill.load_skill import load_skill
 
 # Terminal tools (PTY-based stateful terminal)
-from .terminal.tools.run_terminal_cmd import run_terminal_cmd
+from .terminal.tools.run_bash import run_bash
 from .terminal.tools.start_background_process import start_background_process
 from .terminal.tools.get_process_output import get_process_output
 from .terminal.tools.stop_background_process import stop_background_process
@@ -98,7 +98,7 @@ __all__ = [
     "ToolCategory",
 
     # Re-exported functional tool instances
-    "run_terminal_cmd",
+    "run_bash",
     "start_background_process",
     "get_process_output",
     "stop_background_process",

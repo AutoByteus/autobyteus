@@ -14,7 +14,7 @@ class SegmentType(str, Enum):
     TEXT = "text"
     TOOL_CALL = "tool_call"
     WRITE_FILE = "write_file"
-    RUN_TERMINAL_CMD = "run_terminal_cmd"
+    RUN_BASH = "run_bash"
     REASONING = "reasoning"
 
 

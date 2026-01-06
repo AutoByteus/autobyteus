@@ -168,6 +168,7 @@ class XmlWriteFileToolParsingState(XmlToolParsingState):
         combined = self._tail + chunk
 
         idx = combined.find(closing_tag)
+
         if idx != -1:
             actual_content = combined[:idx]
             if actual_content:

@@ -6,10 +6,10 @@ from autobyteus.agent.streaming.parser.parser_context import ParserContext, Pars
 from autobyteus.agent.streaming.parser.states.text_state import TextState
 from autobyteus.agent.streaming.parser.states.xml_tag_initialization_state import XmlTagInitializationState
 from autobyteus.agent.streaming.parser.states.custom_xml_tag_write_file_parsing_state import CustomXmlTagWriteFileParsingState
-from autobyteus.agent.streaming.parser.states.custom_xml_tag_run_terminal_cmd_parsing_state import CustomXmlTagRunTerminalCmdParsingState
+from autobyteus.agent.streaming.parser.states.custom_xml_tag_run_bash_parsing_state import CustomXmlTagRunBashParsingState
 from autobyteus.agent.streaming.parser.states.xml_tool_parsing_state import XmlToolParsingState
 from autobyteus.agent.streaming.parser.states.xml_write_file_tool_parsing_state import XmlWriteFileToolParsingState
-from autobyteus.agent.streaming.parser.states.xml_run_terminal_cmd_tool_parsing_state import XmlRunTerminalCmdToolParsingState
+from autobyteus.agent.streaming.parser.states.xml_run_bash_tool_parsing_state import XmlRunBashToolParsingState
 from autobyteus.agent.streaming.parser.events import SegmentEventType
 
 
@@ -57,30 +57,30 @@ class TestXmlTagInitWriteFileDetection:
 
 
 
-class TestXmlTagInitRunTerminalCmdDetection:
-    """Tests for <run_terminal_cmd> tag detection."""
+class TestXmlTagInitRunBashDetection:
+    """Tests for <run_bash> tag detection."""
 
-    def test_run_terminal_cmd_tag_transitions_to_state(self):
-        """<run_terminal_cmd> triggers transition to CustomXmlTagRunTerminalCmdParsingState."""
+    def test_run_bash_tag_transitions_to_state(self):
+        """<run_bash> triggers transition to CustomXmlTagRunBashParsingState."""
         ctx = ParserContext()
-        ctx.append("<run_terminal_cmd>command</run_terminal_cmd>")
+        ctx.append("<run_bash>command</run_bash>")
         
         state = XmlTagInitializationState(ctx)
         ctx.current_state = state
         state.run()
         
-        assert isinstance(ctx.current_state, CustomXmlTagRunTerminalCmdParsingState)
+        assert isinstance(ctx.current_state, CustomXmlTagRunBashParsingState)
 
-    def test_run_terminal_cmd_with_attributes(self):
-        """<run_terminal_cmd description='test'> also triggers CustomXmlTagRunTerminalCmdParsingState."""
+    def test_run_bash_with_attributes(self):
+        """<run_bash description='test'> also triggers CustomXmlTagRunBashParsingState."""
         ctx = ParserContext()
-        ctx.append("<run_terminal_cmd description='test'>")
+        ctx.append("<run_bash description='test'>")
         
         state = XmlTagInitializationState(ctx)
         ctx.current_state = state
         state.run()
         
-        assert isinstance(ctx.current_state, CustomXmlTagRunTerminalCmdParsingState)
+        assert isinstance(ctx.current_state, CustomXmlTagRunBashParsingState)
 
 
 class TestXmlTagInitToolDetection:
@@ -219,24 +219,24 @@ class TestXmlTagInitFinalize:
         
         assert isinstance(ctx.current_state, XmlToolParsingState)
 
-    def test_run_terminal_cmd_tool_detection(self):
-        """<tool name="run_terminal_cmd"> triggers transition to XmlRunTerminalCmdToolParsingState."""
+    def test_run_bash_tool_detection(self):
+        """<tool name="run_bash"> triggers transition to XmlRunBashToolParsingState."""
         ctx = ParserContext()
-        ctx.append('<tool name="run_terminal_cmd">')
+        ctx.append('<tool name="run_bash">')
         
         state = XmlTagInitializationState(ctx)
         ctx.current_state = state
         state.run()
         
-        assert isinstance(ctx.current_state, XmlRunTerminalCmdToolParsingState)
+        assert isinstance(ctx.current_state, XmlRunBashToolParsingState)
 
-    def test_run_terminal_cmd_tool_case_insensitive_name(self):
-        """<tool name="RUN_TERMINAL_CMD"> triggers transition to XmlRunTerminalCmdToolParsingState."""
+    def test_run_bash_tool_case_insensitive_name(self):
+        """<tool name="RUN_BASH"> triggers transition to XmlRunBashToolParsingState."""
         ctx = ParserContext()
-        ctx.append('<tool name="RUN_TERMINAL_CMD">')
+        ctx.append('<tool name="RUN_BASH">')
         
         state = XmlTagInitializationState(ctx)
         ctx.current_state = state
         state.run()
         
-        assert isinstance(ctx.current_state, XmlRunTerminalCmdToolParsingState)
+        assert isinstance(ctx.current_state, XmlRunBashToolParsingState)

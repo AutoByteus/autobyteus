@@ -10,7 +10,7 @@ from typing import Optional
 
 @dataclass
 class TerminalResult:
-    """Result from run_terminal_cmd.
+    """Result from run_bash.
     
     Attributes:
         stdout: Standard output captured from the command.

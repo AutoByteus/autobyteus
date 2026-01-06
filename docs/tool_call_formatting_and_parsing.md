@@ -93,7 +93,7 @@ Key alignment rules:
 
 Concrete alignment points in code:
 
-- XML examples (`DefaultXmlExampleFormatter`) emit `<tool>`/`<write_file>`/`<run_terminal_cmd>` shapes that
+- XML examples (`DefaultXmlExampleFormatter`) emit `<tool>`/`<write_file>`/`<run_bash>` shapes that
   the XML tag parser recognizes (`XmlTagInitializationState`, `WriteFileParsingState`, etc.).
 - JSON examples are provider-specific (OpenAI/Gemini/default) and must match the JSON
   parsing strategies in `autobyteus/agent/streaming/parser/json_parsing_strategies/`.

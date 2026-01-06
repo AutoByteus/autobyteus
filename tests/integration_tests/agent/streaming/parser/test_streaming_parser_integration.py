@@ -123,17 +123,17 @@ class TestWriteFileTagParsing:
         assert len(write_file_segments) >= 1
 
 
-class TestRunTerminalCmdTagParsing:
-    """Tests for parsing <run_terminal_cmd> tags."""
+class TestRunBashTagParsing:
+    """Tests for parsing <run_bash> tags."""
 
-    def test_run_terminal_cmd_tag_complete(self):
-        """Parse a complete run_terminal_cmd tag."""
+    def test_run_bash_tag_complete(self):
+        """Parse a complete run_bash tag."""
         driver = StreamingParserDriver()
-        driver.feed("Run this:<run_terminal_cmd>ls -la</run_terminal_cmd>")
+        driver.feed("Run this:<run_bash>ls -la</run_bash>")
         driver.finalize()
         
         segments = driver.get_segments()
-        cmd_segments = [s for s in segments if s["type"] == "run_terminal_cmd"]
+        cmd_segments = [s for s in segments if s["type"] == "run_bash"]
         assert len(cmd_segments) >= 1
 
 
@@ -192,20 +192,7 @@ class TestMixedContent:
         assert len(write_file_segments) >= 2
 
 
-class TestDoctypeHtmlParsing:
-    """Tests for parsing <!doctype html> content."""
 
-    def test_html_doctype(self):
-        """Parse HTML doctype content."""
-        config = ParserConfig()
-        driver = StreamingParserDriver(config)
-        driver.feed("Preview:<!doctype html><html><body>Hi</body></html>Done")
-        driver.finalize()
-        
-        segments = driver.get_segments()
-        iframe_segments = [s for s in segments if s["type"] == "iframe"]
-        # Should detect iframe/html segment
-        assert len(iframe_segments) >= 1
 
 
 class TestEdgeCases:

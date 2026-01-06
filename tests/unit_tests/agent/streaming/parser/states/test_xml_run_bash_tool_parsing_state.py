@@ -1,19 +1,19 @@
 """
-Unit tests for XmlRunTerminalCmdToolParsingState.
+Unit tests for XmlRunBashToolParsingState.
 """
 import pytest
 from autobyteus.agent.streaming.parser.parser_context import ParserContext
-from autobyteus.agent.streaming.parser.states.xml_run_terminal_cmd_tool_parsing_state import XmlRunTerminalCmdToolParsingState
+from autobyteus.agent.streaming.parser.states.xml_run_bash_tool_parsing_state import XmlRunBashToolParsingState
 from autobyteus.agent.streaming.parser.events import SegmentType, SegmentEventType
 
 
-class TestXmlRunTerminalCmdToolParsingState:
-    """Tests for XmlRunTerminalCmdToolParsingState functionality."""
+class TestXmlRunBashToolParsingState:
+    """Tests for XmlRunBashToolParsingState functionality."""
 
-    def test_parses_run_terminal_cmd_tool(self):
-        """Standard <tool name="run_terminal_cmd"> is parsed correctly."""
+    def test_parses_run_bash_tool(self):
+        """Standard <tool name="run_bash"> is parsed correctly."""
         ctx = ParserContext()
-        signature = '<tool name="run_terminal_cmd">'
+        signature = '<tool name="run_bash">'
         content = (
             "<arguments>"
             "<arg name='command'>ls -la</arg>"
@@ -21,7 +21,7 @@ class TestXmlRunTerminalCmdToolParsingState:
         )
         ctx.append(signature + content)
         
-        state = XmlRunTerminalCmdToolParsingState(ctx, signature)
+        state = XmlRunBashToolParsingState(ctx, signature)
         ctx.current_state = state
         state.run()
         
@@ -30,7 +30,7 @@ class TestXmlRunTerminalCmdToolParsingState:
         # Check START event
         start_events = [e for e in events if e.event_type == SegmentEventType.START]
         assert len(start_events) == 1
-        assert start_events[0].segment_type == SegmentType.RUN_TERMINAL_CMD
+        assert start_events[0].segment_type == SegmentType.RUN_BASH
         
         # Check CONTENT events - Should contain ONLY the command
         content_events = [e for e in events if e.event_type == SegmentEventType.CONTENT]
@@ -40,19 +40,19 @@ class TestXmlRunTerminalCmdToolParsingState:
         end_events = [e for e in events if e.event_type == SegmentEventType.END]
         assert len(end_events) == 1
 
-    def test_segment_type_is_run_terminal_cmd(self):
-        """Ensures the segment type is RUN_TERMINAL_CMD."""
+    def test_segment_type_is_run_bash(self):
+        """Ensures the segment type is RUN_BASH."""
         ctx = ParserContext()
-        signature = '<tool name="run_terminal_cmd">'
-        state = XmlRunTerminalCmdToolParsingState(ctx, signature)
-        assert state.SEGMENT_TYPE == SegmentType.RUN_TERMINAL_CMD
+        signature = '<tool name="run_bash">'
+        state = XmlRunBashToolParsingState(ctx, signature)
+        assert state.SEGMENT_TYPE == SegmentType.RUN_BASH
 
     def test_incremental_streaming_fragmented(self):
         """
         Verifies command extraction with fragmented XML tag delivery.
         """
         ctx = ParserContext()
-        signature = '<tool name="run_terminal_cmd">'
+        signature = '<tool name="run_bash">'
         
         # Fragmented stream
         chunks = [
@@ -62,7 +62,7 @@ class TestXmlRunTerminalCmdToolParsingState:
         ]
         
         ctx.append(signature)
-        state = XmlRunTerminalCmdToolParsingState(ctx, signature)
+        state = XmlRunBashToolParsingState(ctx, signature)
         ctx.current_state = state
         
         for chunk in chunks:
@@ -82,11 +82,11 @@ class TestXmlRunTerminalCmdToolParsingState:
     def test_swallows_closing_tags(self):
         """
         Verifies that </arguments> and </tool> are swallowed and not emitted as text
-        for run_terminal_cmd.
+        for run_bash.
         """
         ctx = ParserContext()
-        signature = '<tool name="run_terminal_cmd">'
-        state = XmlRunTerminalCmdToolParsingState(ctx, signature)
+        signature = '<tool name="run_bash">'
+        state = XmlRunBashToolParsingState(ctx, signature)
         ctx.current_state = state
         
         # Complete tool call

@@ -196,5 +196,5 @@ Regardless of _how_ the skill map (`SKILL.md`) was loaded (Preloaded vs. Dynamic
 ## 5. Benefits
 
 1.  **Infinite Extensibility**: A skill can contain entire libraries, specialized CLI tools, or encyclopedias of text, without bloating the prompt.
-2.  **Polyglot Support**: A skill folder can contain Python scripts, Java JARs, Bash scripts, etc. To execute a script, the agent constructs the absolute path and calls the appropriate tool (e.g., `run_terminal_cmd` for shell scripts, or uses Python interpreter for `.py` files).
+2.  **Polyglot Support**: A skill folder can contain Python scripts, Java JARs, Bash scripts, etc. To execute a script, the agent constructs the absolute path and calls the appropriate tool (e.g., `run_bash` for shell scripts, or uses Python interpreter for `.py` files).
 3.  **Context Efficiency**: The Agent only loads the "Index" (`SKILL.md`). It only pays the context cost for "Deep Dive" items if the specific task requires them.

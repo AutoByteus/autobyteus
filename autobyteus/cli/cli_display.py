@@ -122,8 +122,8 @@ class InteractiveCLIDisplay:
                 self.is_in_content_block = True
                 return
 
-            if segment_type == SegmentType.RUN_TERMINAL_CMD:
-                sys.stdout.write("<run_terminal_cmd>\n")
+            if segment_type == SegmentType.RUN_BASH:
+                sys.stdout.write("<run_bash>\n")
                 sys.stdout.flush()
                 self.current_line_empty = True
                 self.is_in_content_block = True
@@ -178,8 +178,8 @@ class InteractiveCLIDisplay:
                 self._segment_types_by_id.pop(segment_event.segment_id, None)
                 return
 
-            if segment_type == SegmentType.RUN_TERMINAL_CMD:
-                sys.stdout.write("\n</run_terminal_cmd>\n")
+            if segment_type == SegmentType.RUN_BASH:
+                sys.stdout.write("\n</run_bash>\n")
                 sys.stdout.flush()
                 self.current_line_empty = True
                 self.is_in_content_block = False

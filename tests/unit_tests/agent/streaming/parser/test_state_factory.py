@@ -34,11 +34,11 @@ class TestStateFactory:
         state = StateFactory.write_file_parsing_state(ctx, "<write_file path='/test.py'>")
         assert state.__class__.__name__ == "CustomXmlTagWriteFileParsingState"
 
-    def test_create_run_terminal_cmd_parsing_state(self):
-        """Factory creates CustomXmlTagRunTerminalCmdParsingState."""
+    def test_create_run_bash_parsing_state(self):
+        """Factory creates CustomXmlTagRunBashParsingState."""
         ctx = ParserContext()
-        state = StateFactory.run_terminal_cmd_parsing_state(ctx, "<run_terminal_cmd>")
-        assert state.__class__.__name__ == "CustomXmlTagRunTerminalCmdParsingState"
+        state = StateFactory.run_bash_parsing_state(ctx, "<run_bash>")
+        assert state.__class__.__name__ == "CustomXmlTagRunBashParsingState"
 
     def test_create_xml_tool_parsing_state(self):
         """Factory creates XmlToolParsingState."""
@@ -69,7 +69,7 @@ class TestStateFactory:
         states = [
             StateFactory.text_state(ctx),
             StateFactory.write_file_parsing_state(ctx, "<write_file path='/test'>"),
-            StateFactory.run_terminal_cmd_parsing_state(ctx, "<run_terminal_cmd>"),
+            StateFactory.run_bash_parsing_state(ctx, "<run_bash>"),
         ]
         
         for state in states:
