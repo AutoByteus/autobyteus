@@ -101,7 +101,7 @@ Handles plain text. Watches for:
 
 Accumulates characters after `<` to detect tag type:
 
-- `<tool name="...">` → Dispatches to specific `Xml...ToolParsingState` based on tool name.
+- `<tool name="...">` → Dispatches to specific `Xml...ToolParsingState` via `XmlToolParsingStateRegistry`.
 - `<write_file path="...">` → `CustomXmlTagWriteFileParsingState` (Legacy)
 - `<run_bash>` → `CustomXmlTagRunBashParsingState` (Legacy)
 - Unknown tags → emits as text, returns to `TextState`
@@ -320,30 +320,29 @@ ParserConfig(strategy_order=["xml_tag"])
 
 Each strategy reports the next candidate marker; the earliest match wins.
 
-## Adding a New Block Type
+## Adding a New Block Type (Custom Tool State)
 
-1. Create a new state class in `parser/states/`:
+You can now register custom parsing states dynamically without modifying the core library.
 
-```python
-# my_block_parsing_state.py
-class MyBlockParsingState(BaseState):
-    CLOSING_TAG = "</myblock>"
-
-    def __init__(self, context, opening_tag):
-        # ... buffer setup
-
-    def run(self):
-        # ... parsing logic
-```
-
-2. Register detection in `XmlTagInitializationState`:
+1. **Define your state class** (inherit from `XmlToolParsingState` or `XmlPatchFileToolParsingState` etc.):
 
 ```python
-if tag_name == "myblock":
-    return StateFactory.my_block_parsing_state(self.context, opening_tag)
+from autobyteus.agent.streaming.parser import XmlToolParsingState
+
+class MyCustomToolState(XmlToolParsingState):
+    # Customize logic, e.g., usage of custom sentinels
+    pass
 ```
 
-3. Add to `SegmentType` enum if needed.
+2. **Register existing state with Public API**:
+
+```python
+from autobyteus.agent.streaming.parser import register_xml_tool_parsing_state
+
+register_xml_tool_parsing_state("my_tool_name", MyCustomToolState)
+```
+
+**Note:** The parser automatically normalizes tool names to lowercase for lookup, so `<tool name="MY_TOOL">` will match a registry entry for `"my_tool"`.
 
 ## File Structure
 
@@ -359,6 +358,8 @@ autobyteus/agent/streaming/
     ├── event_emitter.py             # Event queue
     ├── events.py                    # SegmentEvent, SegmentType
     ├── state_factory.py             # State creation
+    ├── xml_tool_parsing_state_registry.py  # Registry for tool states
+    ├── tool_constants.py            # Tool name constants
     ├── invocation_adapter.py        # Converts to ToolInvocation
     ├── json_parsing_strategies/     # Provider-aware JSON parsing
     └── states/
