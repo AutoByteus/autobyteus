@@ -76,19 +76,19 @@ class TestToolInvocationAdapterBasics:
         assert invocations[0].name == "write_file"
         assert invocations[0].arguments == {"path": "/test.py", "content": "code"}
 
-    def test_run_terminal_cmd_segment_creates_invocation(self):
-        """Run_terminal_cmd segments create run_terminal_cmd invocations."""
+    def test_run_bash_segment_creates_invocation(self):
+        """Run_bash segments create run_bash invocations."""
         adapter = ToolInvocationAdapter()
 
         events = [
-            SegmentEvent.start("seg_3", SegmentType.RUN_TERMINAL_CMD),
+            SegmentEvent.start("seg_3", SegmentType.RUN_BASH),
             SegmentEvent.content("seg_3", "ls -la"),
             SegmentEvent.end("seg_3"),
         ]
 
         invocations = adapter.process_events(events)
         assert len(invocations) == 1
-        assert invocations[0].name == "run_terminal_cmd"
+        assert invocations[0].name == "run_bash"
         assert invocations[0].arguments == {"command": "ls -la"}
 
     def test_json_tool_call_creates_invocation(self):

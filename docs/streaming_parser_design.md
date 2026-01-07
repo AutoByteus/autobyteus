@@ -179,6 +179,7 @@ The parser emits `SegmentEvent` objects with three lifecycle types:
 | `text`       | `{}`                              | Plain text                      | `{}`                  |
 | `tool_call`  | `{"tool_name": "..."}` (if known) | Raw XML/JSON tool content       | `{}`                  |
 | `write_file` | `{"path": "..."}` (deferred)      | File content only (no XML tags) | `{}`                  |
+| `patch_file` | `{"path": "..."}` (deferred)      | Unified diff only (no XML tags) | `{}`                  |
 | `run_bash`   | `{}`                              | Command text only               | `{}`                  |
 | `reasoning`  | `{}`                              | Reasoning text                  | `{}`                  |
 
@@ -190,6 +191,7 @@ The parser emits `SegmentEvent` objects with three lifecycle types:
 | `XmlToolParsingState`               | `tool_call`      | `tool_name` (from tag)        | Raw `<arguments>...</arguments>`     |
 | `JsonToolParsingState`              | `tool_call`      | `{}`                          | Raw JSON tool blob                   |
 | `XmlWriteFileToolParsingState`      | `write_file`     | `path` (deferred until found) | Content only (no XML tags)           |
+| `XmlPatchFileToolParsingState`      | `patch_file`     | `path` (deferred until found) | Unified diff only (no XML tags)      |
 | `XmlRunBashToolParsingState`        | `run_bash`       | `{}`                          | Command only (no XML tags)           |
 | `CustomXmlTagWriteFileParsingState` | `write_file`     | `path` (from tag)             | Content only                         |
 | `CustomXmlTagRunBashParsingState`   | `run_bash`       | `{}`                          | Command only                         |
@@ -202,7 +204,8 @@ class SegmentType(str, Enum):
     TEXT = "text"
     TOOL_CALL = "tool_call"
     WRITE_FILE = "write_file"
-    RUN_TERMINAL_CMD = "run_bash"
+    PATCH_FILE = "patch_file"
+    RUN_BASH = "run_bash"
     REASONING = "reasoning"
 ```
 
@@ -367,6 +370,7 @@ autobyteus/agent/streaming/
         ├── custom_xml_tag_run_bash_parsing_state.py
         ├── xml_tool_parsing_state.py
         ├── xml_write_file_tool_parsing_state.py
+        ├── xml_patch_file_tool_parsing_state.py
         ├── xml_run_bash_tool_parsing_state.py
         └── json_tool_parsing_state.py
 ```

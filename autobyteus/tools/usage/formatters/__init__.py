@@ -18,6 +18,8 @@ from .gemini_json_example_formatter import GeminiJsonExampleFormatter
 # Tool-specific formatters
 from .write_file_xml_schema_formatter import WriteFileXmlSchemaFormatter
 from .write_file_xml_example_formatter import WriteFileXmlExampleFormatter
+from .patch_file_xml_schema_formatter import PatchFileXmlSchemaFormatter
+from .patch_file_xml_example_formatter import PatchFileXmlExampleFormatter
 from .run_bash_xml_schema_formatter import RunBashXmlSchemaFormatter
 from .run_bash_xml_example_formatter import RunBashXmlExampleFormatter
 
@@ -37,7 +39,8 @@ __all__ = [
     # Tool-specific formatters
     "WriteFileXmlSchemaFormatter",
     "WriteFileXmlExampleFormatter",
+    "PatchFileXmlSchemaFormatter",
+    "PatchFileXmlExampleFormatter",
     "RunBashXmlSchemaFormatter",
     "RunBashXmlExampleFormatter",
 ]
-

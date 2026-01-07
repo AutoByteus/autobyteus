@@ -15,6 +15,7 @@ from autobyteus.tools.usage.formatters import (
     BaseSchemaFormatter, BaseExampleFormatter,
     # Tool-specific formatters
     WriteFileXmlSchemaFormatter, WriteFileXmlExampleFormatter,
+    PatchFileXmlSchemaFormatter, PatchFileXmlExampleFormatter,
     RunBashXmlSchemaFormatter, RunBashXmlExampleFormatter,
 )
 
@@ -56,11 +57,15 @@ class ToolFormattingRegistry(metaclass=SingletonMeta):
 
     def _register_tool_formatters(self) -> None:
         """Register built-in tool-specific formatters."""
-        # write_file uses shorthand <write_file> syntax
         # write_file uses standard <tool name="write_file"> syntax with custom sentinel instructions
         self._tool_pairs["write_file"] = ToolFormatterPair(
             WriteFileXmlSchemaFormatter(),
             WriteFileXmlExampleFormatter()
+        )
+        # patch_file uses standard <tool name="patch_file"> syntax with custom sentinel instructions
+        self._tool_pairs["patch_file"] = ToolFormatterPair(
+            PatchFileXmlSchemaFormatter(),
+            PatchFileXmlExampleFormatter()
         )
         # run_bash uses shorthand <run_bash> syntax
         #self._tool_pairs["run_bash"] = ToolFormatterPair(

@@ -17,7 +17,8 @@ class TestSegmentType:
         assert SegmentType.TEXT.value == "text"
         assert SegmentType.TOOL_CALL.value == "tool_call"
         assert SegmentType.WRITE_FILE.value == "write_file"
-        assert SegmentType.RUN_TERMINAL_CMD.value == "run_terminal_cmd"
+        assert SegmentType.PATCH_FILE.value == "patch_file"
+        assert SegmentType.RUN_BASH.value == "run_bash"
         assert SegmentType.REASONING.value == "reasoning"
 
 

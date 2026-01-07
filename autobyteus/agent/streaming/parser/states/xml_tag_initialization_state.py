@@ -107,14 +107,20 @@ class XmlTagInitializationState(BaseState):
                 if self.context.get_current_segment_type() == SegmentType.TEXT:
                     self.context.emit_segment_end()
                 
-                # Check for specialized <tool name="write_file"> or <tool name="run_bash">
+                # Check for specialized <tool name="write_file">, <tool name="patch_file">, or <tool name="run_bash">
                 import re
                 is_write_file = re.search(r'name\s*=\s*["\']write_file["\']', self._tag_buffer, re.IGNORECASE)
+                is_patch_file = re.search(r'name\s*=\s*["\']patch_file["\']', self._tag_buffer, re.IGNORECASE)
                 is_run_term = re.search(r'name\s*=\s*["\']run_bash["\']', self._tag_buffer, re.IGNORECASE)
                 
                 if is_write_file:
                     self.context.transition_to(
                         XmlWriteFileToolParsingState(self.context, self._tag_buffer)
+                    )
+                elif is_patch_file:
+                    from .xml_patch_file_tool_parsing_state import XmlPatchFileToolParsingState
+                    self.context.transition_to(
+                        XmlPatchFileToolParsingState(self.context, self._tag_buffer)
                     )
                 elif is_run_term:
                     self.context.transition_to(
