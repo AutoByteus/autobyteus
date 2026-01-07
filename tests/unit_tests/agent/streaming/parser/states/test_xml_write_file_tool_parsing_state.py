@@ -220,7 +220,7 @@ class TestXmlWriteFileToolParsingState:
         assert "__START_CONTENT__" not in full_content
         assert "__END_CONTENT__" not in full_content
         assert "<arg name=\"x\">y</arg>" in full_content
-        assert full_content == "\nprint('<div>')\n<arg name=\"x\">y</arg>\n"
+        assert full_content == "print('<div>')\n<arg name=\"x\">y</arg>\n"
 
         end_events = [e for e in events if e.event_type == SegmentEventType.END]
         assert len(end_events) == 1

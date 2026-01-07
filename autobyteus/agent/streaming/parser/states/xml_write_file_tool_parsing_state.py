@@ -137,6 +137,9 @@ class XmlWriteFileToolParsingState(XmlToolParsingState):
         start_idx = self._content_seek_buffer.find(self.START_CONTENT_MARKER)
         if start_idx != -1:
             after_start = self._content_seek_buffer[start_idx + len(self.START_CONTENT_MARKER):]
+            # Strip leading newline after marker to avoid empty first line
+            if after_start.startswith("\n"):
+                after_start = after_start[1:]
             self._content_seek_buffer = ""
             self._content_mode = "marker"
             self._marker_tail = ""
@@ -198,7 +201,9 @@ class XmlWriteFileToolParsingState(XmlToolParsingState):
         """Process content chunk when inside __START_CONTENT__/__END_CONTENT__ markers."""
         combined = self._marker_tail + chunk
         end_marker = self.END_CONTENT_MARKER
+        closing_tag = self.CONTENT_ARG_CLOSE_TAG
 
+        # Priority 1: Check for the explicit end marker
         idx = combined.find(end_marker)
         if idx != -1:
             actual_content = combined[:idx]
@@ -212,12 +217,60 @@ class XmlWriteFileToolParsingState(XmlToolParsingState):
             self._handle_swallowing()
             return
 
-        holdback_len = len(end_marker) - 1
-        if len(combined) > holdback_len:
-            safe = combined[:-holdback_len]
+        # Priority 2: Check for closing arg tag as fallback (missing sentinel case)
+        # Only treat </arg> as terminator if it looks like the actual XML structure end
+        # (i.e. followed by </arguments> or </tool>)
+        idx_close = combined.find(closing_tag)
+        if idx_close != -1:
+            remainder_after_close = combined[idx_close + len(closing_tag):]
+            
+            import re
+            # Check if followed by standard XML closure (ignoring whitespace)
+            # We match if we see the start of the next tag, OR if we have only whitespace (ambiguous - wait)
+            
+            is_valid_closure = False
+            # If we see the next tag immediately start
+            if re.match(r'^\s*(?:</arguments>|</tool>)', remainder_after_close):
+                is_valid_closure = True
+            
+            # If we have indeterminate whitespace, we must hold back to be sure
+            elif remainder_after_close.strip() == "":
+                 # We can't decide yet. Hold back everything from existing tag start.
+                 # But we can allow partial emit of previous content if we separate it.
+                 # Let's just hold back the whole combined tail to be safe/simple.
+                 self._marker_tail = combined
+                 return
+
+            if is_valid_closure:
+                actual_content = combined[:idx_close]
+                
+                # User request: remove the last \n for the file content
+                # This specifically handles the indented </arg> case logic
+                if re.search(r'\n\s*$', actual_content):
+                    actual_content = re.sub(r'\n\s*$', '', actual_content)
+                
+                if actual_content:
+                    self.context.emit_segment_content(actual_content)
+                
+                self._marker_tail = ""
+                remainder = combined[idx_close + len(closing_tag):]
+                self._content_buffering = remainder
+                self._swallowing_remaining = True
+                self._handle_swallowing()
+                return
+
+        # Holdback logic
+        # We need to hold back enough to detect EITHER marker OR closing_tag + context
+        # </arg> (6) + \s + </tool> (7) ~= 15-20 chars holdback
+        # But to be safe against splitting </arguments>, let's hold back ~20 chars.
+        
+        max_holdback = 30 # Safe buffer for regex lookahead
+        
+        if len(combined) > max_holdback:
+            safe = combined[:-max_holdback]
             if safe:
                 self.context.emit_segment_content(safe)
-            self._marker_tail = combined[-holdback_len:]
+            self._marker_tail = combined[-max_holdback:]
         else:
             self._marker_tail = combined
 
