@@ -5,7 +5,7 @@ from typing import List, Tuple
 
 import pytest
 
-from autobyteus.agent.streaming import StreamingResponseHandler
+from autobyteus.agent.streaming import ParsingStreamingResponseHandler
 from autobyteus.agent.streaming.parser.parser_context import ParserConfig
 from autobyteus.agent.streaming.parser.json_parsing_strategies import get_json_tool_parsing_profile
 from autobyteus.llm.providers import LLMProvider
@@ -43,7 +43,7 @@ def test_json_tool_styles_with_chunking(provider, raw_json, expected):
         json_tool_parser=profile.parser,
         strategy_order=["json_tool"],
     )
-    handler = StreamingResponseHandler(config=config, parser_name="json")
+    handler = ParsingStreamingResponseHandler(config=config, parser_name="json")
 
     for chunk in chunk_text(raw_json, chunk_size=5):
         handler.feed(chunk)

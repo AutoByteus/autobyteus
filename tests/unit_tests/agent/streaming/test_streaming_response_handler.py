@@ -2,7 +2,7 @@
 Unit tests for StreamingResponseHandler.
 """
 import pytest
-from autobyteus.agent.streaming.streaming_response_handler import StreamingResponseHandler
+from autobyteus.agent.streaming.parsing_streaming_response_handler import ParsingStreamingResponseHandler
 from autobyteus.agent.streaming.parser.events import SegmentEvent, SegmentType, SegmentEventType
 
 
@@ -11,7 +11,7 @@ class TestStreamingResponseHandlerBasics:
 
     def test_feed_text_emits_events(self):
         """Feeding text produces SegmentEvents."""
-        handler = StreamingResponseHandler()
+        handler = ParsingStreamingResponseHandler()
         events = handler.feed("Hello world")
         
         # Should have at least a text segment
@@ -19,7 +19,7 @@ class TestStreamingResponseHandlerBasics:
 
     def test_feed_and_finalize(self):
         """Full lifecycle produces complete events."""
-        handler = StreamingResponseHandler()
+        handler = ParsingStreamingResponseHandler()
         events1 = handler.feed("Test message")
         events2 = handler.finalize()
         
@@ -28,7 +28,7 @@ class TestStreamingResponseHandlerBasics:
 
     def test_double_finalize_returns_empty(self):
         """Second finalize returns empty list."""
-        handler = StreamingResponseHandler()
+        handler = ParsingStreamingResponseHandler()
         handler.feed("test")
         handler.finalize()
         events = handler.finalize()
@@ -37,21 +37,21 @@ class TestStreamingResponseHandlerBasics:
 
     def test_feed_after_finalize_raises(self):
         """Feeding after finalize raises error."""
-        handler = StreamingResponseHandler()
+        handler = ParsingStreamingResponseHandler()
         handler.finalize()
         
         with pytest.raises(RuntimeError):
             handler.feed("more data")
 
 
-class TestStreamingResponseHandlerCallbacks:
+class TestParsingStreamingResponseHandlerCallbacks:
     """Callback tests."""
 
     def test_on_segment_event_called(self):
         """on_segment_event callback is invoked for each event."""
         received = []
         
-        handler = StreamingResponseHandler(
+        handler = ParsingStreamingResponseHandler(
             on_segment_event=lambda e: received.append(e)
         )
         handler.feed("Hello")
@@ -64,7 +64,7 @@ class TestStreamingResponseHandlerCallbacks:
         """on_tool_invocation callback is invoked for tool segments."""
         invocations = []
         
-        handler = StreamingResponseHandler(
+        handler = ParsingStreamingResponseHandler(
             on_tool_invocation=lambda inv: invocations.append(inv)
         )
         
@@ -80,18 +80,18 @@ class TestStreamingResponseHandlerCallbacks:
         def bad_callback(event):
             raise Exception("Callback error!")
         
-        handler = StreamingResponseHandler(on_segment_event=bad_callback)
+        handler = ParsingStreamingResponseHandler(on_segment_event=bad_callback)
         # Should not raise
         handler.feed("test")
         handler.finalize()
 
 
-class TestStreamingResponseHandlerToolIntegration:
+class TestParsingStreamingResponseHandlerToolIntegration:
     """Tool invocation integration tests."""
 
     def test_tool_segment_creates_invocation(self):
         """Tool segment creates ToolInvocation with correct segment_id."""
-        handler = StreamingResponseHandler()
+        handler = ParsingStreamingResponseHandler()
         
         # Use proper XML argument format
         handler.feed('<tool name="read_file"><path>/test.py</path></tool>')
@@ -104,7 +104,7 @@ class TestStreamingResponseHandlerToolIntegration:
 
     def test_multiple_tools_create_multiple_invocations(self):
         """Multiple tool segments create multiple invocations."""
-        handler = StreamingResponseHandler()
+        handler = ParsingStreamingResponseHandler()
         
         handler.feed('Some text <tool name="tool_a"><a>1</a></tool>')
         handler.feed(' more text <tool name="tool_b"><b>2</b></tool>')
@@ -115,7 +115,7 @@ class TestStreamingResponseHandlerToolIntegration:
 
     def test_segment_id_is_invocation_id(self):
         """Verify segment_id becomes invocationId."""
-        handler = StreamingResponseHandler()
+        handler = ParsingStreamingResponseHandler()
         
         handler.feed('<tool name="test"></tool>')
         handler.finalize()
@@ -131,12 +131,12 @@ class TestStreamingResponseHandlerToolIntegration:
             assert invocations[0].id == tool_start.segment_id
 
 
-class TestStreamingResponseHandlerReset:
+class TestParsingStreamingResponseHandlerReset:
     """Reset functionality tests."""
 
     def test_reset_clears_state(self):
         """Reset allows handler reuse."""
-        handler = StreamingResponseHandler()
+        handler = ParsingStreamingResponseHandler()
         
         handler.feed("test data")
         handler.finalize()

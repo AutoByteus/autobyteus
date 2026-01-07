@@ -5,7 +5,7 @@ from autobyteus.agent.events import LLMUserMessageReadyEvent
 from autobyteus.llm.user_message import LLMUserMessage
 from autobyteus.llm.utils.response_types import ChunkResponse
 from autobyteus.llm.providers import LLMProvider
-
+from autobyteus.agent.streaming.pass_through_streaming_response_handler import PassThroughStreamingResponseHandler
 @pytest.fixture
 def handler():
     return LLMUserMessageReadyEventHandler()
@@ -107,3 +107,57 @@ async def test_provider_specific_json_tool_parsing(handler, agent_context, mock_
     tool_invocation = invocation_event.tool_invocation
     assert tool_invocation.name == "search"
     assert tool_invocation.arguments == {"query": "autobyteus"}
+
+
+@pytest.mark.asyncio
+async def test_no_tools_uses_passthrough_handler(handler, agent_context, mock_llm):
+    """Handler should use PassThroughStreamingResponseHandler when no tools are configured."""
+    # Setup context with NO tools
+    agent_context.config.tools = []
+    agent_context.state.llm_instance = mock_llm
+    
+    # Mock mocks
+    if not isinstance(agent_context.status_manager.notifier, MagicMock):
+        agent_context.status_manager.notifier = MagicMock()
+    agent_context.input_event_queues.enqueue_internal_system_event = AsyncMock()
+    agent_context.input_event_queues.enqueue_tool_invocation_request = AsyncMock()
+
+    # Mock LLM stream
+    async def stream_gen(_):
+        yield ChunkResponse(content="Hello", is_complete=True)
+    mock_llm.stream_user_message.side_effect = stream_gen
+
+    msg = LLMUserMessage(content="prompt")
+    event = LLMUserMessageReadyEvent(llm_user_message=msg)
+
+    # We need to spy on the handler implementation choice
+    # Since the choice happens inside the method, we can mock the class constructors 
+    # in the module scope, or we can check the behavior. 
+    # Checking behavior (e.g. legacy tag ignoring) is better.
+    
+    # Let's feed a legacy tag that PassThrough should IGNORE (treat as text)
+    # whereas Parsing would catch it.
+    async def stream_gen_legacy(_):
+        yield ChunkResponse(content="<write_file>")
+    mock_llm.stream_user_message.side_effect = stream_gen_legacy
+
+    # Run handler
+    await handler.handle(event, agent_context)
+
+    # Verify output events
+    calls = agent_context.status_manager.notifier.notify_agent_segment_event.call_args_list
+    deltas = [
+        call.args[0]["payload"].get("delta")
+        for call in calls
+        if call.args and call.args[0].get("type") == "SEGMENT_CONTENT"
+    ]
+    combined = "".join([d for d in deltas if isinstance(d, str)])
+    
+    # PassThrough should treat <write_file> as raw text
+    # Parsing handler (without tools) would normally buffer it or ignore it depending on state,
+    # but the key is that PassThrough guarantees it's just text.
+    assert "<write_file>" in combined
+    
+    # AND crucially, no tool invocations should be pending
+    # (Though we can't easily check internal variable, we can check queue)
+    assert not agent_context.input_event_queues.enqueue_tool_invocation_request.called

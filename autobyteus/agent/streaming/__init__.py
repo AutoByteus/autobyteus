@@ -15,6 +15,8 @@ from .stream_events import StreamEventType, StreamEvent
 from .agent_event_stream import AgentEventStream     
 from .queue_streamer import stream_queue_items
 from .streaming_response_handler import StreamingResponseHandler
+from .parsing_streaming_response_handler import ParsingStreamingResponseHandler
+from .pass_through_streaming_response_handler import PassThroughStreamingResponseHandler
 
 # Re-export commonly used parser components
 from .parser import (
@@ -34,6 +36,8 @@ from .parser import (
 __all__ = [
     # New streaming API
     "StreamingResponseHandler",
+    "ParsingStreamingResponseHandler",
+    "PassThroughStreamingResponseHandler",
     "StreamingParser",
     "SegmentEvent",
     "SegmentType",

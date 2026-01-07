@@ -5,7 +5,7 @@ Tests the full pipeline: StreamingResponseHandler → StreamingParser → ToolIn
 """
 import pytest
 from autobyteus.agent.streaming import (
-    StreamingResponseHandler,
+    ParsingStreamingResponseHandler,
     SegmentType,
     SegmentEventType,
 )
@@ -22,7 +22,7 @@ class TestFullStreamingFlow:
         collected_events = []
         collected_invocations = []
         
-        handler = StreamingResponseHandler(
+        handler = ParsingStreamingResponseHandler(
             on_segment_event=lambda e: collected_events.append(e),
             on_tool_invocation=lambda inv: collected_invocations.append(inv)
         )
@@ -57,7 +57,7 @@ class TestFullStreamingFlow:
 
     def test_multiple_tool_calls_in_sequence(self):
         """Multiple tool calls get unique IDs."""
-        handler = StreamingResponseHandler()
+        handler = ParsingStreamingResponseHandler()
         
         response = '''
 First I'll read file A:
@@ -96,7 +96,7 @@ Done!
                 events_by_id[event.segment_id] = []
             events_by_id[event.segment_id].append(event)
         
-        handler = StreamingResponseHandler(on_segment_event=track_event)
+        handler = ParsingStreamingResponseHandler(on_segment_event=track_event)
         
         handler.feed('<tool name="write_file"><arg name="path">/out.txt</arg><arg name="content">Hello</arg></tool>')
         handler.finalize()
@@ -114,7 +114,7 @@ Done!
 
     def test_mixed_content_types(self):
         """Response with text, file, bash, and tool segments."""
-        handler = StreamingResponseHandler()
+        handler = ParsingStreamingResponseHandler()
         
         response = '''
 Let me help you:
@@ -155,7 +155,7 @@ All done!
 
     def test_write_file_shorthand_with_raw_html_comment(self):
         """Write_file shorthand supports raw HTML (including comments) without escaping."""
-        handler = StreamingResponseHandler()
+        handler = ParsingStreamingResponseHandler()
 
         response = """<write_file path="/site/index.html">
 <!doctype html>
@@ -179,7 +179,7 @@ All done!
 
     def test_write_file_tool_with_cdata_content(self):
         """XML tool calls can use CDATA for raw content without entity escaping."""
-        handler = StreamingResponseHandler()
+        handler = ParsingStreamingResponseHandler()
 
         response = (
         "<tool name=\"write_file\">"
@@ -203,7 +203,7 @@ All done!
 
     def test_tool_call_full_chunk_with_unescaped_lt(self):
         """Single-chunk tool call handles unescaped '<' in arg text."""
-        handler = StreamingResponseHandler()
+        handler = ParsingStreamingResponseHandler()
 
         response = (
             "<tool name=\"create_tasks\">"
@@ -233,7 +233,7 @@ class TestStreamingChunkedInput:
 
     def test_tool_tag_split_across_chunks(self):
         """Tool tag arriving in multiple chunks."""
-        handler = StreamingResponseHandler()
+        handler = ParsingStreamingResponseHandler()
         
         handler.feed('<tool name="te')
         handler.feed('st"><arg>val')
@@ -248,7 +248,7 @@ class TestStreamingChunkedInput:
 
     def test_single_character_chunks(self):
         """Extreme case: each character as separate chunk."""
-        handler = StreamingResponseHandler()
+        handler = ParsingStreamingResponseHandler()
         
         content = '<tool name="x"><a>1</a></tool>'
         for char in content:
@@ -261,7 +261,7 @@ class TestStreamingChunkedInput:
 
     def test_tool_call_chunked_with_unescaped_lt(self):
         """Chunked tool call handles unescaped '<' in arg text."""
-        handler = StreamingResponseHandler()
+        handler = ParsingStreamingResponseHandler()
 
         chunks = [
             "<tool name=\"create_tasks\"><arguments><arg name=\"tasks\"><item>"
@@ -280,7 +280,7 @@ class TestStreamingChunkedInput:
 
     def test_sentinel_tool_call_full_chunk_with_unescaped_lt(self):
         """Sentinel tool call works with a single complete chunk."""
-        handler = StreamingResponseHandler(parser_name="sentinel")
+        handler = ParsingStreamingResponseHandler(parser_name="sentinel")
 
         response = (
             '[[SEG_START {"type":"tool","tool_name":"create_tasks","arguments":'
@@ -299,7 +299,7 @@ class TestStreamingChunkedInput:
 
     def test_sentinel_tool_call_chunked_with_unescaped_lt(self):
         """Sentinel tool call works when chunked across markers."""
-        handler = StreamingResponseHandler(parser_name="sentinel")
+        handler = ParsingStreamingResponseHandler(parser_name="sentinel")
 
         chunks = [
             '[[SEG_START {"type":"tool","tool_name":"create_tasks","arguments":',

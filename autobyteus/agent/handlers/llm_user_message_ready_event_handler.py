@@ -10,6 +10,8 @@ from autobyteus.llm.user_message import LLMUserMessage
 from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.agent.streaming.streaming_response_handler import StreamingResponseHandler
+from autobyteus.agent.streaming.parsing_streaming_response_handler import ParsingStreamingResponseHandler
+from autobyteus.agent.streaming.pass_through_streaming_response_handler import PassThroughStreamingResponseHandler
 from autobyteus.agent.streaming.parser.parser_context import ParserConfig
 from autobyteus.agent.streaming.parser.json_parsing_strategies.registry import get_json_tool_parsing_profile
 from autobyteus.agent.streaming.parser.events import SegmentEvent, SegmentType, SegmentEventType
@@ -99,12 +101,23 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
         else:
             parser_name = "xml"
         
-        # Initialize Streaming Response Handler with config and callback
-        streaming_handler = StreamingResponseHandler(
-            on_segment_event=emit_segment_event,
-            config=parser_config,
-            parser_name=parser_name,
-        )
+        
+        # Initialize Streaming Response Handler
+        streaming_handler: StreamingResponseHandler
+        
+        if parse_tool_calls:
+            logger.debug(f"Agent '{agent_id}': Tools enabled details - Configuring ParsingStreamingResponseHandler with {parser_name} parser")
+            streaming_handler = ParsingStreamingResponseHandler(
+                on_segment_event=emit_segment_event,
+                config=parser_config,
+                parser_name=parser_name,
+            )
+        else:
+            logger.debug(f"Agent '{agent_id}': No tools enabled - Configuring PassThroughStreamingResponseHandler")
+            streaming_handler = PassThroughStreamingResponseHandler(
+                on_segment_event=emit_segment_event,
+                segment_id_prefix=segment_id_prefix,
+            )
 
         # State for manual reasoning parts (since they might come from outside the parser)
         current_reasoning_part_id = None
