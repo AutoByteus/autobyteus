@@ -15,6 +15,13 @@ from .tool_config import ToolConfig # Configuration data object, primarily for c
 from .tool_origin import ToolOrigin
 from .tool_category import ToolCategory
 
+# Tool Formatting Registration Support
+# Tool Formatting Registration Support
+from autobyteus.tools.usage.registries.tool_formatting_registry import ToolFormattingRegistry, register_tool_formatter
+from autobyteus.tools.usage.registries.tool_formatter_pair import ToolFormatterPair
+from autobyteus.tools.usage.formatters.base_formatter import BaseSchemaFormatter, BaseExampleFormatter
+
+
 logger = logging.getLogger(__name__)
 
 # --- Re-export specific tools for easier access ---
@@ -84,6 +91,10 @@ except ModuleNotFoundError as import_err:
     BrowserSessionAwareWebElementTrigger = None
     BrowserSessionAwareWebPageReader = None
     BrowserSessionAwareWebPageScreenshotTaker = None
+    BrowserSessionAwareWebPageReader = None
+    BrowserSessionAwareWebPageScreenshotTaker = None
+
+
 
 
 __all__ = [
@@ -128,4 +139,9 @@ __all__ = [
     "BrowserSessionAwareWebElementTrigger",
     "BrowserSessionAwareWebPageReader",
     "BrowserSessionAwareWebPageScreenshotTaker",
+
+    # Tool Formatting
+    "register_tool_formatter",
+    "BaseSchemaFormatter", 
+    "BaseExampleFormatter",
 ]

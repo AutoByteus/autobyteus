@@ -12,6 +12,7 @@ from autobyteus.tools.usage.formatters import (
     DefaultJsonSchemaFormatter, OpenAiJsonSchemaFormatter, AnthropicJsonSchemaFormatter, GeminiJsonSchemaFormatter,
     DefaultJsonExampleFormatter, OpenAiJsonExampleFormatter, AnthropicJsonExampleFormatter, GeminiJsonExampleFormatter,
     DefaultXmlSchemaFormatter, DefaultXmlExampleFormatter,
+    BaseSchemaFormatter, BaseExampleFormatter,
     # Tool-specific formatters
     WriteFileXmlSchemaFormatter, WriteFileXmlExampleFormatter,
     RunBashXmlSchemaFormatter, RunBashXmlExampleFormatter,
@@ -142,3 +143,25 @@ class ToolFormattingRegistry(metaclass=SingletonMeta):
             provider.name if provider else "Unknown",
         )
         return self._default_pair
+
+
+def register_tool_formatter(
+    tool_name: str, 
+    schema_formatter: BaseSchemaFormatter, 
+    example_formatter: BaseExampleFormatter
+) -> None:
+    """
+    Registers a custom schema and example formatter for a specific tool.
+    
+    This allows developers to define exactly how a tool's schema and usage example 
+    should be presented to the LLM, overriding default provider-specific behavior.
+
+    Args:
+        tool_name: The name of the tool (must match the @tool name).
+        schema_formatter: An instance of a class inheriting from BaseSchemaFormatter.
+        example_formatter: An instance of a class inheriting from BaseExampleFormatter.
+    """
+    registry = ToolFormattingRegistry()
+    pair = ToolFormatterPair(schema_formatter, example_formatter)
+    registry.register_tool_formatter(tool_name, pair)
+    logger.info(f"Registered custom formatter pair for tool '{tool_name}' via facade.")
