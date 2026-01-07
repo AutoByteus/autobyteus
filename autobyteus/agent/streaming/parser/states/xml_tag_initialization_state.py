@@ -106,30 +106,28 @@ class XmlTagInitializationState(BaseState):
             if self.context.parse_tool_calls:
                 if self.context.get_current_segment_type() == SegmentType.TEXT:
                     self.context.emit_segment_end()
-                
-                # Check for specialized <tool name="write_file">, <tool name="patch_file">, or <tool name="run_bash">
+
+                # Extract tool name
                 import re
-                is_write_file = re.search(r'name\s*=\s*["\']write_file["\']', self._tag_buffer, re.IGNORECASE)
-                is_patch_file = re.search(r'name\s*=\s*["\']patch_file["\']', self._tag_buffer, re.IGNORECASE)
-                is_run_term = re.search(r'name\s*=\s*["\']run_bash["\']', self._tag_buffer, re.IGNORECASE)
+                name_match = re.search(r'name\s*=\s*["\']([^"\']+)["\']', self._tag_buffer, re.IGNORECASE)
                 
-                if is_write_file:
-                    self.context.transition_to(
-                        XmlWriteFileToolParsingState(self.context, self._tag_buffer)
-                    )
-                elif is_patch_file:
-                    from .xml_patch_file_tool_parsing_state import XmlPatchFileToolParsingState
-                    self.context.transition_to(
-                        XmlPatchFileToolParsingState(self.context, self._tag_buffer)
-                    )
-                elif is_run_term:
-                    self.context.transition_to(
-                        XmlRunBashToolParsingState(self.context, self._tag_buffer)
-                    )
+                if name_match:
+                    tool_name = name_match.group(1).lower()
+                    
+                    # --- Registry Lookup ---
+                    from ..xml_tool_parsing_state_registry import XmlToolParsingStateRegistry
+                    registry = XmlToolParsingStateRegistry()
+                    
+                    # Dispatch
+                    state_class = registry.get_state_for_tool(tool_name)
+                    if state_class:
+                        self.context.transition_to(state_class(self.context, self._tag_buffer))
+                    else:
+                        # Fallback to generic tool state
+                        self.context.transition_to(XmlToolParsingState(self.context, self._tag_buffer))
                 else:
-                    self.context.transition_to(
-                        XmlToolParsingState(self.context, self._tag_buffer)
-                    )
+                    # No name found, generic fallback
+                    self.context.transition_to(XmlToolParsingState(self.context, self._tag_buffer))
             else:
                 self.context.append_text_segment(self._tag_buffer)
                 self.context.transition_to(TextState(self.context))
