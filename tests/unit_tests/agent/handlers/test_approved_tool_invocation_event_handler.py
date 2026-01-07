@@ -1,9 +1,9 @@
 # file: autobyteus/tests/unit_tests/agent/handlers/test_approved_tool_invocation_event_handler.py
 import pytest
 import logging
-import json
 import traceback
 from unittest.mock import MagicMock, AsyncMock, patch, ANY
+from autobyteus.utils.llm_output_formatter import format_to_clean_string
 
 from autobyteus.agent.handlers.approved_tool_invocation_event_handler import ApprovedToolInvocationEventHandler
 from autobyteus.agent.events.agent_events import ApprovedToolInvocationEvent, ToolResultEvent, GenericEvent
@@ -34,7 +34,7 @@ async def test_handle_approved_tool_invocation_success(approved_tool_handler: Ap
     assert f"Agent '{agent_context.agent_id}' handling ApprovedToolInvocationEvent for tool: '{tool_name}' (ID: {tool_invocation_id})" in caplog.text
     assert f"Approved tool '{tool_name}' (ID: {tool_invocation_id}) executed successfully by agent '{agent_context.agent_id}'" in caplog.text
 
-    expected_log_call_str = f"[APPROVED_TOOL_CALL] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Arguments: {json.dumps(tool_args)}"
+    expected_log_call_str = f"[APPROVED_TOOL_CALL] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Arguments: {format_to_clean_string(tool_args)}"
     expected_log_result_str = f"[APPROVED_TOOL_RESULT] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Outcome (first 200 chars): \"Successful execution result\""
     
     # Check calls to notifier (which is on the status_manager in the fixture)
@@ -86,7 +86,7 @@ async def test_handle_approved_tool_not_found(approved_tool_handler: ApprovedToo
     error_message = f"Tool '{tool_name}' not found or configured for agent '{agent_context.agent_id}'."
     assert error_message in caplog.text
 
-    expected_log_call_str = f"[APPROVED_TOOL_CALL] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Arguments: {json.dumps(tool_args)}"
+    expected_log_call_str = f"[APPROVED_TOOL_CALL] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Arguments: {format_to_clean_string(tool_args)}"
     expected_log_error_str = f"[APPROVED_TOOL_ERROR] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Error: {error_message}"
     
     agent_context.status_manager.notifier.notify_agent_data_tool_log.assert_any_call({
@@ -144,7 +144,7 @@ async def test_handle_approved_tool_execution_exception(approved_tool_handler: A
     expected_error_message_in_log = f"Error executing approved tool '{tool_name}' (ID: {tool_invocation_id}): {exception_message}"
     assert expected_error_message_in_log in caplog.text
 
-    expected_log_call_str = f"[APPROVED_TOOL_CALL] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Arguments: {json.dumps(tool_args)}"
+    expected_log_call_str = f"[APPROVED_TOOL_CALL] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Arguments: {format_to_clean_string(tool_args)}"
     expected_log_exception_str = f"[APPROVED_TOOL_EXCEPTION] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Exception: {expected_error_message_in_log}"
     
     agent_context.status_manager.notifier.notify_agent_data_tool_log.assert_any_call({

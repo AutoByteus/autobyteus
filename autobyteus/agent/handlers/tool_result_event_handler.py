@@ -1,6 +1,6 @@
 # file: autobyteus/autobyteus/agent/handlers/tool_result_event_handler.py
 import logging
-import json 
+
 from typing import TYPE_CHECKING, Optional, List
 
 from autobyteus.agent.handlers.base_event_handler import AgentEventHandler 
@@ -9,6 +9,7 @@ from autobyteus.agent.tool_execution_result_processor import BaseToolExecutionRe
 from autobyteus.agent.message.context_file import ContextFile
 from autobyteus.agent.message import AgentInputUserMessage
 from autobyteus.agent.sender_type import SenderType
+from autobyteus.utils.llm_output_formatter import format_to_clean_string
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext 
@@ -81,10 +82,7 @@ class ToolResultEventHandler(AgentEventHandler):
                 aggregated_content_parts.append(content_part)
             # Handle standard text/JSON results
             else:
-                try:
-                    result_str = json.dumps(p_event.result, indent=2) if not isinstance(p_event.result, str) else p_event.result
-                except TypeError: # pragma: no cover
-                    result_str = str(p_event.result)
+                result_str = format_to_clean_string(p_event.result)
                 content_part = (
                     f"Tool: {p_event.tool_name} (ID: {tool_invocation_id})\n"
                     f"Status: Success\n"

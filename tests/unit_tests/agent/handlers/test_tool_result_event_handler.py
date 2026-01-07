@@ -1,7 +1,7 @@
 import pytest
 import logging
-import json
 from unittest.mock import AsyncMock, MagicMock
+from autobyteus.utils.llm_output_formatter import format_to_clean_string
 
 from autobyteus.agent.handlers.tool_result_event_handler import ToolResultEventHandler
 from autobyteus.agent.events.agent_events import ToolResultEvent, UserMessageReceivedEvent, GenericEvent
@@ -57,7 +57,7 @@ async def test_handle_single_tool_result_success(tool_result_handler: ToolResult
     assert agent_input_message.sender_type == SenderType.TOOL
     assert f"Tool: {tool_name} (ID: {tool_invocation_id})" in agent_input_message.content
     assert "Status: Success" in agent_input_message.content
-    assert f"Result:\n{json.dumps(tool_result_data, indent=2)}" in agent_input_message.content
+    assert f"Result:\n{format_to_clean_string(tool_result_data)}" in agent_input_message.content
     assert not agent_input_message.context_files
 
 @pytest.mark.asyncio
@@ -236,7 +236,7 @@ async def test_handle_multi_tool_with_mixed_media_and_text(tool_result_handler: 
     pos_B = content.find("Tool: calculator")
     assert pos_A < pos_B
     assert "The file 'image.png' has been loaded" in content
-    assert '"sum": 5' in content
+    assert 'sum: 5' in content
 
 # === Edge Case and Other Tests ===
 
