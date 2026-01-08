@@ -8,34 +8,37 @@ Autobyteus is an open-source, application-first agentic framework for Python. It
 
 Autobyteus is built with a modular, event-driven architecture designed for extensibility and clear separation of concerns. The key components are:
 
--   **Agent Core**: The heart of the system. Each agent is a stateful, autonomous entity that runs as a background process in its own thread, managed by a dedicated `AgentWorker`. This design makes every agent a truly independent entity capable of handling long-running tasks.
--   **Agent Teams**: The framework provides powerful constructs for building hierarchical multi-agent systems. The `AgentTeam` module allows you to compose teams of individual agents and even nest teams within other teams, enabling sophisticated, real-world organizational structures and delegation patterns.
--   **Context & Configuration**: Agent behavior is defined through a static configuration (`AgentConfig`) and its dynamic state is managed in `AgentRuntimeState`. These are bundled into a comprehensive `AgentContext` that is passed to all components, providing a single source of truth.
--   **Event-Driven System**: Agents operate on an internal `asyncio` event loop. User messages, tool results, and internal signals are handled as events, which are processed by dedicated `EventHandlers`. This decouples logic and makes the system highly extensible.
--   **Pluggable Processors & Hooks**: The framework provides a chain of extension points to inject custom logic at every major step of an agent's reasoning loop. This architecture powers features like flexible tool format parsing. You can customize behavior by implementing:
-    -   **`InputProcessors`**: To modify or enrich user messages *before* they are sent to the LLM.
-    -   **`LLMResponseProcessors`**: To parse the LLM's raw output and extract structured actions, such as tool calls.
-    -   **`ToolExecutionResultProcessors` (Tool Result Processors)**: To modify the result from a tool *before* it is sent back to the LLM for the next step of reasoning (e.g., formatting, summarization, artifact extraction).
-    -   **Lifecycle Event Processors**: To run custom code on specific lifecycle events (e.g., `BEFORE_LLM_CALL`, `AFTER_TOOL_EXECUTE`).
--   **Context-Aware Tooling**: Tools are first-class citizens that receive the agent's full `AgentContext` during execution. This allows tools to be deeply integrated with the agent's state, configuration, and workspace, enabling more intelligent and powerful actions.
--   **Tool Approval Flow**: The framework has native support for human-in-the-loop workflows. By setting `auto_execute_tools=False` in the agent's configuration, the agent will pause before executing a tool, emit an event requesting permission, and wait for external approval before proceeding.
--   **MCP Integration**: The framework has native support for the Model Context Protocol (MCP). This allows agents to discover and use tools from external, language-agnostic tool servers, making the ecosystem extremely flexible and ready for enterprise integration.
--   **Agent Skills**: A powerful mechanism for extending agent capabilities using modular, file-based skills. Each skill is a directory containing a map (`SKILL.md`) and arbitrary assets (code, docs, templates). Skills can be preloaded or dynamically fetched via the `load_skill` tool, enabling human-like, just-in-time retrieval without bloating the context window.
+- **Agent Core**: The heart of the system. Each agent is a stateful, autonomous entity that runs as a background process in its own thread, managed by a dedicated `AgentWorker`. This design makes every agent a truly independent entity capable of handling long-running tasks.
+- **Agent Teams**: ([Design Doc](docs/agent_team_design.md)) The framework provides powerful constructs for building hierarchical multi-agent systems. The `AgentTeam` module allows you to compose teams of individual agents and even nest teams within other teams, enabling sophisticated, real-world organizational structures and delegation patterns.
+- **Context & Configuration**: Agent behavior is defined through a static configuration (`AgentConfig`) and its dynamic state is managed in `AgentRuntimeState`. These are bundled into a comprehensive `AgentContext` that is passed to all components, providing a single source of truth.
+- **Event-Driven System**: ([Design Doc](docs/event_driven_core_design.md)) Agents operate on an internal `asyncio` event loop. User messages, tool results, and internal signals are handled as events, which are processed by dedicated `EventHandlers`. This decouples logic and makes the system highly extensible.
+- **Pluggable Processors & Hooks**: The framework provides a chain of extension points to inject custom logic at every major step of an agent's reasoning loop. This architecture powers features like flexible tool format parsing. You can customize behavior by implementing:
+  - **`InputProcessors`**: To modify or enrich user messages _before_ they are sent to the LLM.
+  - **`LLMResponseProcessors`**: To parse the LLM's raw output and extract structured actions, such as tool calls.
+  - **`ToolExecutionResultProcessors` (Tool Result Processors)**: To modify the result from a tool _before_ it is sent back to the LLM for the next step of reasoning (e.g., formatting, summarization, artifact extraction).
+  - **Lifecycle Event Processors**: To run custom code on specific lifecycle events (e.g., `BEFORE_LLM_CALL`, `AFTER_TOOL_EXECUTE`).
+- **Context-Aware Tooling**: Tools are first-class citizens that receive the agent's full `AgentContext` during execution. This allows tools to be deeply integrated with the agent's state, configuration, and workspace, enabling more intelligent and powerful actions.
+- **Tool Approval Flow**: The framework has native support for human-in-the-loop workflows. By setting `auto_execute_tools=False` in the agent's configuration, the agent will pause before executing a tool, emit an event requesting permission, and wait for external approval before proceeding.
+- **MCP Integration**: The framework has native support for the Model Context Protocol (MCP). This allows agents to discover and use tools from external, language-agnostic tool servers, making the ecosystem extremely flexible and ready for enterprise integration.
+- **Agent Skills**: ([Design Doc](docs/skills_design.md)) A powerful mechanism for extending agent capabilities using modular, file-based skills. Each skill is a directory containing a map (`SKILL.md`) and arbitrary assets (code, docs, templates). Skills can be preloaded or dynamically fetched via the `load_skill` tool, enabling human-like, just-in-time retrieval without bloating the context window.
 
 ## Key Features
 
 #### Interactive TUI Dashboard
-Launch and monitor your agent teams with our built-in Textual-based TUI.
--   **Hierarchical View**: See the structure of your team, including sub-teams and their agents.
--   **Real-Time Status**: Agent and team statuses are updated live, showing you who is idle, thinking, or executing a tool.
--   **Detailed Logs**: Select any agent to view a detailed, streaming log of their thoughts, actions, and tool interactions.
--   **Live Task Plan**: Watch your team's `TaskPlan` update in real-time as the coordinator publishes a plan and agents complete their tasks.
 
-| TUI - Detailed Agent Log | TUI - Task Plan with Completed Task |
-| :---: | :---: |
+Launch and monitor your agent teams with our built-in Textual-based TUI.
+
+- **Hierarchical View**: See the structure of your team, including sub-teams and their agents.
+- **Real-Time Status**: Agent and team statuses are updated live, showing you who is idle, thinking, or executing a tool.
+- **Detailed Logs**: Select any agent to view a detailed, streaming log of their thoughts, actions, and tool interactions.
+- **Live Task Plan**: Watch your team's `TaskPlan` update in real-time as the coordinator publishes a plan and agents complete their tasks.
+
+|             TUI - Detailed Agent Log             |       TUI - Task Plan with Completed Task        |
+| :----------------------------------------------: | :----------------------------------------------: |
 | ![Autobyteus Agent Log](docs/images/image_4.png) | ![Autobyteus Task Plan](docs/images/image_3.png) |
 
 #### Fluent Team Building
+
 Define complex agent and team structures with an intuitive, fluent API. The `AgentTeamBuilder` makes composing your team simple and readable.
 
 ```python
@@ -53,36 +56,43 @@ research_team = (
 ```
 
 #### Flexible Tool Formatting (JSON & XML)
+
 Autobyteus intelligently handles tool communication with LLMs while giving you full control.
--   **Provider-Aware by Default**: The framework automatically generates tool manifests in the optimal format for the selected LLM provider (e.g., JSON for OpenAI/Gemini, XML for Anthropic).
--   **Format Override via Env**: Set `AUTOBYTEUS_STREAM_PARSER=xml` (or `json`) to force tool-call formatting to that format regardless of provider. This can be useful for consistency or for large, complex schemas.
+
+- **Provider-Aware by Default**: The framework automatically generates tool manifests in the optimal format for the selected LLM provider (e.g., JSON for OpenAI/Gemini, XML for Anthropic).
+- **Format Override via Env**: Set `AUTOBYTEUS_STREAM_PARSER=xml` (or `json`) to force tool-call formatting to that format regardless of provider. This can be useful for consistency or for large, complex schemas.
 
 #### Flexible Communication Protocols
+
 Choose the collaboration pattern that best fits your use case with configurable `TaskNotificationMode`s.
--   **Env Override**: Set `AUTOBYTEUS_TASK_NOTIFICATION_MODE=system_event_driven` (or `agent_manual_notification`) to pick the default for all teams.
--   **`AGENT_MANUAL_NOTIFICATION` (Default)**: A traditional approach where a coordinator agent is responsible for creating a plan and then explicitly notifying other agents to begin their work via messages.
--   **`SYSTEM_EVENT_DRIVEN`**: A more automated approach where the coordinator's only job is to publish a plan to the `TaskPlan`. The framework then monitors the board and automatically notifies agents when their tasks become unblocked, enabling parallel execution and reducing coordinator overhead.
+
+- **Env Override**: Set `AUTOBYTEUS_TASK_NOTIFICATION_MODE=system_event_driven` (or `agent_manual_notification`) to pick the default for all teams.
+- **`AGENT_MANUAL_NOTIFICATION` (Default)**: A traditional approach where a coordinator agent is responsible for creating a plan and then explicitly notifying other agents to begin their work via messages.
+- **`SYSTEM_EVENT_DRIVEN`**: A more automated approach where the coordinator's only job is to publish a plan to the `TaskPlan`. The framework then monitors the board and automatically notifies agents when their tasks become unblocked, enabling parallel execution and reducing coordinator overhead.
 
 ## Requirements
 
--   **Python Version**: Python 3.11.x is the supported version for this project (>=3.11,<3.12). Using other versions may cause dependency conflicts.
+- **Python Version**: Python 3.11.x is the supported version for this project (>=3.11,<3.12). Using other versions may cause dependency conflicts.
 
 ## Getting Started
 
 ### Installation
 
 1.  **Clone the repository:**
+
     ```bash
     git clone https://github.com/your-username/autobyteus.git
     cd autobyteus
     ```
 
 2.  **Create a local `uv` environment (recommended):**
+
     ```bash
     uv venv .venv --python 3.11
     ```
 
 3.  **Install dependencies:**
+
     - **For users:**
       ```bash
       uv sync
@@ -115,6 +125,7 @@ python autobyteus/examples/agent_team/manual_notification/run_debate_team.py --l
 # Run the hierarchical skills example (modular, file-based capabilities)
 python examples/run_agent_with_skill.py --llm-model gpt-4o
 ```
+
 You can see all available models and their identifiers by running an example with the `--help-models` flag.
 
 ## Testing
@@ -178,6 +189,7 @@ running pytest:
 To build Autobyteus as a distributable package, follow these steps:
 
 1.  Ensure dev dependencies are installed:
+
     ```bash
     uv sync --extra dev
     ```
