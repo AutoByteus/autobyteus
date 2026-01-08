@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, List, Optional
 
 from autobyteus.llm.providers import LLMProvider
 from autobyteus.tools.usage.registries.tool_formatting_registry import ToolFormattingRegistry
-from autobyteus.tools.usage.formatters import DefaultXmlSchemaFormatter
+from autobyteus.tools.usage.formatters import BaseXmlSchemaFormatter
 
 if TYPE_CHECKING:
     from autobyteus.tools.registry import ToolDefinition
@@ -73,7 +73,7 @@ class ToolManifestProvider:
                 )
                 schema_formatter = formatter_pair.schema_formatter
                 example_formatter = formatter_pair.example_formatter
-                is_xml_format = isinstance(schema_formatter, DefaultXmlSchemaFormatter)
+                is_xml_format = isinstance(schema_formatter, BaseXmlSchemaFormatter)
 
                 schema = schema_formatter.provide(td)
                 example = example_formatter.provide(td) # This is now a pre-formatted string for both XML and JSON

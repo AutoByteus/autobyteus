@@ -4,13 +4,13 @@ XML Schema formatter for the run_bash tool using shorthand <run_bash> syntax.
 """
 from typing import TYPE_CHECKING
 
-from .base_formatter import BaseSchemaFormatter
+from .base_formatter import BaseXmlSchemaFormatter
 
 if TYPE_CHECKING:
     from autobyteus.tools.registry import ToolDefinition
 
 
-class RunBashXmlSchemaFormatter(BaseSchemaFormatter):
+class RunBashXmlSchemaFormatter(BaseXmlSchemaFormatter):
     """
     Formats the run_bash tool schema using the shorthand <run_bash> XML syntax.
     """

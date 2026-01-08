@@ -7,7 +7,7 @@ from autobyteus.tools.usage.providers.tool_manifest_provider import ToolManifest
 from autobyteus.tools.registry import ToolDefinition
 from autobyteus.llm.providers import LLMProvider
 from autobyteus.tools.usage.registries.tool_formatter_pair import ToolFormatterPair
-from autobyteus.tools.usage.formatters import DefaultXmlSchemaFormatter, BaseSchemaFormatter
+from autobyteus.tools.usage.formatters import BaseXmlSchemaFormatter, BaseSchemaFormatter
 
 @pytest.fixture
 def mock_registry():
@@ -24,7 +24,7 @@ def mock_tool_def():
 
 def test_provide_uses_registry_and_formats_xml(provider: ToolManifestProvider, mock_registry: MagicMock, mock_tool_def: MagicMock):
     # Arrange
-    mock_schema_formatter = MagicMock(spec=DefaultXmlSchemaFormatter)
+    mock_schema_formatter = MagicMock(spec=BaseXmlSchemaFormatter)
     mock_schema_formatter.provide.return_value = "<tool name='TestTool' />"
     mock_example_formatter = MagicMock()
     mock_example_formatter.provide.return_value = "<tool name='TestTool'><arguments /></tool>"
@@ -85,7 +85,7 @@ def test_provide_joins_multiple_xml_tools(provider: ToolManifestProvider, mock_r
     mock_tool_1 = MagicMock(spec=ToolDefinition)
     mock_tool_2 = MagicMock(spec=ToolDefinition)
     
-    mock_formatter = MagicMock(spec=DefaultXmlSchemaFormatter)
+    mock_formatter = MagicMock(spec=BaseXmlSchemaFormatter)
     mock_formatter.provide.side_effect = ["<tool name='Tool1' />", "<tool name='Tool2' />"]
     mock_example = MagicMock()
     mock_example.provide.side_effect = ["<example1 />", "<example2 />"]

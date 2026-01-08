@@ -4,13 +4,13 @@ XML Schema formatter for the patch_file tool using standard <tool name="patch_fi
 """
 from typing import TYPE_CHECKING
 
-from .base_formatter import BaseSchemaFormatter
+from .base_formatter import BaseXmlSchemaFormatter
 
 if TYPE_CHECKING:
     from autobyteus.tools.registry import ToolDefinition
 
 
-class PatchFileXmlSchemaFormatter(BaseSchemaFormatter):
+class PatchFileXmlSchemaFormatter(BaseXmlSchemaFormatter):
     """
     Formats the patch_file tool schema using the standard <tool name="patch_file"> XML syntax.
     """

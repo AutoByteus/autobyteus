@@ -3,7 +3,7 @@
 This package contains concrete formatter classes that translate a BaseTool's
 metadata into a specific provider's format (e.g., OpenAI JSON, Anthropic JSON, XML).
 """
-from .base_formatter import BaseSchemaFormatter, BaseExampleFormatter
+from .base_formatter import BaseSchemaFormatter, BaseExampleFormatter, BaseXmlSchemaFormatter
 from .default_xml_schema_formatter import DefaultXmlSchemaFormatter
 from .default_json_schema_formatter import DefaultJsonSchemaFormatter
 from .openai_json_schema_formatter import OpenAiJsonSchemaFormatter
@@ -26,6 +26,7 @@ from .run_bash_xml_example_formatter import RunBashXmlExampleFormatter
 __all__ = [
     "BaseSchemaFormatter",
     "BaseExampleFormatter",
+    "BaseXmlSchemaFormatter",
     "DefaultXmlSchemaFormatter",
     "DefaultJsonSchemaFormatter",
     "OpenAiJsonSchemaFormatter",

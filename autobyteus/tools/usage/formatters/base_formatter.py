@@ -23,6 +23,14 @@ class BaseSchemaFormatter(ABC):
         """
         pass
 
+class BaseXmlSchemaFormatter(BaseSchemaFormatter):
+    """
+    Marker base class for all XML schema formatters.
+    Subclass this for any formatter that produces XML output.
+    """
+    pass
+
+
 class BaseExampleFormatter(ABC):
     """
     Abstract base class for formatting a usage example of a single tool

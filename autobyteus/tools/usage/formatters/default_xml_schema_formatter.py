@@ -3,12 +3,12 @@ import xml.sax.saxutils
 from typing import TYPE_CHECKING, List, Dict
 
 from autobyteus.utils.parameter_schema import ParameterType, ParameterDefinition, ParameterSchema
-from .base_formatter import BaseSchemaFormatter
+from .base_formatter import BaseXmlSchemaFormatter
 
 if TYPE_CHECKING:
     from autobyteus.tools.registry import ToolDefinition
 
-class DefaultXmlSchemaFormatter(BaseSchemaFormatter):
+class DefaultXmlSchemaFormatter(BaseXmlSchemaFormatter):
     """Formats a tool's schema into a standardized, potentially nested, XML string."""
 
     def provide(self, tool_definition: 'ToolDefinition') -> str:

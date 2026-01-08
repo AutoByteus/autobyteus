@@ -4,13 +4,13 @@ XML Schema formatter for the write_file tool using shorthand <write_file> syntax
 """
 from typing import TYPE_CHECKING
 
-from .base_formatter import BaseSchemaFormatter
+from .base_formatter import BaseXmlSchemaFormatter
 
 if TYPE_CHECKING:
     from autobyteus.tools.registry import ToolDefinition
 
 
-class WriteFileXmlSchemaFormatter(BaseSchemaFormatter):
+class WriteFileXmlSchemaFormatter(BaseXmlSchemaFormatter):
     """
     Formats the write_file tool schema using the shorthand <write_file> XML syntax.
     """

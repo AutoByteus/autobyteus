@@ -40,6 +40,9 @@ def format_to_clean_string(data: Any, indent: int = 0) -> str:
             elif dataclasses.is_dataclass(value) or hasattr(value, 'model_dump') or hasattr(value, 'dict'):
                  # Treat complex objects similarly to nested dicts
                  lines.append(f"{indent_str}{key}:\n{value_str}")
+            elif isinstance(value, str) and '\n' in value:
+                # Multiline strings should also be on a new line for readability
+                lines.append(f"{indent_str}{key}:\n{value_str}")
             else:
                 lines.append(f"{indent_str}{key}: {value_str.lstrip()}")
         return "\n".join(lines)

@@ -51,6 +51,17 @@ async def patch_file(context: 'AgentContext', path: str, patch: str) -> str:
         IOError: If file reading or writing fails.
     """
     logger.debug("patch_file: requested patch for agent '%s' on path '%s'.", context.agent_id, path)
+    
+    # Detailed logging for debugging patch content
+    logger.info("patch_file: ===== PATCH ARGUMENT DEBUG START =====")
+    logger.info("patch_file: raw patch repr: %r", patch)
+    logger.info("patch_file: patch length: %d chars", len(patch) if patch else 0)
+    patch_lines = patch.splitlines(keepends=True) if patch else []
+    for i, line in enumerate(patch_lines, 1):
+        prefix = line[0] if line else '<empty>'
+        logger.info("patch_file: line %d: prefix=%r content=%r", i, prefix, line)
+    logger.info("patch_file: ===== PATCH ARGUMENT DEBUG END =====")
+    
     final_path = _resolve_file_path(context, path)
 
     file_exists = os.path.exists(final_path)
@@ -64,6 +75,12 @@ async def patch_file(context: 'AgentContext', path: str, patch: str) -> str:
                 original_lines = source.read().splitlines(keepends=True)
         else:
             original_lines = []
+
+        # Log original file content for comparison
+        logger.info("patch_file: ===== ORIGINAL FILE DEBUG START =====")
+        for i, line in enumerate(original_lines, 1):
+            logger.info("patch_file: original line %d: %r", i, line)
+        logger.info("patch_file: ===== ORIGINAL FILE DEBUG END =====")
 
         patched_lines = apply_unified_diff(original_lines, patch)
 

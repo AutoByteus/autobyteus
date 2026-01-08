@@ -129,9 +129,12 @@ class ToolInvocationAdapter:
             stripped = content.lstrip()
             parsed_call = None
             
-            # Check if arguments were provided in start metadata (e.g. Sentinel parser)
+            # Check if arguments were provided in metadata (e.g. Sentinel parser)
+            # First check start_metadata, then end metadata
             if start_metadata.get("arguments"):
                 arguments = start_metadata["arguments"]
+            elif metadata.get("arguments"):
+                arguments = metadata["arguments"]
             elif stripped.startswith("{") or stripped.startswith("["):
                 parsed_call = parse_json_tool_call(stripped, self._json_tool_parser)
             else:

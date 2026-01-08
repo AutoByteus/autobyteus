@@ -33,6 +33,14 @@ def _build_run_bash_args(metadata: dict, content: str) -> Optional[dict]:
     return {"command": command}
 
 
+def _build_patch_file_args(metadata: dict, content: str) -> Optional[dict]:
+    path = metadata.get("path")
+    if not path:
+        return None
+    # 'content' here is the accumulated patch delta from the stream
+    return {"path": path, "patch": content}
+
+
 _TOOL_SYNTAX_REGISTRY: Dict[SegmentType, ToolSyntaxSpec] = {
     SegmentType.WRITE_FILE: ToolSyntaxSpec(
         tool_name="write_file",
@@ -41,6 +49,10 @@ _TOOL_SYNTAX_REGISTRY: Dict[SegmentType, ToolSyntaxSpec] = {
     SegmentType.RUN_BASH: ToolSyntaxSpec(
         tool_name="run_bash",
         build_arguments=_build_run_bash_args,
+    ),
+    SegmentType.PATCH_FILE: ToolSyntaxSpec(
+        tool_name="patch_file",
+        build_arguments=_build_patch_file_args,
     ),
 }
 
