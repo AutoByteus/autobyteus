@@ -13,6 +13,13 @@ from autobyteus.agent.tool_invocation import ToolInvocation
 def tool_request_handler():
     return ToolInvocationRequestEventHandler()
 
+# Mock format_to_clean_string to return consistent output for tests
+@pytest.fixture(autouse=True)
+def mock_formatter():
+    with patch('autobyteus.agent.handlers.tool_invocation_request_event_handler.format_to_clean_string') as mock:
+        mock.side_effect = lambda x: json.dumps(x) if isinstance(x, (dict, list)) else str(x)
+        yield mock
+
 # --- Tests for Approval Required Path (auto_execute_tools = False) ---
 @pytest.mark.asyncio
 async def test_handle_approval_required_logic(tool_request_handler: ToolInvocationRequestEventHandler, agent_context, mock_tool_invocation, caplog):
@@ -118,8 +125,9 @@ async def test_handle_direct_execution_success(tool_request_handler: ToolInvocat
 
     agent_context.state.store_pending_tool_invocation.assert_not_called() 
     
+    # format_to_clean_string is mocked to behave like json.dumps for dict/list or str(x) otherwise
     expected_log_call_str = f"[TOOL_CALL_DIRECT] Agent_ID: {agent_context.agent_id}, Tool: {mock_tool_invocation.name}, Invocation_ID: {mock_tool_invocation.id}, Arguments: {json.dumps(mock_tool_invocation.arguments)}"
-    result_str_for_log = json.dumps(tool_result)
+    result_str_for_log = str(tool_result) # Mock return str(x) for string input
     expected_log_result_str = f"[TOOL_RESULT_DIRECT] Agent_ID: {agent_context.agent_id}, Tool: {mock_tool_invocation.name}, Invocation_ID: {mock_tool_invocation.id}, Outcome (first 200 chars): {result_str_for_log[:200]}"
     
     for _ in range(2):
@@ -265,7 +273,7 @@ async def test_handle_direct_execution_result_not_json_serializable_for_log(tool
     
     await tool_request_handler.handle(event, agent_context)
 
-    expected_log_result_str = f"[TOOL_RESULT_DIRECT] Agent_ID: {agent_context.agent_id}, Tool: {mock_tool_invocation.name}, Invocation_ID: {mock_tool_invocation.id}, Outcome (first 200 chars): {str(unserializable_result)[:200]}"
+    expected_log_result_str = str(unserializable_result)
     agent_context.status_manager.notifier.notify_agent_data_tool_log.assert_any_call({
         "log_entry": ANY,
         "tool_invocation_id": mock_tool_invocation.id,

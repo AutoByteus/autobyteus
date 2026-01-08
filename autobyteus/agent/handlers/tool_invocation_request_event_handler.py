@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Optional
 from autobyteus.agent.handlers.base_event_handler import AgentEventHandler
 from autobyteus.agent.events import PendingToolInvocationEvent, ToolResultEvent 
 from autobyteus.agent.tool_invocation import ToolInvocation
+from autobyteus.utils.llm_output_formatter import format_to_clean_string
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext 
@@ -68,7 +69,7 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
         logger.info(f"Agent '{agent_id}' executing tool directly: '{tool_name}' (ID: {invocation_id}) with args: {arguments}")
         
         try:
-            args_str = json.dumps(arguments)
+            args_str = format_to_clean_string(arguments)
         except TypeError:
             args_str = str(arguments) 
 
@@ -116,9 +117,9 @@ class ToolInvocationRequestEventHandler(AgentEventHandler):
                 execution_result = await tool_instance.execute(context=context, **arguments) 
                 
                 try:
-                    result_json_for_log = json.dumps(execution_result)
+                    result_json_for_log = format_to_clean_string(execution_result)
                 except (TypeError, ValueError): 
-                    result_json_for_log = json.dumps(str(execution_result))
+                    result_json_for_log = format_to_clean_string(str(execution_result))
 
                 logger.info(f"Tool '{tool_name}' (ID: {invocation_id}) executed by agent '{agent_id}'.")
                 result_event = ToolResultEvent(
