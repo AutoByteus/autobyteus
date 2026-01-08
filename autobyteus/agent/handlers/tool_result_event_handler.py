@@ -142,7 +142,7 @@ class ToolResultEventHandler(AgentEventHandler):
             if processed_event.error:
                 log_message = f"[TOOL_RESULT_ERROR_PROCESSED] Agent_ID: {agent_id}, Tool: {processed_event.tool_name}, Invocation_ID: {tool_invocation_id}, Error: {processed_event.error}"
             else:
-                log_message = f"[TOOL_RESULT_SUCCESS_PROCESSED] Agent_ID: {agent_id}, Tool: {processed_event.tool_name}, Invocation_ID: {tool_invocation_id}, Result: {str(processed_event.result)}"
+                log_message = f"[TOOL_RESULT_SUCCESS_PROCESSED] Agent_ID: {agent_id}, Tool: {processed_event.tool_name}, Invocation_ID: {tool_invocation_id}, Result: {format_to_clean_string(processed_event.result)}"
             
             try:
                 log_data = {

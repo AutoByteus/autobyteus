@@ -10,7 +10,7 @@ class ZhipuLLM(OpenAICompatibleLLM):
     def __init__(self, model: LLMModel = None, llm_config: LLMConfig = None):
         # Provide defaults if not specified
         if model is None:
-            model = LLMModel['glm-4.6']
+            model = LLMModel['glm-4.7']
         if llm_config is None:
             llm_config = LLMConfig()
             

@@ -40,7 +40,7 @@ async def test_handle_single_tool_result_success(tool_result_handler: ToolResult
     assert f"Agent '{agent_context.agent_id}' handling single ToolResultEvent from tool: '{tool_name}'." in caplog.text
     
     # Assert notifier was called with the correct dictionary payload
-    expected_log_msg = f"[TOOL_RESULT_SUCCESS_PROCESSED] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Result: {str(tool_result_data)}"
+    expected_log_msg = f"[TOOL_RESULT_SUCCESS_PROCESSED] Agent_ID: {agent_context.agent_id}, Tool: {tool_name}, Invocation_ID: {tool_invocation_id}, Result: {format_to_clean_string(tool_result_data)}"
     mock_notifier.notify_agent_data_tool_log.assert_called_once_with({
         "log_entry": expected_log_msg,
         "tool_invocation_id": tool_invocation_id,

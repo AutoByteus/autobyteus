@@ -19,7 +19,7 @@ def zhipu_llm(set_zhipu_env):
     zhipu_api_key = os.getenv("ZHIPU_API_KEY")
     if not zhipu_api_key or zhipu_api_key == "YOUR_ZHIPU_API_KEY":
         pytest.skip("Zhipu API key not set. Skipping ZhipuLLM tests.")
-    return ZhipuLLM(model=LLMModel["glm-4.6"], llm_config=LLMConfig())
+    return ZhipuLLM(model=LLMModel["glm-4.7"], llm_config=LLMConfig())
 
 
 @pytest.mark.asyncio

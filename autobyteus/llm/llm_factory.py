@@ -365,27 +365,6 @@ class LLMFactory(metaclass=SingletonMeta):
                     extra_params={ "extra_body": { "thinking": { "type": "enabled" } } }
                 )
             ),
-            LLMModel(
-                name="glm-4.6",
-                value="glm-4.6",
-                provider=LLMProvider.ZHIPU,
-                llm_class=ZhipuLLM,
-                canonical_name="glm-4.6",
-                default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(13.8, 13.8)
-                )
-            ),
-            LLMModel(
-                name="glm-4.6-thinking",
-                value="glm-4.6",
-                provider=LLMProvider.ZHIPU,
-                llm_class=ZhipuLLM,
-                canonical_name="glm-4.6-thinking",
-                default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(13.8, 13.8),
-                    extra_params={ "extra_body": { "thinking": { "type": "enabled" } } }
-                )
-            ),
             # MINIMAX Provider Models
             LLMModel(
                 name="minimax-m2.1",
