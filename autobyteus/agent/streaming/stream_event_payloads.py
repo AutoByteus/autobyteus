@@ -10,7 +10,8 @@ logger = logging.getLogger(__name__)
 
 # --- Base Payload Model (Optional, for common fields if any) ---
 class BaseStreamPayload(BaseModel):
-    pass
+    class Config:
+        extra = "allow"
 
 # --- Specific Payload Models for each StreamEventType ---
 
@@ -94,6 +95,7 @@ class ArtifactPersistedData(BaseStreamPayload):
     path: str
     agent_id: str
     type: str
+    url: Optional[str] = None
 
 class EmptyData(BaseStreamPayload):
     pass
