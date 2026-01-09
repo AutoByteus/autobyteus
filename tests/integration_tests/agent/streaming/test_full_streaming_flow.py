@@ -227,6 +227,31 @@ All done!
         tasks = inv.arguments.get("tasks")
         assert tasks == [{"task_name": "implement_fibonacci", "description": "Handle n <= 0 case"}]
 
+    def test_write_file_with_nested_xml_content(self):
+        """Write_file tool correctly preserves deeply nested XML content."""
+        handler = ParsingStreamingResponseHandler()
+
+        nested_xml_content = """<root>
+    <child attr="val">
+        <grandchild>Content with <br/> tags</grandchild>
+    </child>
+    <other>
+        <item>1</item>
+        <item>2</item>
+    </other>
+</root>"""
+
+        response = f'<write_file path="/output.xml">{nested_xml_content}</write_file>'
+        handler.feed(response)
+        handler.finalize()
+
+        invocations = handler.get_all_invocations()
+        assert len(invocations) == 1
+        inv = invocations[0]
+        assert inv.name == "write_file"
+        assert inv.arguments["path"] == "/output.xml"
+        assert inv.arguments["content"] == nested_xml_content
+
 
 class TestStreamingChunkedInput:
     """Tests for realistic chunked input scenarios."""
