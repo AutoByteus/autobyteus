@@ -63,7 +63,7 @@ class ContextFileType(str, Enum):
             return cls.PYTHON
         elif extension == ".js":
             return cls.JAVASCRIPT
-        elif extension in [".mp3", ".wav", ".m4a", ".flac", ".ogg"]:
+        elif extension in [".mp3", ".wav", ".m4a", ".flac", ".ogg", ".aac"]:
             return cls.AUDIO
         elif extension in [".mp4", ".mov", ".avi", ".mkv", ".webm"]:
             return cls.VIDEO
