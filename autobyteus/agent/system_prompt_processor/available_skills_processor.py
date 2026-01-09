@@ -29,7 +29,7 @@ class AvailableSkillsProcessor(BaseSystemPromptProcessor):
         all_skills = registry.list_skills()
         
         if not all_skills:
-            logger.debug(f"Agent '{agent_id}': No skills found in registry. Skipping injection.")
+            logger.info(f"Agent '{agent_id}': No skills found in registry. Skipping injection.")
             return system_prompt
 
         # Preloaded skills from config
