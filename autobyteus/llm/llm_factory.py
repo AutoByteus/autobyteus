@@ -500,4 +500,62 @@ class LLMFactory(metaclass=SingletonMeta):
         logger.warning(f"Could not find model with identifier '{model_identifier}' to get its canonical name.")
         return None
 
+    @staticmethod
+    def reload_models(provider: LLMProvider) -> int:
+        """
+        Reloads models for a specific provider.
+        Strategy: Clear-Then-Discover (Fail Fast).
+        
+        1. Clears all existing models for the provider.
+        2. Fetches fresh models.
+        3. Registers them.
+        
+        If step 2 fails, the registry for this provider remains empty, correctly reflecting 
+        that the server is unreachable or returning no models.
+        """
+        LLMFactory.ensure_initialized()
+        
+        provider_handlers = {
+            LLMProvider.LMSTUDIO: LMStudioModelProvider,
+            LLMProvider.AUTOBYTEUS: AutobyteusModelProvider,
+            LLMProvider.OLLAMA: OllamaModelProvider,
+        }
+
+        handler = provider_handlers.get(provider)
+        if not handler:
+            logger.warning(f"Reloading is not supported for provider: {provider}")
+            return len(LLMFactory._models_by_provider.get(provider, []))
+
+        # 1. Clear old models for this provider immediately
+        current_provider_models = LLMFactory._models_by_provider.get(provider, [])
+        ids_to_remove = [m.model_identifier for m in current_provider_models]
+        
+        logger.info(f"Clearing {len(ids_to_remove)} models for provider {provider} before discovery.")
+        
+        for mid in ids_to_remove:
+            if mid in LLMFactory._models_by_identifier:
+                del LLMFactory._models_by_identifier[mid]
+        
+        if provider in LLMFactory._models_by_provider:
+            del LLMFactory._models_by_provider[provider]
+
+        # 2. Fetch new models
+        try:
+            # We assume the handler has a static .get_models() method
+            if not hasattr(handler, 'get_models'):
+                logger.error(f"Provider handler {handler} does not implement get_models()")
+                return 0 # We already cleared everything
+
+            new_models: List[LLMModel] = handler.get_models()
+        except Exception as e:
+            logger.error(f"Failed to fetch models for {provider} during reload. Registry for this provider is now empty. Error: {e}")
+            return 0
+
+        # 3. Register new models
+        logger.info(f"Registering {len(new_models)} new models for provider {provider}.")
+        for model in new_models:
+            LLMFactory.register_model(model)
+
+        return len(new_models)
+
 default_llm_factory = LLMFactory()

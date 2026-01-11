@@ -40,6 +40,57 @@ class LMStudioModelProvider:
             return False
 
     @staticmethod
+    def get_models() -> List[LLMModel]:
+        """
+        Fetches models from all configured LM Studio instances and returns them as LLMModel objects.
+        """
+        hosts = LMStudioModelProvider._get_hosts()
+        all_models = []
+
+        for host_url in hosts:
+            if not LMStudioModelProvider.is_valid_url(host_url):
+                logger.error(f"Invalid LM Studio host URL: {host_url}, skipping.")
+                continue
+
+            logger.info(f"Discovering LM Studio models from host: {host_url}")
+            base_url = f"{host_url}/v1"
+            client = OpenAI(base_url=base_url, api_key="lm-studio") # Dummy key
+
+            try:
+                response = client.models.list()
+                models = response.data
+            except APIConnectionError:
+                logger.warning(f"Could not connect to LM Studio at {host_url}. Please ensure the server is running.")
+                continue
+            except OpenAIError as e:
+                logger.error(f"An error occurred fetching models from LM Studio at {host_url}: {e}")
+                continue
+
+            for model_info in models:
+                model_id = model_info.id
+                if not model_id:
+                    continue
+                
+                try:
+                    llm_model = LLMModel(
+                        name=model_id,
+                        value=model_id,
+                        provider=LLMProvider.LMSTUDIO, # LMStudio is both provider and runtime
+                        llm_class=LMStudioLLM,
+                        canonical_name=model_id,
+                        runtime=LLMRuntime.LMSTUDIO,
+                        host_url=host_url,
+                        default_config=LLMConfig(
+                            pricing_config=TokenPricingConfig(0.0, 0.0) # Local models are free
+                        )
+                    )
+                    all_models.append(llm_model)
+                except Exception as e:
+                    logger.warning(f"Failed to create LLMModel for '{model_id}' from {host_url}: {e}")
+
+        return all_models
+
+    @staticmethod
     def discover_and_register():
         """
         Discovers models from all configured LM Studio instances and registers them.
@@ -47,58 +98,18 @@ class LMStudioModelProvider:
         try:
             from autobyteus.llm.llm_factory import LLMFactory
             
-            hosts = LMStudioModelProvider._get_hosts()
-            total_registered_count = 0
+            discovered_models = LMStudioModelProvider.get_models()
+            registered_count = 0
 
-            for host_url in hosts:
-                if not LMStudioModelProvider.is_valid_url(host_url):
-                    logger.error(f"Invalid LM Studio host URL: {host_url}, skipping.")
-                    continue
-
-                logger.info(f"Discovering LM Studio models from host: {host_url}")
-                base_url = f"{host_url}/v1"
-                client = OpenAI(base_url=base_url, api_key="lm-studio") # Dummy key
-
+            for model in discovered_models:
                 try:
-                    response = client.models.list()
-                    models = response.data
-                except APIConnectionError:
-                    logger.warning(f"Could not connect to LM Studio at {host_url}. Please ensure the server is running.")
-                    continue
-                except OpenAIError as e:
-                    logger.error(f"An error occurred fetching models from LM Studio at {host_url}: {e}")
-                    continue
+                    LLMFactory.register_model(model)
+                    registered_count += 1
+                except Exception as e:
+                    logger.warning(f"Failed to register LM Studio model '{model.name}': {e}")
 
-                host_registered_count = 0
-                for model_info in models:
-                    model_id = model_info.id
-                    if not model_id:
-                        continue
-                    
-                    try:
-                        llm_model = LLMModel(
-                            name=model_id,
-                            value=model_id,
-                            provider=LLMProvider.LMSTUDIO, # LMStudio is both provider and runtime
-                            llm_class=LMStudioLLM,
-                            canonical_name=model_id,
-                            runtime=LLMRuntime.LMSTUDIO,
-                            host_url=host_url,
-                            default_config=LLMConfig(
-                                pricing_config=TokenPricingConfig(0.0, 0.0) # Local models are free
-                            )
-                        )
-                        LLMFactory.register_model(llm_model)
-                        host_registered_count += 1
-                    except Exception as e:
-                        logger.warning(f"Failed to register LM Studio model '{model_id}' from {host_url}: {e}")
-
-                if host_registered_count > 0:
-                    logger.info(f"Registered {host_registered_count} models from LM Studio host {host_url}")
-                total_registered_count += host_registered_count
-
-            if total_registered_count > 0:
-                logger.info(f"Finished LM Studio discovery. Total models registered: {total_registered_count}")
+            if registered_count > 0:
+                logger.info(f"Finished LM Studio discovery. Total models registered: {registered_count}")
 
         except Exception as e:
             logger.error(f"An unexpected error occurred during LM Studio model discovery: {e}")
