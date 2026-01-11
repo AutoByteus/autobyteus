@@ -9,7 +9,7 @@ from autobyteus.llm.user_message import LLMUserMessage
 from autobyteus.llm.utils.llm_config import LLMConfig
 
 # Path to the test asset
-TEST_IMAGE_PATH = "autobyteus/tests/assets/sample_image.png"
+TEST_IMAGE_PATH = "tests/assets/sample_image.png"
 
 @pytest.fixture
 def set_openai_env(monkeypatch):
@@ -20,7 +20,7 @@ def openai_llm(set_openai_env):
     openai_api_key = os.getenv("OPENAI_API_KEY")
     if not openai_api_key or openai_api_key == "YOUR_OPENAI_API_KEY":
         pytest.skip("OpenAI API key not set. Skipping OpenAILLM tests.")
-    return OpenAILLM(model=LLMModel['gpt-5.1'])
+    return OpenAILLM(model=LLMModel['gpt-5.2'])
 
 @pytest.mark.asyncio
 async def test_openai_llm_response(openai_llm):

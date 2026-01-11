@@ -10,7 +10,7 @@ class OpenAILLM(OpenAICompatibleLLM):
     def __init__(self, model: LLMModel = None, llm_config: LLMConfig = None):
         # Provide defaults if not specified
         if model is None:
-            model = LLMModel['gpt-5.1']  # Default to latest OpenAI model
+            model = LLMModel['gpt-5.2']  # Default to latest OpenAI model
         if llm_config is None:
             llm_config = LLMConfig()
             

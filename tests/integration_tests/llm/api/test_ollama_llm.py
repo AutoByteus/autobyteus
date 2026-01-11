@@ -8,7 +8,7 @@ from autobyteus.llm.user_message import LLMUserMessage
 from autobyteus.llm.runtimes import LLMRuntime
 
 # Path to the test asset
-TEST_IMAGE_PATH = "autobyteus/tests/assets/sample_image.png"
+TEST_IMAGE_PATH = "tests/assets/sample_image.png"
 USER_PROVIDED_IMAGE_URL = "https://127.0.0.1:51739/media/images/b132adbb-80e4-4faf-bd36-44d965d2e095.jpg"
 
 @pytest.fixture

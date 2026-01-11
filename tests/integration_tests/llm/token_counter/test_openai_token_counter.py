@@ -6,7 +6,7 @@ from autobyteus.llm.utils.messages import Message, MessageRole
 
 @pytest.fixture
 def openai_token_counter():
-    return OpenAITokenCounter(LLMModel['gpt-5.1'])
+    return OpenAITokenCounter(LLMModel['gpt-5.2'])
 
 @pytest.fixture
 def system_message():

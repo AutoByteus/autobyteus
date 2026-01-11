@@ -9,7 +9,7 @@ from autobyteus.llm.user_message import LLMUserMessage
 from autobyteus.llm.utils.llm_config import LLMConfig
 
 # Path to the test asset
-TEST_IMAGE_PATH = "autobyteus/tests/assets/sample_image.png"
+TEST_IMAGE_PATH = "tests/assets/sample_image.png"
 
 @pytest.fixture
 def set_mistral_env(monkeypatch):

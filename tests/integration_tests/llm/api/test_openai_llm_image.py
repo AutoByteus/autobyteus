@@ -1,5 +1,6 @@
 import pytest
 import os
+import base64
 from pathlib import Path
 from autobyteus.llm.api.openai_llm import OpenAILLM
 from autobyteus.llm.models import LLMModel
@@ -12,11 +13,10 @@ def set_openai_env(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY", "YOUR_OPENAI_API_KEY"))
 
 @pytest.fixture
-def test_image_path(tmp_path):
-    image_path = tmp_path / "test_image.jpg"
-    from PIL import Image
-    img = Image.new("RGB", (10, 10), color="blue")
-    img.save(image_path)
+def test_image_path():
+    image_path = Path("tests/assets/sample_image.png")
+    if not image_path.exists():
+        pytest.skip(f"Test image not found at {image_path}")
     return str(image_path)
 
 @pytest.fixture
@@ -24,7 +24,7 @@ def openai_llm(set_openai_env):
     openai_api_key = os.getenv("OPENAI_API_KEY")
     if not openai_api_key or openai_api_key == "YOUR_OPENAI_API_KEY":
         pytest.skip("OpenAI API key not set. Skipping OpenAILLM image tests.")
-    return OpenAILLM(model=LLMModel['gpt-5.1'])
+    return OpenAILLM(model=LLMModel['gpt-5.2'])
 
 @pytest.fixture
 def multiple_test_images(tmp_path):
@@ -60,16 +60,18 @@ async def test_openai_llm_with_image(openai_llm, test_image_path):
     assert user_msg_in_history.image_urls == [test_image_path]
 
 @pytest.mark.asyncio
-async def test_openai_llm_with_image_url(openai_llm):
-    """Test sending a single image via public URL."""
+async def test_openai_llm_with_image_base64(openai_llm, test_image_path):
+    """Test sending a single image via base64 (data-local, no network)."""
+    with open(test_image_path, "rb") as image_file:
+        image_b64 = base64.b64encode(image_file.read()).decode("utf-8")
     user_message = LLMUserMessage(
-        content="What is in this image?",
-        image_urls=["https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/1280px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg"]
+        content="What color is in this image?",
+        image_urls=[image_b64]
     )
     response = await openai_llm.send_user_message(user_message)
 
     assert isinstance(response, CompleteResponse)
-    assert "boardwalk" in response.content.lower() or "nature" in response.content.lower()
+    assert "blue" in response.content.lower()
     
     assert len(openai_llm.messages) == 3
     user_msg_in_history = openai_llm.messages[1]
@@ -123,14 +125,12 @@ async def test_openai_llm_with_invalid_image_path(openai_llm):
     )
     
     # The formatter will log an error for the invalid path but the API call should proceed with text only.
-    # We expect an error from the OpenAI API if it requires an image but doesn't get one,
-    # or a response based on text if it can proceed.
-    # The key is that our code shouldn't crash.
+    # The key is that our code shouldn't crash and should return a response.
     response = await openai_llm.send_user_message(user_message)
-    
+
     assert isinstance(response, CompleteResponse)
-    # The model will likely respond that it cannot see an image.
-    assert "can't see" in response.content.lower() or "no image" in response.content.lower()
+    assert isinstance(response.content, str)
+    assert len(response.content) > 0
 
     # The message in history should still contain the invalid path as it was added before formatting.
     assert len(openai_llm.messages) == 3

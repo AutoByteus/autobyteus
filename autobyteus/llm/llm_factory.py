@@ -55,63 +55,33 @@ class LLMFactory(metaclass=SingletonMeta):
         supported_models = [
             # OPENAI Provider Models (latest generation only)
             LLMModel(
-                name="gpt-5.1",
-                value="gpt-5.1",
+                name="gpt-5.2",
+                value="gpt-5.2",
                 provider=LLMProvider.OPENAI,
                 llm_class=OpenAILLM,
-                canonical_name="gpt-5.1",
+                canonical_name="gpt-5.2",
                 default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(1.25, 10.00)
+                    pricing_config=TokenPricingConfig(1.75, 14.00)
                 )
             ),
             LLMModel(
-                name="gpt-5.1-chat-latest",
-                value="gpt-5.1-chat-latest",
+                name="gpt-5.2-chat-latest",
+                value="gpt-5.2-chat-latest",
                 provider=LLMProvider.OPENAI,
                 llm_class=OpenAILLM,
-                canonical_name="gpt-5.1-chat-latest",
+                canonical_name="gpt-5.2-chat-latest",
                 default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(1.25, 10.00)
+                    pricing_config=TokenPricingConfig(1.75, 14.00)
                 )
             ),
             LLMModel(
-                name="gpt-5.1-codex",
-                value="gpt-5.1-codex",
+                name="gpt-5.2-codex",
+                value="gpt-5.2-codex",
                 provider=LLMProvider.OPENAI,
                 llm_class=OpenAILLM,
-                canonical_name="gpt-5.1-codex",
+                canonical_name="gpt-5.2-codex",
                 default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(1.25, 10.00)
-                )
-            ),
-            LLMModel(
-                name="gpt-5.1-codex-mini",
-                value="gpt-5.1-codex-mini",
-                provider=LLMProvider.OPENAI,
-                llm_class=OpenAILLM,
-                canonical_name="gpt-5.1-codex-mini",
-                default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(0.25, 2.00)
-                )
-            ),
-            LLMModel(
-                name="gpt-5-mini",
-                value="gpt-5-mini",
-                provider=LLMProvider.OPENAI,
-                llm_class=OpenAILLM,
-                canonical_name="gpt-5-mini",
-                default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(0.25, 2.00)
-                )
-            ),
-            LLMModel(
-                name="gpt-5-nano",
-                value="gpt-5-nano",
-                provider=LLMProvider.OPENAI,
-                llm_class=OpenAILLM,
-                canonical_name="gpt-5-nano",
-                default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(0.05, 0.40)
+                    pricing_config=TokenPricingConfig(1.75, 14.00)
                 )
             ),
             # MISTRAL Provider Models
