@@ -106,7 +106,17 @@ class LLMFactory(metaclass=SingletonMeta):
                     pricing_config=TokenPricingConfig(0.40, 2.00)
                 )
             ),
-            # GROK Provider Models (latest only)
+            # GROK Provider Models (latest flagship + fast)
+            LLMModel(
+                name="grok-4",
+                value="grok-4",
+                provider=LLMProvider.GROK,
+                llm_class=GrokLLM,
+                canonical_name="grok-4",
+                default_config=LLMConfig(
+                    pricing_config=TokenPricingConfig(3.00, 15.00)
+                )
+            ),
             LLMModel(
                 name="grok-4-1-fast-reasoning",
                 value="grok-4-1-fast-reasoning",
@@ -114,7 +124,7 @@ class LLMFactory(metaclass=SingletonMeta):
                 llm_class=GrokLLM,
                 canonical_name="grok-4-1-fast-reasoning",
                 default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(0.20, 0.60)
+                    pricing_config=TokenPricingConfig(0.20, 0.50)
                 )
             ),
             LLMModel(
@@ -124,7 +134,7 @@ class LLMFactory(metaclass=SingletonMeta):
                 llm_class=GrokLLM,
                 canonical_name="grok-4-1-fast-non-reasoning",
                 default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(0.20, 0.60)
+                    pricing_config=TokenPricingConfig(0.20, 0.50)
                 )
             ),
             LLMModel(
@@ -134,7 +144,7 @@ class LLMFactory(metaclass=SingletonMeta):
                 llm_class=GrokLLM,
                 canonical_name="grok-code-fast-1",
                 default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(0.60, 1.50)
+                    pricing_config=TokenPricingConfig(0.20, 1.50)
                 )
             ),
             # ANTHROPIC Provider Models
