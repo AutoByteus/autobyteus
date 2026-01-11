@@ -196,9 +196,7 @@ async def main(args: argparse.Namespace):
         system_prompt = (
             "You are a helpful assistant that can browse the web to find information. "
             "You have access to a set of specialized tools for this purpose.\n"
-            "When asked to perform a task on a browser, you should understand the user's intent and use the available tools to fulfill it.\n\n"
-            "Here is the manifest of tools available to you, including their definitions and examples:\n"
-            "{{tools}}"
+            "When asked to perform a task on a browser, you should understand the user's intent and use the available tools to fulfill it."
         )
 
         browser_agent_config = AgentConfig(

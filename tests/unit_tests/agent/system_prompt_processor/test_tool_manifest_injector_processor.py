@@ -10,6 +10,7 @@ from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.providers import LLMProvider
 
+
 @pytest.fixture
 def mock_context_factory():
     """A factory fixture to create a mock AgentContext for testing."""
@@ -26,88 +27,127 @@ def mock_context_factory():
         return context
     return _factory
 
+
 @pytest.fixture
 def processor() -> ToolManifestInjectorProcessor:
     """Provides an instance of the processor for tests."""
     return ToolManifestInjectorProcessor()
 
+
 def test_get_name(processor: ToolManifestInjectorProcessor):
     """Tests that the processor returns the correct name."""
     assert processor.get_name() == "ToolManifestInjector"
 
-def test_process_prompt_without_placeholder(processor: ToolManifestInjectorProcessor, mock_context_factory):
-    """Tests that the prompt is unchanged if the placeholder is missing."""
-    mock_context = mock_context_factory(provider=LLMProvider.OPENAI)
-    original_prompt = "This is a simple prompt without variables."
-    processed_prompt = processor.process(original_prompt, {"SomeTool": MagicMock(spec=BaseTool)}, mock_context.agent_id, mock_context)
-    assert processed_prompt == original_prompt
+
+def test_is_mandatory(processor: ToolManifestInjectorProcessor):
+    """Tests that the processor is mandatory."""
+    assert processor.is_mandatory() is True
+
 
 def test_process_with_no_tools(processor: ToolManifestInjectorProcessor, mock_context_factory, caplog):
-    """Tests that a 'no tools' message is injected when no tools are provided."""
+    """Tests that the prompt is unchanged when no tools are provided."""
     caplog.set_level(logging.INFO)
     mock_context = mock_context_factory(provider=LLMProvider.OPENAI)
-    prompt_with_placeholder = "Tools: {{tools}}"
-    processed_prompt = processor.process(prompt_with_placeholder, {}, mock_context.agent_id, mock_context)
+    original_prompt = "You are a helpful assistant."
     
-    assert "no tools are instantiated" in caplog.text
-    assert "No tools available for this agent." in processed_prompt
-    assert "{{tools}}" not in processed_prompt
+    processed_prompt = processor.process(original_prompt, {}, mock_context.agent_id, mock_context)
+    
+    assert "No tools configured" in caplog.text
+    assert processed_prompt == original_prompt
 
-def test_process_only_placeholder_prepends_default_prefix(processor: ToolManifestInjectorProcessor, mock_context_factory):
-    """Tests that the default prefix is added when the prompt only contains the placeholder."""
-    mock_context = mock_context_factory(provider=LLMProvider.OPENAI)
-    # Test with different amounts of whitespace to confirm robustness
-    for prompt_only_placeholder in ["{{tools}}", "  {{ tools }}  ", "\n{{tools}}\n"]:
-        processed_prompt = processor.process(prompt_only_placeholder, {}, mock_context.agent_id, mock_context)
-        
-        assert processed_prompt.startswith(ToolManifestInjectorProcessor.DEFAULT_PREFIX_FOR_TOOLS_ONLY_PROMPT)
-        assert "No tools available for this agent." in processed_prompt
 
 @patch('autobyteus.agent.system_prompt_processor.tool_manifest_injector_processor.ToolManifestProvider')
-def test_process_with_mocked_manifest(MockToolManifestProvider, processor: ToolManifestInjectorProcessor, mock_context_factory):
-    """Tests successful injection of a tool manifest from the provider."""
+@patch('autobyteus.agent.system_prompt_processor.tool_manifest_injector_processor.default_tool_registry')
+def test_process_appends_tools_section(mock_registry, MockToolManifestProvider, processor: ToolManifestInjectorProcessor, mock_context_factory):
+    """Tests that tools are appended as an 'Accessible Tools' section."""
     mock_context = mock_context_factory(provider=LLMProvider.ANTHROPIC)
+    
+    # Mock the tool definition lookup
+    mock_tool_def = MagicMock()
+    mock_registry.get_tool_definition.return_value = mock_tool_def
+    
+    # Mock the manifest provider
     mock_provider_instance = MockToolManifestProvider.return_value
     mock_provider_instance.provide.return_value = "---MOCK TOOL MANIFEST---"
 
     tools = {"AlphaTool": MagicMock(spec=BaseTool)}
-    prompt = "Use these tools: {{ tools }}" # Note the spaces
-    processed_prompt = processor.process(prompt, tools, mock_context.agent_id, mock_context)
+    original_prompt = "You are a helpful assistant."
+    
+    processed_prompt = processor.process(original_prompt, tools, mock_context.agent_id, mock_context)
 
-    # Assert that the provide method was called correctly
+    # Assert the manifest provider was called
     mock_provider_instance.provide.assert_called_once()
-    # Assert that the prompt was rendered correctly
-    assert processed_prompt == "Use these tools: \n---MOCK TOOL MANIFEST---"
-    assert "{{tools}}" not in processed_prompt
+    
+    # Assert the prompt was appended correctly
+    assert processed_prompt.startswith(original_prompt)
+    assert "## Accessible Tools" in processed_prompt
+    assert "---MOCK TOOL MANIFEST---" in processed_prompt
+
+
+@patch('autobyteus.agent.system_prompt_processor.tool_manifest_injector_processor.default_tool_registry')
+def test_process_with_no_tool_definitions(mock_registry, processor: ToolManifestInjectorProcessor, mock_context_factory, caplog):
+    """Tests that the prompt is unchanged when tool definitions are not found."""
+    caplog.set_level(logging.WARNING)
+    mock_context = mock_context_factory(provider=LLMProvider.OPENAI)
+    
+    # Mock no tool definitions found
+    mock_registry.get_tool_definition.return_value = None
+
+    tools = {"UnknownTool": MagicMock(spec=BaseTool)}
+    original_prompt = "You are a helpful assistant."
+    
+    processed_prompt = processor.process(original_prompt, tools, mock_context.agent_id, mock_context)
+
+    assert "no definitions found in registry" in caplog.text
+    assert processed_prompt == original_prompt
+
 
 @patch('autobyteus.agent.system_prompt_processor.tool_manifest_injector_processor.ToolManifestProvider')
-def test_process_when_manifest_provider_fails(MockToolManifestProvider, processor: ToolManifestInjectorProcessor, mock_context_factory, caplog):
-    """Tests that the processor injects an error message if the manifest provider fails."""
+@patch('autobyteus.agent.system_prompt_processor.tool_manifest_injector_processor.default_tool_registry')
+def test_process_when_manifest_provider_fails(mock_registry, MockToolManifestProvider, processor: ToolManifestInjectorProcessor, mock_context_factory, caplog):
+    """Tests that the original prompt is returned if the manifest provider fails."""
     caplog.set_level(logging.ERROR)
     mock_context = mock_context_factory(provider=LLMProvider.ANTHROPIC)
+    
+    # Mock the tool definition lookup
+    mock_tool_def = MagicMock()
+    mock_registry.get_tool_definition.return_value = mock_tool_def
+    
+    # Mock the provider to raise an exception
     mock_provider_instance = MockToolManifestProvider.return_value
     mock_provider_instance.provide.side_effect = RuntimeError("Manifest Generation Failed")
 
     tools = {"AlphaTool": MagicMock(spec=BaseTool)}
-    prompt = "Tools list: {{tools}}"
-    processed_prompt = processor.process(prompt, tools, mock_context.agent_id, mock_context)
+    original_prompt = "You are a helpful assistant."
+    
+    processed_prompt = processor.process(original_prompt, tools, mock_context.agent_id, mock_context)
 
     # Assert that the error was logged
-    assert "An unexpected error occurred during tool manifest generation" in caplog.text
-    # Assert that the fallback error message was injected
-    assert "Error: Could not generate tool descriptions." in processed_prompt
-    assert "{{tools}}" not in processed_prompt
+    assert "Failed to generate tool manifest" in caplog.text
+    # Assert original prompt is returned on failure
+    assert processed_prompt == original_prompt
 
-def test_process_with_invalid_jinja_template(processor: ToolManifestInjectorProcessor, mock_context_factory, caplog):
-    """Tests that an invalid Jinja2 template is returned as-is."""
-    caplog.set_level(logging.ERROR)
+
+@patch('autobyteus.agent.system_prompt_processor.tool_manifest_injector_processor.ToolManifestProvider')
+@patch('autobyteus.agent.system_prompt_processor.tool_manifest_injector_processor.default_tool_registry')
+def test_process_logs_tool_count(mock_registry, MockToolManifestProvider, processor: ToolManifestInjectorProcessor, mock_context_factory, caplog):
+    """Tests that the processor logs the number of injected tools."""
+    caplog.set_level(logging.INFO)
     mock_context = mock_context_factory(provider=LLMProvider.OPENAI)
-    # This prompt has an unclosed Jinja2 expression
-    invalid_prompt = "This is an invalid template {{ tools "
     
-    processed_prompt = processor.process(invalid_prompt, {"SomeTool": MagicMock(spec=BaseTool)}, mock_context.agent_id, mock_context)
+    # Mock the tool definition lookup
+    mock_tool_def = MagicMock()
+    mock_registry.get_tool_definition.return_value = mock_tool_def
+    
+    # Mock the manifest provider
+    mock_provider_instance = MockToolManifestProvider.return_value
+    mock_provider_instance.provide.return_value = "Tool manifest here"
 
-    # Assert error was logged
-    assert "Failed to create PromptTemplate from system prompt" in caplog.text
-    # Assert the original, unmodified prompt is returned
-    assert processed_prompt == invalid_prompt
+    tools = {
+        "ToolA": MagicMock(spec=BaseTool),
+        "ToolB": MagicMock(spec=BaseTool),
+    }
+    
+    processor.process("Base prompt", tools, mock_context.agent_id, mock_context)
+
+    assert "Injected 2 tools" in caplog.text

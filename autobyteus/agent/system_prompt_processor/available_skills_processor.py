@@ -20,6 +20,10 @@ class AvailableSkillsProcessor(BaseSystemPromptProcessor):
     def get_name(cls) -> str:
         return "AvailableSkillsProcessor"
 
+    @classmethod
+    def is_mandatory(cls) -> bool:
+        return True
+
     def process(self,
                 system_prompt: str,
                 tool_instances: Dict[str, 'BaseTool'],

@@ -93,8 +93,6 @@ async def main(args: argparse.Namespace):
             "### Rules\n"
             "- To delegate a task, you MUST use the `send_message_to` tool.\n"
             "- You MUST use the agent's unique, case-sensitive `name` as the recipient (e.g., 'FactChecker').\n\n"
-            "### Your Tools\n"
-            "{{tools}}\n\n"
             "### Your Task\n"
             "Analyze the user's request and delegate it to the appropriate team member."
         ),

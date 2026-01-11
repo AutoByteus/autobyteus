@@ -183,9 +183,7 @@ async def main(args: argparse.Namespace):
     system_prompt = (
         f"You are a world-class poet working inside a dedicated file workspace. Your task is to write a creative and beautiful poem on the given topic.\n"
         f"After composing the poem, you MUST use the available tool to save your work. Because you are in a workspace, you only need to provide a relative path; simply use the filename '{args.poem_filename}'.\n"
-        f"Conclude your response with only the tool call necessary to save the poem.\n\n"
-        f"Here is the manifest of tools available to you, including their definitions and examples:\n"
-        f"{{{{tools}}}}"
+        f"Conclude your response with only the tool call necessary to save the poem."
     )
 
     try:

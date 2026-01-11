@@ -221,9 +221,7 @@ async def main(args: argparse.Namespace):
             "You have access to a set of specialized tools for this purpose.\n\n"
             "When asked to create a presentation, you should use the 'gslides_create_presentation' tool.\n"
             "When asked to add content, you should find out what kind of content and use the 'gslides_batch_update_presentation' tool with the correct request objects.\n"
-            "When asked to summarize a presentation, use the 'gslides_summarize_presentation' tool.\n\n"
-            "Here is the manifest of tools available to you, including their definitions and examples:\n"
-            "{{tools}}"
+            "When asked to summarize a presentation, use the 'gslides_summarize_presentation' tool."
         )
 
         gslides_agent_config = AgentConfig(

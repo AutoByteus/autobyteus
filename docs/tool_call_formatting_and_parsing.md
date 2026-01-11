@@ -48,7 +48,7 @@ ToolManifestProvider
       │  (ToolFormattingRegistry selects schema + example formatters)
       ▼
 ToolManifestInjectorProcessor
-      │  (injects {{tools}} into system prompt)
+      │  (appends "Accessible Tools" section to system prompt)
       ▼
 LLM
       ▼
@@ -135,8 +135,8 @@ The manifest itself is composed by `ToolManifestProvider`:
 - For JSON, renders schema dictionaries and embeds examples as formatted strings.
 
 The manifest is injected into the system prompt by
-`ToolManifestInjectorProcessor` using a Jinja2-style placeholder `{{tools}}`.
-If the prompt is tools-only, a default instruction prefix is added.
+`ToolManifestInjectorProcessor`, which appends an "Accessible Tools" section
+directly at the end of the system prompt. No placeholder is required.
 
 Key files:
 

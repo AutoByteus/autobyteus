@@ -140,7 +140,7 @@ async def main(args: argparse.Namespace):
             role="Operator",
             description="An agent capable of image operations using local skills.",
             llm_instance=llm_instance,
-            system_prompt="You are a helpful assistant. Use your skills to answer user requests.\n\nTools:\n{{tools}}",
+            system_prompt="You are a helpful assistant. Use your skills to answer user requests.",
             tools=tools,
             skills=[skill_path], # <--- Preloading the skill via path
             auto_execute_tools=False # Let user see the command before execution

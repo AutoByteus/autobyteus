@@ -229,9 +229,7 @@ async def main(args: argparse.Namespace):
             "by using a specialized set of tools.\n"
             "When a user asks to query the database, you must formulate the correct SQL statement and use the appropriate tool to execute it.\n"
             "If a user asks about the tables or their schemas, use the tools available for listing tables or describing their structure.\n"
-            "Always analyze the user's request carefully to determine the best tool and parameters for the job.\n\n"
-            "Here is the manifest of tools available to you, including their definitions and examples:\n"
-            "{{tools}}"
+            "Always analyze the user's request carefully to determine the best tool and parameters for the job."
         )
 
         sqlite_agent_config = AgentConfig(

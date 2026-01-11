@@ -62,7 +62,7 @@ All processors share a common architectural pattern:
 - **Role**: Dynamically construct or modify the system prompt sent to the LLM.
 - **Key Implementation**: `ToolManifestInjectorProcessor`.
   - This processor is responsible for injecting the descriptions of available tools (the "Manifest") into the system prompt, ensuring the LLM knows what actions it can take.
-  - It typically replaces a placeholder like `{{tools}}` with the formatted tool definitions.
+  - It appends an "Accessible Tools" section directly at the end of the system prompt.
 - **Execution Timing (Important)**: System prompt processors run **once during bootstrapping** in `SystemPromptProcessingStep`. They are **not** invoked before every LLM call.
 
 #### C. LLM Response Processors (`agent/llm_response_processor`)
