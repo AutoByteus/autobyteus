@@ -13,6 +13,7 @@ from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 from autobyteus.llm.user_message import LLMUserMessage
 from autobyteus.utils.gemini_helper import initialize_gemini_client_with_runtime
 from autobyteus.utils.gemini_model_mapping import resolve_model_for_runtime
+from autobyteus.llm.converters import convert_gemini_tool_calls
 from autobyteus.llm.utils.media_payload_formatter import media_source_to_base64, get_mime_type
 
 logger = logging.getLogger(__name__)
@@ -136,9 +137,33 @@ class GeminiLLM(BaseLLM):
         self.add_user_message(user_message)
         complete_response = ""
         
+        # Extract tools if provided
+        tools = kwargs.get("tools")
+        
         try:
             history = await _format_gemini_history(self.messages)
             generation_config = self._get_generation_config()
+            
+            # Add tools to config if present
+            # Note: In google.genai, tools can be passed in config
+            if tools:
+                # Auto-wrap tools if they appear to be raw function declarations
+                if isinstance(tools, list) and len(tools) > 0:
+                    first_tool = tools[0]
+                    # Check if it's a raw declaration (dict with name/description) but NOT a wrapper (dict with function_declarations)
+                    if isinstance(first_tool, dict):
+                        is_declaration = "name" in first_tool and "description" in first_tool
+                        is_wrapper = "function_declarations" in first_tool
+                        
+                        if is_declaration and not is_wrapper:
+                             # Wrap the list of declarations into a single Tool structure
+                             tools = [{"function_declarations": tools}]
+
+                try:
+                    generation_config.tools = tools
+                except Exception:
+                    # Fallback or strict strict typing issues
+                    pass
 
             # FIX: Removed 'models/' prefix to support Vertex AI
             runtime_adjusted_model = resolve_model_for_runtime(
@@ -146,19 +171,39 @@ class GeminiLLM(BaseLLM):
                 modality="llm",
                 runtime=getattr(self, "runtime_info", None) and self.runtime_info.runtime,
             )
-            response_stream = await self.async_client.models.generate_content_stream(
-                model=runtime_adjusted_model,
-                contents=history,
-                config=generation_config,
-            )
+            
+            # Prepare call args
+            call_kwargs = {
+                "model": runtime_adjusted_model,
+                "contents": history,
+                "config": generation_config,
+            }
+            # If explicit tools argument is needed and not supported in config for this SDK version:
+            # call_kwargs['tools'] = tools 
+            # But usually config holds it.
+
+            response_stream = await self.async_client.models.generate_content_stream(**call_kwargs)
 
             async for chunk in response_stream:
                 chunk_text = chunk.text
-                complete_response += chunk_text
-                yield ChunkResponse(
-                    content=chunk_text,
-                    is_complete=False
-                )
+                if chunk_text:
+                    complete_response += chunk_text
+                    yield ChunkResponse(
+                        content=chunk_text,
+                        is_complete=False
+                    )
+                
+                # Handle tool calls
+                # Iterate parts in the candidate
+                if chunk.candidates and chunk.candidates[0].content and chunk.candidates[0].content.parts:
+                    for part in chunk.candidates[0].content.parts:
+                        tool_calls = convert_gemini_tool_calls(part)
+                        if tool_calls:
+                            yield ChunkResponse(
+                                content="",
+                                tool_calls=tool_calls,
+                                is_complete=False
+                            )
 
             self.add_assistant_message(complete_response)
 

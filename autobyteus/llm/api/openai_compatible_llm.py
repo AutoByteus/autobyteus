@@ -74,14 +74,18 @@ class OpenAICompatibleLLM(BaseLLM, ABC):
         else:
             effective_config = llm_config or LLMConfig()
 
+        # Try to get from env
         api_key = os.getenv(api_key_env_var)
+        
+        # If not in env, try default (explicit check)
+        if (api_key is None or api_key == "") and api_key_default is not None:
+            api_key = api_key_default
+            logger.info(f"{api_key_env_var} not set, using default key: {api_key_default}")
+
+        # Final check
         if not api_key:
-            if api_key_default:
-                api_key = api_key_default
-                logger.info(f"{api_key_env_var} not set, using default key.")
-            else:
-                logger.error(f"{api_key_env_var} environment variable is not set.")
-                raise ValueError(f"{api_key_env_var} environment variable is not set.")
+             logger.error(f"{api_key_env_var} environment variable is not set and no default provided.")
+             raise ValueError(f"{api_key_env_var} environment variable is not set. Default was: {api_key_default}")
 
         self.client = OpenAI(api_key=api_key, base_url=base_url)
         logger.info(f"Initialized OpenAI compatible client with base_url: {base_url}")
@@ -157,6 +161,7 @@ class OpenAICompatibleLLM(BaseLLM, ABC):
 
         accumulated_reasoning = ""
         accumulated_content = ""
+        tool_calls_logged = False
 
         try:
             formatted_messages = await _format_openai_history(self.messages)
@@ -173,6 +178,10 @@ class OpenAICompatibleLLM(BaseLLM, ABC):
                 params["max_completion_tokens"] = self.max_tokens
             if self.config.extra_params:
                 params.update(self.config.extra_params)
+            
+            # Include tools if provided (for API tool calls)
+            if kwargs.get("tools"):
+                params["tools"] = kwargs["tools"]
 
             stream = self.client.chat.completions.create(**params)
 
@@ -195,10 +204,30 @@ class OpenAICompatibleLLM(BaseLLM, ABC):
                     yield ChunkResponse(content="", reasoning=reasoning_chunk)
                 # --- END PRESERVED LOGIC ---
 
+                # Convert SDK tool calls to normalized ToolCallDelta
+                tool_call_deltas = None
+                if hasattr(delta, 'tool_calls') and delta.tool_calls:
+                    from autobyteus.llm.converters.openai_tool_call_converter import convert_openai_tool_calls
+                    tool_call_deltas = convert_openai_tool_calls(delta.tool_calls)
+                    if tool_call_deltas and not tool_calls_logged:
+                        logger.info(
+                            "Streaming tool call deltas received from %s (count=%d).",
+                            self.model.provider.value,
+                            len(tool_call_deltas),
+                        )
+                        tool_calls_logged = True
+
                 main_token = delta.content
-                if main_token:
-                    accumulated_content += main_token
-                    yield ChunkResponse(content=main_token, reasoning=None)
+                
+                # Yield if we have content OR tool calls
+                if main_token or tool_call_deltas:
+                    if main_token:
+                        accumulated_content += main_token
+                    yield ChunkResponse(
+                        content=main_token or "",
+                        reasoning=None,
+                        tool_calls=tool_call_deltas
+                    )
 
                 if hasattr(chunk, "usage") and chunk.usage is not None:
                     token_usage = self._create_token_usage(chunk.usage)

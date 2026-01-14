@@ -106,6 +106,7 @@ PARSER_REGISTRY: Dict[str, Callable[[Optional[ParserConfig]], StreamingParserPro
     "xml": _build_xml,
     "json": _build_json,
     "native": _build_native,
+    "api_tool_call": _build_native,
     "sentinel": _build_sentinel,
 }
 

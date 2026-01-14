@@ -9,6 +9,12 @@ from autobyteus.agent.streaming import (
     SegmentType,
     SegmentEventType,
 )
+from autobyteus.llm.utils.response_types import ChunkResponse
+
+
+def chunk(content: str) -> ChunkResponse:
+    """Helper to create ChunkResponse from text."""
+    return ChunkResponse(content=content)
 
 
 class TestFullStreamingFlow:
@@ -36,8 +42,8 @@ class TestFullStreamingFlow:
             "\n\nHere's what I found."
         ]
         
-        for chunk in chunks:
-            handler.feed(chunk)
+        for c in chunks:
+            handler.feed(chunk(c))
         
         handler.finalize()
         

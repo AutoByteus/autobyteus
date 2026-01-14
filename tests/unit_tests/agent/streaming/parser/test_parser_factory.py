@@ -33,6 +33,12 @@ def test_create_native_parser_disables_tool_parsing():
     assert parser.config.parse_tool_calls is False
 
 
+def test_create_api_tool_call_parser_aliases_native():
+    config = ParserConfig(parse_tool_calls=True, strategy_order=["xml_tag"])
+    parser = create_streaming_parser(config=config, parser_name="api_tool_call")
+    assert parser.config.parse_tool_calls is False
+
+
 def test_create_sentinel_parser():
     parser = create_streaming_parser(parser_name="sentinel")
     assert isinstance(parser, StreamingParser)

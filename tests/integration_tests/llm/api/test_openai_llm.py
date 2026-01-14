@@ -110,3 +110,45 @@ async def test_stream_user_message(openai_llm):
     assert openai_llm.messages[2].content == complete_response
 
     await openai_llm.cleanup()
+
+@pytest.mark.asyncio
+async def test_openai_tool_calls(openai_llm):
+    """Test tool call streaming from OpenAI model."""
+    from autobyteus.tools.registry import default_tool_registry
+    from autobyteus.tools.usage.formatters.openai_json_schema_formatter import OpenAiJsonSchemaFormatter
+    
+    # Use write_file as the test tool
+    tool_def = default_tool_registry.get_tool_definition("write_file")
+    assert tool_def, "write_file tool definition not found in registry"
+    
+    # Format tool for OpenAI
+    formatter = OpenAiJsonSchemaFormatter()
+    openai_tools = [formatter.provide(tool_def)]
+    
+    user_message = LLMUserMessage(content="Write a file named 'hello.txt' with content 'Hello World'")
+    
+    tool_calls_received = []
+    
+    async for chunk in openai_llm._stream_user_message_to_llm(
+        user_message,
+        tools=openai_tools
+    ):
+        if chunk.tool_calls:
+             tool_calls_received.extend(chunk.tool_calls)
+    
+    # Depending on how the chunks are yielded (aggregated or delta), we might get multiple updates.
+    # But usually the user just wants to see ANY tool calls.
+    assert len(tool_calls_received) > 0, "No tool calls received"
+    
+    # Check structure of the first tool call
+    first_call = tool_calls_received[0]
+    # In autobyteus, we expect internal normalized tool calls
+    # Usually the first chunk has the name
+    if first_call.name:
+         assert isinstance(first_call.name, str)
+    
+    # It must be a ToolCallDelta
+    from autobyteus.llm.utils.tool_call_delta import ToolCallDelta
+    assert isinstance(first_call, ToolCallDelta)
+    
+    await openai_llm.cleanup()

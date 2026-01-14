@@ -123,7 +123,7 @@ async def test_gemini_stream_user_message(gemini_llm):
 @pytest.mark.asyncio
 async def test_gemini_multimodal_image(gemini_llm):
     """Test sending an image to Gemini."""
-    image_path = os.path.abspath("image.png")
+    image_path = os.path.abspath("tests/assets/sample_image.png")
     # Ensure image exists
     if not os.path.exists(image_path):
         pytest.skip(f"Image not found at {image_path}")
@@ -168,3 +168,35 @@ async def test_gemini_multimodal_video(gemini_llm):
     assert isinstance(response, CompleteResponse)
     print(f"\nVideo Response content: {response.content}\n")
     assert len(response.content) > 0
+
+@pytest.mark.asyncio
+async def test_gemini_llm_tool_calls(gemini_llm):
+    """Test that Gemini LLM can generate tool calls in the stream."""
+    from autobyteus.tools.registry import default_tool_registry
+    from autobyteus.tools.usage.formatters.gemini_json_schema_formatter import GeminiJsonSchemaFormatter
+
+    # 1. Setup Tool
+    tool_def = default_tool_registry.get_tool_definition("write_file")
+    assert tool_def
+    formatter = GeminiJsonSchemaFormatter()
+    # Note: GeminiLLM now handles auto-wrapping, so we pass raw schema
+    tool_schema = formatter.provide(tool_def)
+    
+    # 2. Stream
+    user_message = LLMUserMessage(content="Write a python file named tool_test.py with content 'print(1)'")
+    
+    tool_calls_found = False
+    async for chunk in gemini_llm._stream_user_message_to_llm(
+        user_message,
+        tools=[tool_schema]
+    ):
+        if chunk.tool_calls:
+            tool_calls_found = True
+            for delta in chunk.tool_calls:
+                assert delta.name == "write_file"
+                assert delta.arguments_delta
+                print(f"Tool Call Delta: {delta}")
+    
+    assert tool_calls_found, "Did not receive any tool calls from Gemini"
+    
+    await gemini_llm.cleanup()

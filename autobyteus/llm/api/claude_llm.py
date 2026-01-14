@@ -9,6 +9,7 @@ from autobyteus.llm.utils.messages import MessageRole, Message
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 from autobyteus.llm.user_message import LLMUserMessage
+from autobyteus.llm.converters import convert_anthropic_tool_call
 
 logger = logging.getLogger(__name__)
 
@@ -110,22 +111,38 @@ class ClaudeLLM(BaseLLM):
         complete_response = ""
         final_message = None
 
-        # NOTE: This implementation does not yet support multimodal inputs for Claude.
-        # It will only send the text content.
+        # Extract tools if provided
+        tools = kwargs.get("tools")
 
         try:
-            with self.client.messages.stream(
-                model=self.model.value,
-                max_tokens=self.max_tokens,
-                temperature=0,
-                system=self.system_message,
-                messages=self._get_non_system_messages(),
-            ) as stream:
+            # Prepare arguments for stream
+            stream_kwargs = {
+                "model": self.model.value,
+                "max_tokens": self.max_tokens,
+                "temperature": 0,
+                "system": self.system_message,
+                "messages": self._get_non_system_messages(),
+            }
+            
+            if tools:
+                stream_kwargs["tools"] = tools
+
+            with self.client.messages.stream(**stream_kwargs) as stream:
                 for event in stream:
+                    # Handle text content
                     if event.type == "content_block_delta" and event.delta.type == "text_delta":
                         complete_response += event.delta.text
                         yield ChunkResponse(
                             content=event.delta.text,
+                            is_complete=False
+                        )
+                    
+                    # Handle tool calls using common converter
+                    tool_calls = convert_anthropic_tool_call(event)
+                    if tool_calls:
+                         yield ChunkResponse(
+                            content="",
+                            tool_calls=tool_calls,
                             is_complete=False
                         )
                     

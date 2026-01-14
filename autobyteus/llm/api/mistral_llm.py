@@ -136,46 +136,116 @@ class MistralLLM(BaseLLM):
         
         try:
             mistral_messages = await _format_mistral_messages(self.messages)
+            
+            # Raw HTTP streaming to bypass SDK validation issues with tool calls
+            api_key = os.environ.get("MISTRAL_API_KEY")
+            if not api_key:
+                raise ValueError("MISTRAL_API_KEY not set")
 
-            # stream_async is an async function returning an async iterator.
-            stream = await self.client.chat.stream_async(
-                model=self.model.value,
-                messages=mistral_messages,
-                temperature=self.config.temperature,
-                max_tokens=self.config.max_tokens,
-                top_p=self.config.top_p,
-            )
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+                "Accept": "text/event-stream"
+            }
+            
+            payload = {
+                "model": self.model.value,
+                "messages": mistral_messages,
+                "temperature": self.config.temperature,
+                "max_tokens": self.config.max_tokens,
+                "top_p": self.config.top_p,
+                "stream": True
+            }
+            # Filter None values
+            payload = {k: v for k, v in payload.items() if v is not None}
+            
+            if kwargs.get("tools"):
+                payload["tools"] = kwargs.get("tools")
+                payload["tool_choice"] = "auto"
 
-            async for event in stream:
-                chunk = event.data  # CompletionChunk
-                if chunk.choices and chunk.choices[0].delta.content is not None:
-                    token_content = chunk.choices[0].delta.content
+            # Use internal httpx client logic or create new one context
+            async with httpx.AsyncClient() as client:
+                req = client.build_request("POST", "https://api.mistral.ai/v1/chat/completions", headers=headers, json=payload, timeout=60.0)
+                # Do not set stream=True for python client, let it buffer content automatically.
+                # The API will still stream SSE but client reads until close.
+                response = await client.send(req)
+                
+                try:
+                    if response.status_code != 200:
+                        # response.read() is not needed if stream=False, it's already read
+                        error_text = response.text
+                        raise ValueError(f"Mistral API error: {response.status_code} - {error_text}")
 
-                    # content may be a string or a structured part list; normalize to str
-                    if isinstance(token_content, list):
-                        token = "".join(
-                            part.get("text", "") if isinstance(part, dict) else str(part)
-                            for part in token_content
-                        )
-                    else:
-                        token = str(token_content)
+                    buffer = ""
+                    # Content is already in response.text
+                    buffer = response.text
+                    
+                    # Split buffer into lines and process like stream
+                    lines = buffer.split('\n')
+                    for line in lines:
+                        line = line.strip()
+                        if not line or line == "":
+                            continue
+                        
+                        if line.startswith("data: "):
+                            data_str = line[6:]
+                            if data_str.strip() == "[DONE]":
+                                break
+                            
+                            try:
+                                import json
+                                chunk_data = json.loads(data_str)
+                                
+                                if "choices" in chunk_data and chunk_data["choices"]:
+                                    choice = chunk_data["choices"][0]
+                                    delta = choice.get("delta", {})
+                                    
+                                    if "tool_calls" in delta and delta["tool_calls"]:
+                                        from autobyteus.llm.converters.mistral_tool_call_converter import convert_mistral_tool_calls
+                                        tool_calls = convert_mistral_tool_calls(delta["tool_calls"])
+                                        if tool_calls:
+                                            yield ChunkResponse(
+                                                content="",
+                                                tool_calls=tool_calls,
+                                                is_complete=False
+                                            )
 
-                    accumulated_message += token
-                    yield ChunkResponse(content=token, is_complete=False)
+                                    content = delta.get("content")
+                                    if content:
+                                         accumulated_message += content
+                                         yield ChunkResponse(content=content, is_complete=False)
+                                
+                                if chunk_data.get("usage"):
+                                     final_usage_data = chunk_data.get("usage")
+                                     from collections import namedtuple
+                                     UsageObj = namedtuple('UsageObj', ['prompt_tokens', 'completion_tokens', 'total_tokens'])
+                                     usage_obj = UsageObj(
+                                        prompt_tokens=final_usage_data.get('prompt_tokens', 0),
+                                        completion_tokens=final_usage_data.get('completion_tokens', 0),
+                                        total_tokens=final_usage_data.get('total_tokens', 0)
+                                     )
+                                     final_usage = self._create_token_usage(usage_obj)
 
-                if hasattr(chunk, 'usage') and chunk.usage:
-                    final_usage = self._create_token_usage(chunk.usage)
+                            except json.JSONDecodeError:
+                                logger.warning(f"Failed to decode Mistral stream line: {line}")
+                                continue
+                finally:
+                    await response.aclose()
 
-            # Yield the final chunk with usage data
+            # Yield the final chunk
             yield ChunkResponse(
                 content="",
                 is_complete=True,
                 usage=final_usage
             )
             
-            self.add_assistant_message(accumulated_message)
+            if accumulated_message:
+                self.add_assistant_message(accumulated_message)
+
         except Exception as e:
             logger.error(f"Error in Mistral API streaming call: {str(e)}")
+            import traceback
+            traceback.print_exc()
             raise ValueError(f"Error in Mistral API streaming call: {str(e)}")
     
     async def cleanup(self):

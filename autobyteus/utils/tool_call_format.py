@@ -8,14 +8,15 @@ from typing import Optional
 
 
 ENV_TOOL_CALL_FORMAT = "AUTOBYTEUS_STREAM_PARSER"
-_VALID_FORMATS = {"xml", "json", "sentinel", "native"}
+_VALID_FORMATS = {"xml", "json", "sentinel", "api_tool_call", "native"}
 
 
 def resolve_tool_call_format() -> Optional[str]:
     """
     Resolve the tool-call format from environment.
 
-    Returns one of: "xml", "json", "sentinel", "native".
+    Returns one of: "xml", "json", "sentinel", "api_tool_call".
+    Accepts "native" as a legacy alias for "api_tool_call".
     Defaults to "xml" when unset/invalid to keep formatting consistent.
     """
     value = os.getenv(ENV_TOOL_CALL_FORMAT)
@@ -23,7 +24,7 @@ def resolve_tool_call_format() -> Optional[str]:
         return "xml"
     value = value.strip().lower()
     if value in _VALID_FORMATS:
-        return value
+        return "api_tool_call" if value == "native" else value
     return "xml"
 
 
