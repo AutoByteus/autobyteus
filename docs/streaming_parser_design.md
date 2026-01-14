@@ -280,22 +280,21 @@ The streaming system supports multiple parser strategies selected at runtime.
 
 Environment variable:
 
-- `AUTOBYTEUS_STREAM_PARSER`: `xml` (default), `json`, `sentinel`, `api_tool_call` (legacy alias: `native`)
+- `AUTOBYTEUS_STREAM_PARSER`: `xml`, `json`, `sentinel`, `api_tool_call`
 
 Agent default:
 
-- If `AUTOBYTEUS_STREAM_PARSER` is not set, `AgentConfig` defaults to `api_tool_call`.
+- If `AUTOBYTEUS_STREAM_PARSER` is not set, the default is `api_tool_call`.
 
-When no override is set, the agent handler selects a parser strategy based on
-provider (XML for Anthropic, JSON for most others). JSON parsing also uses
-provider-aware signature patterns and parsing strategies to match tool
-formatting examples.
+When `AUTOBYTEUS_STREAM_PARSER` is set to `xml` or `json`, the agent handler
+selects the corresponding parser strategy. JSON parsing uses provider-aware
+signature patterns and parsing strategies to match tool formatting examples.
 
 Strategy notes:
 
 - `xml`: state-machine parser tuned for XML tag detection.
 - `json`: state-machine parser tuned for JSON tool detection.
-- `api_tool_call` (legacy: `native`): disables tool-tag parsing; tool calls are expected from the provider's native tool stream.
+- `api_tool_call`: disables tool-tag parsing; tool calls are expected from the provider's native tool stream.
 - `sentinel`: sentinel-based format using explicit start/end markers.
   - Sentinel format uses explicit start/end markers with a JSON header.
 

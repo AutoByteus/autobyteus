@@ -46,7 +46,7 @@ class StreamingResponseHandlerFactory:
                 segment_id_prefix=segment_id_prefix,
             )
 
-        if override in {"api_tool_call", "native"}:
+        if override == "api_tool_call":
             logger.debug(
                 "Agent '%s': Configuring ApiToolCallStreamingResponseHandler",
                 agent_id or "unknown",

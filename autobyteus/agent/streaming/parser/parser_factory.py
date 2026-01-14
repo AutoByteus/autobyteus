@@ -87,10 +87,10 @@ def _build_json(config: Optional[ParserConfig]) -> StreamingParserProtocol:
     return StreamingParser(config=json_config)
 
 
-def _build_native(config: Optional[ParserConfig]) -> StreamingParserProtocol:
-    # Native tool calls handled elsewhere; keep tag parsing but disable tool parsing.
-    native_config = _clone_config(config, parse_tool_calls=False)
-    return StreamingParser(config=native_config)
+def _build_api_tool_call(config: Optional[ParserConfig]) -> StreamingParserProtocol:
+    # API tool calls handled elsewhere; keep tag parsing but disable tool parsing.
+    api_tool_call_config = _clone_config(config, parse_tool_calls=False)
+    return StreamingParser(config=api_tool_call_config)
 
 
 def _build_sentinel(config: Optional[ParserConfig]) -> StreamingParserProtocol:
@@ -105,8 +105,7 @@ def _build_sentinel(config: Optional[ParserConfig]) -> StreamingParserProtocol:
 PARSER_REGISTRY: Dict[str, Callable[[Optional[ParserConfig]], StreamingParserProtocol]] = {
     "xml": _build_xml,
     "json": _build_json,
-    "native": _build_native,
-    "api_tool_call": _build_native,
+    "api_tool_call": _build_api_tool_call,
     "sentinel": _build_sentinel,
 }
 

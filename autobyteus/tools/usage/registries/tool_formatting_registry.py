@@ -126,7 +126,7 @@ class ToolFormattingRegistry(metaclass=SingletonMeta):
         if format_override == "json":
             logger.info("Tool format resolved to JSON (env override).")
             return self._default_pair
-        if format_override in {"sentinel", "native", "api_tool_call"}:
+        if format_override in {"sentinel", "api_tool_call"}:
             logger.info(
                 "Tool format '%s' is not supported by formatter registry. "
                 "Falling back to JSON formatters.",

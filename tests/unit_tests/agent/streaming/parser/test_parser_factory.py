@@ -18,8 +18,8 @@ def test_resolve_parser_name_defaults_to_xml(monkeypatch):
 
 
 def test_resolve_parser_name_env_override(monkeypatch):
-    monkeypatch.setenv(ENV_PARSER_NAME, "native")
-    assert resolve_parser_name() == "native"
+    monkeypatch.setenv(ENV_PARSER_NAME, "api_tool_call")
+    assert resolve_parser_name() == "api_tool_call"
 
 
 def test_create_xml_parser():
@@ -27,16 +27,15 @@ def test_create_xml_parser():
     assert isinstance(parser, StreamingParser)
 
 
-def test_create_native_parser_disables_tool_parsing():
-    config = ParserConfig(parse_tool_calls=True, strategy_order=["xml_tag"])
-    parser = create_streaming_parser(config=config, parser_name="native")
-    assert parser.config.parse_tool_calls is False
-
-
-def test_create_api_tool_call_parser_aliases_native():
+def test_create_api_tool_call_parser_disables_tool_parsing():
     config = ParserConfig(parse_tool_calls=True, strategy_order=["xml_tag"])
     parser = create_streaming_parser(config=config, parser_name="api_tool_call")
     assert parser.config.parse_tool_calls is False
+
+
+def test_create_native_parser_removed_raises():
+    with pytest.raises(ValueError):
+        create_streaming_parser(parser_name="native")
 
 
 def test_create_sentinel_parser():

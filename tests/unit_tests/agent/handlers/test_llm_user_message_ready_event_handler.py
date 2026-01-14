@@ -17,7 +17,7 @@ def mock_llm():
     return MagicMock()
 
 @pytest.mark.asyncio
-async def test_streaming_safe_parsing(handler, agent_context, mock_llm):
+async def test_streaming_safe_parsing(handler, agent_context, mock_llm, monkeypatch):
     """Test that the handler uses StreamingResponseHandler to safeguard the stream."""
     
     # Setup context
@@ -25,7 +25,7 @@ async def test_streaming_safe_parsing(handler, agent_context, mock_llm):
     mock_llm.model.provider = LLMProvider.ANTHROPIC
     agent_context.state.llm_instance = mock_llm
     # Explicitly set XML mode for this test as it verifies XML tag buffering
-    agent_context.config.tool_call_format = "xml"
+    monkeypatch.setenv("AUTOBYTEUS_STREAM_PARSER", "xml")
     # Use MagicMock because notify methods are synchronous
     if not isinstance(agent_context.status_manager.notifier, MagicMock):
         agent_context.status_manager.notifier = MagicMock()
@@ -79,13 +79,13 @@ async def test_streaming_safe_parsing(handler, agent_context, mock_llm):
 
 
 @pytest.mark.asyncio
-async def test_provider_specific_json_tool_parsing(handler, agent_context, mock_llm):
+async def test_provider_specific_json_tool_parsing(handler, agent_context, mock_llm, monkeypatch):
     """Handler should use provider-aware JSON parsing when JSON parser is enabled."""
     # Setup context with a Gemini provider
     mock_llm.model = MagicMock()
     mock_llm.model.provider = LLMProvider.GEMINI
     agent_context.state.llm_instance = mock_llm
-    agent_context.config.tool_call_format = "json"
+    monkeypatch.setenv("AUTOBYTEUS_STREAM_PARSER", "json")
 
     if not isinstance(agent_context.status_manager.notifier, MagicMock):
         agent_context.status_manager.notifier = MagicMock()
@@ -114,14 +114,14 @@ async def test_provider_specific_json_tool_parsing(handler, agent_context, mock_
 
 
 @pytest.mark.asyncio
-async def test_no_tools_uses_passthrough_handler(handler, agent_context, mock_llm):
+async def test_no_tools_uses_passthrough_handler(handler, agent_context, mock_llm, monkeypatch):
     """Handler should use PassThroughStreamingResponseHandler when no tools are configured."""
     # Setup context with NO tools
     agent_context.config.tools = []
     agent_context.state.tool_instances = {}
     agent_context.state.llm_instance = mock_llm
     # PassThrough should be used regardless of mode if tools are empty, but logically mostly non-API
-    agent_context.config.tool_call_format = "xml"
+    monkeypatch.setenv("AUTOBYTEUS_STREAM_PARSER", "xml")
     
     # Mock mocks
     if not isinstance(agent_context.status_manager.notifier, MagicMock):
@@ -170,10 +170,10 @@ async def test_no_tools_uses_passthrough_handler(handler, agent_context, mock_ll
     assert not agent_context.input_event_queues.enqueue_tool_invocation_request.called
 
 @pytest.mark.asyncio
-async def test_api_tool_call_handler_selection_and_schema_passing(handler, agent_context, mock_llm):
-    """Handler should use ApiToolCallStreamingResponseHandler and pass schemas when tool_call_format is api_tool_call."""
+async def test_api_tool_call_handler_selection_and_schema_passing(handler, agent_context, mock_llm, monkeypatch):
+    """Handler should use ApiToolCallStreamingResponseHandler and pass schemas when env is api_tool_call."""
     # Setup context
-    agent_context.config.tool_call_format = "api_tool_call"
+    monkeypatch.setenv("AUTOBYTEUS_STREAM_PARSER", "api_tool_call")
     tool_name = agent_context.config.tools[0].get_name()
     mock_llm.model = MagicMock()
     mock_llm.model.provider = LLMProvider.OPENAI # Explicitly set a provider

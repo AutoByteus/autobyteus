@@ -21,8 +21,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-import os
-
 class AgentConfig:
     """
     Represents the complete, static configuration for an agent instance.
@@ -50,8 +48,7 @@ class AgentConfig:
                  workspace: Optional['BaseAgentWorkspace'] = None,
                  lifecycle_processors: Optional[List['BaseLifecycleEventProcessor']] = None,
                  initial_custom_data: Optional[Dict[str, Any]] = None,
-                 skills: Optional[List[str]] = None,
-                 tool_call_format: Optional[str] = None):
+                 skills: Optional[List[str]] = None):
         """
         Initializes the AgentConfig.
 
@@ -74,8 +71,6 @@ class AgentConfig:
             initial_custom_data: An optional dictionary of data to pre-populate
                                  the agent's runtime state `custom_data`.
             skills: An optional list of skill names or paths to be preloaded for this agent.
-            tool_call_format: Tool call format to use. If None, defaults to
-                              AUTOBYTEUS_STREAM_PARSER when set; otherwise "api_tool_call".
         """
         self.name = name
         self.role = role
@@ -85,11 +80,6 @@ class AgentConfig:
         self.tools = tools or []
         self.workspace = workspace
         self.auto_execute_tools = auto_execute_tools
-        if tool_call_format is not None:
-            self.tool_call_format = tool_call_format
-        else:
-            env_override = os.getenv("AUTOBYTEUS_STREAM_PARSER")
-            self.tool_call_format = resolve_tool_call_format() if env_override else "api_tool_call"
         self.input_processors = input_processors or []
         self.llm_response_processors = llm_response_processors if llm_response_processors is not None else list(self.DEFAULT_LLM_RESPONSE_PROCESSORS)
         
@@ -103,7 +93,8 @@ class AgentConfig:
         self.skills = skills or []
 
         # Filter out ToolManifestInjectorProcessor if in API_TOOL_CALL mode
-        if self.tool_call_format == "api_tool_call":
+        tool_call_format = resolve_tool_call_format()
+        if tool_call_format == "api_tool_call":
             self.system_prompt_processors = [
                 p for p in default_processors 
                 if not isinstance(p, ToolManifestInjectorProcessor)
@@ -115,7 +106,7 @@ class AgentConfig:
             "AgentConfig created for name='%s', role='%s'. Tool call format: %s",
             self.name,
             self.role,
-            self.tool_call_format,
+            tool_call_format,
         )
 
     def copy(self) -> 'AgentConfig':
@@ -142,7 +133,6 @@ class AgentConfig:
             lifecycle_processors=self.lifecycle_processors.copy(), # Shallow copy the list
             initial_custom_data=copy.deepcopy(self.initial_custom_data), # Deep copy for simple data
             skills=self.skills.copy(), # Shallow copy the list
-            tool_call_format=self.tool_call_format
         )
 
     def __repr__(self) -> str:

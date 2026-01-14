@@ -117,12 +117,10 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
             segment_id_prefix=segment_id_prefix,
         )
 
-        format_override = context.config.tool_call_format or resolve_tool_call_format()
+        format_override = resolve_tool_call_format()
         
         # Determine actual tool calling mode
-        use_api_tool_calls = (
-            format_override in {"api_tool_call", "native"} and parse_tool_calls
-        )
+        use_api_tool_calls = format_override == "api_tool_call" and parse_tool_calls
 
         logger.info(
             "Agent '%s': tool_call_format=%s, parse_tool_calls=%s, provider=%s",

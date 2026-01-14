@@ -4,28 +4,26 @@ Helpers for resolving tool-call format selection.
 from __future__ import annotations
 
 import os
-from typing import Optional
 
 
 ENV_TOOL_CALL_FORMAT = "AUTOBYTEUS_STREAM_PARSER"
-_VALID_FORMATS = {"xml", "json", "sentinel", "api_tool_call", "native"}
+_VALID_FORMATS = {"xml", "json", "sentinel", "api_tool_call"}
 
 
-def resolve_tool_call_format() -> Optional[str]:
+def resolve_tool_call_format() -> str:
     """
     Resolve the tool-call format from environment.
 
     Returns one of: "xml", "json", "sentinel", "api_tool_call".
-    Accepts "native" as a legacy alias for "api_tool_call".
-    Defaults to "xml" when unset/invalid to keep formatting consistent.
+    Defaults to "api_tool_call" when unset/invalid.
     """
     value = os.getenv(ENV_TOOL_CALL_FORMAT)
     if not value:
-        return "xml"
+        return "api_tool_call"
     value = value.strip().lower()
     if value in _VALID_FORMATS:
-        return "api_tool_call" if value == "native" else value
-    return "xml"
+        return value
+    return "api_tool_call"
 
 
 def is_xml_tool_format() -> bool:

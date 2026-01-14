@@ -155,7 +155,7 @@ Parsing is performed during streaming by the FSM-based `StreamingParser`.
   - `xml` (default): XML tag detection.
   - `json`: JSON tool detection.
   - `sentinel`: explicit sentinel markers.
-  - `api_tool_call` (legacy: `native`): disables tool-tag parsing (provider-native tool calls only).
+  - `api_tool_call`: disables tool-tag parsing (provider-native tool calls only).
 
 #### Provider-Aware JSON Parsing
 
@@ -212,9 +212,9 @@ Key files:
 - `AUTOBYTEUS_STREAM_PARSER` controls both the streaming parser strategy and
   the tool-call formatting override (`xml`, `json`, `sentinel`, `api_tool_call`).
 
-- If `AUTOBYTEUS_STREAM_PARSER` is not set, `AgentConfig` defaults to `api_tool_call`.
-- Defaults remain provider-aware (JSON for most, XML for Anthropic) when no
-  override is provided.
+- If `AUTOBYTEUS_STREAM_PARSER` is not set, the default is `api_tool_call`.
+- When `AUTOBYTEUS_STREAM_PARSER` is set to `xml` or `json`, provider-aware
+  parsing profiles apply (JSON for most providers, XML for Anthropic).
 
 Key files:
 
@@ -246,5 +246,5 @@ To add a new tool:
 ## Notes and Caveats
 
 - The streaming parser only interprets configured tag formats; unknown tags are streamed as text.
-- For provider-native tool calls, set `AUTOBYTEUS_STREAM_PARSER=api_tool_call` (or legacy `native`)
+- For provider-native tool calls, set `AUTOBYTEUS_STREAM_PARSER=api_tool_call`
   and rely on the provider stream.

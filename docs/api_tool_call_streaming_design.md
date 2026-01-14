@@ -57,7 +57,7 @@ API-provided tool calls. We need to:
                                   ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                   LLMUserMessageReadyEventHandler                             │
-│  Selects handler based on tool_call_format:                                  │
+│  Selects handler based on AUTOBYTEUS_STREAM_PARSER:                          │
 │    - "xml" / "json" / "sentinel" → ParsingStreamingResponseHandler           │
 │    - "api_tool_call"             → ApiToolCallStreamingResponseHandler       │
 └─────────────────────────────────┬────────────────────────────────────────────┘
@@ -581,12 +581,12 @@ async def _stream_user_message_to_llm(
 **Key changes**:
 
 1. Pass full `ChunkResponse` to handler (not just `chunk.content`)
-2. Select handler based on `tool_call_format`
-3. Rename `native` to `api_tool_call`
+2. Select handler based on `AUTOBYTEUS_STREAM_PARSER`
+3. Use `api_tool_call` for SDK tool calls
 
 ```python
 # Determine handler type
-format_override = context.config.tool_call_format or resolve_tool_call_format()
+format_override = resolve_tool_call_format()
 
 if format_override == "api_tool_call":
     # Use API tool call handler - no parsing needed
@@ -624,8 +624,8 @@ async for chunk_response in context.state.llm_instance.stream_user_message(llm_u
 
 `AUTOBYTEUS_STREAM_PARSER` values:
 
-- `xml` (default for Anthropic): Parse XML tags in text
-- `json` (default for OpenAI/Gemini): Parse JSON in text
+- `xml`: Parse XML tags in text
+- `json`: Parse JSON in text
 - `sentinel`: Parse sentinel-delimited tool calls in text
 - `api_tool_call`: Use SDK-provided tool calls (no text parsing)
 
@@ -635,8 +635,7 @@ async for chunk_response in context.state.llm_instance.stream_user_message(llm_u
 @dataclass
 class AgentConfig:
     # ...
-    tool_call_format: Optional[str] = None  # "xml", "json", "sentinel", "api_tool_call"
-    # If None, defaults to AUTOBYTEUS_STREAM_PARSER when set, otherwise "api_tool_call"
+    # Tool call format is controlled by AUTOBYTEUS_STREAM_PARSER (env var).
 ```
 
 ---
@@ -654,7 +653,7 @@ class AgentConfig:
 | `agent/streaming/handlers/pass_through_streaming_response_handler.py`  | Use `chunk.content`                          | MODIFIED |
 | `agent/streaming/handlers/api_tool_call_streaming_response_handler.py` | New handler for SDK tool calls               | **NEW**  |
 | `agent/handlers/llm_user_message_ready_event_handler.py`      | Handler selection, pass full ChunkResponse   | MODIFIED |
-| `utils/tool_call_format.py`                                   | Rename "native" to "api_tool_call"           | MODIFIED |
+| `utils/tool_call_format.py`                                   | Remove legacy "native" alias                 | MODIFIED |
 
 ---
 
@@ -663,7 +662,7 @@ class AgentConfig:
 ### Breaking Changes
 
 1. `StreamingResponseHandler.feed()` signature changed from `str` to `ChunkResponse`
-2. Environment variable value `native` renamed to `api_tool_call`
+2. Legacy environment variable value `native` removed; use `api_tool_call`
 
 ### Backward Compatibility
 

@@ -6,7 +6,7 @@ Authors: Autobyteus Core Team
 
 ## Summary
 
-When `tool_call_format=api_tool_call`, the current streaming handler emits only
+When `AUTOBYTEUS_STREAM_PARSER=api_tool_call`, the current streaming handler emits only
 `tool_call` segments and streams **raw JSON argument deltas**. This prevents the
 frontend from receiving `write_file` / `patch_file` segment events and therefore
 blocks file-content streaming.

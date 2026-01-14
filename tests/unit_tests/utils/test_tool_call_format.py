@@ -6,7 +6,7 @@ import os
 from autobyteus.utils.tool_call_format import resolve_tool_call_format
 
 
-def test_resolve_tool_call_format_native_alias(monkeypatch):
+def test_resolve_tool_call_format_invalid_defaults_api_tool_call(monkeypatch):
     monkeypatch.setenv("AUTOBYTEUS_STREAM_PARSER", "native")
     assert resolve_tool_call_format() == "api_tool_call"
 
