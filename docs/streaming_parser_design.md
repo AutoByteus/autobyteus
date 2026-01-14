@@ -65,8 +65,9 @@ from autobyteus.agent.streaming import StreamingResponseHandler
 handler = StreamingResponseHandler()
 
 # Feed chunks as they arrive
-events = handler.feed("Hello <write_file path='/a.py'>")
-events = handler.feed("print('hi')</write_file>")
+from autobyteus.llm.utils.response_types import ChunkResponse
+events = handler.feed(ChunkResponse(content="Hello <write_file path='/a.py'>"))
+events = handler.feed(ChunkResponse(content="print('hi')</write_file>"))
 
 # Finalize when stream ends
 final_events = handler.finalize()
@@ -213,7 +214,7 @@ Tool syntax shorthands (e.g., `WRITE_FILE`, `RUN_TERMINAL_CMD`) map to concrete 
 tool syntax registry:
 
 ```
-autobyteus/agent/streaming/parser/tool_syntax_registry.py
+autobyteus/agent/streaming/adapters/tool_syntax_registry.py
 ```
 
 ### Tool Syntax Mapping (SegmentType -> ToolInvocation)
@@ -258,15 +259,17 @@ Final emit: remaining content, then SEGMENT_END
 
 ## Integration with Event Handler
 
-The `LLMUserMessageReadyEventHandler` integrates the parser:
+The `LLMUserMessageReadyEventHandler` integrates the parser via the
+`StreamingResponseHandlerFactory`:
 
 ```python
 async def handle(self, event):
     streaming_handler = StreamingResponseHandler(on_part_event=emit_part_event)
 
     async for chunk in llm.stream_user_message(message):
-        if chunk.content:
-            streaming_handler.feed(chunk.content)
+    async for chunk in llm.stream_user_message(message):
+        # Pass the full ChunkResponse object
+        streaming_handler.feed(chunk)
 
     streaming_handler.finalize()
 ```
@@ -277,7 +280,11 @@ The streaming system supports multiple parser strategies selected at runtime.
 
 Environment variable:
 
-- `AUTOBYTEUS_STREAM_PARSER`: `xml` (default), `json`, `native`, `sentinel`
+- `AUTOBYTEUS_STREAM_PARSER`: `xml` (default), `json`, `sentinel`, `api_tool_call` (legacy alias: `native`)
+
+Agent default:
+
+- If `AUTOBYTEUS_STREAM_PARSER` is not set, `AgentConfig` defaults to `api_tool_call`.
 
 When no override is set, the agent handler selects a parser strategy based on
 provider (XML for Anthropic, JSON for most others). JSON parsing also uses
@@ -288,7 +295,7 @@ Strategy notes:
 
 - `xml`: state-machine parser tuned for XML tag detection.
 - `json`: state-machine parser tuned for JSON tool detection.
-- `native`: disables tool-tag parsing; tool calls are expected from the provider's native tool stream.
+- `api_tool_call` (legacy: `native`): disables tool-tag parsing; tool calls are expected from the provider's native tool stream.
 - `sentinel`: sentinel-based format using explicit start/end markers.
   - Sentinel format uses explicit start/end markers with a JSON header.
 
@@ -349,18 +356,37 @@ register_xml_tool_parsing_state("my_tool_name", MyCustomToolState)
 ```
 autobyteus/agent/streaming/
 ├── __init__.py
-├── streaming_response_handler.py    # High-level API
+├── adapters/
+│   ├── invocation_adapter.py        # Converts to ToolInvocation
+│   ├── tool_call_parsing.py         # Tool argument parsing helpers
+│   └── tool_syntax_registry.py      # SegmentType -> Tool mapping
+├── api_tool_call/
+│   ├── json_string_field_extractor.py
+│   └── file_content_streamer.py
+├── events/
+│   ├── stream_events.py             # Legacy/agent stream events
+│   └── stream_event_payloads.py
+├── handlers/
+│   ├── streaming_response_handler.py
+│   ├── parsing_streaming_response_handler.py
+│   ├── pass_through_streaming_response_handler.py
+│   ├── api_tool_call_streaming_response_handler.py
+│   └── streaming_handler_factory.py
+├── segments/
+│   └── segment_events.py            # SegmentEvent, SegmentType
+├── streams/
+│   └── agent_event_stream.py
+├── utils/
+│   └── queue_streamer.py
 └── parser/
     ├── __init__.py
     ├── streaming_parser.py          # Orchestrator
     ├── parser_context.py            # Shared state + config
     ├── stream_scanner.py            # Character buffer
     ├── event_emitter.py             # Event queue
-    ├── events.py                    # SegmentEvent, SegmentType
     ├── state_factory.py             # State creation
     ├── xml_tool_parsing_state_registry.py  # Registry for tool states
     ├── tool_constants.py            # Tool name constants
-    ├── invocation_adapter.py        # Converts to ToolInvocation
     ├── json_parsing_strategies/     # Provider-aware JSON parsing
     └── states/
         ├── base_state.py

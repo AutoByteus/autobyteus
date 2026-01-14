@@ -4,7 +4,7 @@ import pytest
 import queue as standard_queue
 from typing import List, Any, AsyncIterator
 
-from autobyteus.agent.streaming.queue_streamer import stream_queue_items
+from autobyteus.agent.streaming.utils.queue_streamer import stream_queue_items
 
 # Mark all tests in this module as asyncio
 pytestmark = pytest.mark.asyncio

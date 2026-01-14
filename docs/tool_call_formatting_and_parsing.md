@@ -97,7 +97,7 @@ Concrete alignment points in code:
   the XML tag parser recognizes (`XmlTagInitializationState`, `WriteFileParsingState`, etc.).
 - JSON examples are provider-specific (OpenAI/Gemini/default) and must match the JSON
   parsing strategies in `autobyteus/agent/streaming/parser/json_parsing_strategies/`.
-- The tool syntax registry (`autobyteus/agent/streaming/parser/tool_syntax_registry.py`)
+- The tool syntax registry (`autobyteus/agent/streaming/adapters/tool_syntax_registry.py`)
   defines how parsed segments become tool invocations.
 
 ## Core Components
@@ -155,7 +155,7 @@ Parsing is performed during streaming by the FSM-based `StreamingParser`.
   - `xml` (default): XML tag detection.
   - `json`: JSON tool detection.
   - `sentinel`: explicit sentinel markers.
-  - `native`: disables tool-tag parsing (provider-native tool calls only).
+  - `api_tool_call` (legacy: `native`): disables tool-tag parsing (provider-native tool calls only).
 
 #### Provider-Aware JSON Parsing
 
@@ -175,11 +175,11 @@ This keeps JSON parsing aligned with provider-specific tool usage examples.
 The parsing pipeline is representation-driven: any syntax that can be emitted
 as a segment can become a tool call via the adapter. To add a new representation,
 introduce a new segment type or strategy and register the mapping in
-`autobyteus/agent/streaming/parser/tool_syntax_registry.py`.
+`autobyteus/agent/streaming/adapters/tool_syntax_registry.py`.
 
 Key files:
 
-- `autobyteus/agent/streaming/streaming_response_handler.py`
+- `autobyteus/agent/streaming/handlers/streaming_response_handler.py`
 - `autobyteus/agent/streaming/parser/*`
 - `autobyteus/agent/streaming/parser/json_parsing_strategies/*`
 
@@ -203,14 +203,16 @@ sequence before being sent back to the LLM.
 Key files:
 
 - `autobyteus/agent/handlers/llm_user_message_ready_event_handler.py`
-- `autobyteus/agent/streaming/streaming_response_handler.py`
+- `autobyteus/agent/streaming/handlers/streaming_response_handler.py`
 - `autobyteus/agent/tool_invocation.py`
 - `autobyteus/agent/handlers/tool_result_event_handler.py`
 
 ### 5) Configuration and Overrides
 
 - `AUTOBYTEUS_STREAM_PARSER` controls both the streaming parser strategy and
-  the tool-call formatting override (`xml`, `json`, `sentinel`, `native`).
+  the tool-call formatting override (`xml`, `json`, `sentinel`, `api_tool_call`).
+
+- If `AUTOBYTEUS_STREAM_PARSER` is not set, `AgentConfig` defaults to `api_tool_call`.
 - Defaults remain provider-aware (JSON for most, XML for Anthropic) when no
   override is provided.
 
@@ -244,4 +246,5 @@ To add a new tool:
 ## Notes and Caveats
 
 - The streaming parser only interprets configured tag formats; unknown tags are streamed as text.
-- For provider-native tool calls, set `AUTOBYTEUS_STREAM_PARSER=native` and rely on the provider stream.
+- For provider-native tool calls, set `AUTOBYTEUS_STREAM_PARSER=api_tool_call` (or legacy `native`)
+  and rely on the provider stream.

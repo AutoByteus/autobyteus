@@ -11,12 +11,14 @@ Legacy components (for backward compatibility):
 - StreamEvent, StreamEventType: Old event format
 - AgentEventStream: Old stream consumer
 """
-from .stream_events import StreamEventType, StreamEvent
-from .agent_event_stream import AgentEventStream     
-from .queue_streamer import stream_queue_items
-from .streaming_response_handler import StreamingResponseHandler
-from .parsing_streaming_response_handler import ParsingStreamingResponseHandler
-from .pass_through_streaming_response_handler import PassThroughStreamingResponseHandler
+from .events.stream_events import StreamEventType, StreamEvent
+from .streams.agent_event_stream import AgentEventStream
+from .utils.queue_streamer import stream_queue_items
+from .handlers.streaming_response_handler import StreamingResponseHandler
+from .handlers.streaming_handler_factory import StreamingResponseHandlerFactory
+from .handlers.parsing_streaming_response_handler import ParsingStreamingResponseHandler
+from .handlers.pass_through_streaming_response_handler import PassThroughStreamingResponseHandler
+from .handlers.api_tool_call_streaming_response_handler import ApiToolCallStreamingResponseHandler
 
 # Re-export commonly used parser components
 from .parser import (
@@ -36,8 +38,10 @@ from .parser import (
 __all__ = [
     # New streaming API
     "StreamingResponseHandler",
+    "StreamingResponseHandlerFactory",
     "ParsingStreamingResponseHandler",
     "PassThroughStreamingResponseHandler",
+    "ApiToolCallStreamingResponseHandler",
     "StreamingParser",
     "SegmentEvent",
     "SegmentType",

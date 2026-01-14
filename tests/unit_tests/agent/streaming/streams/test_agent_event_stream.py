@@ -7,9 +7,13 @@ from typing import List, Any, AsyncIterator, Coroutine, Generator
 from unittest.mock import MagicMock
 
 from autobyteus.agent.context.agent_context import AgentContext
-from autobyteus.agent.streaming.agent_event_stream import AgentEventStream
-from autobyteus.agent.streaming.stream_events import StreamEvent, StreamEventType, AgentStatusUpdateData
-from autobyteus.agent.streaming.stream_event_payloads import AssistantChunkData, AssistantCompleteResponseData, ErrorEventData
+from autobyteus.agent.streaming.streams.agent_event_stream import AgentEventStream
+from autobyteus.agent.streaming.events.stream_events import StreamEvent, StreamEventType, AgentStatusUpdateData
+from autobyteus.agent.streaming.events.stream_event_payloads import (
+    AssistantChunkData,
+    AssistantCompleteResponseData,
+    ErrorEventData,
+)
 from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 from autobyteus.agent.agent import Agent
 from autobyteus.agent.status.manager import AgentStatusManager
@@ -46,16 +50,24 @@ def run_producer_in_thread(producer_coro: Coroutine) -> threading.Thread:
     thread.start()
     return thread
 
-async def _collect_stream_results(stream: AsyncIterator[Any], timeout: float = 1.0) -> List[Any]:
-    """Helper function to collect all items from an async iterator into a list."""
-    results = []
-    try:
-        async def _collect():
-            async for item in stream:
-                results.append(item)
-        await asyncio.wait_for(_collect(), timeout=timeout)
-    except asyncio.TimeoutError:
-        pass # Expected timeout when stream is done or producer finishes
+async def _collect_stream_results(
+    stream: AsyncIterator[Any],
+    streamer: AgentEventStream,
+    close_after: float = 0.2,
+) -> List[Any]:
+    """Collect items from a stream, closing it after a short delay."""
+    results: List[Any] = []
+
+    async def _close_later() -> None:
+        await asyncio.sleep(close_after)
+        await streamer.close()
+
+    closer = asyncio.create_task(_close_later())
+
+    async for item in stream:
+        results.append(item)
+
+    await closer
     return results
 
 # --- Pytest Fixtures ---
@@ -113,7 +125,7 @@ async def test_stream_assistant_chunks(streamer: AgentEventStream, real_notifier
 
     # Consumer runs in the main test event loop.
     consumer_task = asyncio.create_task(
-        _collect_stream_results(streamer.stream_assistant_chunks())
+        _collect_stream_results(streamer.stream_assistant_chunks(), streamer)
     )
     
     # Start the producer in its own thread.
@@ -133,7 +145,7 @@ async def test_stream_assistant_final_messages(streamer: AgentEventStream, real_
         real_notifier.notify_agent_data_assistant_complete_response(final_msg)
 
     consumer_task = asyncio.create_task(
-        _collect_stream_results(streamer.stream_assistant_final_response())
+        _collect_stream_results(streamer.stream_assistant_final_response(), streamer)
     )
     
     producer_thread = run_producer_in_thread(produce_events())
@@ -153,7 +165,7 @@ async def test_all_events_receives_status_change(streamer: AgentEventStream, rea
         )
         # DO NOT call streamer.close() from the producer thread.
 
-    consumer_task = asyncio.create_task(_collect_stream_results(streamer.all_events()))
+    consumer_task = asyncio.create_task(_collect_stream_results(streamer.all_events(), streamer))
     
     producer_thread = run_producer_in_thread(produce_events())
     results = await consumer_task
@@ -177,7 +189,7 @@ async def test_all_events_receives_assistant_chunk(streamer: AgentEventStream, r
         real_notifier.notify_agent_data_assistant_chunk(chunk)
         # DO NOT call streamer.close() from the producer thread.
 
-    consumer_task = asyncio.create_task(_collect_stream_results(streamer.all_events()))
+    consumer_task = asyncio.create_task(_collect_stream_results(streamer.all_events(), streamer))
     
     producer_thread = run_producer_in_thread(produce_events())
     results = await consumer_task
@@ -198,7 +210,7 @@ async def test_all_events_receives_complete_response(streamer: AgentEventStream,
         real_notifier.notify_agent_data_assistant_complete_response(final_msg)
         # DO NOT call streamer.close() from the producer thread.
 
-    consumer_task = asyncio.create_task(_collect_stream_results(streamer.all_events()))
+    consumer_task = asyncio.create_task(_collect_stream_results(streamer.all_events(), streamer))
     
     producer_thread = run_producer_in_thread(produce_events())
     results = await consumer_task
@@ -221,7 +233,7 @@ async def test_all_events_receives_error(streamer: AgentEventStream, real_notifi
         )
         # DO NOT call streamer.close() from the producer thread.
 
-    consumer_task = asyncio.create_task(_collect_stream_results(streamer.all_events()))
+    consumer_task = asyncio.create_task(_collect_stream_results(streamer.all_events(), streamer))
     
     producer_thread = run_producer_in_thread(produce_events())
     results = await consumer_task
@@ -253,7 +265,7 @@ async def test_all_events_receives_multiple_mixed_events(streamer: AgentEventStr
         await asyncio.sleep(0.02)
         # DO NOT call streamer.close() from the producer thread.
 
-    consumer_task = asyncio.create_task(_collect_stream_results(streamer.all_events()))
+    consumer_task = asyncio.create_task(_collect_stream_results(streamer.all_events(), streamer))
     
     producer_thread = run_producer_in_thread(produce_events())
     results = await consumer_task

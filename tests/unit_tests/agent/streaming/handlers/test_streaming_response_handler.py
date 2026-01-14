@@ -2,8 +2,20 @@
 Unit tests for StreamingResponseHandler.
 """
 import pytest
-from autobyteus.agent.streaming.parsing_streaming_response_handler import ParsingStreamingResponseHandler
-from autobyteus.agent.streaming.parser.events import SegmentEvent, SegmentType, SegmentEventType
+from autobyteus.agent.streaming.handlers.parsing_streaming_response_handler import (
+    ParsingStreamingResponseHandler,
+)
+from autobyteus.agent.streaming.segments.segment_events import (
+    SegmentEvent,
+    SegmentType,
+    SegmentEventType,
+)
+from autobyteus.llm.utils.response_types import ChunkResponse
+
+
+def chunk(content: str) -> ChunkResponse:
+    """Helper to create ChunkResponse from text."""
+    return ChunkResponse(content=content)
 
 
 class TestStreamingResponseHandlerBasics:
@@ -12,7 +24,7 @@ class TestStreamingResponseHandlerBasics:
     def test_feed_text_emits_events(self):
         """Feeding text produces SegmentEvents."""
         handler = ParsingStreamingResponseHandler()
-        events = handler.feed("Hello world")
+        events = handler.feed(chunk("Hello world"))
         
         # Should have at least a text segment
         assert len(events) > 0
@@ -20,7 +32,7 @@ class TestStreamingResponseHandlerBasics:
     def test_feed_and_finalize(self):
         """Full lifecycle produces complete events."""
         handler = ParsingStreamingResponseHandler()
-        events1 = handler.feed("Test message")
+        events1 = handler.feed(chunk("Test message"))
         events2 = handler.finalize()
         
         all_events = handler.get_all_events()
@@ -29,7 +41,7 @@ class TestStreamingResponseHandlerBasics:
     def test_double_finalize_returns_empty(self):
         """Second finalize returns empty list."""
         handler = ParsingStreamingResponseHandler()
-        handler.feed("test")
+        handler.feed(chunk("test"))
         handler.finalize()
         events = handler.finalize()
         
@@ -41,7 +53,7 @@ class TestStreamingResponseHandlerBasics:
         handler.finalize()
         
         with pytest.raises(RuntimeError):
-            handler.feed("more data")
+            handler.feed(chunk("more data"))
 
 
 class TestParsingStreamingResponseHandlerCallbacks:
@@ -54,7 +66,7 @@ class TestParsingStreamingResponseHandlerCallbacks:
         handler = ParsingStreamingResponseHandler(
             on_segment_event=lambda e: received.append(e)
         )
-        handler.feed("Hello")
+        handler.feed(chunk("Hello"))
         handler.finalize()
         
         assert len(received) > 0
@@ -69,7 +81,7 @@ class TestParsingStreamingResponseHandlerCallbacks:
         )
         
         # Feed a tool call with proper XML format
-        handler.feed('<tool name="test_tool"><key>value</key></tool>')
+        handler.feed(chunk('<tool name="test_tool"><key>value</key></tool>'))
         handler.finalize()
         
         assert len(invocations) == 1
@@ -82,7 +94,7 @@ class TestParsingStreamingResponseHandlerCallbacks:
         
         handler = ParsingStreamingResponseHandler(on_segment_event=bad_callback)
         # Should not raise
-        handler.feed("test")
+        handler.feed(chunk("test"))
         handler.finalize()
 
 
@@ -94,7 +106,7 @@ class TestParsingStreamingResponseHandlerToolIntegration:
         handler = ParsingStreamingResponseHandler()
         
         # Use proper XML argument format
-        handler.feed('<tool name="read_file"><path>/test.py</path></tool>')
+        handler.feed(chunk('<tool name="read_file"><path>/test.py</path></tool>'))
         handler.finalize()
         
         invocations = handler.get_all_invocations()
@@ -106,8 +118,8 @@ class TestParsingStreamingResponseHandlerToolIntegration:
         """Multiple tool segments create multiple invocations."""
         handler = ParsingStreamingResponseHandler()
         
-        handler.feed('Some text <tool name="tool_a"><a>1</a></tool>')
-        handler.feed(' more text <tool name="tool_b"><b>2</b></tool>')
+        handler.feed(chunk('Some text <tool name="tool_a"><a>1</a></tool>'))
+        handler.feed(chunk(' more text <tool name="tool_b"><b>2</b></tool>'))
         handler.finalize()
         
         invocations = handler.get_all_invocations()
@@ -117,7 +129,7 @@ class TestParsingStreamingResponseHandlerToolIntegration:
         """Verify segment_id becomes invocationId."""
         handler = ParsingStreamingResponseHandler()
         
-        handler.feed('<tool name="test"></tool>')
+        handler.feed(chunk('<tool name="test"></tool>'))
         handler.finalize()
         
         events = handler.get_all_events()
@@ -138,7 +150,7 @@ class TestParsingStreamingResponseHandlerReset:
         """Reset allows handler reuse."""
         handler = ParsingStreamingResponseHandler()
         
-        handler.feed("test data")
+        handler.feed(chunk("test data"))
         handler.finalize()
         
         assert len(handler.get_all_events()) > 0
@@ -149,6 +161,6 @@ class TestParsingStreamingResponseHandlerReset:
         assert len(handler.get_all_invocations()) == 0
         
         # Can feed again
-        handler.feed("new data")
+        handler.feed(chunk("new data"))
         handler.finalize()
         assert len(handler.get_all_events()) > 0

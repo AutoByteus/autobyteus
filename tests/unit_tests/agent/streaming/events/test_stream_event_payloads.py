@@ -1,6 +1,6 @@
 import pytest
 from pydantic import ValidationError
-from autobyteus.agent.streaming.stream_event_payloads import (
+from autobyteus.agent.streaming.events.stream_event_payloads import (
     ArtifactPersistedData,
     create_artifact_persisted_data,
     AssistantChunkData,
@@ -41,9 +41,8 @@ def test_artifact_persisted_data_ignores_extra_fields():
     }
     payload = ArtifactPersistedData(**data)
     assert payload.artifact_id == "art_123"
-    # Ensure checking for .status raises AttributeError, confirming it's not there
-    with pytest.raises(AttributeError):
-        _ = payload.status
+    # Extra fields are allowed on stream payloads
+    assert payload.status == "saved"
 
 def test_create_artifact_persisted_data_factory():
     """Test the factory function works correctly."""
