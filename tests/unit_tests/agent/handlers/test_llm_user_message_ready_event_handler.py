@@ -1,11 +1,13 @@
 import pytest
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock, AsyncMock, patch
 from autobyteus.agent.handlers.llm_user_message_ready_event_handler import LLMUserMessageReadyEventHandler
 from autobyteus.agent.events import LLMUserMessageReadyEvent
 from autobyteus.llm.user_message import LLMUserMessage
 from autobyteus.llm.utils.response_types import ChunkResponse
 from autobyteus.llm.providers import LLMProvider
 from autobyteus.agent.streaming.pass_through_streaming_response_handler import PassThroughStreamingResponseHandler
+from autobyteus.agent.streaming.api_tool_call_streaming_response_handler import ApiToolCallStreamingResponseHandler
+
 @pytest.fixture
 def handler():
     return LLMUserMessageReadyEventHandler()
@@ -22,6 +24,8 @@ async def test_streaming_safe_parsing(handler, agent_context, mock_llm):
     mock_llm.model = MagicMock()
     mock_llm.model.provider = LLMProvider.ANTHROPIC
     agent_context.state.llm_instance = mock_llm
+    # Explicitly set XML mode for this test as it verifies XML tag buffering
+    agent_context.config.tool_call_format = "xml"
     # Use MagicMock because notify methods are synchronous
     if not isinstance(agent_context.status_manager.notifier, MagicMock):
         agent_context.status_manager.notifier = MagicMock()
@@ -114,7 +118,10 @@ async def test_no_tools_uses_passthrough_handler(handler, agent_context, mock_ll
     """Handler should use PassThroughStreamingResponseHandler when no tools are configured."""
     # Setup context with NO tools
     agent_context.config.tools = []
+    agent_context.state.tool_instances = {}
     agent_context.state.llm_instance = mock_llm
+    # PassThrough should be used regardless of mode if tools are empty, but logically mostly non-API
+    agent_context.config.tool_call_format = "xml"
     
     # Mock mocks
     if not isinstance(agent_context.status_manager.notifier, MagicMock):
@@ -161,3 +168,50 @@ async def test_no_tools_uses_passthrough_handler(handler, agent_context, mock_ll
     # AND crucially, no tool invocations should be pending
     # (Though we can't easily check internal variable, we can check queue)
     assert not agent_context.input_event_queues.enqueue_tool_invocation_request.called
+
+@pytest.mark.asyncio
+async def test_api_tool_call_handler_selection_and_schema_passing(handler, agent_context, mock_llm):
+    """Handler should use ApiToolCallStreamingResponseHandler and pass schemas when tool_call_format is api_tool_call."""
+    # Setup context
+    agent_context.config.tool_call_format = "api_tool_call"
+    tool_name = agent_context.config.tools[0].get_name()
+    mock_llm.model = MagicMock()
+    mock_llm.model.provider = LLMProvider.OPENAI # Explicitly set a provider
+    agent_context.state.llm_instance = mock_llm
+    
+    # Mock mocks
+    if not isinstance(agent_context.status_manager.notifier, MagicMock):
+        agent_context.status_manager.notifier = MagicMock()
+    agent_context.input_event_queues.enqueue_internal_system_event = AsyncMock()
+    agent_context.input_event_queues.enqueue_tool_invocation_request = AsyncMock()
+
+    tools_schema = [{
+        "type": "function",
+        "function": {
+            "name": tool_name,
+            "description": "A test tool",
+            "parameters": {
+                "type": "object",
+                "properties": {"arg": {"type": "string"}},
+                "required": [],
+            },
+        },
+    }]
+
+    # Mock LLM stream
+    async def stream_gen(_, **kwargs):
+        # Verify tools were passed
+        assert "tools" in kwargs
+        assert kwargs["tools"] == tools_schema
+        yield ChunkResponse(content="Hello", is_complete=True)
+        
+    mock_llm.stream_user_message.side_effect = stream_gen
+
+    # Run handler with schema provider patch
+    with patch("autobyteus.agent.handlers.llm_user_message_ready_event_handler.ToolSchemaProvider") as provider_cls:
+        provider_cls.return_value.build_schema.return_value = tools_schema
+
+        msg = LLMUserMessage(content="prompt")
+        event = LLMUserMessageReadyEvent(llm_user_message=msg)
+        
+        await handler.handle(event, agent_context)

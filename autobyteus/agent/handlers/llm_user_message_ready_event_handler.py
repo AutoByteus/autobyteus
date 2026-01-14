@@ -10,14 +10,14 @@ from autobyteus.llm.user_message import LLMUserMessage
 from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.agent.streaming.streaming_response_handler import StreamingResponseHandler
-from autobyteus.agent.streaming.parsing_streaming_response_handler import ParsingStreamingResponseHandler
-from autobyteus.agent.streaming.pass_through_streaming_response_handler import PassThroughStreamingResponseHandler
+from autobyteus.agent.streaming.streaming_handler_factory import StreamingResponseHandlerFactory
 from autobyteus.agent.streaming.parser.parser_context import ParserConfig
 from autobyteus.agent.streaming.parser.json_parsing_strategies.registry import get_json_tool_parsing_profile
 from autobyteus.agent.streaming.parser.events import SegmentEvent, SegmentType, SegmentEventType
 from autobyteus.agent.tool_invocation import ToolInvocationTurn
 from autobyteus.llm.providers import LLMProvider
 from autobyteus.utils.tool_call_format import resolve_tool_call_format
+from autobyteus.tools.usage.tool_schema_provider import ToolSchemaProvider
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
@@ -84,7 +84,29 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
                     logger.error(f"Agent '{agent_id}': Error notifying segment event: {e}", exc_info=True)
 
         # Create parser config from agent configuration
-        parse_tool_calls = bool(context.config.tools)  # Enable tool parsing if agent has tools
+        tool_names: List[str] = []
+        if context.state.tool_instances:
+            tool_names = list(context.state.tool_instances.keys())
+        elif context.config.tools:
+            for tool in context.config.tools:
+                if isinstance(tool, str):
+                    tool_names.append(tool)
+                elif hasattr(tool, "get_name"):
+                    try:
+                        tool_names.append(tool.get_name())
+                    except Exception:  # pragma: no cover - defensive
+                        logger.warning(
+                            "Agent '%s': Failed to resolve tool name from %s.",
+                            agent_id,
+                            type(tool),
+                        )
+                else:  # pragma: no cover - defensive
+                    logger.warning(
+                        "Agent '%s': Unsupported tool entry in config: %s.",
+                        agent_id,
+                        type(tool),
+                    )
+        parse_tool_calls = bool(tool_names)  # Enable tool parsing if agent has tools
         provider = context.state.llm_instance.model.provider if context.state.llm_instance else None
         json_profile = get_json_tool_parsing_profile(provider)
         segment_id_prefix = f"turn_{uuid.uuid4().hex}:"
@@ -96,34 +118,61 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
         )
 
         format_override = context.config.tool_call_format or resolve_tool_call_format()
-        if format_override in {"xml", "json", "sentinel", "native"}:
-            parser_name = format_override
-        else:
-            parser_name = "xml"
         
-        
+        # Determine actual tool calling mode
+        use_api_tool_calls = (
+            format_override in {"api_tool_call", "native"} and parse_tool_calls
+        )
+
+        logger.info(
+            "Agent '%s': tool_call_format=%s, parse_tool_calls=%s, provider=%s",
+            agent_id,
+            format_override,
+            parse_tool_calls,
+            provider,
+        )
+
         # Initialize Streaming Response Handler
-        streaming_handler: StreamingResponseHandler
-        
-        if parse_tool_calls:
-            logger.debug(f"Agent '{agent_id}': Tools enabled details - Configuring ParsingStreamingResponseHandler with {parser_name} parser")
-            streaming_handler = ParsingStreamingResponseHandler(
-                on_segment_event=emit_segment_event,
-                config=parser_config,
-                parser_name=parser_name,
-            )
-        else:
-            logger.debug(f"Agent '{agent_id}': No tools enabled - Configuring PassThroughStreamingResponseHandler")
-            streaming_handler = PassThroughStreamingResponseHandler(
-                on_segment_event=emit_segment_event,
-                segment_id_prefix=segment_id_prefix,
-            )
+        streaming_handler: StreamingResponseHandler = StreamingResponseHandlerFactory.create(
+            parse_tool_calls=parse_tool_calls,
+            format_override=format_override,
+            provider=provider,
+            parser_config=parser_config,
+            segment_id_prefix=segment_id_prefix,
+            on_segment_event=emit_segment_event,
+            on_tool_invocation=None,  # Only finalized invocations are needed here.
+            agent_id=agent_id,
+        )
+        logger.info(
+            "Agent '%s': Streaming handler selected: %s",
+            agent_id,
+            streaming_handler.__class__.__name__,
+        )
+
+        # Prepare arguments for stream_user_message
+        stream_kwargs = {}
+        if use_api_tool_calls:
+            tools_schema = ToolSchemaProvider().build_schema(tool_names, provider)
+            if tools_schema:
+                stream_kwargs["tools"] = tools_schema
+                logger.info(
+                    "Agent '%s': Passing %d tool schemas to LLM API (Provider: %s)",
+                    agent_id,
+                    len(tools_schema),
+                    provider,
+                )
+            else:
+                logger.warning(
+                    "Agent '%s': No tool schemas built for API tool calls (Provider: %s)",
+                    agent_id,
+                    provider,
+                )
 
         # State for manual reasoning parts (since they might come from outside the parser)
         current_reasoning_part_id = None
 
         try:
-            async for chunk_response in context.state.llm_instance.stream_user_message(llm_user_message):
+            async for chunk_response in context.state.llm_instance.stream_user_message(llm_user_message, **stream_kwargs):
                 if not isinstance(chunk_response, ChunkResponse): 
                     logger.warning(f"Agent '{agent_id}' received unexpected chunk type: {type(chunk_response)} during LLM stream. Expected ChunkResponse.")
                     continue
@@ -164,13 +213,9 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
                     )
                     emit_segment_event(content_event)
 
-                # Handle Content (Through Parser)
-                if chunk_response.content:
-                    # If we switch to content and have an open reasoning part, we could close it,
-                    # but some models might interleave. For now, we'll keep it open until the end 
-                    # or if we want to enforce structure we could close it here. 
-                    # Let's keep it simple: strict separation isn't guaranteed by all providers.
-                    streaming_handler.feed(chunk_response.content)
+                # Handle Content & Tool Calls (Through Handler)
+                # Pass the full ChunkResponse object to support both text and tool call streams
+                streaming_handler.feed(chunk_response)
 
             # End of stream loop
 
