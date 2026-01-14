@@ -50,10 +50,11 @@ class TestApiToolCallStreamingResponseHandlerBasics:
             )]
         ))
 
-        assert events1[0].event_type == SegmentEventType.START
-        assert events1[0].segment_type == SegmentType.WRITE_FILE
-        assert events1[1].event_type == SegmentEventType.CONTENT
-        assert events1[1].payload["delta"] == "h"
+        start_event = next(e for e in events1 if e.event_type == SegmentEventType.START)
+        assert start_event.segment_type == SegmentType.WRITE_FILE
+        assert start_event.payload["metadata"]["path"] == "test.txt"
+        first_content = next(e for e in events1 if e.event_type == SegmentEventType.CONTENT)
+        assert first_content.payload["delta"] == "h"
         assert events2[0].event_type == SegmentEventType.CONTENT
         assert events2[0].payload["delta"] == "i"
 
@@ -160,9 +161,46 @@ class TestApiToolCallStreamingResponseHandlerFileStreaming:
             )]
         ))
 
-        assert events1[0].segment_type == SegmentType.PATCH_FILE
-        assert events1[1].payload["delta"] == "@@ -1 +1 @@"
+        start_event = next(e for e in events1 if e.event_type == SegmentEventType.START)
+        assert start_event.segment_type == SegmentType.PATCH_FILE
+        assert start_event.payload["metadata"]["path"] == "a.txt"
+        first_content = next(e for e in events1 if e.event_type == SegmentEventType.CONTENT)
+        assert first_content.payload["delta"] == "@@ -1 +1 @@"
         assert events2[0].payload["delta"] == "\n-foo"
+
+    def test_write_file_defers_start_until_path_available(self):
+        handler = ApiToolCallStreamingResponseHandler()
+
+        events1 = handler.feed(ChunkResponse(
+            content="",
+            tool_calls=[ToolCallDelta(
+                index=0,
+                call_id="call_defer",
+                name="write_file",
+                arguments_delta='{"content":"Hello'
+            )]
+        ))
+
+        # No start/content should emit before path is known.
+        assert events1 == []
+
+        events2 = handler.feed(ChunkResponse(
+            content="",
+            tool_calls=[ToolCallDelta(
+                index=0,
+                arguments_delta=' world","path":"deferred.txt"}'
+            )]
+        ))
+
+        start_event = next(e for e in events2 if e.event_type == SegmentEventType.START)
+        assert start_event.segment_type == SegmentType.WRITE_FILE
+        assert start_event.payload["metadata"]["path"] == "deferred.txt"
+        content_deltas = [
+            e.payload["delta"]
+            for e in events2
+            if e.event_type == SegmentEventType.CONTENT
+        ]
+        assert "".join(content_deltas) == "Hello world"
 
     def test_write_file_decodes_escaped_content(self):
         handler = ApiToolCallStreamingResponseHandler()

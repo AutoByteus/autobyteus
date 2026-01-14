@@ -31,6 +31,8 @@ class ToolCallState:
     segment_type: SegmentType = SegmentType.TOOL_CALL
     streamer: Optional[object] = None
     path: Optional[str] = None
+    segment_started: bool = False
+    pending_content: str = ""
 
 
 class ApiToolCallStreamingResponseHandler(StreamingResponseHandler):
@@ -139,20 +141,15 @@ class ApiToolCallStreamingResponseHandler(StreamingResponseHandler):
                         segment_type=segment_type,
                         streamer=streamer,
                     )
-
                     if segment_type == SegmentType.TOOL_CALL:
                         start_event = SegmentEvent.start(
                             segment_id=seg_id,
                             segment_type=segment_type,
                             tool_name=tool_name,
                         )
-                    else:
-                        start_event = SegmentEvent.start(
-                            segment_id=seg_id,
-                            segment_type=segment_type,
-                        )
-                    self._emit(start_event)
-                    events.append(start_event)
+                        self._active_tools[delta.index].segment_started = True
+                        self._emit(start_event)
+                        events.append(start_event)
 
                 # Accumulate arguments and emit content delta (for UI streaming)
                 if delta.arguments_delta:
@@ -160,6 +157,15 @@ class ApiToolCallStreamingResponseHandler(StreamingResponseHandler):
                     state.accumulated_args += delta.arguments_delta
 
                     if state.segment_type == SegmentType.TOOL_CALL:
+                        if not state.segment_started:
+                            start_event = SegmentEvent.start(
+                                segment_id=state.segment_id,
+                                segment_type=state.segment_type,
+                                tool_name=state.name,
+                            )
+                            state.segment_started = True
+                            self._emit(start_event)
+                            events.append(start_event)
                         content_event = SegmentEvent.content(
                             segment_id=state.segment_id,
                             delta=delta.arguments_delta,
@@ -170,13 +176,34 @@ class ApiToolCallStreamingResponseHandler(StreamingResponseHandler):
                         update = state.streamer.feed(delta.arguments_delta) if state.streamer else None
                         if update and update.path and not state.path:
                             state.path = update.path
-                        if update and update.content_delta:
-                            content_event = SegmentEvent.content(
+                        if not state.segment_started and state.path:
+                            start_event = SegmentEvent.start(
                                 segment_id=state.segment_id,
-                                delta=update.content_delta,
+                                segment_type=state.segment_type,
+                                tool_name=state.name,
+                                path=state.path,
                             )
-                            self._emit(content_event)
-                            events.append(content_event)
+                            state.segment_started = True
+                            self._emit(start_event)
+                            events.append(start_event)
+                            if state.pending_content:
+                                content_event = SegmentEvent.content(
+                                    segment_id=state.segment_id,
+                                    delta=state.pending_content,
+                                )
+                                self._emit(content_event)
+                                events.append(content_event)
+                                state.pending_content = ""
+                        if update and update.content_delta:
+                            if state.segment_started:
+                                content_event = SegmentEvent.content(
+                                    segment_id=state.segment_id,
+                                    delta=update.content_delta,
+                                )
+                                self._emit(content_event)
+                                events.append(content_event)
+                            else:
+                                state.pending_content += update.content_delta
 
                 # Update name if provided later
                 if delta.name and not self._active_tools[delta.index].name:
@@ -199,6 +226,27 @@ class ApiToolCallStreamingResponseHandler(StreamingResponseHandler):
 
         # Close tool segments with pre-parsed arguments in metadata
         for state in self._active_tools.values():
+            if state.segment_type in {SegmentType.WRITE_FILE, SegmentType.PATCH_FILE}:
+                if not state.segment_started:
+                    start_meta = {"tool_name": state.name}
+                    if state.path:
+                        start_meta["path"] = state.path
+                    start_event = SegmentEvent.start(
+                        segment_id=state.segment_id,
+                        segment_type=state.segment_type,
+                        **start_meta,
+                    )
+                    state.segment_started = True
+                    self._emit(start_event)
+                    events.append(start_event)
+                    if state.pending_content:
+                        content_event = SegmentEvent.content(
+                            segment_id=state.segment_id,
+                            delta=state.pending_content,
+                        )
+                        self._emit(content_event)
+                        events.append(content_event)
+                        state.pending_content = ""
             if state.segment_type == SegmentType.TOOL_CALL:
                 # Parse accumulated JSON arguments
                 try:
