@@ -8,6 +8,21 @@ from typing import List
 logger = logging.getLogger(__name__)
 
 _HUNK_HEADER_RE = re.compile(r"^@@ -(?P<old_start>\d+)(?:,(?P<old_count>\d+))? \+(?P<new_start>\d+)(?:,(?P<new_count>\d+))? @@")
+_GIT_HEADER_PREFIXES = (
+    "diff --git ",
+    "index ",
+    "new file mode ",
+    "deleted file mode ",
+    "old mode ",
+    "new mode ",
+    "similarity index ",
+    "dissimilarity index ",
+    "rename from ",
+    "rename to ",
+    "copy from ",
+    "copy to ",
+    "binary files ",
+)
 
 
 class PatchApplicationError(ValueError):
@@ -52,6 +67,11 @@ def apply_unified_diff(
 
         if line.startswith('---') or line.startswith('+++'):
             logger.debug("apply_unified_diff: skipping diff header line '%s'.", line.strip())
+            line_idx += 1
+            continue
+        stripped_line = line.lstrip().lower()
+        if any(stripped_line.startswith(prefix) for prefix in _GIT_HEADER_PREFIXES):
+            logger.debug("apply_unified_diff: skipping git diff header line '%s'.", line.strip())
             line_idx += 1
             continue
 

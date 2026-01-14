@@ -68,5 +68,19 @@ class TestFuzzyPatching(unittest.TestCase):
         patched = apply_unified_diff(original, patch, fuzz_factor=2, ignore_whitespace=True)
         self.assertEqual(patched, ["    start\n", "changed\n", "    end\n"])
 
+    def test_git_header_lines_are_skipped(self):
+        original = ["line1\n", "line2\n"]
+        patch = """diff --git a/sample.txt b/sample.txt
+index 1234567..89abcde 100644
+--- a/sample.txt
++++ b/sample.txt
+@@ -1,2 +1,2 @@
+-line1
++LINE1
+ line2
+"""
+        patched = apply_unified_diff(original, patch)
+        self.assertEqual(patched, ["LINE1\n", "line2\n"])
+
 if __name__ == '__main__':
     unittest.main()
