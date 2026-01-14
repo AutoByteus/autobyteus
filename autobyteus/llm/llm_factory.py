@@ -74,16 +74,6 @@ class LLMFactory(metaclass=SingletonMeta):
                     pricing_config=TokenPricingConfig(1.75, 14.00)
                 )
             ),
-            LLMModel(
-                name="gpt-5.2-codex",
-                value="gpt-5.2-codex",
-                provider=LLMProvider.OPENAI,
-                llm_class=OpenAILLM,
-                canonical_name="gpt-5.2-codex",
-                default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(1.75, 14.00)
-                )
-            ),
             # MISTRAL Provider Models
             LLMModel(
                 name="mistral-large",
