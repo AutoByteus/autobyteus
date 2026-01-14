@@ -87,6 +87,27 @@ async def test_patch_failure_raises_error(file_patch_tool_instance: BaseTool, mo
         )
 
 @pytest.mark.asyncio
+async def test_patch_retries_with_whitespace_tolerance(file_patch_tool_instance: BaseTool, mock_agent_context_file_ops, tmp_path):
+    file_path = tmp_path / "whitespace_patch.txt"
+    file_path.write_text("alpha\n  beta\ngamma\n", encoding='utf-8')
+
+    patch = """@@ -1,3 +1,3 @@
+ alpha
+- beta
++ BETA
+ gamma
+"""
+
+    result = await file_patch_tool_instance.execute(
+        mock_agent_context_file_ops,
+        path=str(file_path),
+        patch=patch,
+    )
+
+    assert result == f"File patched successfully at {file_path}"
+    assert file_path.read_text(encoding='utf-8') == "alpha\n BETA\ngamma\n"
+
+@pytest.mark.asyncio
 async def test_missing_file_raises_error(file_patch_tool_instance: BaseTool, mock_agent_context_file_ops, tmp_path):
     target_path = tmp_path / "nonexistent.txt"
     patch = """@@ -0,0 +1,1 @@

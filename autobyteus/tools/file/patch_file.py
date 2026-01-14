@@ -100,7 +100,40 @@ async def patch_file(
             logger.info("patch_file: original line %d: %r", i, line)
         logger.info("patch_file: ===== ORIGINAL FILE DEBUG END =====")
 
-        patched_lines = apply_unified_diff(original_lines, patch)
+        patched_lines = None
+        patch_error = None
+        retry_strategies = [
+            (0, False),
+            (1, False),
+            (1, True),
+            (2, True),
+        ]
+        for fuzz_factor, ignore_whitespace in retry_strategies:
+            try:
+                patched_lines = apply_unified_diff(
+                    original_lines,
+                    patch,
+                    fuzz_factor=fuzz_factor,
+                    ignore_whitespace=ignore_whitespace,
+                )
+                if (fuzz_factor, ignore_whitespace) != (0, False):
+                    logger.info(
+                        "patch_file: applied with fuzz=%d ignore_whitespace=%s.",
+                        fuzz_factor,
+                        ignore_whitespace,
+                    )
+                break
+            except PatchApplicationError as patch_err:
+                patch_error = patch_err
+                logger.warning(
+                    "patch_file: patch failed with fuzz=%d ignore_whitespace=%s: %s",
+                    fuzz_factor,
+                    ignore_whitespace,
+                    patch_err,
+                )
+                continue
+        if patched_lines is None:
+            raise patch_error or PatchApplicationError("Patch could not be applied.")
 
         with open(final_path, 'w', encoding='utf-8') as destination:
             destination.writelines(patched_lines)

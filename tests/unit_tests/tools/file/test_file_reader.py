@@ -42,7 +42,7 @@ def test_file_reader_definition():
 
     schema = definition.argument_schema
     assert isinstance(schema, ParameterSchema)
-    assert len(schema.parameters) == 3 
+    assert len(schema.parameters) == 4 
     
     param_path = schema.get_parameter("path")
     assert isinstance(param_path, ParameterDefinition)
@@ -64,6 +64,12 @@ def test_file_reader_definition():
     assert param_end_line.param_type == ParameterType.INTEGER
     assert param_end_line.required is False
 
+    param_include_numbers = schema.get_parameter("include_line_numbers")
+    assert isinstance(param_include_numbers, ParameterDefinition)
+    assert param_include_numbers.name == "include_line_numbers"
+    assert param_include_numbers.param_type == ParameterType.BOOLEAN
+    assert param_include_numbers.required is False
+
 def test_file_reader_tool_usage_xml_output():
     definition = default_tool_registry.get_tool_definition(TOOL_NAME_READ_FILE)
     assert definition is not None
@@ -82,6 +88,9 @@ def test_file_reader_tool_usage_xml_output():
     expected_end_line_desc = "Parameter 'end_line' for tool 'read_file'."
     escaped_end_line_desc = xml.sax.saxutils.escape(expected_end_line_desc)
     assert f'<arg name="end_line" type="integer" description="{escaped_end_line_desc}" required="false" />' in xml_output
+    expected_include_desc = "If true, prefix each returned line with its line number (default)."
+    escaped_include_desc = xml.sax.saxutils.escape(expected_include_desc)
+    assert f'<arg name="include_line_numbers" type="boolean" description="{escaped_include_desc}" required="false" default="True" />' in xml_output
     assert '</tool>' in xml_output
 
 def test_file_reader_tool_usage_json_output():
@@ -107,10 +116,22 @@ def test_file_reader_tool_usage_json_output():
     end_line_prop = input_schema["properties"]["end_line"]
     assert end_line_prop["type"] == ParameterType.INTEGER.to_json_schema_type()
 
+    include_prop = input_schema["properties"]["include_line_numbers"]
+    assert include_prop["type"] == ParameterType.BOOLEAN.to_json_schema_type()
+
 @pytest.mark.asyncio
 async def test_read_file_content_functional(file_reader_tool_instance: BaseTool, test_file_for_reader: str, mock_agent_context_file_ops: AgentContext):
     content = await file_reader_tool_instance.execute(mock_agent_context_file_ops, path=str(test_file_for_reader))
     assert content == "1: Test Content with Ümlauts for read_file"
+
+@pytest.mark.asyncio
+async def test_read_file_without_line_numbers(file_reader_tool_instance: BaseTool, test_file_for_reader: str, mock_agent_context_file_ops: AgentContext):
+    content = await file_reader_tool_instance.execute(
+        mock_agent_context_file_ops,
+        path=str(test_file_for_reader),
+        include_line_numbers=False,
+    )
+    assert content == "Test Content with Ümlauts for read_file"
 
 @pytest.mark.asyncio
 async def test_read_file_with_line_range_functional(tmp_path, file_reader_tool_instance: BaseTool, mock_agent_context_file_ops: AgentContext):
@@ -124,6 +145,15 @@ async def test_read_file_with_line_range_functional(tmp_path, file_reader_tool_i
         end_line=3
     )
     assert content == "2: line2\n3: line3\n"
+
+    raw_content = await file_reader_tool_instance.execute(
+        mock_agent_context_file_ops,
+        path=str(file_path),
+        start_line=2,
+        end_line=3,
+        include_line_numbers=False,
+    )
+    assert raw_content == "line2\nline3\n"
 
 @pytest.mark.asyncio
 async def test_read_file_invalid_line_range_functional(tmp_path, file_reader_tool_instance: BaseTool, mock_agent_context_file_ops: AgentContext):

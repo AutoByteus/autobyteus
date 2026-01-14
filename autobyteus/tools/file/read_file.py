@@ -2,6 +2,8 @@ import os
 import logging
 from typing import TYPE_CHECKING, Optional
 
+from pydantic import Field
+
 from autobyteus.tools import tool
 from autobyteus.tools.tool_category import ToolCategory
 
@@ -15,11 +17,15 @@ async def read_file(
     context: 'AgentContext',
     path: str,
     start_line: Optional[int] = None,
-    end_line: Optional[int] = None
+    end_line: Optional[int] = None,
+    include_line_numbers: bool = Field(
+        True,
+        description="If true, prefix each returned line with its line number (default).",
+    ),
 ) -> str:
     """
     Reads content from a specified file. Supports optional 1-based inclusive line ranges via start_line/end_line.
-    Each returned line is prefixed with its line number.
+    Each returned line is prefixed with its line number when include_line_numbers is true.
     'path' is the path to the file. If relative, it must be resolved against a configured agent workspace.
     Raises ValueError if a relative path is given without a valid workspace or if line range arguments are invalid.
     Raises FileNotFoundError if the file does not exist.
@@ -67,9 +73,12 @@ async def read_file(
                     continue
                 if end_line is not None and line_no > end_line:
                     break
-                line_text = line.rstrip('\n')
-                line_suffix = '\n' if line.endswith('\n') else ''
-                selected_lines.append(f"{line_no}: {line_text}{line_suffix}")
+                if include_line_numbers:
+                    line_text = line.rstrip('\n')
+                    line_suffix = '\n' if line.endswith('\n') else ''
+                    selected_lines.append(f"{line_no}: {line_text}{line_suffix}")
+                else:
+                    selected_lines.append(line)
             content = ''.join(selected_lines)
         logger.info(f"File successfully read from '{final_path}' for agent '{context.agent_id}'.")
         return content
