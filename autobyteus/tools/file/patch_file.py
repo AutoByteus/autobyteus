@@ -2,6 +2,8 @@ import os
 import logging
 from typing import TYPE_CHECKING, List
 
+from pydantic import Field
+
 from autobyteus.tools.functional_tool import tool
 from autobyteus.tools.tool_category import ToolCategory
 from autobyteus.utils.diff_utils import apply_unified_diff, PatchApplicationError
@@ -38,7 +40,23 @@ def _resolve_file_path(context: 'AgentContext', path: str) -> str:
 
 
 @tool(name="patch_file", category=ToolCategory.FILE_SYSTEM)
-async def patch_file(context: 'AgentContext', path: str, patch: str) -> str:
+async def patch_file(
+    context: 'AgentContext',
+    path: str = Field(..., description="Path to the target file."),
+    patch: str = Field(
+        ...,
+        description=(
+            "Unified diff hunks describing edits to apply. "
+            "Example:\n"
+            "--- a/sample.txt\n"
+            "+++ b/sample.txt\n"
+            "@@ -1,2 +1,2 @@\n"
+            "-old line\n"
+            "+new line\n"
+            " unchanged line"
+        ),
+    ),
+) -> str:
     """Applies a unified diff patch to update a text file without overwriting unrelated content.
 
     Args:

@@ -28,6 +28,15 @@ def file_writer_tool_instance(mock_agent_context_file_ops: AgentContext) -> Base
     return tool_instance
 
 @pytest.fixture
+def mock_agent_context_with_workspace(temp_dir_for_functional_writer: str) -> AgentContext:
+    mock_context = Mock(spec=AgentContext)
+    mock_context.agent_id = "test_agent_file_ops_func_writer_workspace"
+    mock_workspace = Mock()
+    mock_workspace.get_base_path.return_value = temp_dir_for_functional_writer
+    mock_context.workspace = mock_workspace
+    return mock_context
+
+@pytest.fixture
 def temp_dir_for_functional_writer() -> str:  # type: ignore
     base_temp_dir = tempfile.gettempdir()
     test_specific_dir = os.path.join(base_temp_dir, f"autobyteus_func_writer_{os.urandom(4).hex()}")
@@ -121,3 +130,24 @@ async def test_write_io_error_functional(mocker, file_writer_tool_instance: Base
     
     with pytest.raises(IOError, match=f"Could not write file at '{path}': Simulated write permission denied"):
         await file_writer_tool_instance.execute(mock_agent_context_file_ops, path=path, content="test")
+
+@pytest.mark.asyncio
+async def test_write_relative_path_returns_relative(
+    file_writer_tool_instance: BaseTool,
+    temp_dir_for_functional_writer: str,
+    mock_agent_context_with_workspace: AgentContext,
+):
+    rel_path = os.path.join("subdir", "relative.txt")
+    content = "Relative content"
+    expected_message = f"File created/updated at {os.path.normpath(rel_path)}"
+
+    result = await file_writer_tool_instance.execute(
+        mock_agent_context_with_workspace,
+        path=rel_path,
+        content=content,
+    )
+    assert result == expected_message
+
+    full_path = os.path.join(temp_dir_for_functional_writer, rel_path)
+    with open(full_path, 'r', encoding='utf-8') as file:
+        assert file.read() == content

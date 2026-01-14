@@ -57,10 +57,14 @@ def apply_unified_diff(
     patch_lines = patch.splitlines(keepends=True)
     line_idx = 0
 
-    def lines_match(l1: str, l2: str) -> bool:
+    def lines_match(l1: str, l2: str, *, allow_eof_newline_mismatch: bool = False) -> bool:
         if ignore_whitespace:
             return l1.strip() == l2.strip()
-        return l1 == l2
+        if l1 == l2:
+            return True
+        if allow_eof_newline_mismatch:
+            return l1.rstrip('\n') == l2.rstrip('\n')
+        return False
 
     while line_idx < len(patch_lines):
         line = patch_lines[line_idx]
@@ -171,7 +175,15 @@ def apply_unified_diff(
             match_success = True
             for k in range(expected_count):
                 # Note: lines_match handles whitespace if needed.
-                if not lines_match(original_lines[candidate_idx + k], refined_expected_orig[k]):
+                is_eof_line = (
+                    candidate_idx + expected_count == len(original_lines)
+                    and k == expected_count - 1
+                )
+                if not lines_match(
+                    original_lines[candidate_idx + k],
+                    refined_expected_orig[k],
+                    allow_eof_newline_mismatch=is_eof_line,
+                ):
                     match_success = False
                     break
             

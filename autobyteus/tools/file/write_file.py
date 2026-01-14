@@ -23,8 +23,10 @@ async def write_file(context: 'AgentContext', path: str, content: str) -> str:
     logger.debug(f"Functional write_file tool for agent {context.agent_id}, initial path: {path}")
     
     final_path: str
+    return_path: str
     if os.path.isabs(path):
         final_path = path
+        return_path = final_path
         logger.debug(f"Path '{path}' is absolute. Using it directly.")
     else:
         if not context.workspace:
@@ -39,6 +41,7 @@ async def write_file(context: 'AgentContext', path: str, content: str) -> str:
             raise ValueError(error_msg)
             
         final_path = os.path.join(base_path, path)
+        return_path = os.path.normpath(path)
         logger.debug(f"Path '{path}' is relative. Resolved to '{final_path}' using workspace base path '{base_path}'.")
 
     try:
@@ -53,7 +56,7 @@ async def write_file(context: 'AgentContext', path: str, content: str) -> str:
             file.write(content)
             
         logger.info(f"File successfully written to '{final_path}' for agent '{context.agent_id}'.")
-        return f"File created/updated at {final_path}"
+        return f"File created/updated at {return_path}"
     except Exception as e:
         logger.error(f"Error writing file to final path '{final_path}' for agent {context.agent_id}: {e}", exc_info=True)
         raise IOError(f"Could not write file at '{final_path}': {str(e)}")

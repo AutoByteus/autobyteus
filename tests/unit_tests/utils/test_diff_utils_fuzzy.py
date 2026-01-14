@@ -82,5 +82,14 @@ index 1234567..89abcde 100644
         patched = apply_unified_diff(original, patch)
         self.assertEqual(patched, ["LINE1\n", "line2\n"])
 
+    def test_allows_missing_newline_at_eof(self):
+        original = ["line1\n", "line2"]
+        patch = """@@ -1,2 +1,2 @@
+ line1
+-line2
++LINE2"""
+        patched = apply_unified_diff(original, patch)
+        self.assertEqual(patched, ["line1\n", "LINE2"])
+
 if __name__ == '__main__':
     unittest.main()
