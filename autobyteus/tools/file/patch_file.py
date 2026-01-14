@@ -69,6 +69,7 @@ async def patch_file(
         IOError: If file reading or writing fails.
     """
     logger.debug("patch_file: requested patch for agent '%s' on path '%s'.", context.agent_id, path)
+    return_path = os.path.normpath(path)
     
     # Detailed logging for debugging patch content
     logger.info("patch_file: ===== PATCH ARGUMENT DEBUG START =====")
@@ -139,7 +140,7 @@ async def patch_file(
             destination.writelines(patched_lines)
 
         logger.info("patch_file: successfully applied patch to '%s'.", final_path)
-        return f"File patched successfully at {final_path}"
+        return f"File patched successfully at {return_path}"
     except PatchApplicationError as patch_err:
         logger.error("patch_file: failed to apply patch to '%s': %s", final_path, patch_err, exc_info=True)
         raise patch_err

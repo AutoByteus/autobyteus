@@ -1,4 +1,5 @@
 import pytest
+import os
 from unittest.mock import Mock
 
 import autobyteus.tools.file.patch_file  # Ensure registration side-effects
@@ -16,6 +17,15 @@ def mock_agent_context_file_ops():
     mock_context = Mock()
     mock_context.agent_id = "test_agent_file_ops_func_patch"
     mock_context.workspace = None
+    return mock_context
+
+@pytest.fixture
+def mock_agent_context_with_workspace(tmp_path):
+    mock_context = Mock()
+    mock_context.agent_id = "test_agent_file_ops_func_patch_workspace"
+    mock_workspace = Mock()
+    mock_workspace.get_base_path.return_value = str(tmp_path)
+    mock_context.workspace = mock_workspace
     return mock_context
 
 @pytest.fixture
@@ -120,6 +130,32 @@ async def test_missing_file_raises_error(file_patch_tool_instance: BaseTool, moc
             path=str(target_path),
             patch=patch,
         )
+
+@pytest.mark.asyncio
+async def test_patch_relative_path_returns_relative(
+    file_patch_tool_instance: BaseTool,
+    mock_agent_context_with_workspace,
+):
+    base_path = mock_agent_context_with_workspace.workspace.get_base_path()
+    file_path = os.path.join(base_path, "rel_patch.txt")
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write("line1\nline2\n")
+
+    patch = """@@ -1,2 +1,2 @@
+ line1
+-line2
++line2 updated
+"""
+
+    result = await file_patch_tool_instance.execute(
+        mock_agent_context_with_workspace,
+        path="rel_patch.txt",
+        patch=patch,
+    )
+
+    assert result == "File patched successfully at rel_patch.txt"
+    with open(file_path, 'r', encoding='utf-8') as f:
+        assert f.read() == "line1\nline2 updated\n"
 
 @pytest.fixture
 def file_reader_tool_instance(mock_agent_context_file_ops) -> BaseTool:
