@@ -5,6 +5,8 @@ Manages multiple PTY sessions for background processes like servers,
 with output buffering and lifecycle management.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import time
@@ -12,7 +14,7 @@ import uuid
 from typing import Callable, Dict, Optional
 
 from autobyteus.tools.terminal.output_buffer import OutputBuffer
-from autobyteus.tools.terminal.pty_session import PtySession
+from autobyteus.tools.terminal.session_factory import get_default_session_factory
 from autobyteus.tools.terminal.types import BackgroundProcessOutput, ProcessInfo
 
 logger = logging.getLogger(__name__)
@@ -25,7 +27,7 @@ class BackgroundProcess:
         self,
         process_id: str,
         command: str,
-        session: PtySession,
+        session: object,
         output_buffer: OutputBuffer
     ):
         self.process_id = process_id
@@ -57,7 +59,7 @@ class BackgroundProcessManager:
     
     def __init__(
         self,
-        session_factory: Callable[[str], PtySession] = None,
+        session_factory: Callable[[str], object] = None,
         max_output_bytes: int = 1_000_000
     ):
         """Initialize the background process manager.
@@ -66,7 +68,7 @@ class BackgroundProcessManager:
             session_factory: Factory function to create PtySession instances.
             max_output_bytes: Maximum bytes to buffer per process.
         """
-        self._session_factory = session_factory or PtySession
+        self._session_factory = session_factory or get_default_session_factory()
         self._max_output_bytes = max_output_bytes
         self._processes: Dict[str, BackgroundProcess] = {}
         self._counter = 0

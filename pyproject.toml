@@ -29,6 +29,7 @@ dependencies = [
     "numpy",
     "ollama",
     "openai",
+    "pywinpty; platform_system == 'Windows'",
     "requests",
     "websockets>=12.0",
     "rich",

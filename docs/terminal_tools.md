@@ -105,4 +105,6 @@ uv run python -m pytest tests/unit_tests/tools/terminal/ -v -m "integration"
 ## Platform Support
 
 - **Linux/macOS**: Full support via PTY
-- **Windows**: Not currently supported (PTY is Unix-specific)
+- **Windows**: Supported via WSL + ConPTY (requires WSL installed and `pywinpty`)
+  - Install WSL: `wsl --install` (then reboot and install a distro)
+  - Ensure tools (python/node) are installed inside WSL if you want bash commands to work

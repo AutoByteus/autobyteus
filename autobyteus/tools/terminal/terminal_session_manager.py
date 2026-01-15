@@ -5,6 +5,8 @@ Provides high-level command execution with prompt detection and
 timeout handling.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import uuid
@@ -12,7 +14,7 @@ from typing import Callable, Optional
 
 from autobyteus.tools.terminal.output_buffer import OutputBuffer
 from autobyteus.tools.terminal.prompt_detector import PromptDetector
-from autobyteus.tools.terminal.pty_session import PtySession
+from autobyteus.tools.terminal.session_factory import get_default_session_factory
 from autobyteus.tools.terminal.types import TerminalResult
 
 logger = logging.getLogger(__name__)
@@ -31,7 +33,7 @@ class TerminalSessionManager:
     
     def __init__(
         self,
-        session_factory: Callable[[str], PtySession] = None,
+        session_factory: Callable[[str], object] = None,
         prompt_detector: PromptDetector = None
     ):
         """Initialize the terminal session manager.
@@ -42,15 +44,15 @@ class TerminalSessionManager:
             prompt_detector: PromptDetector instance for command completion.
                            Defaults to standard PromptDetector.
         """
-        self._session_factory = session_factory or PtySession
+        self._session_factory = session_factory or get_default_session_factory()
         self._prompt_detector = prompt_detector or PromptDetector()
-        self._session: Optional[PtySession] = None
+        self._session: Optional[object] = None
         self._output_buffer = OutputBuffer()
         self._cwd: Optional[str] = None
         self._started = False
     
     @property
-    def current_session(self) -> Optional[PtySession]:
+    def current_session(self) -> Optional[object]:
         """The active PTY session if started."""
         return self._session
     

@@ -16,6 +16,7 @@ mistralai
 numpy
 ollama
 openai
+pywinpty; platform_system == "Windows"
 requests
 rich
 textual
