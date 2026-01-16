@@ -16,13 +16,23 @@ logger = logging.getLogger(__name__)
 class TokenUsageTrackingExtension(LLMExtension):
     """
     Extension that tracks and monitors token usage and associated costs for LLM interactions.
+    When no token counter is available for the provider, the extension operates in disabled mode
+    and returns zero/None for all metrics.
     """
 
     def __init__(self, llm: "BaseLLM"):
         super().__init__(llm)
         self.token_counter = get_token_counter(llm.model, llm)
-        self.usage_tracker = TokenUsageTracker(llm.model, self.token_counter)
+        if self.token_counter is not None:
+            self.usage_tracker = TokenUsageTracker(llm.model, self.token_counter)
+        else:
+            self.usage_tracker = None
         self._latest_usage: Optional[TokenUsage] = None
+
+    @property
+    def is_enabled(self) -> bool:
+        """Check if token tracking is enabled (token counter is available)."""
+        return self.token_counter is not None
 
     @property
     def latest_token_usage(self) -> Optional[TokenUsage]:
@@ -40,6 +50,9 @@ class TokenUsageTrackingExtension(LLMExtension):
         """
         Get the latest usage from tracker and optionally override token counts with provider's usage if available
         """
+        if not self.is_enabled:
+            return
+
         latest_usage = self.usage_tracker.get_latest_usage()
     
         if latest_usage is None:
@@ -66,24 +79,38 @@ class TokenUsageTrackingExtension(LLMExtension):
 
     def on_user_message_added(self, message: Message) -> None:
         """Track usage whenever a user message is added. Here input message argument is not used, because the input token counts should consider all the input messages"""
+        if not self.is_enabled:
+            return
         self.usage_tracker.calculate_input_messages(self.llm.messages)
 
     def on_assistant_message_added(self, message: Message) -> None:
         """Track usage whenever an assistant message is added."""
+        if not self.is_enabled:
+            return
         self.usage_tracker.calculate_output_message(message)
 
     def get_total_cost(self) -> float:
+        if not self.is_enabled:
+            return 0.0
         return self.usage_tracker.get_total_cost()
 
     def get_usage_history(self) -> List[TokenUsage]:
+        if not self.is_enabled:
+            return []
         return self.usage_tracker.get_usage_history()
 
     def get_total_input_tokens(self) -> int:
+        if not self.is_enabled:
+            return 0
         return self.usage_tracker.get_total_input_tokens()
 
     def get_total_output_tokens(self) -> int:
+        if not self.is_enabled:
+            return 0
         return self.usage_tracker.get_total_output_tokens()
 
     async def cleanup(self):
-        self.usage_tracker.clear_history()
+        if self.usage_tracker is not None:
+            self.usage_tracker.clear_history()
         self._latest_usage = None
+

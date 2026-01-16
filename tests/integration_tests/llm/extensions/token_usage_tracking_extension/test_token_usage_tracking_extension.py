@@ -4,7 +4,6 @@ from autobyteus.llm.extensions.token_usage_tracking_extension import TokenUsageT
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.messages import Message, MessageRole
 from autobyteus.llm.utils.response_types import CompleteResponse
-from autobyteus.llm.models import LLMModel
 from autobyteus.llm.token_counter.base_token_counter import BaseTokenCounter
 from autobyteus.llm.base_llm import BaseLLM
 
@@ -23,8 +22,17 @@ def mock_llm(mock_token_counter):
     """
     Fixture to create a mock LLM with a specified model and token counter.
     """
+    mock_model = MagicMock()
+    mock_model.provider = MagicMock()
+    mock_model.provider.value = "OPENAI"
+    mock_model.default_config = MagicMock()
+    mock_model.default_config.pricing_config = MagicMock()
+    mock_model.default_config.pricing_config.input_token_pricing = 5.0
+    mock_model.default_config.pricing_config.output_token_pricing = 15.0
+    
     mock_llm = MagicMock(spec=BaseLLM)
-    mock_llm.model = LLMModel.GPT_4o_API
+    mock_llm.model = mock_model
+    mock_llm.messages = []  # Add messages list for tracking
     return mock_llm
 
 @pytest.fixture
@@ -32,7 +40,7 @@ def token_usage_tracking_extension(mock_llm, mock_token_counter):
     """
     Fixture to create a TokenUsageTrackingExtension instance with a mock LLM.
     """
-    with patch('autobyteus.llm.token_counter.token_counter_factory.get_token_counter', return_value=mock_token_counter):
+    with patch('autobyteus.llm.extensions.token_usage_tracking_extension.get_token_counter', return_value=mock_token_counter):
         extension = TokenUsageTrackingExtension(mock_llm)
     return extension
 
@@ -53,10 +61,13 @@ async def test_token_usage_tracking_extension_basic_flow(token_usage_tracking_ex
     """
     input_message, output_message = sample_messages
 
+    # Add the message to the LLM's message list (simulating what BaseLLM.add_user_message does)
+    token_usage_tracking_extension.llm.messages.append(input_message)
+    
     # Simulate adding a user message
     token_usage_tracking_extension.on_user_message_added(input_message)
 
-    # Verify that the token counter was called for input tokens
+    # Verify that the token counter was called for input tokens with the LLM's messages list
     mock_token_counter.count_input_tokens.assert_called_once_with([input_message])
 
     # Simulate generating a response

@@ -32,6 +32,9 @@ class BaseLLM(ABC):
 
     @property
     def latest_token_usage(self):
+        """Get latest token usage. Returns None if token tracking is disabled."""
+        if not self._token_usage_extension.is_enabled:
+            return None
         return self._token_usage_extension.latest_token_usage
 
     def register_extension(self, extension_class: Type[LLMExtension]) -> LLMExtension:

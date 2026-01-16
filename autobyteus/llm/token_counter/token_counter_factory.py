@@ -1,4 +1,6 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
+import logging
+
 from autobyteus.llm.token_counter.openai_token_counter import OpenAITokenCounter
 from autobyteus.llm.token_counter.claude_token_counter import ClaudeTokenCounter
 from autobyteus.llm.token_counter.mistral_token_counter import MistralTokenCounter
@@ -12,7 +14,9 @@ from autobyteus.llm.providers import LLMProvider
 if TYPE_CHECKING:
     from autobyteus.llm.base_llm import BaseLLM
 
-def get_token_counter(model: LLMModel, llm: 'BaseLLM') -> BaseTokenCounter:
+logger = logging.getLogger(__name__)
+
+def get_token_counter(model: LLMModel, llm: 'BaseLLM') -> Optional[BaseTokenCounter]:
     """
     Return the appropriate token counter implementation based on the model.
     
@@ -21,7 +25,8 @@ def get_token_counter(model: LLMModel, llm: 'BaseLLM') -> BaseTokenCounter:
         llm (BaseLLM): The LLM instance.
 
     Returns:
-        BaseTokenCounter: An instance of a token counter specific to the model.
+        Optional[BaseTokenCounter]: An instance of a token counter specific to the model,
+            or None if no token counter is available for the provider.
     """
     if model.provider == LLMProvider.OPENAI:
         return OpenAITokenCounter(model, llm)
@@ -46,5 +51,7 @@ def get_token_counter(model: LLMModel, llm: 'BaseLLM') -> BaseTokenCounter:
     elif model.provider == LLMProvider.ZHIPU:
         return ZhipuTokenCounter(model, llm)
     else:
-        # For models that do not have a specialized counter, raise a NotImplementedError
-        raise NotImplementedError(f"No token counter available for model {model.value}")
+        # For providers without a specialized counter, return None and log a warning
+        logger.info(f"No token counter available for provider {model.provider.value}. Token usage tracking will be disabled.")
+        return None
+
