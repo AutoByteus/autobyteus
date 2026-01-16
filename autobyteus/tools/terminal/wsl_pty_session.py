@@ -51,7 +51,7 @@ class WslPtySession:
         ensure_wsl_distro_available(self._wsl_exe)
 
         try:
-            from pywinpty import PtyProcess
+            from winpty import PtyProcess
         except ImportError as exc:
             raise RuntimeError(
                 "pywinpty is required for Windows PTY support. "
