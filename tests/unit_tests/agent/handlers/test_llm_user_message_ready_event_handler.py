@@ -93,7 +93,12 @@ async def test_provider_specific_json_tool_parsing(handler, agent_context, mock_
     agent_context.input_event_queues.enqueue_tool_invocation_request = AsyncMock()
     agent_context.input_event_queues.enqueue_internal_system_event = AsyncMock()
 
-    json_payload = '{"name": "search", "args": {"query": "autobyteus"}}'
+    # Ensure agent has tools so factory enables parsing
+    agent_context.config.tools = ["search"]
+    agent_context.state.tool_instances = {"search": MagicMock()}
+
+    # Default strategy expects specific structure for tool/function/name
+    json_payload = '{"tool": {"function": {"name": "search"}, "arguments": {"query": "autobyteus"}}}'
 
     async def stream_gen(_):
         yield ChunkResponse(content=json_payload, is_complete=True)
@@ -176,7 +181,7 @@ async def test_api_tool_call_handler_selection_and_schema_passing(handler, agent
     monkeypatch.setenv("AUTOBYTEUS_STREAM_PARSER", "api_tool_call")
     tool_name = agent_context.config.tools[0].get_name()
     mock_llm.model = MagicMock()
-    mock_llm.model.provider = LLMProvider.OPENAI # Explicitly set a provider
+    mock_llm.model.provider = LLMProvider.OPENAI
     agent_context.state.llm_instance = mock_llm
     
     # Mock mocks
@@ -198,20 +203,24 @@ async def test_api_tool_call_handler_selection_and_schema_passing(handler, agent
         },
     }]
 
-    # Mock LLM stream
+    # Track whether tools were passed to LLM
+    tools_passed = {"value": None}
+    
     async def stream_gen(_, **kwargs):
-        # Verify tools were passed
-        assert "tools" in kwargs
-        assert kwargs["tools"] == tools_schema
+        tools_passed["value"] = kwargs.get("tools")
         yield ChunkResponse(content="Hello", is_complete=True)
         
     mock_llm.stream_user_message.side_effect = stream_gen
 
-    # Run handler with schema provider patch
-    with patch("autobyteus.agent.handlers.llm_user_message_ready_event_handler.ToolSchemaProvider") as provider_cls:
+    # Patch ToolSchemaProvider in the factory module where it's imported
+    with patch("autobyteus.tools.usage.tool_schema_provider.ToolSchemaProvider") as provider_cls:
         provider_cls.return_value.build_schema.return_value = tools_schema
 
         msg = LLMUserMessage(content="prompt")
         event = LLMUserMessageReadyEvent(llm_user_message=msg)
         
         await handler.handle(event, agent_context)
+    
+    # Verify tools were passed to the LLM
+    assert tools_passed["value"] == tools_schema
+

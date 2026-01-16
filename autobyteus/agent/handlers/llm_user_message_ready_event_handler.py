@@ -2,7 +2,7 @@
 import logging
 import traceback
 import uuid
-from typing import TYPE_CHECKING, cast, Optional, List
+from typing import TYPE_CHECKING, Optional, List
 
 from autobyteus.agent.handlers.base_event_handler import AgentEventHandler
 from autobyteus.agent.events import LLMUserMessageReadyEvent, LLMCompleteResponseReceivedEvent, PendingToolInvocationEvent 
@@ -11,13 +11,8 @@ from autobyteus.llm.utils.response_types import ChunkResponse, CompleteResponse
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.agent.streaming.streaming_response_handler import StreamingResponseHandler
 from autobyteus.agent.streaming.streaming_handler_factory import StreamingResponseHandlerFactory
-from autobyteus.agent.streaming.parser.parser_context import ParserConfig
-from autobyteus.agent.streaming.parser.json_parsing_strategies.registry import get_json_tool_parsing_profile
-from autobyteus.agent.streaming.parser.events import SegmentEvent, SegmentType, SegmentEventType
+from autobyteus.agent.streaming.parser.events import SegmentEvent, SegmentType
 from autobyteus.agent.tool_invocation import ToolInvocationTurn
-from autobyteus.llm.providers import LLMProvider
-from autobyteus.utils.tool_call_format import resolve_tool_call_format
-from autobyteus.tools.usage.tool_schema_provider import ToolSchemaProvider
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
@@ -47,7 +42,7 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
             error_msg = f"Agent '{agent_id}' received LLMUserMessageReadyEvent but LLM instance is not yet initialized."
             logger.critical(error_msg)
             if context.status_manager and context.status_manager.notifier:
-                context.status_manager.notifier.notify_agent_error_output_generation( # USE RENAMED METHOD
+                context.status_manager.notifier.notify_agent_error_output_generation(
                     error_source="LLMUserMessageReadyEventHandler.pre_llm_check",
                     error_message=error_msg
                 )
@@ -83,7 +78,7 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
                 except Exception as e:
                     logger.error(f"Agent '{agent_id}': Error notifying segment event: {e}", exc_info=True)
 
-        # Create parser config from agent configuration
+        # Collect tool names from agent state/config
         tool_names: List[str] = []
         if context.state.tool_instances:
             tool_names = list(context.state.tool_instances.keys())
@@ -106,41 +101,19 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
                         agent_id,
                         type(tool),
                     )
-        parse_tool_calls = bool(tool_names)  # Enable tool parsing if agent has tools
-        provider = context.state.llm_instance.model.provider if context.state.llm_instance else None
-        json_profile = get_json_tool_parsing_profile(provider)
-        segment_id_prefix = f"turn_{uuid.uuid4().hex}:"
-        parser_config = ParserConfig(
-            parse_tool_calls=parse_tool_calls,
-            json_tool_patterns=json_profile.signature_patterns,
-            json_tool_parser=json_profile.parser,
-            segment_id_prefix=segment_id_prefix,
-        )
-
-        format_override = resolve_tool_call_format()
         
-        # Determine actual tool calling mode
-        use_api_tool_calls = format_override == "api_tool_call" and parse_tool_calls
+        # Get provider from LLM instance
+        provider = context.state.llm_instance.model.provider if context.state.llm_instance else None
 
-        logger.info(
-            "Agent '%s': tool_call_format=%s, parse_tool_calls=%s, provider=%s",
-            agent_id,
-            format_override,
-            parse_tool_calls,
-            provider,
-        )
-
-        # Initialize Streaming Response Handler
-        streaming_handler: StreamingResponseHandler = StreamingResponseHandlerFactory.create(
-            parse_tool_calls=parse_tool_calls,
-            format_override=format_override,
+        # Create streaming handler via factory (all configuration encapsulated)
+        handler_result = StreamingResponseHandlerFactory.create(
+            tool_names=tool_names,
             provider=provider,
-            parser_config=parser_config,
-            segment_id_prefix=segment_id_prefix,
             on_segment_event=emit_segment_event,
-            on_tool_invocation=None,  # Only finalized invocations are needed here.
             agent_id=agent_id,
         )
+        streaming_handler = handler_result.handler
+        
         logger.info(
             "Agent '%s': Streaming handler selected: %s",
             agent_id,
@@ -149,24 +122,17 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
 
         # Prepare arguments for stream_user_message
         stream_kwargs = {}
-        if use_api_tool_calls:
-            tools_schema = ToolSchemaProvider().build_schema(tool_names, provider)
-            if tools_schema:
-                stream_kwargs["tools"] = tools_schema
-                logger.info(
-                    "Agent '%s': Passing %d tool schemas to LLM API (Provider: %s)",
-                    agent_id,
-                    len(tools_schema),
-                    provider,
-                )
-            else:
-                logger.warning(
-                    "Agent '%s': No tool schemas built for API tool calls (Provider: %s)",
-                    agent_id,
-                    provider,
-                )
+        if handler_result.tool_schemas:
+            stream_kwargs["tools"] = handler_result.tool_schemas
+            logger.info(
+                "Agent '%s': Passing %d tool schemas to LLM API (Provider: %s)",
+                agent_id,
+                len(handler_result.tool_schemas),
+                provider,
+            )
 
         # State for manual reasoning parts (since they might come from outside the parser)
+        segment_id_prefix = f"turn_{uuid.uuid4().hex}:"
         current_reasoning_part_id = None
 
         try:
@@ -221,7 +187,7 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
             streaming_handler.finalize()
 
             # After finalization, enqueue any parsed tool invocations.
-            if parse_tool_calls:
+            if tool_names:
                 tool_invocations = streaming_handler.get_all_invocations()
                 if tool_invocations:
                     context.state.active_multi_tool_call_turn = ToolInvocationTurn(
