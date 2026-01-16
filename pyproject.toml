@@ -83,6 +83,10 @@ autobyteus = ["py.typed", "clients/certificates/cert.pem"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "integration: Integration tests that spawn real processes/services",
+    "windows: Windows-specific tests (requires Windows OS and WSL)",
+]
 
 [dependency-groups]
 dev = [

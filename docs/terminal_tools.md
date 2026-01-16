@@ -102,6 +102,33 @@ Run integration tests only (spawn real PTY):
 uv run python -m pytest tests/unit_tests/tools/terminal/ -v -m "integration"
 ```
 
+### Windows-Specific Testing
+
+**Important**: On Windows, the standard integration tests will fail with `No module named 'fcntl'` because `fcntl` is a Unix-only module used by `PtySession`.
+
+Use the dedicated Windows test file instead:
+
+```bash
+# Run Windows-specific WSL tests
+python -m pytest tests/unit_tests/tools/terminal/test_wsl_terminal_windows.py -v
+
+# Or use the windows marker
+python -m pytest -v -m "windows"
+```
+
+The Windows tests:
+
+- Only import WSL-related modules (no Unix dependencies)
+- Verify WSL executable and distro availability
+- Test real bash command execution inside WSL
+- Validate state persistence and background processes
+
+**Prerequisites**:
+
+- WSL installed and configured (see Windows Setup Guide below)
+- Ubuntu or another Linux distro installed in WSL
+- `pywinpty` installed (`pip install pywinpty`)
+
 ## Platform Support
 
 - **Linux/macOS**: Full support out of the box.
@@ -112,15 +139,19 @@ uv run python -m pytest tests/unit_tests/tools/terminal/ -v -m "integration"
 On Windows, the `run_bash` tool executes commands inside a real Linux environment running via WSL. Follow these steps to set it up:
 
 #### 1. Install WSL
+
 Open PowerShell as **Administrator** and run:
+
 ```powershell
 wsl --install
 ```
-*   **Restart your computer** when prompted.
-*   After restarting, a window will open to finish installing Ubuntu (or the default distro).
-*   Create a **username** and **password** when asked (remember these!).
+
+- **Restart your computer** when prompted.
+- After restarting, a window will open to finish installing Ubuntu (or the default distro).
+- Create a **username** and **password** when asked (remember these!).
 
 #### 2. Install Python 3.11 (Required)
+
 Inside your new WSL terminal (Ubuntu), run these commands to install Python 3.11:
 
 ```bash
@@ -142,6 +173,7 @@ python3.11 --version
 ```
 
 #### 3. Install Node.js & npm (Recommended)
+
 Most web development agents will need Node.js. Install the latest LTS version:
 
 ```bash
@@ -160,6 +192,7 @@ npm --version
 ```
 
 #### 4. Accessing your Windows Files (Automatic)
+
 WSL automatically "mounts" your Windows drives. You can access your Windows folders using the path `/mnt/<drive-letter>/`.
 
 - **Your C: Drive**: Accessible at `/mnt/c/`
@@ -171,16 +204,21 @@ WSL automatically "mounts" your Windows drives. You can access your Windows fold
 This allows Autobyteus agents to manage your Windows folders seamlessly using Linux tools.
 
 #### 5. GUI Support (Optional)
+
 Modern WSL supports graphical applications. If you install a Linux app inside Ubuntu, it will automatically appear in your **Windows Start Menu**.
 
 For easier file management, you can install a Linux file manager:
+
 ```bash
 sudo apt install nautilus -y
 ```
+
 Then, just search for **"Nautilus"** in your Windows Start Menu to browse your WSL and Windows files graphically.
 
 #### 6. How it works
+
 When an agent runs `run_bash("npm install")`:
+
 1.  Autobyteus (running on Windows) talks to a hidden WSL terminal via `pywinpty`.
 2.  The command executes inside your WSL Ubuntu instance.
 3.  Files created (like `node_modules`) live in the WSL file system, or on your Windows drive if you `cd` there first.
