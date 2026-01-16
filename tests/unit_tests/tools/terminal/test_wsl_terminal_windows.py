@@ -6,10 +6,10 @@ These tests are separate from the Unix PTY tests to avoid importing fcntl
 and other Unix-only modules.
 
 Run these tests on Windows with:
-    python -m pytest tests/unit_tests/tools/terminal/test_wsl_terminal_windows.py -v
+    uv run python -m pytest tests/unit_tests/tools/terminal/test_wsl_terminal_windows.py -v
 
 Or run with the windows marker:
-    python -m pytest -v -m "windows"
+    uv run python -m pytest -v -m "windows"
 """
 
 import asyncio

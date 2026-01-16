@@ -110,10 +110,10 @@ Use the dedicated Windows test file instead:
 
 ```bash
 # Run Windows-specific WSL tests
-python -m pytest tests/unit_tests/tools/terminal/test_wsl_terminal_windows.py -v
+uv run python -m pytest tests/unit_tests/tools/terminal/test_wsl_terminal_windows.py -v
 
 # Or use the windows marker
-python -m pytest -v -m "windows"
+uv run python -m pytest -v -m "windows"
 ```
 
 The Windows tests:
