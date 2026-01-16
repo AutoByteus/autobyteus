@@ -104,7 +104,83 @@ uv run python -m pytest tests/unit_tests/tools/terminal/ -v -m "integration"
 
 ## Platform Support
 
-- **Linux/macOS**: Full support via PTY
-- **Windows**: Supported via WSL + ConPTY (requires WSL installed and `pywinpty`)
-  - Install WSL: `wsl --install` (then reboot and install a distro)
-  - Ensure tools (python/node) are installed inside WSL if you want bash commands to work
+- **Linux/macOS**: Full support out of the box.
+- **Windows**: Supported via **WSL (Windows Subsystem for Linux)**.
+
+### 🪟 Windows Setup Guide (Required for `run_bash`)
+
+On Windows, the `run_bash` tool executes commands inside a real Linux environment running via WSL. Follow these steps to set it up:
+
+#### 1. Install WSL
+Open PowerShell as **Administrator** and run:
+```powershell
+wsl --install
+```
+*   **Restart your computer** when prompted.
+*   After restarting, a window will open to finish installing Ubuntu (or the default distro).
+*   Create a **username** and **password** when asked (remember these!).
+
+#### 2. Install Python 3.11 (Required)
+Inside your new WSL terminal (Ubuntu), run these commands to install Python 3.11:
+
+```bash
+# Update package lists
+sudo apt update && sudo apt upgrade -y
+
+# Install prerequisites
+sudo apt install -y software-properties-common curl git unzip build-essential
+
+# Add Python PPA (if needed for older Ubuntu versions)
+sudo add-apt-repository ppa:deadsnakes/ppa -y
+sudo apt update
+
+# Install Python 3.11
+sudo apt install -y python3.11 python3.11-venv python3.11-dev
+
+# Verify installation
+python3.11 --version
+```
+
+#### 3. Install Node.js & npm (Recommended)
+Most web development agents will need Node.js. Install the latest LTS version:
+
+```bash
+# Install Node Version Manager (nvm)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+
+# Close and reopen your terminal, or source the profile
+source ~/.bashrc
+
+# Install Node.js LTS
+nvm install --lts
+
+# Verify installation
+node --version
+npm --version
+```
+
+#### 4. Accessing your Windows Files (Automatic)
+WSL automatically "mounts" your Windows drives. You can access your Windows folders using the path `/mnt/<drive-letter>/`.
+
+- **Your C: Drive**: Accessible at `/mnt/c/`
+- **Your Projects**: If your code is in `C:\Code\my-project`, the agent can access it via:
+  ```bash
+  cd /mnt/c/Code/my-project
+  ```
+
+This allows Autobyteus agents to manage your Windows folders seamlessly using Linux tools.
+
+#### 5. GUI Support (Optional)
+Modern WSL supports graphical applications. If you install a Linux app inside Ubuntu, it will automatically appear in your **Windows Start Menu**.
+
+For easier file management, you can install a Linux file manager:
+```bash
+sudo apt install nautilus -y
+```
+Then, just search for **"Nautilus"** in your Windows Start Menu to browse your WSL and Windows files graphically.
+
+#### 6. How it works
+When an agent runs `run_bash("npm install")`:
+1.  Autobyteus (running on Windows) talks to a hidden WSL terminal via `pywinpty`.
+2.  The command executes inside your WSL Ubuntu instance.
+3.  Files created (like `node_modules`) live in the WSL file system, or on your Windows drive if you `cd` there first.

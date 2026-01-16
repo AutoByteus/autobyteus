@@ -73,6 +73,12 @@ Choose the collaboration pattern that best fits your use case with configurable 
 ## Requirements
 
 - **Python Version**: Python 3.11.x is the supported version for this project (>=3.11,<3.12). Using other versions may cause dependency conflicts.
+- **Platform Support**:
+  - **Linux/macOS**: Full support for all tools.
+  - **Windows**: Supported via **WSL (Windows Subsystem for Linux)**.
+    - **WSL Required**: Terminal tools (`run_bash`, etc.) require WSL installed (`wsl --install`) and an active Linux distribution.
+    - **Dependency**: `pywinpty` is used for terminal integration and is automatically installed on Windows.
+    - For detailed Windows setup, see the **[Terminal Tools Documentation](docs/terminal_tools.md#platform-support)**.
 
 ## Getting Started
 
