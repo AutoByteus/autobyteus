@@ -90,16 +90,19 @@ class TestWslPtySession:
             # Write echo command
             await session.write(b"echo 'Hello from WSL'\\n")
             
-            # Read output
+            # Read output - give more time for WSL to respond
             output = b""
-            for _ in range(20):  # Try up to 2 seconds
+            for _ in range(30):  # Try up to 3 seconds
                 data = await session.read(timeout=0.1)
                 if data:
                     output += data
-                if b"Hello from WSL" in output:
+                # Check decoded string for the text (handles escape codes better)
+                if "Hello from WSL" in output.decode('utf-8', errors='ignore'):
                     break
             
-            assert b"Hello from WSL" in output
+            # Decode and check - ANSI escape codes are OK, we just need the text
+            output_str = output.decode('utf-8', errors='ignore')
+            assert "Hello from WSL" in output_str, f"Expected 'Hello from WSL' in output, got: {repr(output_str)}"
         finally:
             await session.close()
     
