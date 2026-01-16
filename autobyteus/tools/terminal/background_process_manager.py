@@ -16,6 +16,7 @@ from typing import Callable, Dict, Optional
 from autobyteus.tools.terminal.output_buffer import OutputBuffer
 from autobyteus.tools.terminal.session_factory import get_default_session_factory
 from autobyteus.tools.terminal.types import BackgroundProcessOutput, ProcessInfo
+from autobyteus.tools.terminal.ansi_utils import strip_ansi_codes
 
 logger = logging.getLogger(__name__)
 
@@ -163,8 +164,10 @@ class BackgroundProcessManager:
             raise KeyError(f"Process {process_id} not found")
         
         process = self._processes[process_id]
+        raw_output = process.output_buffer.get_lines(lines)
+        clean_output = strip_ansi_codes(raw_output)
         return BackgroundProcessOutput(
-            output=process.output_buffer.get_lines(lines),
+            output=clean_output,
             is_running=process.is_running,
             process_id=process_id
         )

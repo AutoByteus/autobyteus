@@ -16,6 +16,7 @@ from autobyteus.tools.terminal.output_buffer import OutputBuffer
 from autobyteus.tools.terminal.prompt_detector import PromptDetector
 from autobyteus.tools.terminal.session_factory import get_default_session_factory
 from autobyteus.tools.terminal.types import TerminalResult
+from autobyteus.tools.terminal.ansi_utils import strip_ansi_codes
 
 logger = logging.getLogger(__name__)
 
@@ -146,8 +147,9 @@ class TerminalSessionManager:
                 logger.error(f"Error reading from PTY: {e}")
                 break
         
-        # Get captured output
+        # Get captured output and strip ANSI escape codes
         output = self._output_buffer.get_all()
+        clean_output = strip_ansi_codes(output)
         
         # Try to extract exit code if not timed out
         exit_code = None
@@ -155,7 +157,7 @@ class TerminalSessionManager:
             exit_code = await self._get_exit_code()
         
         return TerminalResult(
-            stdout=output,
+            stdout=clean_output,
             stderr="",  # PTY mixes stdout/stderr
             exit_code=exit_code,
             timed_out=timed_out
