@@ -107,12 +107,12 @@ The system must tell the LLM how to call tools. This is handled by **Formatters*
 
 ### 4.3. Parsing (Execution)
 
-When the LLM responds, the system interprets intent during streaming:
+When the LLM responds, the system interprets intent during streaming using one of two strategies:
 
-- **`StreamingParser`**: FSM-based streaming parser that detects XML/JSON/sentinel tool blocks.
-- **`ToolInvocationAdapter`**: Converts completed tool segments into `ToolInvocation` objects.
+- **Text-Embedded Handlers** (`ParsingStreamingResponseHandler`): Uses FSM-based parser to detect XML/JSON/sentinel tool blocks within text.
+- **API Tool Call Handler** (`ApiToolCallStreamingResponseHandler`): Processes structured tool calls directly from the provider's API stream.
 
----
+## Both strategies emit normalized `SegmentEvent`s, which are converted by the **`ToolInvocationAdapter`** into `ToolInvocation` objects.
 
 ## 5. Integration Flow: A Life of a Request
 
