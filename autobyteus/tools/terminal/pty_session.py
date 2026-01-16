@@ -102,16 +102,16 @@ class PtySession:
                 if slave_fd > 2:
                     os.close(slave_fd)
                 
-                # Set environment variables for better UX
-                os.environ['TERM'] = 'xterm-256color'
+                # Set environment variables for minimal output
+                os.environ['TERM'] = 'dumb'
                 # Simple prompt for easier detection
-                os.environ['PS1'] = r'\w $ '
+                os.environ['PS1'] = '$ '
                 
                 # Change to working directory
                 os.chdir(cwd)
                 
-                # Execute bash with minimal startup
-                os.execlp('bash', 'bash', '--norc', '--noprofile', '-i')
+                # Execute bash with minimal startup (non-interactive)
+                os.execlp('bash', 'bash', '--norc', '--noprofile')
             except Exception as e:
                 logger.error(f"Child process error: {e}")
                 os._exit(1)

@@ -58,14 +58,14 @@ class WslPtySession:
                 "Install with `pip install pywinpty`."
             ) from exc
 
-        command = f"{self._wsl_exe} --exec bash --noprofile --norc -i"
+        command = f"{self._wsl_exe} --exec bash --noprofile --norc"
         self._process = PtyProcess.spawn(command)
 
         await asyncio.sleep(0.1)
 
         wsl_cwd = windows_path_to_wsl(cwd, wsl_exe=self._wsl_exe)
-        await self._write_command("export TERM=xterm-256color")
-        await self._write_command("export PS1='\\w $ '")
+        await self._write_command("export TERM=dumb")
+        await self._write_command("export PS1='$ '")
         await self._write_command(f"cd {shlex.quote(wsl_cwd)}")
 
         logger.info("Started WSL PTY session %s in %s", self._session_id, wsl_cwd)
