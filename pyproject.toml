@@ -25,7 +25,7 @@ dependencies = [
     "Jinja2",
     "mcp[cli]",
     "mistral_common",
-    "mistralai",
+    "mistralai==1.9.9",
     "numpy",
     "ollama",
     "openai",
