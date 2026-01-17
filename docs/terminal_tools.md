@@ -127,7 +127,7 @@ The Windows tests:
 
 - WSL installed and configured (see Windows Setup Guide below)
 - Ubuntu or another Linux distro installed in WSL
-- `pywinpty` installed (`pip install pywinpty`)
+- `tmux` installed inside the WSL distro (`sudo apt install tmux`)
 
 ## Platform Support
 
@@ -201,7 +201,16 @@ node --version
 npm --version
 ```
 
-#### 5. Accessing your Windows Files (Automatic)
+#### 5. Install tmux (Required)
+
+The Windows terminal backend uses tmux inside WSL:
+
+```bash
+sudo apt install -y tmux
+tmux -V
+```
+
+#### 6. Accessing your Windows Files (Automatic)
 
 WSL automatically "mounts" your Windows drives. You can access your Windows folders using the path `/mnt/<drive-letter>/`.
 
@@ -213,7 +222,7 @@ WSL automatically "mounts" your Windows drives. You can access your Windows fold
 
 This allows Autobyteus agents to manage your Windows folders seamlessly using Linux tools.
 
-#### 6. GUI Support (Optional)
+#### 7. GUI Support (Optional)
 
 Modern WSL supports graphical applications. If you install a Linux app inside Ubuntu, it will automatically appear in your **Windows Start Menu**.
 
@@ -225,10 +234,10 @@ sudo apt install nautilus -y
 
 Then, just search for **"Nautilus"** in your Windows Start Menu to browse your WSL and Windows files graphically.
 
-#### 7. How it works
+#### 8. How it works
 
 When an agent runs `run_bash("npm install")`:
 
-1.  Autobyteus (running on Windows) talks to a hidden WSL terminal via `pywinpty`.
+1.  Autobyteus (running on Windows) talks to WSL and uses `tmux` for the shell session.
 2.  The command executes inside your WSL Ubuntu instance.
 3.  Files created (like `node_modules`) live in the WSL file system, or on your Windows drive if you `cd` there first.

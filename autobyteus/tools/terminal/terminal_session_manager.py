@@ -181,6 +181,7 @@ class TerminalSessionManager:
             await self._drain_output(timeout=0.3)
             
             output = self._output_buffer.get_all()
+            output = strip_ansi_codes(output)
             
             # Parse the exit code from output
             lines = output.strip().split('\n')

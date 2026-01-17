@@ -16,9 +16,11 @@ import asyncio
 import os
 import pytest
 import tempfile
+import subprocess
 
 # Only import WSL-specific modules (no Unix dependencies)
-from autobyteus.tools.terminal.wsl_pty_session import WslPtySession
+from autobyteus.tools.terminal.wsl_tmux_session import WslTmuxSession
+from autobyteus.tools.terminal import wsl_utils
 from autobyteus.tools.terminal.terminal_session_manager import TerminalSessionManager
 from autobyteus.tools.terminal.types import TerminalResult
 
@@ -34,6 +36,25 @@ pytestmark = pytest.mark.skipif(
     os.name != "nt",
     reason="Windows-specific tests - requires Windows OS and WSL"
 )
+
+@pytest.fixture(autouse=True)
+def require_tmux():
+    """Skip tests if tmux is not available in the WSL distro."""
+    try:
+        wsl_exe = wsl_utils.ensure_wsl_available()
+        wsl_utils.ensure_wsl_distro_available(wsl_exe)
+        distro = wsl_utils.select_wsl_distro(wsl_exe)
+        result = subprocess.run(
+            [wsl_exe, "-d", distro, "--exec", "tmux", "-V"],
+            capture_output=True,
+            text=False,
+            check=False,
+            timeout=5,
+        )
+        if result.returncode != 0:
+            pytest.skip("tmux is required in WSL for Windows terminal tests.")
+    except Exception as exc:
+        pytest.skip(f"tmux is required in WSL for Windows terminal tests: {exc}")
 
 
 @pytest.fixture
@@ -63,13 +84,13 @@ class MockWorkspace:
 
 @pytest.mark.windows
 @pytest.mark.integration
-class TestWslPtySession:
-    """Integration tests for WslPtySession on Windows."""
+class TestWslTmuxSession:
+    """Integration tests for WslTmuxSession on Windows."""
     
     @pytest.mark.asyncio
     async def test_wsl_session_start_and_alive(self, temp_dir):
         """Test that WSL session can start and reports as alive."""
-        session = WslPtySession("wsl-test-001")
+        session = WslTmuxSession("wsl-test-001")
         
         try:
             await session.start(temp_dir)
@@ -82,7 +103,7 @@ class TestWslPtySession:
     @pytest.mark.asyncio
     async def test_wsl_echo_command(self, temp_dir):
         """Test executing a simple echo command in WSL."""
-        session = WslPtySession("wsl-test-002")
+        session = WslTmuxSession("wsl-test-002")
         
         try:
             await session.start(temp_dir)
@@ -127,7 +148,7 @@ class TestWslTerminalSessionManager:
     @pytest.mark.asyncio
     async def test_manager_with_wsl_backend(self, temp_dir):
         """Test that TerminalSessionManager uses WSL on Windows."""
-        # On Windows, this should automatically use WslPtySession
+        # On Windows, this should automatically use WslTmuxSession
         manager = TerminalSessionManager()
         
         try:

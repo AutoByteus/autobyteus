@@ -6,7 +6,7 @@ import re
 
 # Regex pattern for ANSI escape sequences
 # Matches: ESC[...m (colors), ESC[...H (cursor), etc.
-_ANSI_ESCAPE_PATTERN = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]|\x1b\][^\x07]*\x07|\x1b[=>]')
+_ANSI_ESCAPE_PATTERN = re.compile(r'\x1b\[[0-9;?]*[a-zA-Z]|\x1b\][^\x07]*\x07|\x1b[=>]')
 
 
 def strip_ansi_codes(text: str) -> str:

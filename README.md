@@ -80,7 +80,7 @@ Choose the collaboration pattern that best fits your use case with configurable 
     - **Default Distro**: If you have multiple WSL distros, set Ubuntu as the default to avoid Docker's minimal distro:
       - `wsl -l -v`
       - `wsl --set-default Ubuntu`
-    - **Dependency**: `pywinpty` is used for terminal integration and is automatically installed on Windows.
+    - **Dependency**: `tmux` is required inside WSL for terminal integration on Windows.
     - For detailed Windows setup, see the **[Terminal Tools Documentation](docs/terminal_tools.md#platform-support)**.
 
 ## Getting Started

@@ -19,12 +19,12 @@ from autobyteus.tools.terminal.background_process_manager import BackgroundProce
 from autobyteus.tools.terminal.session_factory import get_default_session_factory
 
 PtySession = None
-WslPtySession = None
+WslTmuxSession = None
 
 if os.name != "nt":
     from autobyteus.tools.terminal.pty_session import PtySession
 else:
-    from autobyteus.tools.terminal.wsl_pty_session import WslPtySession
+    from autobyteus.tools.terminal.wsl_tmux_session import WslTmuxSession
 
 __all__ = [
     # Types
@@ -41,5 +41,5 @@ __all__ = [
 
 if PtySession is not None:
     __all__.append("PtySession")
-if WslPtySession is not None:
-    __all__.append("WslPtySession")
+if WslTmuxSession is not None:
+    __all__.append("WslTmuxSession")
