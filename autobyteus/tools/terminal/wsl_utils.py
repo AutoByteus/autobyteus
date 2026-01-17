@@ -21,6 +21,15 @@ def find_wsl_executable() -> Optional[str]:
     return shutil.which("wsl.exe") or shutil.which("wsl")
 
 
+def _decode_wsl_bytes(raw: bytes) -> str:
+    """Decode WSL output that may be UTF-16LE on Windows consoles."""
+    if not raw:
+        return ""
+    if b"\x00" in raw:
+        return raw.decode("utf-16-le", errors="replace")
+    return raw.decode("utf-8", errors="replace")
+
+
 def ensure_wsl_available() -> str:
     """Return the WSL executable path or raise with guidance."""
     wsl_exe = find_wsl_executable()
@@ -34,13 +43,57 @@ def list_wsl_distros(wsl_exe: str) -> List[str]:
     result = subprocess.run(
         [wsl_exe, "-l", "-q"],
         capture_output=True,
-        text=True,
+        text=False,
         check=False,
         timeout=5,
     )
     if result.returncode != 0:
         return []
-    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    output = _decode_wsl_bytes(result.stdout)
+    return [line.strip() for line in output.splitlines() if line.strip()]
+
+
+def get_default_wsl_distro(wsl_exe: str) -> Optional[str]:
+    """Return the default WSL distro name if available."""
+    result = subprocess.run(
+        [wsl_exe, "-l", "-v"],
+        capture_output=True,
+        text=False,
+        check=False,
+        timeout=5,
+    )
+    if result.returncode != 0:
+        return None
+    output = _decode_wsl_bytes(result.stdout)
+    for line in output.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("*"):
+            parts = stripped.split()
+            if len(parts) >= 2:
+                return parts[1]
+    return None
+
+
+def select_wsl_distro(wsl_exe: str) -> str:
+    """Select a usable WSL distro, preferring non-Docker defaults."""
+    distros = list_wsl_distros(wsl_exe)
+    if not distros:
+        raise RuntimeError(
+            "No WSL distro is installed. Run `wsl --install` "
+            "or install a distro from the Microsoft Store."
+        )
+
+    default = get_default_wsl_distro(wsl_exe)
+    excluded = {"docker-desktop", "docker-desktop-data"}
+
+    if default and default not in excluded:
+        return default
+
+    for distro in distros:
+        if distro and distro not in excluded:
+            return distro
+
+    return default or distros[0]
 
 
 def ensure_wsl_distro_available(wsl_exe: str) -> None:
@@ -58,13 +111,13 @@ def _run_wslpath(wsl_exe: str, path: str) -> Optional[str]:
     result = subprocess.run(
         [wsl_exe, "wslpath", "-a", "-u", path],
         capture_output=True,
-        text=True,
+        text=False,
         check=False,
         timeout=5,
     )
     if result.returncode != 0:
         return None
-    output = result.stdout.strip()
+    output = _decode_wsl_bytes(result.stdout).strip()
     return output or None
 
 

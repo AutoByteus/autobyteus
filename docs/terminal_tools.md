@@ -150,7 +150,17 @@ wsl --install
 - After restarting, a window will open to finish installing Ubuntu (or the default distro).
 - Create a **username** and **password** when asked (remember these!).
 
-#### 2. Install Python 3.11 (Required)
+#### 2. Set Ubuntu as the default WSL distro
+
+If you have multiple distros (for example, Docker's minimal distro), set Ubuntu
+as the default so tools run against a full Linux environment:
+
+```powershell
+wsl -l -v
+wsl --set-default Ubuntu
+```
+
+#### 3. Install Python 3.11 (Required)
 
 Inside your new WSL terminal (Ubuntu), run these commands to install Python 3.11:
 
@@ -172,7 +182,7 @@ sudo apt install -y python3.11 python3.11-venv python3.11-dev
 python3.11 --version
 ```
 
-#### 3. Install Node.js & npm (Recommended)
+#### 4. Install Node.js & npm (Recommended)
 
 Most web development agents will need Node.js. Install the latest LTS version:
 
@@ -191,7 +201,7 @@ node --version
 npm --version
 ```
 
-#### 4. Accessing your Windows Files (Automatic)
+#### 5. Accessing your Windows Files (Automatic)
 
 WSL automatically "mounts" your Windows drives. You can access your Windows folders using the path `/mnt/<drive-letter>/`.
 
@@ -203,7 +213,7 @@ WSL automatically "mounts" your Windows drives. You can access your Windows fold
 
 This allows Autobyteus agents to manage your Windows folders seamlessly using Linux tools.
 
-#### 5. GUI Support (Optional)
+#### 6. GUI Support (Optional)
 
 Modern WSL supports graphical applications. If you install a Linux app inside Ubuntu, it will automatically appear in your **Windows Start Menu**.
 
@@ -215,7 +225,7 @@ sudo apt install nautilus -y
 
 Then, just search for **"Nautilus"** in your Windows Start Menu to browse your WSL and Windows files graphically.
 
-#### 6. How it works
+#### 7. How it works
 
 When an agent runs `run_bash("npm install")`:
 

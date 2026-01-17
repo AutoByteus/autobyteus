@@ -77,6 +77,9 @@ Choose the collaboration pattern that best fits your use case with configurable 
   - **Linux/macOS**: Full support for all tools.
   - **Windows**: Supported via **WSL (Windows Subsystem for Linux)**.
     - **WSL Required**: Terminal tools (`run_bash`, etc.) require WSL installed (`wsl --install`) and an active Linux distribution.
+    - **Default Distro**: If you have multiple WSL distros, set Ubuntu as the default to avoid Docker's minimal distro:
+      - `wsl -l -v`
+      - `wsl --set-default Ubuntu`
     - **Dependency**: `pywinpty` is used for terminal integration and is automatically installed on Windows.
     - For detailed Windows setup, see the **[Terminal Tools Documentation](docs/terminal_tools.md#platform-support)**.
 

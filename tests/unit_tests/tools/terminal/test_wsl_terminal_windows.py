@@ -109,29 +109,14 @@ class TestWslPtySession:
     @pytest.mark.asyncio
     async def test_wsl_pwd_command(self, temp_dir):
         """Test that pwd command works and shows WSL path format."""
-        session = WslPtySession("wsl-test-003")
+        manager = TerminalSessionManager()
         
         try:
-            await session.start(temp_dir)
-            
-            # Run pwd command
-            await session.write(b"pwd\\n")
-            
-            # Read output
-            output = b""
-            for _ in range(20):
-                data = await session.read(timeout=0.1)
-                if data:
-                    output += data
-                # WSL paths start with /mnt/ for Windows drives
-                if b"/mnt/" in output or b"pwd" in output:
-                    break
-            
-            # Should contain WSL path format
-            output_str = output.decode('utf-8', errors='ignore')
-            assert "/mnt/" in output_str or "/" in output_str
+            await manager.ensure_started(temp_dir)
+            result = await manager.execute_command("pwd")
+            assert "/mnt/" in result.stdout or "/" in result.stdout
         finally:
-            await session.close()
+            await manager.close()
 
 
 @pytest.mark.windows
@@ -248,3 +233,73 @@ class TestWslTerminalTools:
         
         assert isinstance(result, TerminalResult)
         assert "/bin/bash" in result.stdout or "/usr/bin/bash" in result.stdout
+
+    @pytest.mark.asyncio
+    async def test_run_bash_creates_file_in_windows_workspace(self, temp_dir):
+        """Test that WSL writes into the Windows workspace path."""
+        context = MockContext(temp_dir)
+        filename = "wsl_created_file.txt"
+        file_path = os.path.join(temp_dir, filename)
+
+        result = await run_cmd_tool.execute(
+            context,
+            command=f"echo 'hello' > {filename}",
+        )
+
+        assert isinstance(result, TerminalResult)
+        assert not result.timed_out
+        assert os.path.isfile(file_path)
+
+    @pytest.mark.asyncio
+    async def test_run_bash_chained_commands(self, temp_dir):
+        """Test chained commands with working directory changes."""
+        context = MockContext(temp_dir)
+
+        result = await run_cmd_tool.execute(
+            context,
+            command="mkdir -p chain_test/inner && cd chain_test && echo 'ok' > inner/file.txt && cat inner/file.txt",
+        )
+
+        assert isinstance(result, TerminalResult)
+        assert "ok" in result.stdout
+        assert not result.timed_out
+
+    @pytest.mark.asyncio
+    async def test_run_bash_pipes_and_redirects(self, temp_dir):
+        """Test pipes and redirects produce expected output."""
+        context = MockContext(temp_dir)
+
+        result = await run_cmd_tool.execute(
+            context,
+            command="printf 'a\\nb\\n' | wc -l",
+        )
+
+        assert isinstance(result, TerminalResult)
+        output_digits = "".join(ch for ch in result.stdout if ch.isdigit())
+        assert output_digits == "2"
+
+    @pytest.mark.asyncio
+    async def test_run_bash_env_var_persistence(self, temp_dir):
+        """Test environment variable set and read in the same command."""
+        context = MockContext(temp_dir)
+
+        result = await run_cmd_tool.execute(
+            context,
+            command="export AUTOBYTEUS_TEST_VAR=hello && echo $AUTOBYTEUS_TEST_VAR",
+        )
+
+        assert isinstance(result, TerminalResult)
+        assert "hello" in result.stdout
+
+    @pytest.mark.asyncio
+    async def test_run_bash_exit_code(self, temp_dir):
+        """Test that non-zero exit codes are captured."""
+        context = MockContext(temp_dir)
+
+        result = await run_cmd_tool.execute(
+            context,
+            command="false",
+        )
+
+        assert isinstance(result, TerminalResult)
+        assert result.exit_code == 1
