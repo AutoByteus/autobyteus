@@ -13,6 +13,51 @@ from autobyteus.llm.converters import convert_anthropic_tool_call
 
 logger = logging.getLogger(__name__)
 
+def _build_thinking_param(extra_params: Dict) -> Optional[Dict]:
+    enabled = extra_params.get("thinking_enabled", False)
+    if not isinstance(enabled, bool) or not enabled:
+        return None
+
+    budget = extra_params.get("thinking_budget_tokens", 1024)
+    try:
+        budget_int = int(budget)
+    except (TypeError, ValueError):
+        budget_int = 1024
+
+    return {"type": "enabled", "budget_tokens": budget_int}
+
+
+def _split_claude_content_blocks(blocks: List) -> Tuple[str, str]:
+    """Split Claude content blocks into visible text and thinking summaries."""
+    content_segments: List[str] = []
+    thinking_segments: List[str] = []
+
+    for block in blocks or []:
+        block_type = getattr(block, "type", None)
+        if block_type is None and isinstance(block, dict):
+            block_type = block.get("type")
+
+        if block_type == "text":
+            text = getattr(block, "text", None)
+            if text is None and isinstance(block, dict):
+                text = block.get("text")
+            if text:
+                content_segments.append(text)
+        elif block_type == "thinking":
+            thinking = getattr(block, "thinking", None)
+            if thinking is None and isinstance(block, dict):
+                thinking = block.get("thinking")
+            if thinking:
+                thinking_segments.append(thinking)
+        elif block_type == "redacted_thinking":
+            redacted = getattr(block, "redacted_thinking", None)
+            if redacted is None and isinstance(block, dict):
+                redacted = block.get("redacted_thinking")
+            if redacted:
+                thinking_segments.append(redacted)
+
+    return "".join(content_segments), "".join(thinking_segments)
+
 class ClaudeLLM(BaseLLM):
     def __init__(self, model: LLMModel = None, llm_config: LLMConfig = None):
         if model is None:
@@ -78,16 +123,31 @@ class ClaudeLLM(BaseLLM):
         # It will only send the text content.
 
         try:
+            request_kwargs = {
+                "model": self.model.value,
+                "max_tokens": self.max_tokens,
+                "temperature": 0,
+                "system": self.system_message,
+                "messages": self._get_non_system_messages(),
+            }
+            thinking_param = _build_thinking_param(self.config.extra_params)
+            if thinking_param:
+                request_kwargs["thinking"] = thinking_param
+
             response = self.client.messages.create(
-                model=self.model.value,
-                max_tokens=self.max_tokens,
-                temperature=0,
-                system=self.system_message,
-                messages=self._get_non_system_messages()
+                **request_kwargs
             )
 
-            assistant_message = response.content[0].text
-            self.add_assistant_message(assistant_message)
+            assistant_message = getattr(response, "text", "") or ""
+            reasoning_summary = None
+            if response.content:
+                parsed_text, parsed_thinking = _split_claude_content_blocks(response.content)
+                if parsed_text:
+                    assistant_message = parsed_text
+                if parsed_thinking:
+                    reasoning_summary = parsed_thinking
+
+            self.add_assistant_message(assistant_message, reasoning_content=reasoning_summary)
 
             token_usage = self._create_token_usage(
                 response.usage.input_tokens,
@@ -98,6 +158,7 @@ class ClaudeLLM(BaseLLM):
             
             return CompleteResponse(
                 content=assistant_message,
+                reasoning=reasoning_summary,
                 usage=token_usage
             )
         except anthropic.APIError as e:
@@ -109,6 +170,7 @@ class ClaudeLLM(BaseLLM):
     ) -> AsyncGenerator[ChunkResponse, None]:
         self.add_user_message(user_message)
         complete_response = ""
+        complete_reasoning = ""
         final_message = None
 
         # Extract tools if provided
@@ -123,6 +185,9 @@ class ClaudeLLM(BaseLLM):
                 "system": self.system_message,
                 "messages": self._get_non_system_messages(),
             }
+            thinking_param = _build_thinking_param(self.config.extra_params)
+            if thinking_param:
+                stream_kwargs["thinking"] = thinking_param
             
             if tools:
                 stream_kwargs["tools"] = tools
@@ -130,12 +195,23 @@ class ClaudeLLM(BaseLLM):
             with self.client.messages.stream(**stream_kwargs) as stream:
                 for event in stream:
                     # Handle text content
-                    if event.type == "content_block_delta" and event.delta.type == "text_delta":
-                        complete_response += event.delta.text
-                        yield ChunkResponse(
-                            content=event.delta.text,
-                            is_complete=False
-                        )
+                    if event.type == "content_block_delta":
+                        delta_type = getattr(event.delta, "type", None)
+                        if delta_type == "text_delta":
+                            complete_response += event.delta.text
+                            yield ChunkResponse(
+                                content=event.delta.text,
+                                is_complete=False
+                            )
+                        elif delta_type == "thinking_delta":
+                            thinking_delta = getattr(event.delta, "thinking", None)
+                            if thinking_delta:
+                                complete_reasoning += thinking_delta
+                                yield ChunkResponse(
+                                    content="",
+                                    reasoning=thinking_delta,
+                                    is_complete=False
+                                )
                     
                     # Handle tool calls using common converter
                     tool_calls = convert_anthropic_tool_call(event)
@@ -160,7 +236,7 @@ class ClaudeLLM(BaseLLM):
                         usage=token_usage
                     )
 
-            self.add_assistant_message(complete_response)
+            self.add_assistant_message(complete_response, reasoning_content=complete_reasoning or None)
         except anthropic.APIError as e:
             logger.error(f"Error in Claude API streaming: {str(e)}")
             raise ValueError(f"Error in Claude API streaming: {str(e)}")

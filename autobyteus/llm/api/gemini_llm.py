@@ -18,6 +18,20 @@ from autobyteus.llm.utils.media_payload_formatter import media_source_to_base64,
 
 logger = logging.getLogger(__name__)
 
+def _split_gemini_parts(parts: List[Any]) -> tuple[str, str]:
+    """Split Gemini content parts into visible text and thought summaries."""
+    content_segments: List[str] = []
+    thought_segments: List[str] = []
+    for part in parts or []:
+        text = getattr(part, "text", None)
+        if not text:
+            continue
+        if getattr(part, "thought", False):
+            thought_segments.append(text)
+        else:
+            content_segments.append(text)
+    return "".join(content_segments), "".join(thought_segments)
+
 async def _format_gemini_history(messages: List[Message]) -> List[Dict[str, Any]]:
     """Formats internal message history for the Gemini API."""
     history = []
@@ -84,9 +98,27 @@ class GeminiLLM(BaseLLM):
         """Builds the generation config, handling special cases like 'thinking'."""
         config = self.generation_config_dict.copy()
 
-        thinking_config = None
-        if "flash" in self.model.value:
-            thinking_config = genai_types.ThinkingConfig(thinking_budget=0)
+        # Map thinking_level to token budget
+        # Values based on Gemini 3 API recommendations
+        THINKING_LEVEL_BUDGETS = {
+            "minimal": 0,
+            "low": 1024,
+            "medium": 4096,
+            "high": 16384,
+        }
+        
+        # Read thinking_level from extra_params (set by user config)
+        # Default to "minimal" (0 tokens) for backward compatibility
+        thinking_level = self.config.extra_params.get("thinking_level", "minimal")
+        thinking_budget = THINKING_LEVEL_BUDGETS.get(thinking_level, 0)
+        
+        include_thoughts = self.config.extra_params.get("include_thoughts", False)
+        if not isinstance(include_thoughts, bool):
+            include_thoughts = False
+        thinking_config = genai_types.ThinkingConfig(
+            thinking_budget=thinking_budget,
+            include_thoughts=include_thoughts
+        )
         
         # System instruction is now part of the config
         system_instruction = self.system_message if self.system_message else None
@@ -116,8 +148,16 @@ class GeminiLLM(BaseLLM):
                 config=generation_config,
             )
             
-            assistant_message = response.text
-            self.add_assistant_message(assistant_message)
+            assistant_message = response.text or ""
+            reasoning_summary = None
+            if response.candidates and response.candidates[0].content and response.candidates[0].content.parts:
+                parsed_text, parsed_thoughts = _split_gemini_parts(response.candidates[0].content.parts)
+                if parsed_text:
+                    assistant_message = parsed_text
+                if parsed_thoughts:
+                    reasoning_summary = parsed_thoughts
+
+            self.add_assistant_message(assistant_message, reasoning_content=reasoning_summary)
             
             token_usage = TokenUsage(
                 prompt_tokens=0,
@@ -127,6 +167,7 @@ class GeminiLLM(BaseLLM):
             
             return CompleteResponse(
                 content=assistant_message,
+                reasoning=reasoning_summary,
                 usage=token_usage
             )
         except Exception as e:
@@ -136,6 +177,7 @@ class GeminiLLM(BaseLLM):
     async def _stream_user_message_to_llm(self, user_message: LLMUserMessage, **kwargs) -> AsyncGenerator[ChunkResponse, None]:
         self.add_user_message(user_message)
         complete_response = ""
+        complete_reasoning = ""
         
         # Extract tools if provided
         tools = kwargs.get("tools")
@@ -185,18 +227,26 @@ class GeminiLLM(BaseLLM):
             response_stream = await self.async_client.models.generate_content_stream(**call_kwargs)
 
             async for chunk in response_stream:
-                chunk_text = chunk.text
-                if chunk_text:
-                    complete_response += chunk_text
-                    yield ChunkResponse(
-                        content=chunk_text,
-                        is_complete=False
-                    )
-                
-                # Handle tool calls
-                # Iterate parts in the candidate
+                handled_parts = False
                 if chunk.candidates and chunk.candidates[0].content and chunk.candidates[0].content.parts:
+                    handled_parts = True
                     for part in chunk.candidates[0].content.parts:
+                        part_text = getattr(part, "text", None)
+                        if part_text:
+                            if getattr(part, "thought", False):
+                                complete_reasoning += part_text
+                                yield ChunkResponse(
+                                    content="",
+                                    reasoning=part_text,
+                                    is_complete=False
+                                )
+                            else:
+                                complete_response += part_text
+                                yield ChunkResponse(
+                                    content=part_text,
+                                    is_complete=False
+                                )
+
                         tool_calls = convert_gemini_tool_calls(part)
                         if tool_calls:
                             yield ChunkResponse(
@@ -205,7 +255,16 @@ class GeminiLLM(BaseLLM):
                                 is_complete=False
                             )
 
-            self.add_assistant_message(complete_response)
+                if not handled_parts:
+                    chunk_text = chunk.text
+                    if chunk_text:
+                        complete_response += chunk_text
+                        yield ChunkResponse(
+                            content=chunk_text,
+                            is_complete=False
+                        )
+
+            self.add_assistant_message(complete_response, reasoning_content=complete_reasoning or None)
 
             token_usage = TokenUsage(
                 prompt_tokens=0,

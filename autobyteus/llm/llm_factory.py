@@ -8,6 +8,7 @@ from autobyteus.llm.providers import LLMProvider
 from autobyteus.llm.runtimes import LLMRuntime
 from autobyteus.llm.utils.llm_config import LLMConfig, TokenPricingConfig
 from autobyteus.llm.base_llm import BaseLLM
+from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 
 from autobyteus.llm.api.claude_llm import ClaudeLLM
 from autobyteus.llm.api.bedrock_llm import BedrockLLM
@@ -62,7 +63,25 @@ class LLMFactory(metaclass=SingletonMeta):
                 canonical_name="gpt-5.2",
                 default_config=LLMConfig(
                     pricing_config=TokenPricingConfig(1.75, 14.00)
-                )
+                ),
+                config_schema=ParameterSchema(parameters=[
+                    ParameterDefinition(
+                        name="reasoning_effort",
+                        param_type=ParameterType.ENUM,
+                        description="Controls how hard the model thinks. Higher effort improves quality but can increase latency and cost.",
+                        required=False,
+                        default_value="none",
+                        enum_values=["none", "low", "medium", "high", "xhigh"]
+                    ),
+                    ParameterDefinition(
+                        name="reasoning_summary",
+                        param_type=ParameterType.ENUM,
+                        description="Include a reasoning summary in the response when supported.",
+                        required=False,
+                        default_value="none",
+                        enum_values=["none", "auto", "concise", "detailed"]
+                    )
+                ])
             ),
             LLMModel(
                 name="gpt-5.2-chat-latest",
@@ -72,7 +91,25 @@ class LLMFactory(metaclass=SingletonMeta):
                 canonical_name="gpt-5.2-chat-latest",
                 default_config=LLMConfig(
                     pricing_config=TokenPricingConfig(1.75, 14.00)
-                )
+                ),
+                config_schema=ParameterSchema(parameters=[
+                    ParameterDefinition(
+                        name="reasoning_effort",
+                        param_type=ParameterType.ENUM,
+                        description="Controls how hard the model thinks. Higher effort improves quality but can increase latency and cost.",
+                        required=False,
+                        default_value="none",
+                        enum_values=["none", "low", "medium", "high", "xhigh"]
+                    ),
+                    ParameterDefinition(
+                        name="reasoning_summary",
+                        param_type=ParameterType.ENUM,
+                        description="Include a reasoning summary in the response when supported.",
+                        required=False,
+                        default_value="none",
+                        enum_values=["none", "auto", "concise", "detailed"]
+                    )
+                ])
             ),
             # MISTRAL Provider Models
             LLMModel(
@@ -146,7 +183,24 @@ class LLMFactory(metaclass=SingletonMeta):
                 canonical_name="claude-4.5-opus",
                 default_config=LLMConfig(
                     pricing_config=TokenPricingConfig(5.00, 25.00)
-                )
+                ),
+                config_schema=ParameterSchema(parameters=[
+                    ParameterDefinition(
+                        name="thinking_enabled",
+                        param_type=ParameterType.BOOLEAN,
+                        description="Enable extended thinking summaries in Claude responses",
+                        required=False,
+                        default_value=False
+                    ),
+                    ParameterDefinition(
+                        name="thinking_budget_tokens",
+                        param_type=ParameterType.INTEGER,
+                        description="Token budget for extended thinking (min 1024)",
+                        required=False,
+                        default_value=1024,
+                        min_value=1024
+                    )
+                ])
             ),
             LLMModel(
                 name="claude-4.5-sonnet",
@@ -156,7 +210,24 @@ class LLMFactory(metaclass=SingletonMeta):
                 canonical_name="claude-4.5-sonnet",
                 default_config=LLMConfig(
                     pricing_config=TokenPricingConfig(3.00, 15.00)
-                )
+                ),
+                config_schema=ParameterSchema(parameters=[
+                    ParameterDefinition(
+                        name="thinking_enabled",
+                        param_type=ParameterType.BOOLEAN,
+                        description="Enable extended thinking summaries in Claude responses",
+                        required=False,
+                        default_value=False
+                    ),
+                    ParameterDefinition(
+                        name="thinking_budget_tokens",
+                        param_type=ParameterType.INTEGER,
+                        description="Token budget for extended thinking (min 1024)",
+                        required=False,
+                        default_value=1024,
+                        min_value=1024
+                    )
+                ])
             ),
             LLMModel(
                 name="claude-4.5-haiku",
@@ -166,7 +237,24 @@ class LLMFactory(metaclass=SingletonMeta):
                 canonical_name="claude-4.5-haiku",
                 default_config=LLMConfig(
                     pricing_config=TokenPricingConfig(1.00, 5.00)
-                )
+                ),
+                config_schema=ParameterSchema(parameters=[
+                    ParameterDefinition(
+                        name="thinking_enabled",
+                        param_type=ParameterType.BOOLEAN,
+                        description="Enable extended thinking summaries in Claude responses",
+                        required=False,
+                        default_value=False
+                    ),
+                    ParameterDefinition(
+                        name="thinking_budget_tokens",
+                        param_type=ParameterType.INTEGER,
+                        description="Token budget for extended thinking (min 1024)",
+                        required=False,
+                        default_value=1024,
+                        min_value=1024
+                    )
+                ])
             ),
             LLMModel(
                 name="bedrock-claude-4.5-opus",
@@ -234,7 +322,24 @@ class LLMFactory(metaclass=SingletonMeta):
                 default_config=LLMConfig(
                     # Pricing from Gemini 3 Pro preview launch (per 1M tokens).
                     pricing_config=TokenPricingConfig(2.00, 12.00)
-                )
+                ),
+                config_schema=ParameterSchema(parameters=[
+                    ParameterDefinition(
+                        name="thinking_level",
+                        param_type=ParameterType.ENUM,
+                        description="How deeply the model should reason before responding",
+                        required=False,
+                        default_value="minimal",
+                        enum_values=["minimal", "low", "medium", "high"]
+                    ),
+                    ParameterDefinition(
+                        name="include_thoughts",
+                        param_type=ParameterType.BOOLEAN,
+                        description="Include model thought summaries in responses",
+                        required=False,
+                        default_value=False
+                    )
+                ])
             ),
             LLMModel(
                 name="gemini-3-flash-preview",
@@ -245,7 +350,24 @@ class LLMFactory(metaclass=SingletonMeta):
                 default_config=LLMConfig(
                     # Pricing from Gemini 3 Flash preview launch (per 1M tokens).
                     pricing_config=TokenPricingConfig(0.50, 3.00)
-                )
+                ),
+                config_schema=ParameterSchema(parameters=[
+                    ParameterDefinition(
+                        name="thinking_level",
+                        param_type=ParameterType.ENUM,
+                        description="How deeply the model should reason before responding",
+                        required=False,
+                        default_value="minimal",
+                        enum_values=["minimal", "low", "medium", "high"]
+                    ),
+                    ParameterDefinition(
+                        name="include_thoughts",
+                        param_type=ParameterType.BOOLEAN,
+                        description="Include model thought summaries in responses",
+                        required=False,
+                        default_value=False
+                    )
+                ])
             ),
             # KIMI Provider Models
             LLMModel(
@@ -322,18 +444,17 @@ class LLMFactory(metaclass=SingletonMeta):
                 canonical_name="glm-4.7",
                 default_config=LLMConfig(
                     pricing_config=TokenPricingConfig(13.8, 13.8)
-                )
-            ),
-            LLMModel(
-                name="glm-4.7-thinking",
-                value="glm-4.7",
-                provider=LLMProvider.ZHIPU,
-                llm_class=ZhipuLLM,
-                canonical_name="glm-4.7-thinking",
-                default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(13.8, 13.8),
-                    extra_params={ "extra_body": { "thinking": { "type": "enabled" } } }
-                )
+                ),
+                config_schema=ParameterSchema(parameters=[
+                    ParameterDefinition(
+                        name="thinking_type",
+                        param_type=ParameterType.ENUM,
+                        description="Enable or disable deep thinking",
+                        required=False,
+                        default_value="enabled",
+                        enum_values=["enabled", "disabled"]
+                    )
+                ])
             ),
             # MINIMAX Provider Models
             LLMModel(
@@ -402,18 +523,7 @@ class LLMFactory(metaclass=SingletonMeta):
         """Returns a list of all available models with their detailed info."""
         LLMFactory.ensure_initialized()
         models = sorted(LLMFactory._models_by_identifier.values(), key=lambda m: m.model_identifier)
-        return [
-            ModelInfo(
-                model_identifier=m.model_identifier,
-                display_name=m.name,
-                value=m.value,
-                canonical_name=m.canonical_name,
-                provider=m.provider.value,
-                runtime=m.runtime.value,
-                host_url=m.host_url
-            )
-            for m in models
-        ]
+        return [m.to_model_info() for m in models]
 
     @staticmethod
     def list_models_by_provider(provider: LLMProvider) -> List[ModelInfo]:
@@ -423,18 +533,7 @@ class LLMFactory(metaclass=SingletonMeta):
             [m for m in LLMFactory._models_by_identifier.values() if m.provider == provider],
             key=lambda m: m.model_identifier
         )
-        return [
-            ModelInfo(
-                model_identifier=m.model_identifier,
-                display_name=m.name,
-                value=m.value,
-                canonical_name=m.canonical_name,
-                provider=m.provider.value,
-                runtime=m.runtime.value,
-                host_url=m.host_url
-            )
-            for m in provider_models
-        ]
+        return [m.to_model_info() for m in provider_models]
 
     @staticmethod
     def list_models_by_runtime(runtime: LLMRuntime) -> List[ModelInfo]:
@@ -444,18 +543,7 @@ class LLMFactory(metaclass=SingletonMeta):
             [m for m in LLMFactory._models_by_identifier.values() if m.runtime == runtime],
             key=lambda m: m.model_identifier
         )
-        return [
-            ModelInfo(
-                model_identifier=m.model_identifier,
-                display_name=m.name,
-                value=m.value,
-                canonical_name=m.canonical_name,
-                provider=m.provider.value,
-                runtime=m.runtime.value,
-                host_url=m.host_url
-            )
-            for m in runtime_models
-        ]
+        return [m.to_model_info() for m in runtime_models]
 
     @staticmethod
     def get_canonical_name(model_identifier: str) -> Optional[str]:

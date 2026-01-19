@@ -2,11 +2,11 @@ import logging
 from typing import Optional
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.utils.llm_config import LLMConfig
-from autobyteus.llm.api.openai_compatible_llm import OpenAICompatibleLLM
+from autobyteus.llm.api.openai_responses_llm import OpenAIResponsesLLM
 
 logger = logging.getLogger(__name__)
 
-class OpenAILLM(OpenAICompatibleLLM):
+class OpenAILLM(OpenAIResponsesLLM):
     def __init__(self, model: LLMModel = None, llm_config: LLMConfig = None):
         # Provide defaults if not specified
         if model is None:

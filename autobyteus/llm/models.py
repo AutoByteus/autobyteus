@@ -1,11 +1,12 @@
 import logging
-from typing import TYPE_CHECKING, Type, Optional, List, Iterator
+from typing import TYPE_CHECKING, Type, Optional, List, Iterator, Dict, Any
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
 from autobyteus.llm.providers import LLMProvider
 from autobyteus.llm.runtimes import LLMRuntime
 from autobyteus.llm.utils.llm_config import LLMConfig
+from autobyteus.utils.parameter_schema import ParameterSchema
 
 if TYPE_CHECKING:
     from autobyteus.llm.base_llm import BaseLLM
@@ -23,6 +24,7 @@ class ModelInfo:
     provider: str
     runtime: str
     host_url: Optional[str] = None
+    config_schema: Optional[Dict[str, Any]] = None  # Serialized ParameterSchema
 
 @dataclass
 class ProviderModelGroup:
@@ -101,7 +103,8 @@ class LLMModel(metaclass=LLMModelMeta):
         canonical_name: str,
         default_config: Optional[LLMConfig] = None,
         runtime: LLMRuntime = LLMRuntime.API,
-        host_url: Optional[str] = None
+        host_url: Optional[str] = None,
+        config_schema: Optional[ParameterSchema] = None
     ):
         self._name = name
         self._value = value
@@ -111,6 +114,7 @@ class LLMModel(metaclass=LLMModelMeta):
         self.default_config = default_config if default_config else LLMConfig()
         self.runtime = runtime
         self.host_url = host_url
+        self.config_schema = config_schema
         self._model_identifier = self._generate_identifier()
 
     def _generate_identifier(self) -> str:
@@ -183,8 +187,25 @@ class LLMModel(metaclass=LLMModelMeta):
             
         return self.llm_class(model=self, llm_config=config_to_use)
 
+    def to_model_info(self) -> ModelInfo:
+        """
+        Converts this LLMModel to a ModelInfo data structure for API responses.
+        Serializes the config_schema if present.
+        """
+        return ModelInfo(
+            model_identifier=self.model_identifier,
+            display_name=self.name,
+            value=self.value,
+            canonical_name=self.canonical_name,
+            provider=self.provider.value,
+            runtime=self.runtime.value,
+            host_url=self.host_url,
+            config_schema=self.config_schema.to_dict() if self.config_schema else None
+        )
+
     def __repr__(self):
         return (
             f"LLMModel(identifier='{self.model_identifier}', name='{self.name}', "
             f"provider='{self.provider.name}', runtime='{self.runtime.name}')"
         )
+

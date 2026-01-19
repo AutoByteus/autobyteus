@@ -12,7 +12,6 @@ The architecture relies on a **Factory Pattern** combined with a **Registry** to
 
 - **`BaseLLM` (Abstract Base Class):**
   The foundation for all LLM implementations. It manages:
-
   - **Message History:** `add_user_message`, `add_assistant_message`.
   - **System Prompts:** Configuration and dynamic updates.
   - **Extensions:** Registry for plugins like token usage tracking.
@@ -21,10 +20,10 @@ The architecture relies on a **Factory Pattern** combined with a **Registry** to
 
 - **`LLMModel`:**
   Represents the _metadata_ of a model, not the active instance. It contains:
-
   - **Identifier:** A globally unique string (e.g., `gpt-4o`, `llama3:latest:ollama@localhost:11434`).
   - **Provider:** The organization that created the model (e.g., `OPENAI`).
   - **Runtime:** Where the model is hosted (e.g., `API`, `OLLAMA`).
+  - **Config Schema:** A JSON schema defining model-specific configuration parameters (e.g., `thinking_level` for reasoning models).
   - **Factory Method:** `create_llm()` instantiates the concrete `BaseLLM` for this model.
 
 - **`LLMFactory` (Singleton):**
@@ -52,7 +51,6 @@ This allows a model like `Llama 3` to exist as both an API model (via Groq or De
 
 1.  **Initialization:**
     `LLMFactory.ensure_initialized()` is called. It:
-
     - Registers hardcoded API models (GPT-4, Claude 3.5, etc.).
     - Probes local runtimes (Ollama, LM Studio) to discover available models.
 
@@ -111,6 +109,7 @@ autobyteus/llm/
 - **`max_tokens`**: Output limit.
 - **`system_message`**: Default system prompt.
 - **`pricing_config`**: Cost per million tokens (input/output).
+- **`extra_params`**: Dictionary of model-specific parameters (validates against `config_schema`).
 
 This config can be set globally per model in `LLMFactory` or overridden per instance during `create_llm`.
 
@@ -125,3 +124,13 @@ This method follows a **Fail-Fast / Clear-Then-Discover** strategy:
 3.  **Register**: If successful, the new models are registered.
 
 If the fetch fails (e.g., the local server is down), the registry for that provider remains empty, accurately reflecting that no models are currently available.
+
+## 8. Provider Configuration Mapping
+
+| Provider   | Param Name         | Type    | UI Control | Sent to Backend              |
+| ---------- | ------------------ | ------- | ---------- | ---------------------------- |
+| GPT-5.2    | `reasoning_effort` | ENUM    | Dropdown   | `{reasoning_effort: "high"}` |
+| Gemini 3   | `thinking_level`   | ENUM    | Dropdown   | `{thinking_level: "high"}`   |
+| Claude 4.5 | `budget_tokens`    | INTEGER | Slider     | `{budget_tokens: 10000}`     |
+| DeepSeek   | `thinking_enabled` | BOOLEAN | Toggle     | `{thinking_enabled: true}`   |
+| Zhipu GLM  | `thinking_enabled` | BOOLEAN | Toggle     | `{thinking_enabled: true}`   |

@@ -1,4 +1,5 @@
 import logging
+import inspect
 import os
 from abc import ABC
 from typing import Optional, List, AsyncGenerator, Dict, Any
@@ -121,7 +122,7 @@ class OpenAICompatibleLLM(BaseLLM, ABC):
                 # For OpenAI-compatible APIs, prefer max_completion_tokens; legacy max_tokens removed.
                 params["max_completion_tokens"] = self.max_tokens
             if self.config.extra_params:
-                params.update(self.config.extra_params)
+                self._apply_extra_params(params, self.config.extra_params)
 
             response = self.client.chat.completions.create(**params)
             full_message = response.choices[0].message
@@ -177,7 +178,7 @@ class OpenAICompatibleLLM(BaseLLM, ABC):
             if self.max_tokens is not None:
                 params["max_completion_tokens"] = self.max_tokens
             if self.config.extra_params:
-                params.update(self.config.extra_params)
+                self._apply_extra_params(params, self.config.extra_params)
             
             # Include tools if provided (for API tool calls)
             if kwargs.get("tools"):
@@ -244,6 +245,49 @@ class OpenAICompatibleLLM(BaseLLM, ABC):
         except Exception as e:
             logger.error(f"Error in {self.model.provider.value} API streaming: {str(e)}")
             raise ValueError(f"Error in {self.model.provider.value} API streaming: {str(e)}")
+
+    def _apply_extra_params(self, params: Dict[str, Any], extra_params: Dict[str, Any]) -> None:
+        # Use extra_body for provider-specific fields not in the OpenAI client signature.
+        if not extra_params:
+            return
+        extra = dict(extra_params)
+        allowed = self._get_chat_completion_param_names()
+
+        if any(key not in allowed for key in extra.keys()):
+            existing_body = params.get("extra_body")
+            if isinstance(existing_body, dict):
+                merged = dict(existing_body)
+                merged.update(extra)
+                params["extra_body"] = merged
+            else:
+                params["extra_body"] = extra
+        else:
+            params.update(extra)
+
+    def _get_chat_completion_param_names(self) -> set:
+        try:
+            return self._chat_completion_param_names
+        except AttributeError:
+            allowed = set(inspect.signature(self.client.chat.completions.create).parameters.keys())
+            self._chat_completion_param_names = allowed
+            return allowed
+
+
+class OpenAIChatCompletionsLLM(OpenAICompatibleLLM):
+    """Strict OpenAI Chat Completions client: rejects unsupported extra params."""
+
+    def _apply_extra_params(self, params: Dict[str, Any], extra_params: Dict[str, Any]) -> None:
+        if not extra_params:
+            return
+        extra = dict(extra_params)
+        allowed = self._get_chat_completion_param_names()
+        unknown = [key for key in extra.keys() if key not in allowed]
+        if unknown:
+            raise ValueError(
+                "Unsupported OpenAI chat.completions params: "
+                + ", ".join(sorted(unknown))
+            )
+        params.update(extra)
 
     async def cleanup(self):
         await super().cleanup()

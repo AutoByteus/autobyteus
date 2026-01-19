@@ -131,7 +131,8 @@ async def test_openai_tool_calls(openai_llm):
     
     async for chunk in openai_llm._stream_user_message_to_llm(
         user_message,
-        tools=openai_tools
+        tools=openai_tools,
+        tool_choice="required"
     ):
         if chunk.tool_calls:
              tool_calls_received.extend(chunk.tool_calls)
