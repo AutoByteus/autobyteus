@@ -135,3 +135,6 @@ class AgentExternalEventNotifier(EventEmitter):
         """Notifies that an artifact has been successfully persisted to the database."""
         self._emit_event(EventType.AGENT_ARTIFACT_PERSISTED, payload_content=artifact_data)
 
+    def notify_agent_artifact_updated(self, artifact_data: Dict[str, Any]):
+        """Notifies that an artifact has been updated (e.g., via patch_file)."""
+        self._emit_event(EventType.AGENT_ARTIFACT_UPDATED, payload_content=artifact_data)

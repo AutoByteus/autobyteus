@@ -95,7 +95,15 @@ class ArtifactPersistedData(BaseStreamPayload):
     path: str
     agent_id: str
     type: str
+    workspace_root: Optional[str] = None
     url: Optional[str] = None
+
+class ArtifactUpdatedData(BaseStreamPayload):
+    artifact_id: Optional[str] = None
+    path: str
+    agent_id: str
+    type: str
+    workspace_root: Optional[str] = None
 
 class EmptyData(BaseStreamPayload):
     pass
@@ -114,6 +122,7 @@ StreamDataPayload = Union[
     InterAgentMessageData,
     ToDoListUpdateData,
     ArtifactPersistedData,
+    ArtifactUpdatedData,
     EmptyData
 ]
 
@@ -268,3 +277,8 @@ def create_artifact_persisted_data(data_dict: Any) -> ArtifactPersistedData:
     if isinstance(data_dict, dict):
         return ArtifactPersistedData(**data_dict)
     raise ValueError(f"Cannot create ArtifactPersistedData from {type(data_dict)}")
+
+def create_artifact_updated_data(data_dict: Any) -> ArtifactUpdatedData:
+    if isinstance(data_dict, dict):
+        return ArtifactUpdatedData(**data_dict)
+    raise ValueError(f"Cannot create ArtifactUpdatedData from {type(data_dict)}")

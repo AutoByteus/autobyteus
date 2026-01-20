@@ -21,6 +21,7 @@ from .stream_event_payloads import (
     InterAgentMessageData, # NEW
     ToDoListUpdateData,
     ArtifactPersistedData, # NEW
+    ArtifactUpdatedData, # NEW
 )
 
 logger = logging.getLogger(__name__)
@@ -42,6 +43,7 @@ class StreamEventType(str, Enum):
     INTER_AGENT_MESSAGE = "inter_agent_message"  # NEW
     AGENT_TODO_LIST_UPDATE = "agent_todo_list_updated"
     ARTIFACT_PERSISTED = "artifact_persisted" # NEW
+    ARTIFACT_UPDATED = "artifact_updated" # NEW
 
 
 _STREAM_EVENT_TYPE_TO_PAYLOAD_CLASS: Dict[StreamEventType, Type[BaseModel]] = {
@@ -57,6 +59,7 @@ _STREAM_EVENT_TYPE_TO_PAYLOAD_CLASS: Dict[StreamEventType, Type[BaseModel]] = {
     StreamEventType.INTER_AGENT_MESSAGE: InterAgentMessageData, # NEW
     StreamEventType.AGENT_TODO_LIST_UPDATE: ToDoListUpdateData,
     StreamEventType.ARTIFACT_PERSISTED: ArtifactPersistedData, # NEW
+    StreamEventType.ARTIFACT_UPDATED: ArtifactUpdatedData, # NEW
 }
 
 

@@ -3,6 +3,8 @@ from pydantic import ValidationError
 from autobyteus.agent.streaming.events.stream_event_payloads import (
     ArtifactPersistedData,
     create_artifact_persisted_data,
+    ArtifactUpdatedData,
+    create_artifact_updated_data,
     AssistantChunkData,
     create_assistant_chunk_data,
     ToDoListUpdateData,
@@ -67,6 +69,31 @@ def test_artifact_persisted_data_validation_error():
     with pytest.raises(ValidationError) as excinfo:
         ArtifactPersistedData(**data)
     assert "path" in str(excinfo.value)
+
+# --- ArtifactUpdatedData Tests ---
+
+def test_artifact_updated_data_creation_valid():
+    """Test creating ArtifactUpdatedData with valid fields."""
+    data = {
+        "path": "/tmp/file.txt",
+        "agent_id": "agent_001",
+        "type": "file"
+    }
+    payload = ArtifactUpdatedData(**data)
+    assert payload.path == "/tmp/file.txt"
+    assert payload.agent_id == "agent_001"
+    assert payload.type == "file"
+
+def test_create_artifact_updated_data_factory():
+    """Test the factory function works correctly."""
+    data = {
+        "path": "/tmp/file.txt",
+        "agent_id": "agent_001",
+        "type": "file"
+    }
+    payload = create_artifact_updated_data(data)
+    assert isinstance(payload, ArtifactUpdatedData)
+    assert payload.path == "/tmp/file.txt"
 
 # --- Other Payload Tests (Regression Checks) ---
 

@@ -17,6 +17,7 @@ from ..events.stream_event_payloads import (
     create_inter_agent_message_data, # NEW
     create_todo_list_update_data,
     create_artifact_persisted_data, # NEW
+    create_artifact_updated_data, # NEW
     AssistantChunkData,
     AssistantCompleteResponseData,
     ToolInteractionLogEntryData,
@@ -29,6 +30,7 @@ from ..events.stream_event_payloads import (
     InterAgentMessageData, # NEW
     ToDoListUpdateData,
     ArtifactPersistedData, # NEW
+    ArtifactUpdatedData, # NEW
     StreamDataPayload,
 )
 from ..utils.queue_streamer import stream_queue_items
@@ -119,6 +121,9 @@ class AgentEventStream(EventEmitter):
             elif event_type == EventType.AGENT_ARTIFACT_PERSISTED:
                 typed_payload_for_stream_event = create_artifact_persisted_data(payload)
                 stream_event_type_for_generic_stream = StreamEventType.ARTIFACT_PERSISTED
+            elif event_type == EventType.AGENT_ARTIFACT_UPDATED:
+                typed_payload_for_stream_event = create_artifact_updated_data(payload)
+                stream_event_type_for_generic_stream = StreamEventType.ARTIFACT_UPDATED
             
             elif event_type == EventType.AGENT_DATA_TOOL_LOG_STREAM_END:
                  pass 
