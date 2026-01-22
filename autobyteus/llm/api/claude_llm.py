@@ -240,7 +240,11 @@ class ClaudeLLM(BaseLLM):
                         usage=token_usage
                     )
 
-            self.add_assistant_message(complete_response, reasoning_content=complete_reasoning or None)
+            # Only add assistant message if there's actual content.
+            # Tool-call-only responses should not add empty messages, as Claude API
+            # rejects subsequent requests with "all messages must have non-empty content".
+            if complete_response:
+                self.add_assistant_message(complete_response, reasoning_content=complete_reasoning or None)
         except anthropic.APIError as e:
             logger.error(f"Error in Claude API streaming: {str(e)}")
             raise ValueError(f"Error in Claude API streaming: {str(e)}")
