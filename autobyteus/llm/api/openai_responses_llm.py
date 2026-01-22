@@ -3,7 +3,7 @@ import os
 import asyncio
 from typing import Optional, List, AsyncGenerator, Dict, Any
 
-from openai import OpenAI
+from openai import AsyncOpenAI
 from openai.types.responses import ResponseStreamEvent
 
 from autobyteus.llm.base_llm import BaseLLM
@@ -98,7 +98,7 @@ class OpenAIResponsesLLM(BaseLLM):
         if not api_key:
             raise ValueError(f"Missing API key. Set env var {api_key_env_var} or provide api_key_default.")
 
-        self.client = OpenAI(api_key=api_key, base_url=base_url)
+        self.client = AsyncOpenAI(api_key=api_key, base_url=base_url)
         logger.info(f"Initialized OpenAI Responses client with base_url: {base_url}")
 
         super().__init__(model=model, llm_config=effective_config)
@@ -200,7 +200,7 @@ class OpenAIResponsesLLM(BaseLLM):
             if kwargs.get("tool_choice") is not None:
                 params["tool_choice"] = kwargs["tool_choice"]
 
-            response = self.client.responses.create(**params)
+            response = await self.client.responses.create(**params)
 
             content, reasoning = self._extract_output_content(response.output)
             self.add_assistant_message(content, reasoning_content=reasoning)
@@ -248,9 +248,9 @@ class OpenAIResponsesLLM(BaseLLM):
             if kwargs.get("tool_choice") is not None:
                 params["tool_choice"] = kwargs["tool_choice"]
 
-            stream = self.client.responses.create(**params)
+            stream = await self.client.responses.create(**params)
 
-            for event in stream:
+            async for event in stream:
                 event: ResponseStreamEvent
                 event_type = getattr(event, "type", None)
 
@@ -278,7 +278,7 @@ class OpenAIResponsesLLM(BaseLLM):
                         yield ChunkResponse(content="", reasoning=event.text)
                     continue
 
-                if event_type == "response.output_item_added":
+                if event_type == "response.output_item.added":
                     item = event.item
                     if getattr(item, "type", None) == "function_call":
                         tool_call_state[event.output_index] = {
