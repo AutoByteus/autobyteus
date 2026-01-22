@@ -116,10 +116,10 @@ class XmlRunBashToolParsingState(XmlToolParsingState):
             
             self._on_segment_complete()
             self.context.emit_segment_end()
-            self.context.transition_to(TextState(self.context))
-            
             if remainder:
-                self.context.append_text_segment(remainder)
+                # Rewind so the next state can parse the remainder (e.g., another tool tag).
+                self.context.rewind_by(len(remainder))
+            self.context.transition_to(TextState(self.context))
         else:
             holdback_len = len(closing_tag) - 1
             if len(self._content_buffering) > holdback_len:

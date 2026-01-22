@@ -81,6 +81,27 @@ class TestStreamingParserToolParsing:
         tool_segments = [s for s in segments if s["type"] == "tool_call"]
         assert len(tool_segments) >= 1
 
+    def test_run_bash_followed_by_tool_in_same_chunk(self):
+        """Run_bash should not block parsing of subsequent tool tags."""
+        config = ParserConfig(parse_tool_calls=True, strategy_order=["xml_tag"])
+        parser = StreamingParser(config)
+
+        text = (
+            "<tool name='run_bash'>"
+            "<arguments><arg name='command'>ls -la</arg></arguments>"
+            "</tool>"
+            "<tool name='generate_image'>"
+            "<arguments><arg name='prompt'>A cat</arg></arguments>"
+            "</tool>"
+        )
+
+        events = parser.feed_and_finalize(text)
+        segments = extract_segments(events)
+
+        segment_types = [s["type"] for s in segments]
+        assert segment_types.count("run_bash") == 1
+        assert segment_types.count("tool_call") == 1
+
     def test_tool_call_disabled(self):
         """Tool tags become text when parsing disabled."""
         config = ParserConfig(parse_tool_calls=False)

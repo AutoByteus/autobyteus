@@ -293,11 +293,10 @@ class XmlWriteFileToolParsingState(XmlToolParsingState):
             
             self._on_segment_complete()
             self.context.emit_segment_end()
-            self.context.transition_to(TextState(self.context))
-            
-            # Inject remainder back into the stream for TextState to pick up
             if remainder:
-                self.context.append_text_segment(remainder)
+                # Rewind so the next state can parse the remainder (e.g., another tool tag).
+                self.context.rewind_by(len(remainder))
+            self.context.transition_to(TextState(self.context))
         else:
             # Nothing yet, keep swallowing (clearing buffer to avoid memory issues if valid)
             # But we need to keep a holdback in case </tool> is split?
