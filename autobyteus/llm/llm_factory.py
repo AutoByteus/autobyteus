@@ -11,7 +11,6 @@ from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.utils.parameter_schema import ParameterSchema, ParameterDefinition, ParameterType
 
 from autobyteus.llm.api.claude_llm import ClaudeLLM
-from autobyteus.llm.api.bedrock_llm import BedrockLLM
 from autobyteus.llm.api.mistral_llm import MistralLLM
 from autobyteus.llm.api.openai_llm import OpenAILLM
 from autobyteus.llm.api.deepseek_llm import DeepSeekLLM
@@ -255,36 +254,6 @@ class LLMFactory(metaclass=SingletonMeta):
                         min_value=1024
                     )
                 ])
-            ),
-            LLMModel(
-                name="bedrock-claude-4.5-opus",
-                value="anthropic.claude-opus-4-5-20251101-v1:0",
-                provider=LLMProvider.ANTHROPIC,
-                llm_class=BedrockLLM,
-                canonical_name="claude-4.5-opus",
-                default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(5.00, 25.00)
-                )
-            ),
-            LLMModel(
-                name="bedrock-claude-4.5-sonnet",
-                value="anthropic.claude-sonnet-4-5-20250929-v1:0",
-                provider=LLMProvider.ANTHROPIC,
-                llm_class=BedrockLLM,
-                canonical_name="claude-4.5-sonnet",
-                default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(3.00, 15.00)
-                )
-            ),
-            LLMModel(
-                name="bedrock-claude-4.5-haiku",
-                value="anthropic.claude-haiku-4-5-20251001-v1:0",
-                provider=LLMProvider.ANTHROPIC,
-                llm_class=BedrockLLM,
-                canonical_name="claude-4.5-haiku",
-                default_config=LLMConfig(
-                    pricing_config=TokenPricingConfig(1.00, 5.00)
-                )
             ),
             # DEEPSEEK Provider Models
             LLMModel(

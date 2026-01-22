@@ -123,16 +123,18 @@ class ClaudeLLM(BaseLLM):
         # It will only send the text content.
 
         try:
+            thinking_param = _build_thinking_param(self.config.extra_params)
             request_kwargs = {
                 "model": self.model.value,
                 "max_tokens": self.max_tokens,
-                "temperature": 0,
                 "system": self.system_message,
                 "messages": self._get_non_system_messages(),
             }
-            thinking_param = _build_thinking_param(self.config.extra_params)
             if thinking_param:
+                # Extended thinking is not compatible with temperature modifications
                 request_kwargs["thinking"] = thinking_param
+            else:
+                request_kwargs["temperature"] = 0
 
             response = self.client.messages.create(
                 **request_kwargs
@@ -178,16 +180,18 @@ class ClaudeLLM(BaseLLM):
 
         try:
             # Prepare arguments for stream
+            thinking_param = _build_thinking_param(self.config.extra_params)
             stream_kwargs = {
                 "model": self.model.value,
                 "max_tokens": self.max_tokens,
-                "temperature": 0,
                 "system": self.system_message,
                 "messages": self._get_non_system_messages(),
             }
-            thinking_param = _build_thinking_param(self.config.extra_params)
             if thinking_param:
+                # Extended thinking is not compatible with temperature modifications
                 stream_kwargs["thinking"] = thinking_param
+            else:
+                stream_kwargs["temperature"] = 0
             
             if tools:
                 stream_kwargs["tools"] = tools
