@@ -203,33 +203,61 @@ class XmlPatchFileToolParsingState(XmlToolParsingState):
             self._tail = combined
 
     def _process_marker_content(self, chunk: str) -> None:
-        """Process content chunk when inside __START_PATCH__/__END_PATCH__ markers."""
+        """Process content chunk when inside __START_PATCH__/__END_PATCH__ markers.
+        
+        The __END_PATCH__ sentinel is only valid if followed by optional whitespace
+        and then </arg>. This prevents false positives when patch content contains
+        the literal __END_PATCH__ string.
+        """
+        import re
+        
         combined = self._marker_tail + chunk
         end_marker = self.END_CONTENT_MARKER
         closing_tag = self.CONTENT_ARG_CLOSE_TAG
 
-        # Priority 1: Check for the explicit end marker
-        idx = combined.find(end_marker)
-        if idx != -1:
-            actual_content = combined[:idx]
-            if actual_content:
-                self.context.emit_segment_content(actual_content)
+        # Priority 1: Check for the explicit end marker WITH lookahead validation
+        search_start = 0
+        while True:
+            idx = combined.find(end_marker, search_start)
+            if idx == -1:
+                break
+                
+            remainder_after_marker = combined[idx + len(end_marker):]
+            
+            # Validate: must be followed by whitespace* + </arg>
+            if re.match(r'^\s*</arg>', remainder_after_marker):
+                # Valid sentinel - emit content and transition
+                actual_content = combined[:idx]
+                if actual_content:
+                    self.context.emit_segment_content(actual_content)
 
-            self._marker_tail = ""
-            remainder = combined[idx + len(end_marker):]
-            self._content_buffering = remainder
-            self._swallowing_remaining = True
-            self._handle_swallowing()
-            return
+                self._marker_tail = ""
+                remainder = combined[idx + len(end_marker):]
+                self._content_buffering = remainder
+                self._swallowing_remaining = True
+                self._handle_swallowing()
+                return
+            elif remainder_after_marker.strip() == "":
+                # Indeterminate - need more data
+                # Hold back from idx onwards
+                if idx > 0:
+                    safe_content = combined[:idx]
+                    if safe_content:
+                        self.context.emit_segment_content(safe_content)
+                    self._marker_tail = combined[idx:]
+                else:
+                    self._marker_tail = combined
+                return
+            else:
+                # False positive
+                search_start = idx + len(end_marker)
 
         # Priority 2: Check for closing arg tag as fallback (missing sentinel case)
         idx_close = combined.find(closing_tag)
         if idx_close != -1:
             remainder_after_close = combined[idx_close + len(closing_tag):]
             
-            import re
             # Check if followed by standard XML closure (ignoring whitespace)
-            
             is_valid_closure = False
             if re.match(r'^\s*(?:</arguments>|</tool>)', remainder_after_close):
                 is_valid_closure = True
@@ -257,7 +285,8 @@ class XmlPatchFileToolParsingState(XmlToolParsingState):
                 return
 
         # Holdback logic - hold back enough to detect EITHER marker OR closing_tag + context
-        max_holdback = 30  # Safe buffer for regex lookahead
+        # __END_PATCH__ is shorter than __END_CONTENT__ but still needs buffer
+        max_holdback = 35
         
         if len(combined) > max_holdback:
             safe = combined[:-max_holdback]

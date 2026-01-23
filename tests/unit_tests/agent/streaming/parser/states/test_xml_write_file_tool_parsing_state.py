@@ -253,3 +253,171 @@ class TestXmlWriteFileToolParsingState:
 
         end_events = [e for e in events if e.event_type == SegmentEventType.END]
         assert len(end_events) == 1
+
+    def test_nested_end_content_marker_not_followed_by_arg_close(self):
+        """
+        File content containing __END_CONTENT__ NOT followed by </arg> should be 
+        treated as regular content, not as the sentinel.
+        """
+        ctx = ParserContext()
+        signature = '<tool name="write_file">'
+        content = (
+            "<arguments>"
+            "<arg name='path'>/tmp/nested.py</arg>"
+            "<arg name='content'>"
+            "__START_CONTENT__\n"
+            "# This file documents __END_CONTENT__ usage\n"
+            "# The marker __END_CONTENT__ appears in comments\n"
+            "print('hello')\n"
+            "__END_CONTENT__"
+            "</arg>"
+            "</arguments></tool>"
+        )
+        ctx.append(signature + content)
+
+        state = XmlWriteFileToolParsingState(ctx, signature)
+        ctx.current_state = state
+        state.run()
+
+        events = ctx.get_and_clear_events()
+        content_events = [e for e in events if e.event_type == SegmentEventType.CONTENT]
+        full_content = "".join(e.payload.get("delta", "") for e in content_events)
+
+        # The nested __END_CONTENT__ markers should be preserved in the content
+        assert "# This file documents __END_CONTENT__ usage" in full_content
+        assert "# The marker __END_CONTENT__ appears in comments" in full_content
+        assert "print('hello')" in full_content
+        
+        # But the final sentinel should NOT appear
+        assert "__START_CONTENT__" not in full_content
+        # The final __END_CONTENT__ (before </arg>) should be stripped
+        # Content should end with print('hello')\n
+        assert full_content.rstrip().endswith("print('hello')")
+
+        end_events = [e for e in events if e.event_type == SegmentEventType.END]
+        assert len(end_events) == 1
+
+    def test_nested_end_content_with_whitespace_before_arg_close(self):
+        """
+        The real __END_CONTENT__ sentinel can have whitespace/newlines before </arg>.
+        """
+        ctx = ParserContext()
+        signature = '<tool name="write_file">'
+        content = (
+            "<arguments>"
+            "<arg name='path'>/tmp/ws.py</arg>"
+            "<arg name='content'>"
+            "__START_CONTENT__\n"
+            "# Contains __END_CONTENT__ in text\n"
+            "code = 'done'\n"
+            "__END_CONTENT__\n"  # Real sentinel with newline before </arg>
+            "  </arg>"  # Whitespace before closing tag
+            "</arguments></tool>"
+        )
+        ctx.append(signature + content)
+
+        state = XmlWriteFileToolParsingState(ctx, signature)
+        ctx.current_state = state
+        state.run()
+
+        events = ctx.get_and_clear_events()
+        content_events = [e for e in events if e.event_type == SegmentEventType.CONTENT]
+        full_content = "".join(e.payload.get("delta", "") for e in content_events)
+
+        # The nested __END_CONTENT__ in the comment should be preserved
+        assert "# Contains __END_CONTENT__ in text" in full_content
+        assert "code = 'done'" in full_content
+        
+        # Sentinels should NOT appear
+        assert "__START_CONTENT__" not in full_content
+        # Final content should not include the real __END_CONTENT__ sentinel
+        assert full_content.count("__END_CONTENT__") == 1  # Only the one in the comment
+
+        end_events = [e for e in events if e.event_type == SegmentEventType.END]
+        assert len(end_events) == 1
+
+    def test_nested_end_content_streaming_fragmented(self):
+        """
+        Nested __END_CONTENT__ handling works correctly when content arrives 
+        in fragmented chunks.
+        """
+        ctx = ParserContext()
+        signature = '<tool name="write_file">'
+        
+        # Simulate fragmented streaming where __END_CONTENT__ is split
+        chunks = [
+            "<arguments><arg name='path'>/tmp/frag.py</arg><arg name='content'>",
+            "__START_CONTENT__\n",
+            "# Docs: __END_CONT",  # Partial marker in content
+            "ENT__ is the sentinel\n",  # Complete the false marker
+            "x = 1\n",
+            "__END_CONT",  # Partial real marker
+            "ENT__",  # Complete real marker
+            "\n</arg>",  # Whitespace + close tag
+            "</arguments></tool>",
+        ]
+
+        ctx.append(signature)
+        state = XmlWriteFileToolParsingState(ctx, signature)
+        ctx.current_state = state
+
+        for chunk in chunks:
+            ctx.append(chunk)
+            state.run()
+
+        events = ctx.get_and_clear_events()
+        content_events = [e for e in events if e.event_type == SegmentEventType.CONTENT]
+        full_content = "".join(e.payload.get("delta", "") for e in content_events)
+
+        # The nested __END_CONTENT__ in the comment should be preserved
+        assert "# Docs: __END_CONTENT__ is the sentinel" in full_content
+        assert "x = 1" in full_content
+        
+        # Sentinels should NOT appear
+        assert "__START_CONTENT__" not in full_content
+        # Only the comment's __END_CONTENT__ should remain
+        assert full_content.count("__END_CONTENT__") == 1
+
+        end_events = [e for e in events if e.event_type == SegmentEventType.END]
+        assert len(end_events) == 1
+
+    def test_multiple_false_end_content_before_real_one(self):
+        """
+        Multiple false __END_CONTENT__ markers followed by other text, 
+        then the real sentinel before </arg>.
+        """
+        ctx = ParserContext()
+        signature = '<tool name="write_file">'
+        content = (
+            "<arguments>"
+            "<arg name='path'>/tmp/multi.py</arg>"
+            "<arg name='content'>"
+            "__START_CONTENT__\n"
+            "__END_CONTENT__ is not the end\n"
+            "More text with __END_CONTENT__ in middle\n"
+            "__END_CONTENT__x = 1\n"  # False marker followed by text
+            "final line\n"
+            "__END_CONTENT__</arg>"  # Real sentinel directly before </arg>
+            "</arguments></tool>"
+        )
+        ctx.append(signature + content)
+
+        state = XmlWriteFileToolParsingState(ctx, signature)
+        ctx.current_state = state
+        state.run()
+
+        events = ctx.get_and_clear_events()
+        content_events = [e for e in events if e.event_type == SegmentEventType.CONTENT]
+        full_content = "".join(e.payload.get("delta", "") for e in content_events)
+
+        # All false positives should be preserved
+        assert "__END_CONTENT__ is not the end" in full_content
+        assert "More text with __END_CONTENT__ in middle" in full_content
+        assert "__END_CONTENT__x = 1" in full_content
+        assert "final line" in full_content
+        
+        # Should have exactly 3 occurrences (the false positives)
+        assert full_content.count("__END_CONTENT__") == 3
+
+        end_events = [e for e in events if e.event_type == SegmentEventType.END]
+        assert len(end_events) == 1

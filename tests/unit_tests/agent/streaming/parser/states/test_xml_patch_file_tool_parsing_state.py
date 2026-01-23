@@ -268,3 +268,91 @@ class TestXmlPatchFileToolParsingState:
 
         end_events = [e for e in events if e.event_type == SegmentEventType.END]
         assert len(end_events) == 1
+
+    def test_nested_end_patch_marker_not_followed_by_arg_close(self):
+        """
+        Patch content containing __END_PATCH__ NOT followed by </arg> should be 
+        treated as regular content, not as the sentinel.
+        """
+        ctx = ParserContext()
+        signature = '<tool name="patch_file">'
+        content = (
+            "<arguments>"
+            "<arg name='path'>/tmp/nested.py</arg>"
+            "<arg name='patch'>"
+            "__START_PATCH__\n"
+            "--- a/file.py\n"
+            "+++ b/file.py\n"
+            "@@ -10,3 +10,3 @@\n"
+            "-# Old comment\n"
+            "+# Note: Do not remove __END_PATCH__ marker\n"
+            " code()\n"
+            "__END_PATCH__"
+            "</arg>"
+            "</arguments></tool>"
+        )
+        ctx.append(signature + content)
+
+        state = XmlPatchFileToolParsingState(ctx, signature)
+        ctx.current_state = state
+        state.run()
+
+        events = ctx.get_and_clear_events()
+        content_events = [e for e in events if e.event_type == SegmentEventType.CONTENT]
+        full_content = "".join(e.payload.get("delta", "") for e in content_events)
+
+        # The nested __END_PATCH__ marker should be preserved in the content
+        assert "+# Note: Do not remove __END_PATCH__ marker" in full_content
+        assert "code()" in full_content
+        
+        # But the final sentinel should NOT appear
+        assert "__START_PATCH__" not in full_content
+        # The final __END_PATCH__ (before </arg>) should be stripped
+        assert full_content.rstrip().endswith("code()")
+
+        end_events = [e for e in events if e.event_type == SegmentEventType.END]
+        assert len(end_events) == 1
+
+    def test_nested_end_patch_streaming_fragmented(self):
+        """
+        Nested __END_PATCH__ handling works correctly when content arrives 
+        in fragmented chunks.
+        """
+        ctx = ParserContext()
+        signature = '<tool name="patch_file">'
+        
+        # Simulate fragmented streaming where __END_PATCH__ is split
+        chunks = [
+            "<arguments><arg name='path'>/tmp/frag.py</arg><arg name='patch'>",
+            "__START_PATCH__\n",
+            "-old line\n",
+            "+new line with __END_PA",  # Partial marker in content
+            "TCH__ inside\n",  # Complete the false marker
+            "__END_PA",  # Partial real marker
+            "TCH__",  # Complete real marker
+            "\n</arg>",  # Whitespace + close tag
+            "</arguments></tool>",
+        ]
+
+        ctx.append(signature)
+        state = XmlPatchFileToolParsingState(ctx, signature)
+        ctx.current_state = state
+
+        for chunk in chunks:
+            ctx.append(chunk)
+            state.run()
+
+        events = ctx.get_and_clear_events()
+        content_events = [e for e in events if e.event_type == SegmentEventType.CONTENT]
+        full_content = "".join(e.payload.get("delta", "") for e in content_events)
+
+        # The nested __END_PATCH__ in the content should be preserved
+        assert "+new line with __END_PATCH__ inside" in full_content
+        assert "-old line" in full_content
+        
+        # Sentinels should NOT appear
+        assert "__START_PATCH__" not in full_content
+        assert full_content.count("__END_PATCH__") == 1
+
+        end_events = [e for e in events if e.event_type == SegmentEventType.END]
+        assert len(end_events) == 1

@@ -198,24 +198,57 @@ class XmlWriteFileToolParsingState(XmlToolParsingState):
             self._tail = combined
 
     def _process_marker_content(self, chunk: str) -> None:
-        """Process content chunk when inside __START_CONTENT__/__END_CONTENT__ markers."""
+        """Process content chunk when inside __START_CONTENT__/__END_CONTENT__ markers.
+        
+        The __END_CONTENT__ sentinel is only valid if followed by optional whitespace
+        and then </arg>. This prevents false positives when file content contains
+        the literal __END_CONTENT__ string.
+        """
+        import re
+        
         combined = self._marker_tail + chunk
         end_marker = self.END_CONTENT_MARKER
         closing_tag = self.CONTENT_ARG_CLOSE_TAG
 
-        # Priority 1: Check for the explicit end marker
-        idx = combined.find(end_marker)
-        if idx != -1:
-            actual_content = combined[:idx]
-            if actual_content:
-                self.context.emit_segment_content(actual_content)
+        # Priority 1: Check for the explicit end marker WITH lookahead validation
+        # We need to find __END_CONTENT__ that is followed by whitespace* + </arg>
+        search_start = 0
+        while True:
+            idx = combined.find(end_marker, search_start)
+            if idx == -1:
+                break
+                
+            remainder_after_marker = combined[idx + len(end_marker):]
+            
+            # Validate: must be followed by whitespace* + </arg>
+            if re.match(r'^\s*</arg>', remainder_after_marker):
+                # Valid sentinel - emit content and transition
+                actual_content = combined[:idx]
+                if actual_content:
+                    self.context.emit_segment_content(actual_content)
 
-            self._marker_tail = ""
-            remainder = combined[idx + len(end_marker):]
-            self._content_buffering = remainder
-            self._swallowing_remaining = True
-            self._handle_swallowing()
-            return
+                self._marker_tail = ""
+                remainder = combined[idx + len(end_marker):]
+                self._content_buffering = remainder
+                self._swallowing_remaining = True
+                self._handle_swallowing()
+                return
+            elif remainder_after_marker.strip() == "":
+                # Indeterminate - need more data to decide if this is valid
+                # Hold back from idx onwards
+                if idx > 0:
+                    # Emit safe content before the potential marker
+                    safe_content = combined[:idx]
+                    if safe_content:
+                        self.context.emit_segment_content(safe_content)
+                    self._marker_tail = combined[idx:]
+                else:
+                    self._marker_tail = combined
+                return
+            else:
+                # False positive - this __END_CONTENT__ is part of the file content
+                # Continue searching for the next occurrence
+                search_start = idx + len(end_marker)
 
         # Priority 2: Check for closing arg tag as fallback (missing sentinel case)
         # Only treat </arg> as terminator if it looks like the actual XML structure end
@@ -224,7 +257,6 @@ class XmlWriteFileToolParsingState(XmlToolParsingState):
         if idx_close != -1:
             remainder_after_close = combined[idx_close + len(closing_tag):]
             
-            import re
             # Check if followed by standard XML closure (ignoring whitespace)
             # We match if we see the start of the next tag, OR if we have only whitespace (ambiguous - wait)
             
@@ -263,8 +295,9 @@ class XmlWriteFileToolParsingState(XmlToolParsingState):
         # We need to hold back enough to detect EITHER marker OR closing_tag + context
         # </arg> (6) + \s + </tool> (7) ~= 15-20 chars holdback
         # But to be safe against splitting </arguments>, let's hold back ~20 chars.
+        # Also need to account for __END_CONTENT__ (16 chars) + whitespace + </arg> (6) = ~25 chars
         
-        max_holdback = 30 # Safe buffer for regex lookahead
+        max_holdback = 35 # Safe buffer for regex lookahead
         
         if len(combined) > max_holdback:
             safe = combined[:-max_holdback]
