@@ -250,16 +250,6 @@ class ClaudeLLM(BaseLLM):
 
             with self.client.messages.stream(**stream_kwargs) as stream:
                 for event in stream:
-                    # DEBUG: Log all events from Anthropic stream
-                    print(f"[ClaudeLLM DEBUG] Event type: {event.type}")
-                    if hasattr(event, 'delta'):
-                        delta_type = getattr(event.delta, 'type', None)
-                        print(f"[ClaudeLLM DEBUG]   Delta type: {delta_type}")
-                        if delta_type == 'input_json_delta':
-                            partial_json = getattr(event.delta, 'partial_json', None)
-                            print(f"[ClaudeLLM DEBUG]   Partial JSON: {partial_json!r}")
-                    if hasattr(event, 'content_block'):
-                        print(f"[ClaudeLLM DEBUG]   Content block: {event.content_block}")
                     
                     # Handle text content
                     if event.type == "content_block_delta":
@@ -283,9 +273,6 @@ class ClaudeLLM(BaseLLM):
                     # Handle tool calls using common converter
                     tool_calls = convert_anthropic_tool_call(event)
                     if tool_calls:
-                        print(f"[ClaudeLLM DEBUG] Tool calls converted: {tool_calls}")
-                        for tc in tool_calls:
-                            print(f"[ClaudeLLM DEBUG]   Tool call: name={tc.name}, call_id={tc.call_id}, args_delta={tc.arguments_delta!r}")
                         yield ChunkResponse(
                             content="",
                             tool_calls=tool_calls,
