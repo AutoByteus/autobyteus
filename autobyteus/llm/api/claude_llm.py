@@ -1,7 +1,9 @@
-from typing import Dict, Optional, List, AsyncGenerator, Tuple
+import asyncio
 import anthropic
 import os
 import logging
+from typing import Dict, Optional, List, AsyncGenerator, Tuple, Any
+
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.llm_config import LLMConfig
@@ -10,6 +12,11 @@ from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 from autobyteus.llm.user_message import LLMUserMessage
 from autobyteus.llm.converters import convert_anthropic_tool_call
+from autobyteus.llm.utils.media_payload_formatter import (
+    media_source_to_base64,
+    get_mime_type,
+    is_valid_media_path
+)
 
 logger = logging.getLogger(__name__)
 
@@ -83,29 +90,73 @@ class ClaudeLLM(BaseLLM):
         except Exception as e:
             raise ValueError(f"Failed to initialize Anthropic client: {str(e)}")
     
-    def _get_non_system_messages(self) -> List[Dict]:
+    async def _format_anthropic_messages(self) -> List[Dict]:
         """
         Convert internal Message objects into the shape expected by
-        Anthropic's messages API.
-
-        Only `role` and `content` are accepted for text-only requests; any
-        additional keys (e.g., reasoning_content, image_urls) must be
-        omitted or the API will reject the payload with 400 errors like:
-        `messages.0.reasoning_content: Extra inputs are not permitted`.
+        Anthropic's messages API, handling both text and images.
         """
         formatted_messages: List[Dict] = []
+        valid_image_mimes = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
 
         for msg in self.messages:
             if msg.role == MessageRole.SYSTEM:
                 continue
+            
+            # Check for images in the message
+            if msg.image_urls:
+                content_blocks: List[Dict[str, Any]] = []
+                
+                # Process images
+                image_tasks = [media_source_to_base64(url) for url in msg.image_urls]
+                try:
+                    base64_images = await asyncio.gather(*image_tasks)
+                    
+                    for i, b64_data in enumerate(base64_images):
+                        original_url = msg.image_urls[i]
+                        # Determine MIME type
+                        mime_type = get_mime_type(original_url)
+                        
+                        # Validate MIME type 
+                        if mime_type not in valid_image_mimes:
+                            logger.warning(
+                                f"Unsupported image MIME type '{mime_type}' for {original_url}. "
+                                f"Anthropic supports: {valid_image_mimes}. Defaulting to image/jpeg."
+                            )
+                            mime_type = "image/jpeg"
 
-            # Anthropic accepts the content as a plain string for text calls.
-            formatted_messages.append(
-                {
+                        content_blocks.append({
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": mime_type,
+                                "data": b64_data
+                            }
+                        })
+                except Exception as e:
+                    logger.error(f"Error processing images for Claude: {e}")
+                    # Continue without images if processing fails, or maybe raise?
+                    # For now, let's log and proceed, potentially with just text.
+                
+                # Add text content if present
+                if msg.content:
+                    content_blocks.append({
+                        "type": "text",
+                        "text": msg.content
+                    })
+                    
+                formatted_messages.append({
                     "role": msg.role.value,
-                    "content": msg.content or "",
-                }
-            )
+                    "content": content_blocks
+                })
+
+            else:
+                # Text-only message
+                formatted_messages.append(
+                    {
+                        "role": msg.role.value,
+                        "content": msg.content or "",
+                    }
+                )
 
         return formatted_messages
     
@@ -119,16 +170,16 @@ class ClaudeLLM(BaseLLM):
     async def _send_user_message_to_llm(self, user_message: LLMUserMessage, **kwargs) -> CompleteResponse:
         self.add_user_message(user_message)
 
-        # NOTE: This implementation does not yet support multimodal inputs for Claude.
-        # It will only send the text content.
-
         try:
+            # Prepare formatted messages (images + text)
+            formatted_messages = await self._format_anthropic_messages()
             thinking_param = _build_thinking_param(self.config.extra_params)
+
             request_kwargs = {
                 "model": self.model.value,
                 "max_tokens": self.max_tokens,
                 "system": self.system_message,
-                "messages": self._get_non_system_messages(),
+                "messages": formatted_messages,
             }
             if thinking_param:
                 # Extended thinking is not compatible with temperature modifications
@@ -180,12 +231,13 @@ class ClaudeLLM(BaseLLM):
 
         try:
             # Prepare arguments for stream
+            formatted_messages = await self._format_anthropic_messages()
             thinking_param = _build_thinking_param(self.config.extra_params)
             stream_kwargs = {
                 "model": self.model.value,
                 "max_tokens": self.max_tokens,
                 "system": self.system_message,
-                "messages": self._get_non_system_messages(),
+                "messages": formatted_messages,
             }
             if thinking_param:
                 # Extended thinking is not compatible with temperature modifications
@@ -198,6 +250,17 @@ class ClaudeLLM(BaseLLM):
 
             with self.client.messages.stream(**stream_kwargs) as stream:
                 for event in stream:
+                    # DEBUG: Log all events from Anthropic stream
+                    print(f"[ClaudeLLM DEBUG] Event type: {event.type}")
+                    if hasattr(event, 'delta'):
+                        delta_type = getattr(event.delta, 'type', None)
+                        print(f"[ClaudeLLM DEBUG]   Delta type: {delta_type}")
+                        if delta_type == 'input_json_delta':
+                            partial_json = getattr(event.delta, 'partial_json', None)
+                            print(f"[ClaudeLLM DEBUG]   Partial JSON: {partial_json!r}")
+                    if hasattr(event, 'content_block'):
+                        print(f"[ClaudeLLM DEBUG]   Content block: {event.content_block}")
+                    
                     # Handle text content
                     if event.type == "content_block_delta":
                         delta_type = getattr(event.delta, "type", None)
@@ -220,7 +283,10 @@ class ClaudeLLM(BaseLLM):
                     # Handle tool calls using common converter
                     tool_calls = convert_anthropic_tool_call(event)
                     if tool_calls:
-                         yield ChunkResponse(
+                        print(f"[ClaudeLLM DEBUG] Tool calls converted: {tool_calls}")
+                        for tc in tool_calls:
+                            print(f"[ClaudeLLM DEBUG]   Tool call: name={tc.name}, call_id={tc.call_id}, args_delta={tc.arguments_delta!r}")
+                        yield ChunkResponse(
                             content="",
                             tool_calls=tool_calls,
                             is_complete=False
