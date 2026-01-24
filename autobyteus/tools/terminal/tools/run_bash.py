@@ -73,11 +73,9 @@ async def run_bash(
     """
     Execute a command in the terminal and wait for completion.
 
-    The terminal maintains state between calls: directory changes (cd),
-    environment variables (export), and shell state persist.
-
-    This is like typing a command in a real terminal - each command
-    runs in the same shell session.
+    This tool is STATELESS. Each command runs in a fresh shell session.
+    Directory changes (cd) and environment variables (export) DO NOT persist
+    between calls. You must chain commands if state dependence is needed.
 
     Args:
         command: The bash command to execute.
@@ -93,8 +91,8 @@ async def run_bash(
     
     Examples:
         - run_bash("ls -la")
-        - run_bash("cd src && npm install", timeout_seconds=120)
-        - run_bash("export PATH=$PATH:/custom/bin")
+        - run_bash("cd src && npm install", timeout_seconds=120)  # Correct way to run in subdir
+        - run_bash("cd src; ls")  # Correct way to list subdir
     """
     manager = _get_terminal_manager(context)
     cwd = _get_cwd(context)
