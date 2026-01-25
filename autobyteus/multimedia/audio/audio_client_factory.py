@@ -140,7 +140,7 @@ class AudioClientFactory(metaclass=SingletonMeta):
         gemini_tts_model = AudioModel(
             name="gemini-2.5-flash-tts",
             value="gemini-2.5-flash-preview-tts",
-            provider=MultimediaProvider.GOOGLE,
+            provider=MultimediaProvider.GEMINI,
             client_class=GeminiAudioClient,
             parameter_schema=gemini_tts_schema
         )

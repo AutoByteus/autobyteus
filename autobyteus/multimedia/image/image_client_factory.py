@@ -46,6 +46,12 @@ class ImageClientFactory(metaclass=SingletonMeta):
             ParameterDefinition(name="quality", param_type=ParameterType.ENUM, default_value="auto", enum_values=["auto", "low", "medium", "high"], description="The quality of the image that will be generated.")
         ])
 
+        gemini_image_schema = ParameterSchema(parameters=[
+            ParameterDefinition(name="n", param_type=ParameterType.INTEGER, default_value=1, enum_values=[1], description="The number of images to generate."),
+            ParameterDefinition(name="size", param_type=ParameterType.ENUM, default_value="1024x1024", enum_values=["1024x1024", "1792x1024", "1024x1792"], description="The size of the generated images."),
+            ParameterDefinition(name="quality", param_type=ParameterType.ENUM, default_value="auto", enum_values=["auto", "low", "medium", "high"], description="The quality of the image that will be generated.")
+        ])
+
         gpt_image_15_model = ImageModel(
             name="gpt-image-1.5",
             value="gpt-image-1.5",
@@ -62,7 +68,7 @@ class ImageClientFactory(metaclass=SingletonMeta):
         imagen_model = ImageModel(
             name="imagen-4",
             value="imagen-4.0-generate-001",
-            provider=MultimediaProvider.GOOGLE,
+            provider=MultimediaProvider.GEMINI,
             client_class=GeminiImageClient,
             parameter_schema=None, # The genai library doesn't expose these as simple params
             description=(
@@ -76,7 +82,7 @@ class ImageClientFactory(metaclass=SingletonMeta):
         gemini_flash_image_model = ImageModel(
             name="gemini-2.5-flash-image",
             value="gemini-2.5-flash-image",
-            provider=MultimediaProvider.GOOGLE,
+            provider=MultimediaProvider.GEMINI,
             client_class=GeminiImageClient,
             parameter_schema=None,  # Parameters handled by genai library
             description=(
@@ -89,7 +95,7 @@ class ImageClientFactory(metaclass=SingletonMeta):
         gemini_pro_image_model = ImageModel(
             name="gemini-3-pro-image-preview",
             value="gemini-3-pro-image-preview",
-            provider=MultimediaProvider.GOOGLE,
+            provider=MultimediaProvider.GEMINI,
             client_class=GeminiImageClient,
             parameter_schema=None,  # genai library handles options internally
             description=(
