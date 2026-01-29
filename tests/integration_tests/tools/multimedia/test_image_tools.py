@@ -186,7 +186,7 @@ async def test_edit_image_tool_with_remote_image(tmp_path):
     edit_tool = EditImageTool()
     context = SimpleNamespace(agent_id="test-agent", workspace=_MockWorkspace(tmp_path))
     prompt = "Add the word 'Serenity' in white text across the center of the stone."
-    remote_image_url = "http://192.168.2.124:29695/rest/files/images/smooth_stone_ref.jpg"
+    remote_image_url = "http://192.168.2.124:29695/rest/files/images/nice_image.png"
 
     result = await edit_tool.execute(
         context,

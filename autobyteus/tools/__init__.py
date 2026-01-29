@@ -44,7 +44,6 @@ try:
 except ModuleNotFoundError as import_err:
     logger.warning("Search tool not available: %s", import_err)
     Search = None
-from .timer import Timer
 try:
     from .multimedia.image_tools import GenerateImageTool, EditImageTool
 except ModuleNotFoundError as import_err:
@@ -120,7 +119,6 @@ __all__ = [
 
     # Re-exported general class-based tools
     "Search",
-    "Timer",
     "GenerateImageTool",
     "EditImageTool",
     "ReadMediaFile",

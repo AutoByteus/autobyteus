@@ -31,18 +31,25 @@ async def test_mistral_llm_response(mistral_llm):
     assert len(response.content) > 0
 
 @pytest.mark.asyncio
-async def test_mistral_llm_multimodal_response(mistral_llm):
+async def test_mistral_llm_multimodal_response(set_mistral_env):
+    """Use a vision-capable Mistral model for image input."""
+    mistral_api_key = os.getenv("MISTRAL_API_KEY")
+    if not mistral_api_key or mistral_api_key == "YOUR_MISTRAL_API_KEY":
+        pytest.skip("Mistral API key not set. Skipping MistralLLM tests.")
+
     if not os.path.exists(TEST_IMAGE_PATH):
         pytest.skip(f"Test image not found at {TEST_IMAGE_PATH}")
-        
+
+    vision_llm = MistralLLM(model=LLMModel['mistral-large'], llm_config=LLMConfig())
     user_message = LLMUserMessage(
         content="Describe this image in one word.",
         image_urls=[TEST_IMAGE_PATH]
     )
-    response = await mistral_llm.send_user_message(user_message)
+    response = await vision_llm.send_user_message(user_message)
     assert isinstance(response, CompleteResponse)
     assert isinstance(response.content, str)
     assert len(response.content) > 0
+    await vision_llm.cleanup()
 
 @pytest.mark.asyncio
 async def test_mistral_llm_streaming(mistral_llm): 

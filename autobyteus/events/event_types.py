@@ -9,7 +9,6 @@ class EventType(Enum):
     # --- Non-Agent specific events ---
     WEIBO_POST_COMPLETED = "weibo_post_completed" # Example, keep as is
     TOOL_EXECUTION_COMPLETED = "tool_execution_completed" # Added for generic tool events
-    TIMER_UPDATE = "timer_update" # Added for Timer tool
     SHARED_BROWSER_SESSION_CREATED = "shared_browser_session_created" # Added for session-aware tools
     CREATE_SHARED_SESSION = "create_shared_session" # Added for session-aware tools
 
