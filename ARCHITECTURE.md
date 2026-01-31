@@ -39,6 +39,12 @@ graph TD
 
 This catalog maps the system's capabilities to their defining design documents.
 
+### 2.0 Node.js Migration & Architecture
+Node.js-specific architecture notes and migration conventions.
+
+*   **Node.js Architecture Notes**: Registration patterns, test structure, and runtime design placeholders.
+    *   *Read:* [`docs/nodejs_architecture.md`](docs/nodejs_architecture.md)
+
 ### 2.1 Core Runtime & Engine
 The heart of the system. It manages the lifecycle, concurrency, and event dispatching.
 
@@ -50,6 +56,14 @@ The heart of the system. It manages the lifecycle, concurrency, and event dispat
     *   *Read:* [`docs/agent_processor_and_engine_design.md`](docs/agent_processor_and_engine_design.md)
 *   **Context Compaction**: Automated summarization to manage context window limits.
     *   *Read:* [`docs/context_compaction.md`](docs/context_compaction.md)
+
+### 2.5 Agent Memory
+Foundational memory layer for managing traces, summaries, and long-term knowledge.
+
+*   **Agent Memory Design**: Core memory types, operations, and integration points.
+    *   *Read:* [`docs/agent_memory_design.md`](docs/agent_memory_design.md)
+*   **Agent Memory Implementation Plan**: Step-by-step refactor plan with dependencies and tests.
+    *   *Read:* [`docs/agent_memory_implementation_plan.md`](docs/agent_memory_implementation_plan.md)
 
 ### 2.2 Multi-Agent Coordination (Teams)
 How individual agents are composed into collaborative groups.
@@ -64,6 +78,8 @@ The module responsible for communicating with AI models.
 
 *   **LLM Module**: The unified interface (`BaseLLM`) and factory for interacting with providers (OpenAI, Anthropic) and runtimes (API, Ollama, MLX).
     *   *Read:* [`docs/llm_module_design.md`](docs/llm_module_design.md)
+*   **LLM Module (Node.js)**: TypeScript implementation details and provider parity.
+    *   *Read:* [`docs/llm_module_design_nodejs.md`](docs/llm_module_design_nodejs.md)
 
 ### 2.4 Capabilities (Tools & Skills)
 How the agent interacts with the world.
