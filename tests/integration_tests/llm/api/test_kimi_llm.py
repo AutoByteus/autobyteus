@@ -52,7 +52,6 @@ async def test_kimi_llm_streaming(kimi_llm):
     assert len(received_tokens) > 1
     assert len(complete_response) > 10
     assert isinstance(complete_response, str)
-    assert len(kimi_llm.messages) == 3
 
     await kimi_llm.cleanup()
 
@@ -67,9 +66,6 @@ async def test_send_user_message(kimi_llm):
     assert isinstance(response_obj.content, str)
     assert "guido van rossum" in response_obj.content.lower()
 
-    assert len(kimi_llm.messages) == 3
-    assert kimi_llm.messages[1].content == user_message_text
-    assert kimi_llm.messages[2].content == response_obj.content
 
 @pytest.mark.asyncio
 async def test_stream_user_message(kimi_llm):
@@ -89,8 +85,5 @@ async def test_stream_user_message(kimi_llm):
     assert "django" in complete_response.lower()
     assert "flask" in complete_response.lower()
     
-    assert len(kimi_llm.messages) == 3
-    assert kimi_llm.messages[1].content == user_message_text
-    assert kimi_llm.messages[2].content == complete_response
 
     await kimi_llm.cleanup()

@@ -72,7 +72,6 @@ async def test_mistral_llm_streaming(mistral_llm):
     assert len(received_tokens) > 0
     assert len(complete_response) > 0
     assert isinstance(complete_response, str)
-    assert len(mistral_llm.messages) == 3
 
     await mistral_llm.cleanup()
 
@@ -87,9 +86,6 @@ async def test_send_user_message(mistral_llm):
     assert isinstance(response_obj.content, str)
     assert len(response_obj.content) > 0
 
-    assert len(mistral_llm.messages) == 3
-    assert mistral_llm.messages[1].content == user_message_text
-    assert mistral_llm.messages[2].content == response_obj.content
 
 @pytest.mark.asyncio
 async def test_stream_user_message(mistral_llm):
@@ -109,8 +105,5 @@ async def test_stream_user_message(mistral_llm):
     assert len(complete_response) > 0
     assert isinstance(complete_response, str)
     
-    assert len(mistral_llm.messages) == 3
-    assert mistral_llm.messages[1].content == user_message_text
-    assert mistral_llm.messages[2].content == complete_response
 
     await mistral_llm.cleanup()

@@ -32,7 +32,6 @@ def mock_llm(mock_token_counter):
     
     mock_llm = MagicMock(spec=BaseLLM)
     mock_llm.model = mock_model
-    mock_llm.messages = []  # Add messages list for tracking
     return mock_llm
 
 @pytest.fixture
@@ -61,11 +60,11 @@ async def test_token_usage_tracking_extension_basic_flow(token_usage_tracking_ex
     """
     input_message, output_message = sample_messages
 
-    # Add the message to the LLM's message list (simulating what BaseLLM.add_user_message does)
-    token_usage_tracking_extension.llm.messages.append(input_message)
-    
-    # Simulate adding a user message
-    token_usage_tracking_extension.on_user_message_added(input_message)
+    # Simulate before_invoke with explicit messages
+    await token_usage_tracking_extension.before_invoke(
+        messages=[input_message],
+        rendered_payload=None
+    )
 
     # Verify that the token counter was called for input tokens with the LLM's messages list
     mock_token_counter.count_input_tokens.assert_called_once_with([input_message])
@@ -87,7 +86,7 @@ async def test_token_usage_tracking_extension_basic_flow(token_usage_tracking_ex
 
     # Simulate the after_invoke hook
     await token_usage_tracking_extension.after_invoke(
-        user_message=input_message.content,
+        messages=[input_message],
         response=complete_response
     )
 
@@ -114,20 +113,6 @@ async def test_token_usage_tracking_extension_basic_flow(token_usage_tracking_ex
     assert len(usage_history) == 1
     assert usage_history[0] == latest_usage
 
-    # Simulate adding an assistant message
-    token_usage_tracking_extension.on_assistant_message_added(output_message)
-
-    # Verify that the token counter was called for output tokens
-    mock_token_counter.count_output_tokens.assert_called_once_with(output_message)
-
-    # Verify that usage history remains consistent
+    # Verify usage history remains consistent
     usage_history = token_usage_tracking_extension.get_usage_history()
-    assert len(usage_history) == 1  # Since after_invoke updates the existing usage
-
-    assert usage_history[0].completion_tokens == 1500
-    assert usage_history[0].completion_cost == (1500 / 1_000_000) * token_usage_tracking_extension.usage_tracker.pricing_config.output_token_pricing
-    assert usage_history[0].total_tokens == 2500
-    assert usage_history[0].total_cost == (
-        (1000 / 1_000_000) * token_usage_tracking_extension.usage_tracker.pricing_config.input_token_pricing +
-        (1500 / 1_000_000) * token_usage_tracking_extension.usage_tracker.pricing_config.output_token_pricing
-    )
+    assert len(usage_history) == 1

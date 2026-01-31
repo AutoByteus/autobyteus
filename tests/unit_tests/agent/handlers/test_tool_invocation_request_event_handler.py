@@ -27,7 +27,7 @@ async def test_handle_approval_required_logic(tool_request_handler: ToolInvocati
     agent_context.config.auto_execute_tools = False 
     event = PendingToolInvocationEvent(tool_invocation=mock_tool_invocation)
 
-    agent_context.status_manager.notifier = AsyncMock()
+    agent_context.status_manager.notifier = MagicMock()
 
     with caplog.at_level(logging.DEBUG): 
         await tool_request_handler.handle(event, agent_context)
@@ -44,20 +44,6 @@ async def test_handle_approval_required_logic(tool_request_handler: ToolInvocati
     }
     agent_context.status_manager.notifier.notify_agent_request_tool_invocation_approval.assert_called_once_with(expected_approval_data)
 
-    expected_history_tool_call = {
-        "role": "assistant",
-        "content": None,
-        "tool_calls": [{
-            "id": mock_tool_invocation.id,
-            "type": "function",
-            "function": {
-                "name": mock_tool_invocation.name,
-                "arguments": json.dumps(mock_tool_invocation.arguments or {})
-            }
-        }]
-    }
-    agent_context.state.add_message_to_history.assert_called_once_with(expected_history_tool_call)
-
     agent_context.get_tool.assert_not_called()
     agent_context.input_event_queues.enqueue_tool_result.assert_not_called()
 
@@ -73,36 +59,6 @@ async def test_handle_approval_required_notifier_missing_critical_log(tool_reque
     
     assert f"Agent '{agent_context.agent_id}': Notifier is REQUIRED for manual tool approval flow but is unavailable. Tool '{mock_tool_invocation.name}' cannot be processed for approval." in caplog.text
     agent_context.state.store_pending_tool_invocation.assert_not_called()
-    agent_context.state.add_message_to_history.assert_not_called()
-
-
-@pytest.mark.asyncio
-async def test_handle_approval_required_arguments_not_json_serializable(tool_request_handler: ToolInvocationRequestEventHandler, agent_context, caplog):
-    agent_context.config.auto_execute_tools = False 
-    
-    unserializable_args = {"data": set([1,2,3])} 
-    tool_invocation_bad_args = ToolInvocation(name="test_tool", arguments=unserializable_args, id="bad-args-id")
-    event = PendingToolInvocationEvent(tool_invocation=tool_invocation_bad_args)
-
-    agent_context.status_manager.notifier = AsyncMock()
-
-    with caplog.at_level(logging.WARNING): 
-        await tool_request_handler.handle(event, agent_context)
-
-    assert "Could not serialize args for history tool_call for 'test_tool'." in caplog.text
-    
-    expected_history_tool_call = {
-        "role": "assistant",
-        "content": None,
-        "tool_calls": [{
-            "id": "bad-args-id",
-            "type": "function",
-            "function": {"name": "test_tool", "arguments": "{}"} 
-        }]
-    }
-    agent_context.state.add_message_to_history.assert_called_once_with(expected_history_tool_call)
-    agent_context.state.store_pending_tool_invocation.assert_called_once_with(tool_invocation_bad_args)
-    agent_context.status_manager.notifier.notify_agent_request_tool_invocation_approval.assert_called_once()
 
 
 # --- Tests for Direct Execution Path (auto_execute_tools = True) ---
@@ -115,7 +71,7 @@ async def test_handle_direct_execution_success(tool_request_handler: ToolInvocat
     mock_tool_instance.execute = AsyncMock(return_value=tool_result)
     agent_context.get_tool.side_effect = None # Clear default side_effect from fixture
     agent_context.get_tool.return_value = mock_tool_instance
-    agent_context.status_manager.notifier = AsyncMock()
+    agent_context.status_manager.notifier = MagicMock()
 
     with caplog.at_level(logging.INFO):
         await tool_request_handler.handle(event, agent_context)
@@ -137,13 +93,6 @@ async def test_handle_direct_execution_success(tool_request_handler: ToolInvocat
             "tool_name": mock_tool_invocation.name
         })
 
-    agent_context.state.add_message_to_history.assert_called_once_with({
-        "role": "tool",
-        "tool_call_id": mock_tool_invocation.id,
-        "name": mock_tool_invocation.name,
-        "content": str(tool_result),
-    })
-
     agent_context.input_event_queues.enqueue_tool_result.assert_called_once()
     enqueued_event = agent_context.input_event_queues.enqueue_tool_result.call_args[0][0]
     assert isinstance(enqueued_event, ToolResultEvent)
@@ -161,7 +110,7 @@ async def test_handle_direct_execution_tool_not_found(tool_request_handler: Tool
     event = PendingToolInvocationEvent(tool_invocation=mock_tool_invocation)
     agent_context.get_tool.side_effect = None # Clear default side_effect from fixture
     agent_context.get_tool.return_value = None 
-    agent_context.status_manager.notifier = AsyncMock()
+    agent_context.status_manager.notifier = MagicMock()
 
     with caplog.at_level(logging.ERROR):
         await tool_request_handler.handle(event, agent_context)
@@ -183,10 +132,6 @@ async def test_handle_direct_execution_tool_not_found(tool_request_handler: Tool
         error_message=error_message
     )
     
-    agent_context.state.add_message_to_history.assert_called_once_with({
-        "role": "tool", "tool_call_id": mock_tool_invocation.id, "name": mock_tool_invocation.name,
-        "content": f"Error: Tool '{mock_tool_invocation.name}' execution failed. Reason: {error_message}"
-    })
     enqueued_event = agent_context.input_event_queues.enqueue_tool_result.call_args[0][0]
     assert enqueued_event.error == error_message
 
@@ -199,7 +144,7 @@ async def test_handle_direct_execution_tool_exception(tool_request_handler: Tool
     mock_tool_instance.execute = AsyncMock(side_effect=Exception(simulated_tool_error))
     agent_context.get_tool.side_effect = None # Clear default side_effect from fixture
     agent_context.get_tool.return_value = mock_tool_instance
-    agent_context.status_manager.notifier = AsyncMock()
+    agent_context.status_manager.notifier = MagicMock()
 
     with caplog.at_level(logging.ERROR):
         await tool_request_handler.handle(event, agent_context)
@@ -224,10 +169,6 @@ async def test_handle_direct_execution_tool_exception(tool_request_handler: Tool
     assert isinstance(call_args_error_gen['error_details'], str)
 
 
-    agent_context.state.add_message_to_history.assert_called_once_with({
-        "role": "tool", "tool_call_id": mock_tool_invocation.id, "name": mock_tool_invocation.name,
-        "content": f"Error: Tool '{mock_tool_invocation.name}' execution failed. Reason: {expected_error_log}"
-    })
     enqueued_event = agent_context.input_event_queues.enqueue_tool_result.call_args[0][0]
     assert enqueued_event.error == expected_error_log
 
@@ -245,7 +186,7 @@ async def test_handle_direct_execution_args_not_json_serializable_for_log(tool_r
     mock_tool_instance.execute = AsyncMock(return_value="result")
     agent_context.get_tool.side_effect = None # Clear default side_effect from fixture
     agent_context.get_tool.return_value = mock_tool_instance
-    agent_context.status_manager.notifier = AsyncMock()
+    agent_context.status_manager.notifier = MagicMock()
     
     await tool_request_handler.handle(event, agent_context)
     
@@ -269,7 +210,7 @@ async def test_handle_direct_execution_result_not_json_serializable_for_log(tool
     mock_tool_instance.execute = AsyncMock(return_value=unserializable_result)
     agent_context.get_tool.side_effect = None # Clear default side_effect from fixture
     agent_context.get_tool.return_value = mock_tool_instance
-    agent_context.status_manager.notifier = AsyncMock()
+    agent_context.status_manager.notifier = MagicMock()
     
     await tool_request_handler.handle(event, agent_context)
 
@@ -285,7 +226,7 @@ async def test_handle_direct_execution_result_not_json_serializable_for_log(tool
 @pytest.mark.asyncio
 async def test_handle_invalid_event_type(tool_request_handler: ToolInvocationRequestEventHandler, agent_context, caplog):
     invalid_event = GenericEvent(payload={}, type_name="other_event")
-    agent_context.status_manager.notifier = AsyncMock()
+    agent_context.status_manager.notifier = MagicMock()
 
     with caplog.at_level(logging.WARNING):
         await tool_request_handler.handle(invalid_event, agent_context)

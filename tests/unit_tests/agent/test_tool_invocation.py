@@ -14,3 +14,7 @@ def test_provided_id_is_used():
     provided_id = "custom_id_12345"
     invocation = ToolInvocation(name="test", arguments={}, id=provided_id)
     assert invocation.id == provided_id
+
+def test_turn_id_is_optional_and_stored():
+    invocation = ToolInvocation(name="test", arguments={}, id="inv_1", turn_id="turn_0001")
+    assert invocation.turn_id == "turn_0001"

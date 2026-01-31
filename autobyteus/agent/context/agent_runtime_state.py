@@ -1,6 +1,6 @@
 # file: autobyteus/autobyteus/agent/context/agent_runtime_state.py
 import logging
-from typing import List, Dict, Any, Optional, TYPE_CHECKING
+from typing import Dict, Any, Optional, TYPE_CHECKING
 
 from autobyteus.agent.events.agent_input_event_queue_manager import AgentInputEventQueueManager 
 from autobyteus.agent.events.event_store import AgentEventStore
@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from autobyteus.agent.status.manager import AgentStatusManager 
     from autobyteus.tools.base_tool import BaseTool 
     from autobyteus.agent.tool_invocation import ToolInvocationTurn
+    from autobyteus.memory.memory_manager import MemoryManager
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,6 @@ class AgentRuntimeState:
     def __init__(self,
                  agent_id: str, 
                  workspace: Optional[BaseAgentWorkspace] = None,
-                 conversation_history: Optional[List[Dict[str, Any]]] = None,
                  custom_data: Optional[Dict[str, Any]] = None):
         if not agent_id or not isinstance(agent_id, str):
             raise ValueError("AgentRuntimeState requires a non-empty string 'agent_id'.")
@@ -50,7 +50,6 @@ class AgentRuntimeState:
         # REMOVED: self.output_data_queues attribute
         
         self.workspace: Optional[BaseAgentWorkspace] = workspace
-        self.conversation_history: List[Dict[str, Any]] = conversation_history or []
         self.pending_tool_approvals: Dict[str, ToolInvocation] = {}
         self.custom_data: Dict[str, Any] = custom_data or {}
         
@@ -59,6 +58,10 @@ class AgentRuntimeState:
         
         # NEW: State for the agent's personal ToDoList
         self.todo_list: Optional[ToDoList] = None
+
+        # NEW: Memory manager and active turn tracking
+        self.memory_manager: Optional["MemoryManager"] = None
+        self.active_turn_id: Optional[str] = None
         
         self.processed_system_prompt: Optional[str] = None
         # self.final_llm_config_for_creation removed
@@ -66,13 +69,6 @@ class AgentRuntimeState:
         self.status_manager_ref: Optional['AgentStatusManager'] = None 
          
         logger.info(f"AgentRuntimeState initialized for agent_id '{self.agent_id}'. Initial status: {self.current_status.value}. Workspace linked. InputQueues pending initialization. Output data via notifier.")
-
-    def add_message_to_history(self, message: Dict[str, Any]) -> None:
-        if not isinstance(message, dict) or "role" not in message: # pragma: no cover
-            logger.warning(f"Attempted to add malformed message to history for agent '{self.agent_id}': {message}")
-            return
-        self.conversation_history.append(message)
-        logger.debug(f"Message added to history for agent '{self.agent_id}': role={message['role']}")
 
     def store_pending_tool_invocation(self, invocation: ToolInvocation) -> None:
         if not isinstance(invocation, ToolInvocation) or not invocation.id: # pragma: no cover
@@ -99,5 +95,5 @@ class AgentRuntimeState:
         return (f"AgentRuntimeState(agent_id='{self.agent_id}', current_status='{self.current_status.value}', "
                 f"llm_status='{llm_status}', tools_status='{tools_status}', "
                 f"input_queues_status='{input_queues_status}', "
-                f"pending_approvals={len(self.pending_tool_approvals)}, history_len={len(self.conversation_history)}, "
+                f"pending_approvals={len(self.pending_tool_approvals)}, "
                 f"multi_tool_call_turn='{active_turn_status}')")

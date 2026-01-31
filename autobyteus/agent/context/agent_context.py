@@ -1,6 +1,6 @@
 # file: autobyteus/autobyteus/agent/context/agent_context.py
 import logging
-from typing import TYPE_CHECKING, List, Dict, Any, Optional
+from typing import TYPE_CHECKING, Dict, Any, Optional
 
  
 
@@ -91,10 +91,6 @@ class AgentContext:
         return self.state.status_deriver
 
     @property
-    def conversation_history(self) -> List[Dict[str, Any]]:
-        return self.state.conversation_history
-
-    @property
     def pending_tool_approvals(self) -> Dict[str, 'ToolInvocation']:
         return self.state.pending_tool_approvals
 
@@ -115,9 +111,6 @@ class AgentContext:
         self.state.processed_system_prompt = value
 
     # final_llm_config_for_creation property removed
-
-    def add_message_to_history(self, message: Dict[str, Any]) -> None:
-        self.state.add_message_to_history(message)
 
     def get_tool(self, tool_name: str) -> Optional['BaseTool']:
         tool = self.tool_instances.get(tool_name) 

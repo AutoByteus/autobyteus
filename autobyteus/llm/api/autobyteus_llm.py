@@ -4,8 +4,9 @@ from autobyteus.llm.models import LLMModel
 from autobyteus.llm.utils.llm_config import LLMConfig
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
-from autobyteus.llm.user_message import LLMUserMessage
+from autobyteus.llm.utils.messages import Message
 from autobyteus.clients import AutobyteusClient
+from autobyteus.llm.prompt_renderers.autobyteus_prompt_renderer import AutobyteusPromptRenderer
 import logging
 import uuid
 
@@ -20,26 +21,34 @@ class AutobyteusLLM(BaseLLM):
         
         self.client = AutobyteusClient(server_url=self.model.host_url)
         self.conversation_id = str(uuid.uuid4())
+        self._renderer = AutobyteusPromptRenderer()
         logger.info(f"AutobyteusLLM initialized for model '{self.model.model_identifier}' with conversation ID: {self.conversation_id}")
 
-    async def _send_user_message_to_llm(
+    async def _send_messages_to_llm(
         self,
-        user_message: LLMUserMessage,
+        messages: List[Message],
         **kwargs
     ) -> CompleteResponse:
-        self.add_user_message(user_message)
+        rendered = await self._renderer.render(messages)
+        if not rendered:
+            raise ValueError("AutobyteusLLM requires at least one user message.")
+        payload = rendered[0]
         try:
             response = await self.client.send_message(
                 conversation_id=self.conversation_id,
                 model_name=self.model.name,
-                user_message=user_message.content,
-                image_urls=user_message.image_urls,
-                audio_urls=user_message.audio_urls,
-                video_urls=user_message.video_urls
+                user_message=payload.get("content", ""),
+                image_urls=payload.get("image_urls", []),
+                audio_urls=payload.get("audio_urls", []),
+                video_urls=payload.get("video_urls", []),
             )
             
-            assistant_message = response['response']
-            self.add_assistant_message(assistant_message)
+            assistant_message = (
+                response.get("response")
+                or response.get("content")
+                or response.get("message")
+                or ""
+            )
             
             token_usage_data = response.get('token_usage') or {}
             token_usage = TokenUsage(
@@ -56,22 +65,25 @@ class AutobyteusLLM(BaseLLM):
             logger.error(f"Error processing message: {str(e)}")
             raise
 
-    async def _stream_user_message_to_llm(
+    async def _stream_messages_to_llm(
         self,
-        user_message: LLMUserMessage,
+        messages: List[Message],
         **kwargs
     ) -> AsyncGenerator[ChunkResponse, None]:
-        self.add_user_message(user_message)
+        rendered = await self._renderer.render(messages)
+        if not rendered:
+            raise ValueError("AutobyteusLLM requires at least one user message.")
+        payload = rendered[0]
         complete_response = ""
         
         try:
             async for chunk in self.client.stream_message(
                 conversation_id=self.conversation_id,
                 model_name=self.model.name,
-                user_message=user_message.content,
-                image_urls=user_message.image_urls,
-                audio_urls=user_message.audio_urls,
-                video_urls=user_message.video_urls
+                user_message=payload.get("content", ""),
+                image_urls=payload.get("image_urls", []),
+                audio_urls=payload.get("audio_urls", []),
+                video_urls=payload.get("video_urls", []),
             ):
                 if 'error' in chunk:
                     raise RuntimeError(chunk['error'])
@@ -99,8 +111,6 @@ class AutobyteusLLM(BaseLLM):
                     video_urls=chunk.get('video_urls', []),
                     usage=token_usage
                 )
-            
-            self.add_assistant_message(complete_response)
         except Exception as e:
             logger.error(f"Error streaming message: {str(e)}")
             raise

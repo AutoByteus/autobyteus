@@ -93,7 +93,6 @@ async def test_ollama_llm_streaming(ollama_llm):
         assert len(received_tokens) > 0
         assert len(complete_response) > 0
         assert isinstance(complete_response, str)
-        assert len(ollama_llm.messages) == 3
     except Exception as e:
         pytest.skip(f"Ollama test failed, server may be unavailable. Error: {e}")
 
@@ -111,9 +110,6 @@ async def test_send_user_message(ollama_llm):
         assert isinstance(response_obj.content, str)
         assert len(response_obj.content) > 0
 
-        assert len(ollama_llm.messages) == 3
-        assert ollama_llm.messages[1].content == user_message_text
-        assert ollama_llm.messages[2].content == response_obj.content
     except Exception as e:
         pytest.skip(f"Ollama test failed, server may be unavailable. Error: {e}")
 
@@ -136,9 +132,6 @@ async def test_stream_user_message(ollama_llm):
         assert len(complete_response) > 0
         assert isinstance(complete_response, str)
         
-        assert len(ollama_llm.messages) == 3
-        assert ollama_llm.messages[1].content == user_message_text
-        assert ollama_llm.messages[2].content == complete_response
     except Exception as e:
         pytest.skip(f"Ollama test failed, server may be unavailable. Error: {e}")
 

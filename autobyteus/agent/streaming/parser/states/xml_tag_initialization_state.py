@@ -2,7 +2,7 @@
 XmlTagInitializationState: Analyzes potential XML tags after a '<' is detected.
 
 This state buffers characters to identify special tags like <tool, <write_file,
-<run_terminal_cmd and transitions to the appropriate specialized state.
+<run_bash and transitions to the appropriate specialized state.
 
 UNIFORM HANDOFF: All content states receive the complete opening_tag and handle
 their own initialization consistently.

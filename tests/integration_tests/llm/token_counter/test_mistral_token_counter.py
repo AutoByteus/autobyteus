@@ -6,7 +6,7 @@ from autobyteus.llm.utils.messages import Message, MessageRole
 
 @pytest.fixture
 def mistral_token_counter():
-    return MistralTokenCounter(LLMModel.MISTRAL_LARGE_API)
+    return MistralTokenCounter(LLMModel["mistral-large"])
 
 @pytest.fixture
 def system_message():

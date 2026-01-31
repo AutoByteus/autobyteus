@@ -6,7 +6,7 @@ from autobyteus.llm.utils.messages import Message, MessageRole
 
 @pytest.fixture
 def claude_token_counter():
-    return ClaudeTokenCounter(LLMModel.CLAUDE_3_5_SONNET_API)
+    return ClaudeTokenCounter(LLMModel["claude-4.5-sonnet"])
 
 @pytest.fixture
 def sample_messages():
@@ -20,13 +20,13 @@ def sample_messages():
 def single_message():
     return Message(role=MessageRole.USER, content="Hello, world!")
 
-def test_convert_to_internal_format(claude_token_counter, sample_messages):
-    processed_messages = claude_token_counter.convert_to_internal_format(sample_messages)
-    assert len(processed_messages) == len(sample_messages)
-    assert all(isinstance(msg, str) for msg in processed_messages)
-    assert processed_messages[0].startswith(f"{MessageRole.SYSTEM.value}:")
-    assert processed_messages[1].startswith(f"{MessageRole.USER.value}:")
-    assert processed_messages[2].startswith(f"{MessageRole.ASSISTANT.value}:")
+def test_convert_to_anthropic_messages(claude_token_counter, sample_messages):
+    system, processed_messages = claude_token_counter.convert_to_anthropic_messages(sample_messages)
+    assert system == "You are a helpful assistant."
+    assert len(processed_messages) == 2
+    assert all(isinstance(msg, dict) for msg in processed_messages)
+    assert processed_messages[0]["role"] == MessageRole.USER.value
+    assert processed_messages[1]["role"] == MessageRole.ASSISTANT.value
 
 def test_count_input_tokens_empty_list(claude_token_counter):
     assert claude_token_counter.count_input_tokens([]) == 0

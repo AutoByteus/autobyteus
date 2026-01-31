@@ -1,66 +1,17 @@
-from typing import Dict, Optional, List, Any, AsyncGenerator, Union
+from typing import List, Any, AsyncGenerator
 import os
 import logging
 import httpx
-import asyncio
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
 from mistralai import Mistral
-from autobyteus.llm.utils.messages import Message, MessageRole
+from autobyteus.llm.utils.messages import Message
 from autobyteus.llm.utils.llm_config import LLMConfig
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
-from autobyteus.llm.user_message import LLMUserMessage
-from autobyteus.llm.utils.media_payload_formatter import media_source_to_base64, get_mime_type, is_valid_media_path
+from autobyteus.llm.prompt_renderers.mistral_prompt_renderer import MistralPromptRenderer
 
 logger = logging.getLogger(__name__)
-
-async def _format_mistral_messages(messages: List[Message]) -> List[Dict[str, Any]]:
-    """Formats a list of internal Message objects into a list of dictionaries for the Mistral API."""
-    mistral_messages = []
-    for msg in messages:
-        # Skip empty messages from non-system roles as Mistral API may reject them
-        if not msg.content and not msg.image_urls and msg.role != MessageRole.SYSTEM:
-            continue
-
-        content: Union[str, List[Dict[str, Any]]]
-
-        if msg.image_urls:
-            content_parts: List[Dict[str, Any]] = []
-            if msg.content:
-                content_parts.append({"type": "text", "text": msg.content})
-
-            image_tasks = [media_source_to_base64(url) for url in msg.image_urls]
-            try:
-                base64_images = await asyncio.gather(*image_tasks)
-                for i, b64_image in enumerate(base64_images):
-                    original_url = msg.image_urls[i]
-                    mime_type = get_mime_type(original_url) if is_valid_media_path(original_url) else "image/jpeg"
-                    data_uri = f"data:{mime_type};base64,{b64_image}"
-                    
-                    # Mistral's format for image parts
-                    content_parts.append({
-                        "type": "image_url",
-                        "image_url": {
-                            "url": data_uri
-                        }
-                    })
-            except Exception as e:
-                logger.error(f"Error processing images for Mistral: {e}")
-            
-            if msg.audio_urls:
-                logger.warning("MistralLLM does not yet support audio; skipping.")
-            if msg.video_urls:
-                logger.warning("MistralLLM does not yet support video; skipping.")
-            
-            content = content_parts
-        else:
-            content = msg.content or ""
-        
-        mistral_messages.append({"role": msg.role.value, "content": content})
-            
-    return mistral_messages
-
 
 class MistralLLM(BaseLLM):
     def __init__(self, model: LLMModel = None, llm_config: LLMConfig = None):
@@ -75,6 +26,7 @@ class MistralLLM(BaseLLM):
         # AssertionError during construction (observed in tests). Rely on the
         # internal client instead.
         self.client: Mistral = self._initialize()
+        self._renderer = MistralPromptRenderer()
         logger.info(f"MistralLLM initialized with model: {self.model}")
 
     def _initialize(self) -> Mistral:
@@ -96,13 +48,11 @@ class MistralLLM(BaseLLM):
             total_tokens=usage_data.total_tokens
         )
 
-    async def _send_user_message_to_llm(
-        self, user_message: LLMUserMessage, **kwargs
+    async def _send_messages_to_llm(
+        self, messages: List[Message], **kwargs
     ) -> CompleteResponse:
-        self.add_user_message(user_message)
-        
         try:
-            mistral_messages = await _format_mistral_messages(self.messages)
+            mistral_messages = await self._renderer.render(messages)
             
             chat_response = await self.client.chat.complete_async(
                 model=self.model.value,
@@ -113,7 +63,6 @@ class MistralLLM(BaseLLM):
             )
 
             assistant_message = chat_response.choices[0].message.content
-            self.add_assistant_message(assistant_message)
 
             token_usage = self._create_token_usage(chat_response.usage)
             logger.debug(f"Token usage recorded: {token_usage}")
@@ -126,16 +75,14 @@ class MistralLLM(BaseLLM):
             logger.error(f"Error in Mistral API call: {str(e)}")
             raise ValueError(f"Error in Mistral API call: {str(e)}")
     
-    async def _stream_user_message_to_llm(
-        self, user_message: LLMUserMessage, **kwargs
+    async def _stream_messages_to_llm(
+        self, messages: List[Message], **kwargs
     ) -> AsyncGenerator[ChunkResponse, None]:
-        self.add_user_message(user_message)
-        
         accumulated_message = ""
         final_usage = None
         
         try:
-            mistral_messages = await _format_mistral_messages(self.messages)
+            mistral_messages = await self._renderer.render(messages)
             
             # Raw HTTP streaming to bypass SDK validation issues with tool calls
             api_key = os.environ.get("MISTRAL_API_KEY")
@@ -239,9 +186,6 @@ class MistralLLM(BaseLLM):
                 usage=final_usage
             )
             
-            if accumulated_message:
-                self.add_assistant_message(accumulated_message)
-
         except Exception as e:
             logger.error(f"Error in Mistral API streaming call: {str(e)}")
             import traceback

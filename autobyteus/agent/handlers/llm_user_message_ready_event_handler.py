@@ -13,6 +13,9 @@ from autobyteus.agent.streaming.streaming_response_handler import StreamingRespo
 from autobyteus.agent.streaming.streaming_handler_factory import StreamingResponseHandlerFactory
 from autobyteus.agent.streaming.parser.events import SegmentEvent, SegmentType
 from autobyteus.agent.tool_invocation import ToolInvocationTurn
+from autobyteus.agent.llm_request_assembler import LLMRequestAssembler
+from autobyteus.agent.token_budget import apply_compaction_policy, resolve_token_budget
+from autobyteus.llm.prompt_renderers.openai_chat_renderer import OpenAIChatRenderer
 
 if TYPE_CHECKING:
     from autobyteus.agent.context import AgentContext
@@ -52,7 +55,11 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
         logger.info(f"Agent '{agent_id}' handling LLMUserMessageReadyEvent: '{llm_user_message.content}'") 
         logger.debug(f"Agent '{agent_id}' preparing to send full message to LLM:\n---\n{llm_user_message.content}\n---")
         
-        context.state.add_message_to_history({"role": "user", "content": llm_user_message.content})
+        memory_manager = getattr(context.state, "memory_manager", None)
+        active_turn_id = getattr(context.state, "active_turn_id", None)
+        if memory_manager and not active_turn_id:
+            active_turn_id = memory_manager.start_turn()
+            context.state.active_turn_id = active_turn_id
 
         # Initialize aggregators
         complete_response_text = ""
@@ -131,12 +138,37 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
                 provider,
             )
 
+        if not memory_manager:
+            raise RuntimeError(f"Agent '{agent_id}' requires a memory manager to assemble LLM requests.")
+
+        llm_config = getattr(context.state.llm_instance, "config", None)
+        llm_model = getattr(context.state.llm_instance, "model", None)
+
+        renderer = getattr(context.state.llm_instance, "_renderer", None) or OpenAIChatRenderer()
+        assembler = LLMRequestAssembler(
+            memory_manager=memory_manager,
+            renderer=renderer,
+        )
+        system_prompt = (
+            context.state.processed_system_prompt
+            or context.state.llm_instance.config.system_message
+        )
+        request = await assembler.prepare_request(
+            processed_user_input=llm_user_message,
+            current_turn_id=active_turn_id,
+            system_prompt=system_prompt,
+        )
+
         # State for manual reasoning parts (since they might come from outside the parser)
         segment_id_prefix = f"turn_{uuid.uuid4().hex}:"
         current_reasoning_part_id = None
 
         try:
-            async for chunk_response in context.state.llm_instance.stream_user_message(llm_user_message, **stream_kwargs):
+            async for chunk_response in context.state.llm_instance.stream_messages(
+                request.messages,
+                rendered_payload=request.rendered_payload,
+                **stream_kwargs,
+            ):
                 if not isinstance(chunk_response, ChunkResponse): 
                     logger.warning(f"Agent '{agent_id}' received unexpected chunk type: {type(chunk_response)} during LLM stream. Expected ChunkResponse.")
                     continue
@@ -199,6 +231,10 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
                         len(tool_invocations),
                     )
                     for invocation in tool_invocations:
+                        if active_turn_id and not invocation.turn_id:
+                            invocation.turn_id = active_turn_id
+                        if memory_manager:
+                            memory_manager.ingest_tool_intent(invocation, turn_id=active_turn_id)
                         await context.input_event_queues.enqueue_tool_invocation_request(
                             PendingToolInvocationEvent(tool_invocation=invocation)
                         )
@@ -217,8 +253,6 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
             error_message_for_output = f"Error processing your request with the LLM: {str(e)}"
             
             logger.warning(f"Agent '{agent_id}' LLM stream error. Error message for output: {error_message_for_output}")
-            context.state.add_message_to_history({"role": "assistant", "content": error_message_for_output, "is_error": True})
-            
             if notifier:
                 try:
                     notifier.notify_agent_error_output_generation( 
@@ -238,18 +272,6 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
             logger.info(f"Agent '{agent_id}' enqueued LLMCompleteResponseReceivedEvent with error details.")
             return 
 
-        # Add message to history
-        history_entry = {"role": "assistant", "content": complete_response_text}
-        if complete_reasoning_text:
-            history_entry["reasoning"] = complete_reasoning_text
-        if complete_image_urls:
-            history_entry["image_urls"] = complete_image_urls
-        if complete_audio_urls:
-            history_entry["audio_urls"] = complete_audio_urls
-        if complete_video_urls:
-            history_entry["video_urls"] = complete_video_urls
-        context.state.add_message_to_history(history_entry)
-        
         # Create complete response
         complete_response_obj = CompleteResponse(
             content=complete_response_text,
@@ -259,6 +281,21 @@ class LLMUserMessageReadyEventHandler(AgentEventHandler):
             audio_urls=complete_audio_urls,
             video_urls=complete_video_urls
         )
+        if memory_manager and active_turn_id:
+            memory_manager.ingest_assistant_response(
+                complete_response_obj,
+                turn_id=active_turn_id,
+                source_event="LLMCompleteResponseReceivedEvent",
+            )
+            if token_usage and llm_config and llm_model:
+                budget = resolve_token_budget(llm_model, llm_config, memory_manager.compaction_policy)
+                if budget:
+                    apply_compaction_policy(memory_manager.compaction_policy, budget)
+                    if memory_manager.compactor and memory_manager.compaction_policy.should_compact(
+                        token_usage.prompt_tokens,
+                        budget.input_budget,
+                    ):
+                        memory_manager.request_compaction()
         llm_complete_event = LLMCompleteResponseReceivedEvent(
             complete_response=complete_response_obj
         )

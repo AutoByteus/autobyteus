@@ -54,10 +54,6 @@ async def test_openai_llm_with_image(openai_llm, test_image_path):
     assert isinstance(response.content, str)
     assert "blue" in response.content.lower()
     
-    assert len(openai_llm.messages) == 3
-    user_msg_in_history = openai_llm.messages[1]
-    assert user_msg_in_history.content == user_message.content
-    assert user_msg_in_history.image_urls == [test_image_path]
 
 @pytest.mark.asyncio
 async def test_openai_llm_with_image_base64(openai_llm, test_image_path):
@@ -73,10 +69,6 @@ async def test_openai_llm_with_image_base64(openai_llm, test_image_path):
     assert isinstance(response, CompleteResponse)
     assert "blue" in response.content.lower()
     
-    assert len(openai_llm.messages) == 3
-    user_msg_in_history = openai_llm.messages[1]
-    assert user_msg_in_history.content == user_message.content
-    assert user_msg_in_history.image_urls == user_message.image_urls
 
 @pytest.mark.asyncio
 async def test_openai_llm_with_multiple_images(openai_llm, multiple_test_images):
@@ -90,10 +82,6 @@ async def test_openai_llm_with_multiple_images(openai_llm, multiple_test_images)
     assert isinstance(response, CompleteResponse)
     assert "red" in response.content.lower() and "green" in response.content.lower()
     
-    assert len(openai_llm.messages) == 3
-    user_msg_in_history = openai_llm.messages[1]
-    assert user_msg_in_history.content == user_message.content
-    assert user_msg_in_history.image_urls == multiple_test_images
 
 @pytest.mark.asyncio
 async def test_openai_llm_streaming_with_image(openai_llm, test_image_path):
@@ -110,10 +98,6 @@ async def test_openai_llm_streaming_with_image(openai_llm, test_image_path):
 
     assert "blue" in complete_response.lower()
     
-    assert len(openai_llm.messages) == 3
-    user_msg_in_history = openai_llm.messages[1]
-    assert user_msg_in_history.content == user_message.content
-    assert user_msg_in_history.image_urls == [test_image_path]
 
 @pytest.mark.asyncio
 async def test_openai_llm_with_invalid_image_path(openai_llm):
@@ -132,16 +116,9 @@ async def test_openai_llm_with_invalid_image_path(openai_llm):
     assert isinstance(response.content, str)
     assert len(response.content) > 0
 
-    # The message in history should still contain the invalid path as it was added before formatting.
-    assert len(openai_llm.messages) == 3
-    user_msg_in_history = openai_llm.messages[1]
-    assert user_msg_in_history.content == user_message.content
-    assert user_msg_in_history.image_urls == [invalid_path]
 
 @pytest.mark.asyncio
 async def test_cleanup(openai_llm, test_image_path):
     user_message = LLMUserMessage(content="Test cleanup", image_urls=[test_image_path])
     await openai_llm.send_user_message(user_message)
     await openai_llm.cleanup()
-
-    assert len(openai_llm.messages) == 0

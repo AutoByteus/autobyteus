@@ -62,16 +62,6 @@ class ToolExecutionApprovalEventHandler(AgentEventHandler):
             )
 
             denial_reason_str = event.reason or "No specific reason provided."
-            denial_content_for_history = f"Tool execution denied by user/system. Reason: {denial_reason_str}"
-            
-            context.state.add_message_to_history({
-                "role": "tool",
-                "tool_call_id": event.tool_invocation_id, 
-                "name": retrieved_invocation.name,
-                "content": denial_content_for_history,
-            })
-            logger.debug(f"Agent '{context.agent_id}': Added 'tool' role denial message to history for '{retrieved_invocation.name}' (ID: {event.tool_invocation_id}).")
-            
             prompt_content_for_llm = (
                 f"The request to use the tool '{retrieved_invocation.name}' "
                 f"(with arguments: {json.dumps(retrieved_invocation.arguments or {})}) was denied. "

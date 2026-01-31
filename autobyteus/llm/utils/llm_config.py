@@ -54,6 +54,8 @@ class LLMConfig:
     top_p: Optional[float] = None
     frequency_penalty: Optional[float] = None
     presence_penalty: Optional[float] = None
+    compaction_ratio: Optional[float] = None
+    safety_margin_tokens: Optional[int] = None
     stop_sequences: Optional[List] = None
     extra_params: Dict[str, Any] = field(default_factory=dict)
     pricing_config: TokenPricingConfig = field(default_factory=TokenPricingConfig)
@@ -106,7 +108,7 @@ class LLMConfig:
         known_fields = {
             'rate_limit', 'token_limit', 'system_message', 'temperature', 
             'max_tokens', 'top_p', 'frequency_penalty', 'presence_penalty', 
-            'stop_sequences', 'extra_params', 
+            'compaction_ratio', 'safety_margin_tokens', 'stop_sequences', 'extra_params',
             'pricing_config'
         }
         
@@ -121,6 +123,8 @@ class LLMConfig:
             top_p=init_kwargs.get('top_p'),
             frequency_penalty=init_kwargs.get('frequency_penalty'),
             presence_penalty=init_kwargs.get('presence_penalty'),
+            compaction_ratio=init_kwargs.get('compaction_ratio'),
+            safety_margin_tokens=init_kwargs.get('safety_margin_tokens'),
             stop_sequences=init_kwargs.get('stop_sequences'),
             extra_params=init_kwargs.get('extra_params', {}),
             pricing_config=pricing_config_data 

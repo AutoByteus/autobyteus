@@ -48,8 +48,6 @@ async def test_claude_llm_streaming(claude_llm):
     assert len(received_tokens) > 0
     assert len(complete_response) > 0
     assert isinstance(complete_response, str)
-    assert len(claude_llm.messages) == 3  # System message + User message + Assistant message
-
     await claude_llm.cleanup()
 
 @pytest.mark.asyncio
@@ -62,10 +60,6 @@ async def test_send_user_message(claude_llm):
     assert isinstance(response_obj, CompleteResponse)
     assert isinstance(response_obj.content, str)
     assert len(response_obj.content) > 0
-
-    assert len(claude_llm.messages) == 3
-    assert claude_llm.messages[1].content == user_message_text
-    assert claude_llm.messages[2].content == response_obj.content
 
 @pytest.mark.asyncio
 async def test_stream_user_message(claude_llm):
@@ -85,8 +79,4 @@ async def test_stream_user_message(claude_llm):
     assert len(complete_response) > 0
     assert isinstance(complete_response, str)
     
-    assert len(claude_llm.messages) == 3
-    assert claude_llm.messages[1].content == user_message_text
-    assert claude_llm.messages[2].content == complete_response
-
     await claude_llm.cleanup()

@@ -1,6 +1,8 @@
 # file: autobyteus/autobyteus/agent/factory/agent_factory.py
 import logging
 import random
+import os
+from pathlib import Path
 from typing import Optional, TYPE_CHECKING, Dict, List
 
 # LLMFactory is no longer needed here.
@@ -13,6 +15,11 @@ from autobyteus.agent.workspace.base_workspace import BaseAgentWorkspace
 from autobyteus.agent.handlers import *
 from autobyteus.utils.singleton import SingletonMeta
 from autobyteus.tools.base_tool import BaseTool
+from autobyteus.memory import FileMemoryStore, MemoryManager
+from autobyteus.agent.input_processor.memory_ingest_input_processor import MemoryIngestInputProcessor
+from autobyteus.agent.tool_execution_result_processor.memory_ingest_tool_result_processor import (
+    MemoryIngestToolResultProcessor,
+)
 
 if TYPE_CHECKING:
     from autobyteus.agent.runtime.agent_runtime import AgentRuntime
@@ -113,6 +120,19 @@ class AgentFactory(metaclass=SingletonMeta):
             workspace=config.workspace,
             custom_data=config.initial_custom_data
         )
+
+        # Memory manager (file-backed) initialization
+        memory_dir = os.getenv("AUTOBYTEUS_MEMORY_DIR")
+        if memory_dir is None:
+            memory_dir = str(Path.cwd() / "memory")
+        memory_store = FileMemoryStore(base_dir=memory_dir, agent_id=agent_id)
+        runtime_state.memory_manager = MemoryManager(store=memory_store)
+
+        # Ensure memory ingest processors are present
+        if not any(isinstance(p, MemoryIngestInputProcessor) for p in config.input_processors):
+            config.input_processors.append(MemoryIngestInputProcessor())
+        if not any(isinstance(p, MemoryIngestToolResultProcessor) for p in config.tool_execution_result_processors):
+            config.tool_execution_result_processors.append(MemoryIngestToolResultProcessor())
         
         # --- Set pre-initialized instances on the state ---
         runtime_state.llm_instance = config.llm_instance

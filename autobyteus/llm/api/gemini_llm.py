@@ -1,8 +1,6 @@
 import logging
-import base64
 import asyncio
-import mimetypes
-from typing import Dict, List, AsyncGenerator, Any
+from typing import Dict, List, AsyncGenerator, Any, Optional
 from google.genai import types as genai_types
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
@@ -10,11 +8,10 @@ from autobyteus.llm.utils.llm_config import LLMConfig
 from autobyteus.llm.utils.messages import MessageRole, Message
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
-from autobyteus.llm.user_message import LLMUserMessage
 from autobyteus.utils.gemini_helper import initialize_gemini_client_with_runtime
 from autobyteus.utils.gemini_model_mapping import resolve_model_for_runtime
 from autobyteus.llm.converters import convert_gemini_tool_calls
-from autobyteus.llm.utils.media_payload_formatter import media_source_to_base64, get_mime_type
+from autobyteus.llm.prompt_renderers.gemini_prompt_renderer import GeminiPromptRenderer
 
 logger = logging.getLogger(__name__)
 
@@ -32,45 +29,13 @@ def _split_gemini_parts(parts: List[Any]) -> tuple[str, str]:
             content_segments.append(text)
     return "".join(content_segments), "".join(thought_segments)
 
-async def _format_gemini_history(messages: List[Message]) -> List[Dict[str, Any]]:
-    """Formats internal message history for the Gemini API."""
-    history = []
-    # System message is handled separately in the new API
-    for msg in messages:
-        if msg.role in [MessageRole.USER, MessageRole.ASSISTANT]:
-            role = 'model' if msg.role == MessageRole.ASSISTANT else 'user'
-            parts = []
-            
-            # Text content
-            if msg.content:
-                parts.append({"text": msg.content})
-            
-            # Process media (Images, Audio, Video)
-            # Currently leveraging media_source_to_base64 which handles local images and URLs.
-            # TODO: Add dedicated support for Audio/Video local file reading if strict validation is needed,
-            # though URLs usually work if supported by the fetcher.
-            media_urls = msg.image_urls + msg.audio_urls + msg.video_urls
-            
-            for url in media_urls:
-                try:
-                    # Fetch/Read data as base64
-                    b64_data = await media_source_to_base64(url)
-                    # Decode to bytes for Gemini SDK
-                    data_bytes = base64.b64decode(b64_data)
-                    
-                    # Determine MIME type
-                    mime_type, _ = mimetypes.guess_type(url)
-                    if not mime_type:
-                        # Default fallback
-                        mime_type = get_mime_type(url)
-                    
-                    parts.append(genai_types.Part.from_bytes(data=data_bytes, mime_type=mime_type))
-                except Exception as e:
-                    logger.error(f"Failed to process media content {url}: {e}")
-            
-            if parts:
-                history.append({"role": role, "parts": parts})
-    return history
+
+def _split_system_message(messages: List[Message]) -> tuple[Optional[str], List[Message]]:
+    system_parts = [msg.content for msg in messages if msg.role == MessageRole.SYSTEM and msg.content]
+    system_prompt = "\n".join(system_parts) if system_parts else None
+    remaining = [msg for msg in messages if msg.role != MessageRole.SYSTEM]
+    return system_prompt, remaining
+
 
 class GeminiLLM(BaseLLM):
     def __init__(self, model: LLMModel = None, llm_config: LLMConfig = None):
@@ -89,12 +54,13 @@ class GeminiLLM(BaseLLM):
         try:
             self.client, self.runtime_info = initialize_gemini_client_with_runtime()
             self.async_client = self.client.aio
+            self._renderer = GeminiPromptRenderer()
         except Exception as e:
             # Re-raise or handle initialization errors specifically for the LLM context if needed
             logger.error(f"Failed to initialize Gemini LLM: {str(e)}")
             raise
 
-    def _get_generation_config(self) -> genai_types.GenerateContentConfig:
+    def _get_generation_config(self, system_prompt: Optional[str] = None) -> genai_types.GenerateContentConfig:
         """Builds the generation config, handling special cases like 'thinking'."""
         config = self.generation_config_dict.copy()
 
@@ -121,20 +87,19 @@ class GeminiLLM(BaseLLM):
         )
         
         # System instruction is now part of the config
-        system_instruction = self.system_message if self.system_message else None
-        
+        system_instruction = system_prompt if system_prompt is not None else self.system_message
+
         return genai_types.GenerateContentConfig(
             **config,
             thinking_config=thinking_config,
             system_instruction=system_instruction
         )
 
-    async def _send_user_message_to_llm(self, user_message: LLMUserMessage, **kwargs) -> CompleteResponse:
-        self.add_user_message(user_message)
-        
+    async def _send_messages_to_llm(self, messages: List[Message], **kwargs) -> CompleteResponse:
         try:
-            history = await _format_gemini_history(self.messages)
-            generation_config = self._get_generation_config()
+            system_prompt, non_system = _split_system_message(messages)
+            history = await self._renderer.render(non_system)
+            generation_config = self._get_generation_config(system_prompt=system_prompt)
 
             # FIX: Removed 'models/' prefix to support Vertex AI
             runtime_adjusted_model = resolve_model_for_runtime(
@@ -157,8 +122,6 @@ class GeminiLLM(BaseLLM):
                 if parsed_thoughts:
                     reasoning_summary = parsed_thoughts
 
-            self.add_assistant_message(assistant_message, reasoning_content=reasoning_summary)
-            
             token_usage = TokenUsage(
                 prompt_tokens=0,
                 completion_tokens=0,
@@ -174,8 +137,7 @@ class GeminiLLM(BaseLLM):
             logger.error(f"Error in Gemini API call: {str(e)}")
             raise ValueError(f"Error in Gemini API call: {str(e)}")
     
-    async def _stream_user_message_to_llm(self, user_message: LLMUserMessage, **kwargs) -> AsyncGenerator[ChunkResponse, None]:
-        self.add_user_message(user_message)
+    async def _stream_messages_to_llm(self, messages: List[Message], **kwargs) -> AsyncGenerator[ChunkResponse, None]:
         complete_response = ""
         complete_reasoning = ""
         
@@ -183,8 +145,9 @@ class GeminiLLM(BaseLLM):
         tools = kwargs.get("tools")
         
         try:
-            history = await _format_gemini_history(self.messages)
-            generation_config = self._get_generation_config()
+            system_prompt, non_system = _split_system_message(messages)
+            history = await self._renderer.render(non_system)
+            generation_config = self._get_generation_config(system_prompt=system_prompt)
             
             # Add tools to config if present
             # Note: In google.genai, tools can be passed in config
@@ -263,8 +226,6 @@ class GeminiLLM(BaseLLM):
                             content=chunk_text,
                             is_complete=False
                         )
-
-            self.add_assistant_message(complete_response, reasoning_content=complete_reasoning or None)
 
             token_usage = TokenUsage(
                 prompt_tokens=0,

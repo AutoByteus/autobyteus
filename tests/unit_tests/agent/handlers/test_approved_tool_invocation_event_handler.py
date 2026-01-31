@@ -50,13 +50,6 @@ async def test_handle_approved_tool_invocation_success(approved_tool_handler: Ap
     })
 
 
-    agent_context.state.add_message_to_history.assert_called_once_with({ 
-        "role": "tool",
-        "tool_call_id": tool_invocation_id,
-        "name": tool_name,
-        "content": "Successful execution result",
-    })
-
     agent_context.input_event_queues.enqueue_tool_result.assert_called_once()
     enqueued_event = agent_context.input_event_queues.enqueue_tool_result.call_args[0][0]
     assert isinstance(enqueued_event, ToolResultEvent)
@@ -103,13 +96,6 @@ async def test_handle_approved_tool_not_found(approved_tool_handler: ApprovedToo
         error_source=f"ApprovedToolExecution.ToolNotFound.{tool_name}",
         error_message=error_message
     )
-
-    agent_context.state.add_message_to_history.assert_called_once_with({ 
-        "role": "tool",
-        "tool_call_id": tool_invocation_id,
-        "name": tool_name,
-        "content": f"Error: Approved tool '{tool_name}' execution failed. Reason: {error_message}",
-    })
 
     agent_context.input_event_queues.enqueue_tool_result.assert_called_once()
     enqueued_event = agent_context.input_event_queues.enqueue_tool_result.call_args[0][0]
@@ -164,13 +150,6 @@ async def test_handle_approved_tool_execution_exception(approved_tool_handler: A
     assert call_args_error_gen['error_message'] == expected_error_message_in_log
     assert isinstance(call_args_error_gen['error_details'], str)
 
-    agent_context.state.add_message_to_history.assert_called_once_with({ 
-        "role": "tool",
-        "tool_call_id": tool_invocation_id,
-        "name": tool_name,
-        "content": f"Error: Approved tool '{tool_name}' execution failed. Reason: {expected_error_message_in_log}",
-    })
-
     agent_context.input_event_queues.enqueue_tool_result.assert_called_once()
     enqueued_event = agent_context.input_event_queues.enqueue_tool_result.call_args[0][0]
     assert enqueued_event.error == expected_error_message_in_log
@@ -186,7 +165,6 @@ async def test_handle_invalid_event_type(approved_tool_handler: ApprovedToolInvo
     
     assert f"ApprovedToolInvocationEventHandler received non-ApprovedToolInvocationEvent: {type(invalid_event)}. Skipping." in caplog.text
     agent_context.status_manager.notifier.notify_agent_data_tool_log.assert_not_called()
-    agent_context.state.add_message_to_history.assert_not_called()
     agent_context.input_event_queues.enqueue_tool_result.assert_not_called()
 
 @pytest.mark.asyncio

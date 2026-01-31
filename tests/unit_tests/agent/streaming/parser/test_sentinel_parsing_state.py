@@ -28,7 +28,7 @@ def test_sentinel_header_split_across_chunks():
     parser = StreamingParser(config)
 
     chunks = [
-        '[[SEG_START {"type":"run_terminal_cmd","path":"/x"',
+        '[[SEG_START {"type":"run_bash","path":"/x"',
         '}]]echo hi[[SEG_END]]'
     ]
     events = []
@@ -37,7 +37,7 @@ def test_sentinel_header_split_across_chunks():
     events.extend(parser.finalize())
 
     segments = extract_segments(events)
-    cmd_segments = [s for s in segments if s["type"] == "run_terminal_cmd"]
+    cmd_segments = [s for s in segments if s["type"] == "run_bash"]
     assert len(cmd_segments) == 1
     assert cmd_segments[0]["content"] == "echo hi"
 
@@ -53,4 +53,3 @@ def test_sentinel_invalid_header_falls_back_to_text():
     text_segments = [s for s in segments if s["type"] == "text"]
     assert len(text_segments) >= 1
     assert "SEG_START" in text_segments[0]["content"]
-

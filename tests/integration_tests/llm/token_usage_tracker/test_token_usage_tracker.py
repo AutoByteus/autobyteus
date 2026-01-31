@@ -1,8 +1,9 @@
 import pytest
 from unittest.mock import MagicMock
 from datetime import datetime
-from autobyteus.llm.models import LLMModel
-from autobyteus.llm.utils.llm_config import TokenPricingConfig
+from autobyteus.llm.models import LLMModel, LLMProvider
+from autobyteus.llm.utils.llm_config import TokenPricingConfig, LLMConfig
+from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.token_counter.base_token_counter import BaseTokenCounter
 from autobyteus.llm.utils.token_usage_tracker import TokenUsageTracker, TokenUsage
 from autobyteus.llm.utils.messages import Message, MessageRole
@@ -25,7 +26,7 @@ def token_usage_tracker(mock_token_counter):
     """
     Fixture to create a TokenUsageTracker with a mock token counter.
     """
-    model = LLMModel.GPT_4o_API
+    model = LLMModel["gpt-5.2"]
     tracker = TokenUsageTracker(model, mock_token_counter)
     return tracker
 
@@ -68,7 +69,7 @@ def test_calculate_input_usage(token_usage_tracker, sample_messages):
     assert usage.completion_tokens == 0
     assert usage.total_tokens == 1000
     
-    pricing = LLMModel.GPT_4o_API.default_config.pricing_config
+    pricing = LLMModel["gpt-5.2"].default_config.pricing_config
     expected_prompt_cost = (1000 / 1_000_000) * pricing.input_token_pricing
     assert usage.prompt_cost == expected_prompt_cost
     assert usage.completion_cost == 0.0
@@ -93,7 +94,7 @@ def test_calculate_output_usage(token_usage_tracker, sample_messages):
     assert usage.completion_tokens == 1500
     assert usage.total_tokens == 2500
     
-    pricing = LLMModel.GPT_4o_API.default_config.pricing_config
+    pricing = LLMModel["gpt-5.2"].default_config.pricing_config
     expected_prompt_cost = (1000 / 1_000_000) * pricing.input_token_pricing
     expected_completion_cost = (1500 / 1_000_000) * pricing.output_token_pricing
     
@@ -121,7 +122,7 @@ def test_calculate_both_input_and_output_usage(token_usage_tracker, sample_messa
     assert usage.completion_tokens == 1500
     assert usage.total_tokens == 2500
     
-    pricing = LLMModel.GPT_4o_API.default_config.pricing_config
+    pricing = LLMModel["gpt-5.2"].default_config.pricing_config
     expected_prompt_cost = (1000 / 1_000_000) * pricing.input_token_pricing
     expected_completion_cost = (1500 / 1_000_000) * pricing.output_token_pricing
     
@@ -166,7 +167,7 @@ def test_multiple_usages(token_usage_tracker, sample_messages):
     usage_history = token_usage_tracker.get_usage_history()
     assert len(usage_history) == 2
     
-    pricing = LLMModel.GPT_4o_API.default_config.pricing_config
+    pricing = LLMModel["gpt-5.2"].default_config.pricing_config
     
     # First usage
     first_usage = usage_history[0]
@@ -203,7 +204,14 @@ def test_default_pricing(token_usage_tracker, sample_messages):
     Test that the default pricing is used when model is not found.
     """
     # Create a tracker with a model that doesn't exist in the pricing config
-    unknown_model = LLMModel("UNKNOWN_MODEL_API")
+    unknown_model = LLMModel(
+        name="unknown-model",
+        value="unknown-model",
+        provider=LLMProvider.OPENAI,
+        llm_class=BaseLLM,
+        canonical_name="unknown-model",
+        default_config=LLMConfig(pricing_config=TokenPricingConfig(0.0, 0.0)),
+    )
     token_usage_tracker_unknown = TokenUsageTracker(unknown_model, token_usage_tracker.token_counter)
     
     input_messages, output_message = sample_messages
@@ -241,7 +249,7 @@ def test_zero_tokens(token_usage_tracker):
     assert usage.completion_tokens == 1500  # Mock returns 1500 even for empty output
     assert usage.total_tokens == 2500
     
-    pricing = LLMModel.GPT_4O_API.default_config.pricing_config
+    pricing = LLMModel["gpt-5.2"].default_config.pricing_config
     expected_prompt_cost = (1000 / 1_000_000) * pricing.input_token_pricing
     expected_completion_cost = (1500 / 1_000_000) * pricing.output_token_pricing
     expected_total_cost = expected_prompt_cost + expected_completion_cost
@@ -269,7 +277,7 @@ def test_partial_history(token_usage_tracker, sample_messages):
     assert usage.prompt_tokens == 1000
     assert usage.completion_tokens == 0
     assert usage.total_tokens == 1000
-    pricing = LLMModel.GPT_4O_API.default_config.pricing_config
+    pricing = LLMModel["gpt-5.2"].default_config.pricing_config
     assert usage.prompt_cost == (1000 / 1_000_000) * pricing.input_token_pricing
     assert usage.completion_cost == 0.0
     assert usage.total_cost == usage.prompt_cost
@@ -286,7 +294,7 @@ def test_complete_response_integration(token_usage_tracker, sample_messages):
     complete_response = CompleteResponse.from_content(output_message.content)
     complete_response.usage = token_usage_tracker.get_usage_history()[-1]
     
-    pricing = LLMModel.GPT_4O_API.default_config.pricing_config
+    pricing = LLMModel["gpt-5.2"].default_config.pricing_config
     assert complete_response.usage is not None
     assert complete_response.usage.completion_tokens == 1500
     assert complete_response.usage.completion_cost == (1500 / 1_000_000) * pricing.output_token_pricing
@@ -304,7 +312,7 @@ def test_chunk_response_handling(token_usage_tracker, sample_messages):
     input_messages, _ = sample_messages
     token_usage_tracker.calculate_input_messages(input_messages)
     
-    pricing = LLMModel.GPT_4O_API.default_config.pricing_config
+    pricing = LLMModel["gpt-5.2"].default_config.pricing_config
     
     # Simulate receiving a chunk of the output
     chunk1 = ChunkResponse(content="Assistant part 1", is_complete=False)

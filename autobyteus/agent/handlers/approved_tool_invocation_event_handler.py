@@ -60,7 +60,13 @@ class ApprovedToolInvocationEventHandler(AgentEventHandler):
                 except Exception as e:
                     error_message = f"Error in tool invocation preprocessor '{processor.get_name()}' for tool '{tool_name}': {e}"
                     logger.error(f"Agent '{agent_id}': {error_message}", exc_info=True)
-                    result_event = ToolResultEvent(tool_name=tool_name, result=None, error=error_message, tool_invocation_id=invocation_id)
+                    result_event = ToolResultEvent(
+                        tool_name=tool_name,
+                        result=None,
+                        error=error_message,
+                        tool_invocation_id=invocation_id,
+                        turn_id=tool_invocation.turn_id,
+                    )
                     await context.input_event_queues.enqueue_tool_result(result_event)
                     return
 
@@ -84,13 +90,13 @@ class ApprovedToolInvocationEventHandler(AgentEventHandler):
         if not tool_instance:
             error_message = f"Tool '{tool_name}' not found or configured for agent '{agent_id}'."
             logger.error(error_message)
-            result_event = ToolResultEvent(tool_name=tool_name, result=None, error=error_message, tool_invocation_id=invocation_id)
-            context.add_message_to_history({
-                "role": "tool",
-                "tool_call_id": invocation_id,
-                "name": tool_name,
-                "content": f"Error: Approved tool '{tool_name}' execution failed. Reason: {error_message}",
-            })
+            result_event = ToolResultEvent(
+                tool_name=tool_name,
+                result=None,
+                error=error_message,
+                tool_invocation_id=invocation_id,
+                turn_id=tool_invocation.turn_id,
+            )
             log_msg_error = f"[APPROVED_TOOL_ERROR] {error_message}"
             if notifier:
                 try:
@@ -113,20 +119,13 @@ class ApprovedToolInvocationEventHandler(AgentEventHandler):
 
                 logger.info(f"Approved tool '{tool_name}' (ID: {invocation_id}) executed successfully by agent '{agent_id}'.")
                 result_event = ToolResultEvent(
-                    tool_name=tool_name, 
-                    result=execution_result, 
-                    error=None, 
+                    tool_name=tool_name,
+                    result=execution_result,
+                    error=None,
                     tool_invocation_id=invocation_id,
-                    tool_args=arguments
+                    tool_args=arguments,
+                    turn_id=tool_invocation.turn_id,
                 )
-                
-                history_content = str(execution_result) 
-                context.add_message_to_history({
-                    "role": "tool",
-                    "tool_call_id": invocation_id,
-                    "name": tool_name,
-                    "content": history_content,
-                })
                 log_msg_result = f"[APPROVED_TOOL_RESULT] {result_json_for_log}"
                 if notifier:
                     try:
@@ -140,13 +139,13 @@ class ApprovedToolInvocationEventHandler(AgentEventHandler):
                 error_message = f"Error executing approved tool '{tool_name}' (ID: {invocation_id}): {str(e)}"
                 error_details = traceback.format_exc()
                 logger.error(f"Agent '{agent_id}' {error_message}", exc_info=True)
-                result_event = ToolResultEvent(tool_name=tool_name, result=None, error=error_message, tool_invocation_id=invocation_id)
-                context.add_message_to_history({
-                    "role": "tool",
-                    "tool_call_id": invocation_id,
-                    "name": tool_name,
-                    "content": f"Error: Approved tool '{tool_name}' execution failed. Reason: {error_message}",
-                })
+                result_event = ToolResultEvent(
+                    tool_name=tool_name,
+                    result=None,
+                    error=error_message,
+                    tool_invocation_id=invocation_id,
+                    turn_id=tool_invocation.turn_id,
+                )
                 log_msg_exception = f"[APPROVED_TOOL_EXCEPTION] {error_message}\nDetails:\n{error_details}"
                 if notifier:
                     try:

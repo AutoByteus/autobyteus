@@ -26,9 +26,7 @@ class BaseLLM(ABC):
 
         self._token_usage_extension: TokenUsageTrackingExtension = self.register_extension(TokenUsageTrackingExtension)
 
-        self.messages: List[Message] = []
         self.system_message = self.config.system_message or self.DEFAULT_SYSTEM_MESSAGE
-        self.add_system_message(self.system_message)
 
     @property
     def latest_token_usage(self):
@@ -48,42 +46,19 @@ class BaseLLM(ABC):
     def get_extension(self, extension_class: Type[LLMExtension]) -> Optional[LLMExtension]:
         return self._extension_registry.get(extension_class)
 
-    def add_system_message(self, message: str):
-        self.messages.append(Message(MessageRole.SYSTEM, content=message))
-
-    def add_user_message(self, user_message: LLMUserMessage):
-        """
-        Adds a user message to history, converting from LLMUserMessage to Message.
-        """
-        msg = Message(
+    def _build_user_message(self, user_message: LLMUserMessage) -> Message:
+        return Message(
             role=MessageRole.USER,
             content=user_message.content,
             image_urls=user_message.image_urls,
             audio_urls=user_message.audio_urls,
-            video_urls=user_message.video_urls
+            video_urls=user_message.video_urls,
         )
-        self.messages.append(msg)
-        self._trigger_on_user_message_added(msg)
 
-    def add_assistant_message(self,
-                              content: Optional[str],
-                              reasoning_content: Optional[str] = None,
-                              image_urls: Optional[List[str]] = None,
-                              audio_urls: Optional[List[str]] = None,
-                              video_urls: Optional[List[str]] = None):
-        """
-        Adds a multimodal assistant message to the conversation history.
-        """
-        msg = Message(
-            role=MessageRole.ASSISTANT,
-            content=content,
-            reasoning_content=reasoning_content,
-            image_urls=image_urls,
-            audio_urls=audio_urls,
-            video_urls=video_urls
-        )
-        self.messages.append(msg)
-        self._trigger_on_assistant_message_added(msg)
+    def _build_system_message(self) -> Optional[Message]:
+        if not self.system_message:
+            return None
+        return Message(MessageRole.SYSTEM, content=self.system_message)
 
     def configure_system_prompt(self, new_system_prompt: str):
         if not new_system_prompt or not isinstance(new_system_prompt, str):
@@ -92,51 +67,40 @@ class BaseLLM(ABC):
 
         self.system_message = new_system_prompt
         self.config.system_message = new_system_prompt
-
-        system_message_found = False
-        for i, msg in enumerate(self.messages):
-            if msg.role == MessageRole.SYSTEM:
-                self.messages[i] = Message(MessageRole.SYSTEM, new_system_prompt)
-                system_message_found = True
-                logging.debug(f"Replaced existing system message at index {i}.")
-                break
-        
-        if not system_message_found:
-            self.messages.insert(0, Message(MessageRole.SYSTEM, new_system_prompt))
-            logging.debug("No existing system message found, inserted new one at the beginning.")
-        
         logging.info(f"LLM instance system prompt updated. New prompt length: {len(new_system_prompt)}")
 
-    def _trigger_on_user_message_added(self, message: Message):
+    async def _execute_before_hooks(self, messages: List[Message], rendered_payload: Optional[dict] = None, **kwargs) -> None:
         for extension in self._extension_registry.get_all():
-            extension.on_user_message_added(message)
+            await extension.before_invoke(messages, rendered_payload, **kwargs)
 
-    def _trigger_on_assistant_message_added(self, message: Message):
+    async def _execute_after_hooks(self, messages: List[Message], response: CompleteResponse = None, **kwargs) -> None:
         for extension in self._extension_registry.get_all():
-            extension.on_assistant_message_added(message)
+            await extension.after_invoke(messages, response, **kwargs)
 
-    async def _execute_before_hooks(self, user_message: LLMUserMessage, **kwargs) -> None:
-        for extension in self._extension_registry.get_all():
-            await extension.before_invoke(user_message, **kwargs)
-
-    async def _execute_after_hooks(self, user_message: LLMUserMessage, response: CompleteResponse = None, **kwargs) -> None:
-        for extension in self._extension_registry.get_all():
-            await extension.after_invoke(user_message, response, **kwargs)
-
-    async def send_user_message(self, user_message: LLMUserMessage, **kwargs) -> CompleteResponse:
-        await self._execute_before_hooks(user_message, **kwargs)
-        response = await self._send_user_message_to_llm(user_message, **kwargs)
-        await self._execute_after_hooks(user_message, response, **kwargs)
+    async def send_messages(
+        self,
+        messages: List[Message],
+        rendered_payload: Optional[dict] = None,
+        **kwargs,
+    ) -> CompleteResponse:
+        await self._execute_before_hooks(messages, rendered_payload, **kwargs)
+        response = await self._send_messages_to_llm(messages, **kwargs)
+        await self._execute_after_hooks(messages, response, **kwargs)
         return response
 
-    async def stream_user_message(self, user_message: LLMUserMessage, **kwargs) -> AsyncGenerator[ChunkResponse, None]:
-        await self._execute_before_hooks(user_message, **kwargs)
+    async def stream_messages(
+        self,
+        messages: List[Message],
+        rendered_payload: Optional[dict] = None,
+        **kwargs,
+    ) -> AsyncGenerator[ChunkResponse, None]:
+        await self._execute_before_hooks(messages, rendered_payload, **kwargs)
 
         accumulated_content = ""
         accumulated_reasoning = ""
         final_chunk = None
-        
-        async for chunk in self._stream_user_message_to_llm(user_message, **kwargs):
+
+        async for chunk in self._stream_messages_to_llm(messages, **kwargs):
             if chunk.content:
                 accumulated_content += chunk.content
             if chunk.reasoning:
@@ -149,34 +113,72 @@ class BaseLLM(ABC):
         complete_response = CompleteResponse(
             content=accumulated_content,
             reasoning=accumulated_reasoning if accumulated_reasoning else None,
-            usage=final_chunk.usage if final_chunk else None
+            usage=final_chunk.usage if final_chunk else None,
         )
-        
-        await self._execute_after_hooks(user_message, complete_response, **kwargs)
+
+        await self._execute_after_hooks(messages, complete_response, **kwargs)
+
+    async def send_user_message(self, user_message: LLMUserMessage, **kwargs) -> CompleteResponse:
+        messages: List[Message] = []
+        system_message = self._build_system_message()
+        if system_message:
+            messages.append(system_message)
+        messages.append(self._build_user_message(user_message))
+        return await self.send_messages(messages, **kwargs)
+
+    async def stream_user_message(
+        self, user_message: LLMUserMessage, **kwargs
+    ) -> AsyncGenerator[ChunkResponse, None]:
+        messages: List[Message] = []
+        system_message = self._build_system_message()
+        if system_message:
+            messages.append(system_message)
+        messages.append(self._build_user_message(user_message))
+        async for chunk in self.stream_messages(messages, **kwargs):
+            yield chunk
+
+    async def _send_user_message_to_llm(self, user_message: LLMUserMessage, **kwargs) -> CompleteResponse:
+        messages: List[Message] = []
+        system_message = self._build_system_message()
+        if system_message:
+            messages.append(system_message)
+        messages.append(self._build_user_message(user_message))
+        return await self._send_messages_to_llm(messages, **kwargs)
+
+    async def _stream_user_message_to_llm(
+        self, user_message: LLMUserMessage, **kwargs
+    ) -> AsyncGenerator[ChunkResponse, None]:
+        messages: List[Message] = []
+        system_message = self._build_system_message()
+        if system_message:
+            messages.append(system_message)
+        messages.append(self._build_user_message(user_message))
+        async for chunk in self._stream_messages_to_llm(messages, **kwargs):
+            yield chunk
 
     @abstractmethod
-    async def _send_user_message_to_llm(self, user_message: LLMUserMessage, **kwargs) -> CompleteResponse:
+    async def _send_messages_to_llm(self, messages: List[Message], **kwargs) -> CompleteResponse:
         """
-        Abstract method for sending a user message to an LLM. Must be implemented by subclasses.
-        
+        Abstract method for sending a list of messages to an LLM. Must be implemented by subclasses.
+
         Args:
-            user_message (LLMUserMessage): The user message object.
+            messages (List[Message]): The message list to send.
             **kwargs: Additional arguments for LLM-specific usage.
-            
+
         Returns:
             CompleteResponse: The complete response from the LLM.
         """
         pass
 
     @abstractmethod
-    async def _stream_user_message_to_llm(self, user_message: LLMUserMessage, **kwargs) -> AsyncGenerator[ChunkResponse, None]:
+    async def _stream_messages_to_llm(self, messages: List[Message], **kwargs) -> AsyncGenerator[ChunkResponse, None]:
         """
-        Abstract method for streaming a user message response from the LLM. Must be implemented by subclasses.
-        
+        Abstract method for streaming a response from an LLM. Must be implemented by subclasses.
+
         Args:
-            user_message (LLMUserMessage): The user message object.
+            messages (List[Message]): The message list to send.
             **kwargs: Additional arguments for LLM-specific usage.
-            
+
         Yields:
             AsyncGenerator[ChunkResponse, None]: Streaming chunks from the LLM response.
         """
@@ -186,4 +188,3 @@ class BaseLLM(ABC):
         for extension in self._extension_registry.get_all():
             await extension.cleanup()
         self._extension_registry.clear()
-        self.messages = []

@@ -1,6 +1,6 @@
 import pytest
 import logging
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 from autobyteus.utils.llm_output_formatter import format_to_clean_string
 
 from autobyteus.agent.handlers.tool_result_event_handler import ToolResultEventHandler
@@ -17,7 +17,7 @@ def tool_result_handler():
 @pytest.fixture
 def mock_notifier(agent_context):
     """Fixture to ensure the notifier is a mock."""
-    notifier = AsyncMock()
+    notifier = MagicMock()
     agent_context.status_manager.notifier = notifier
     return notifier
 

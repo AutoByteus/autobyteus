@@ -1,6 +1,5 @@
 import logging
 import os
-import asyncio
 from typing import Optional, List, AsyncGenerator, Dict, Any
 
 from openai import AsyncOpenAI
@@ -8,70 +7,14 @@ from openai.types.responses import ResponseStreamEvent
 
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.models import LLMModel
-from autobyteus.llm.user_message import LLMUserMessage
 from autobyteus.llm.utils.llm_config import LLMConfig
 from autobyteus.llm.utils.messages import Message
-from autobyteus.llm.utils.media_payload_formatter import (
-    media_source_to_base64,
-    create_data_uri,
-    get_mime_type,
-    is_valid_media_path,
-)
+from autobyteus.llm.prompt_renderers.openai_responses_renderer import OpenAIResponsesRenderer
 from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.tool_call_delta import ToolCallDelta
 
 logger = logging.getLogger(__name__)
-
-
-async def _format_responses_history(messages: List[Message]) -> List[Dict[str, Any]]:
-    formatted_messages: List[Dict[str, Any]] = []
-
-    for msg in messages:
-        if msg.image_urls or msg.audio_urls or msg.video_urls:
-            content_parts: List[Dict[str, Any]] = []
-            if msg.content:
-                content_parts.append({"type": "input_text", "text": msg.content})
-
-            image_tasks = []
-            if msg.image_urls:
-                for url in msg.image_urls:
-                    image_tasks.append(media_source_to_base64(url))
-
-            try:
-                base64_images = await asyncio.gather(*image_tasks)
-                for i, b64_image in enumerate(base64_images):
-                    original_url = msg.image_urls[i]
-                    mime_type = (
-                        get_mime_type(original_url)
-                        if is_valid_media_path(original_url)
-                        else "image/jpeg"
-                    )
-                    data_uri = create_data_uri(mime_type, b64_image)["image_url"]["url"]
-                    content_parts.append(
-                        {
-                            "type": "input_image",
-                            "image_url": data_uri,
-                            "detail": "auto",
-                        }
-                    )
-            except Exception as e:
-                logger.error(f"Error processing one or more images: {e}")
-
-            if msg.audio_urls:
-                logger.warning("OpenAI Responses input does not yet support audio; skipping.")
-            if msg.video_urls:
-                logger.warning("OpenAI Responses input does not yet support video; skipping.")
-
-            formatted_messages.append(
-                {"type": "message", "role": msg.role.value, "content": content_parts}
-            )
-        else:
-            formatted_messages.append(
-                {"type": "message", "role": msg.role.value, "content": msg.content or ""}
-            )
-
-    return formatted_messages
 
 
 class OpenAIResponsesLLM(BaseLLM):
@@ -103,6 +46,7 @@ class OpenAIResponsesLLM(BaseLLM):
 
         super().__init__(model=model, llm_config=effective_config)
         self.max_tokens = effective_config.max_tokens
+        self._renderer = OpenAIResponsesRenderer()
 
     def _create_token_usage(self, usage_data) -> Optional[TokenUsage]:
         if not usage_data:
@@ -172,12 +116,10 @@ class OpenAIResponsesLLM(BaseLLM):
                 normalized.append(tool)
         return normalized
 
-    async def _send_user_message_to_llm(self, user_message: LLMUserMessage, **kwargs) -> CompleteResponse:
-        self.add_user_message(user_message)
-
+    async def _send_messages_to_llm(self, messages: List[Message], **kwargs) -> CompleteResponse:
         try:
-            formatted_messages = await _format_responses_history(self.messages)
-            logger.info(f"Sending request to {self.model.provider.value} Responses API")
+            formatted_messages = await self._renderer.render(messages)
+            logger.info("Sending request to %s Responses API", self.model.provider.value)
 
             params: Dict[str, Any] = {
                 "model": self.model.value,
@@ -203,19 +145,18 @@ class OpenAIResponsesLLM(BaseLLM):
             response = await self.client.responses.create(**params)
 
             content, reasoning = self._extract_output_content(response.output)
-            self.add_assistant_message(content, reasoning_content=reasoning)
 
             token_usage = self._create_token_usage(response.usage)
-            logger.info(f"Received response from {self.model.provider.value} Responses API")
+            logger.info("Received response from %s Responses API", self.model.provider.value)
 
             return CompleteResponse(content=content, reasoning=reasoning, usage=token_usage)
         except Exception as e:
-            logger.error(f"Error in {self.model.provider.value} Responses API request: {str(e)}")
+            logger.error("Error in %s Responses API request: %s", self.model.provider.value, str(e))
             raise ValueError(f"Error in {self.model.provider.value} Responses API request: {str(e)}")
 
-    async def _stream_user_message_to_llm(self, user_message: LLMUserMessage, **kwargs) -> AsyncGenerator[ChunkResponse, None]:
-        self.add_user_message(user_message)
-
+    async def _stream_messages_to_llm(
+        self, messages: List[Message], **kwargs
+    ) -> AsyncGenerator[ChunkResponse, None]:
         accumulated_content = ""
         accumulated_reasoning = ""
         tool_call_state: Dict[int, Dict[str, Any]] = {}
@@ -223,8 +164,8 @@ class OpenAIResponsesLLM(BaseLLM):
         summary_delta_seen: set[str] = set()
 
         try:
-            formatted_messages = await _format_responses_history(self.messages)
-            logger.info(f"Starting streaming request to {self.model.provider.value} Responses API")
+            formatted_messages = await self._renderer.render(messages)
+            logger.info("Starting streaming request to %s Responses API", self.model.provider.value)
 
             params: Dict[str, Any] = {
                 "model": self.model.value,
@@ -373,14 +314,10 @@ class OpenAIResponsesLLM(BaseLLM):
                     token_usage = self._create_token_usage(response.usage)
                     yield ChunkResponse(content="", reasoning=None, is_complete=True, usage=token_usage)
 
-            self.add_assistant_message(
-                accumulated_content,
-                reasoning_content=accumulated_reasoning if accumulated_reasoning else None,
-            )
-            logger.info(f"Completed streaming response from {self.model.provider.value} Responses API")
+            logger.info("Completed streaming response from %s Responses API", self.model.provider.value)
 
         except Exception as e:
-            logger.error(f"Error in {self.model.provider.value} Responses API streaming: {str(e)}")
+            logger.error("Error in %s Responses API streaming: %s", self.model.provider.value, str(e))
             raise ValueError(f"Error in {self.model.provider.value} Responses API streaming: {str(e)}")
 
     async def cleanup(self):

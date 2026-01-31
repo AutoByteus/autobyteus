@@ -87,7 +87,6 @@ async def test_send_user_message_returns_reasoning_summary():
 
         assert result.content == "Final answer."
         assert result.reasoning == "Thought summary."
-        assert llm.messages[-1].reasoning_content == "Thought summary."
 
 
 @pytest.mark.asyncio
@@ -128,4 +127,3 @@ async def test_stream_user_message_emits_reasoning_chunks():
 
         assert "".join(contents) == "Answer."
         assert "".join(reasonings) == "Thought."
-        assert llm.messages[-1].reasoning_content == "Thought."

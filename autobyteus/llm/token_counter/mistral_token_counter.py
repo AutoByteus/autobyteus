@@ -95,7 +95,6 @@ class MistralTokenCounter(BaseTokenCounter):
     def count_output_tokens(self, message: Message) -> int:
         """
         Count the number of tokens in the output message using Mistral's tokenizer.
-        This implementation subtracts the token count of previous messages from the total tokens to isolate the output tokens.
 
         Args:
             message (Message): The output message.
@@ -106,10 +105,15 @@ class MistralTokenCounter(BaseTokenCounter):
         Raises:
             Exception: If token counting fails for any reason.
         """
-        # Calculate total tokens for all messages including the assistant message
-        all_tokens = self.count_input_tokens(self.llm.messages)
-        # Exclude the last message (assistant message) to get previous messages
-        prev_messages = self.llm.messages[:-1] if len(self.llm.messages) > 1 else []
-        prev_tokens = self.count_input_tokens(prev_messages) if prev_messages else 0
-        # The difference should correspond to the tokens for the assistant's last message
-        return all_tokens - prev_tokens
+        if not message:
+            return 0
+        if message.role == MessageRole.ASSISTANT:
+            if not message.content:
+                return 0
+            # Mistral requires conversations to start with user/system.
+            # Estimate output tokens by subtracting a dummy prompt prefix.
+            dummy_user = Message(role=MessageRole.USER, content=" ")
+            total_tokens = self.count_input_tokens([dummy_user, message])
+            prompt_tokens = self.count_input_tokens([dummy_user])
+            return max(0, total_tokens - prompt_tokens)
+        return self.count_input_tokens([message])

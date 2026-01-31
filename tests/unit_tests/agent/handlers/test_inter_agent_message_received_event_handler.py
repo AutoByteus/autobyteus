@@ -30,9 +30,6 @@ async def test_handle_inter_agent_message_success(inter_agent_handler: InterAgen
     )
     event = InterAgentMessageReceivedEvent(inter_agent_message=inter_agent_msg)
 
-    # agent_context.state.add_message_to_history is already a MagicMock
-    # agent_context.input_event_queues.enqueue_internal_system_event is already an AsyncMock
-
     with caplog.at_level(logging.INFO):
         await inter_agent_handler.handle(event, agent_context)
 
@@ -46,9 +43,6 @@ async def test_handle_inter_agent_message_success(inter_agent_handler: InterAgen
     expected_history_content_part2 = f"Message Type: {message_type.value}"
     expected_history_content_part3 = f"--- Message Content ---\n{content}"
     
-    # context.state.add_message_to_history is NOT called here anymore, because it's routed to UserMessageReceivedEventHandler
-    agent_context.state.add_message_to_history.assert_not_called()
-
     agent_context.input_event_queues.enqueue_user_message.assert_called_once() 
     enqueued_event = agent_context.input_event_queues.enqueue_user_message.call_args[0][0]
     assert isinstance(enqueued_event, UserMessageReceivedEvent)
@@ -69,7 +63,6 @@ async def test_handle_invalid_event_type(inter_agent_handler: InterAgentMessageR
 
     assert f"InterAgentMessageReceivedEventHandler received an event of type {type(invalid_event).__name__}" in caplog.text
     assert "Skipping." in caplog.text
-    agent_context.state.add_message_to_history.assert_not_called()
     agent_context.input_event_queues.enqueue_internal_system_event.assert_not_called()
 
 def test_inter_agent_handler_initialization(caplog):

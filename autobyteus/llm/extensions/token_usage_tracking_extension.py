@@ -1,4 +1,4 @@
-from typing import Optional, List, TYPE_CHECKING
+from typing import Optional, List, TYPE_CHECKING, Any
 import logging
 from autobyteus.llm.extensions.base_extension import LLMExtension
 from autobyteus.llm.token_counter.token_counter_factory import get_token_counter
@@ -6,7 +6,6 @@ from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.token_usage_tracker import TokenUsageTracker
 from autobyteus.llm.utils.messages import Message, MessageRole
 from autobyteus.llm.utils.response_types import CompleteResponse
-from autobyteus.llm.user_message import LLMUserMessage
 
 if TYPE_CHECKING:
     from autobyteus.llm.base_llm import BaseLLM
@@ -40,12 +39,17 @@ class TokenUsageTrackingExtension(LLMExtension):
         return self._latest_usage
 
     async def before_invoke(
-        self, user_message: LLMUserMessage, **kwargs
+        self, messages: List[Message], rendered_payload: Optional[Any] = None, **kwargs
     ) -> None:
-        pass
+        if not self.is_enabled:
+            return
+        if not messages:
+            logger.warning("TokenUsageTrackingExtension.before_invoke received empty messages list.")
+            return
+        self.usage_tracker.calculate_input_messages(messages)
 
     async def after_invoke(
-        self, user_message: LLMUserMessage, response: CompleteResponse = None, **kwargs
+        self, messages: List[Message], response: CompleteResponse = None, **kwargs
     ) -> None:
         """
         Get the latest usage from tracker and optionally override token counts with provider's usage if available
@@ -58,7 +62,7 @@ class TokenUsageTrackingExtension(LLMExtension):
         if latest_usage is None:
             logger.warning(
                 "No token usage record found in after_invoke. This may indicate the LLM implementation "
-                "did not call add_user_message. Skipping token usage update for this call."
+                "did not call before_invoke. Skipping token usage update for this call."
             )
             return
 
@@ -67,27 +71,24 @@ class TokenUsageTrackingExtension(LLMExtension):
             latest_usage.prompt_tokens = response.usage.prompt_tokens
             latest_usage.completion_tokens = response.usage.completion_tokens
             latest_usage.total_tokens = response.usage.total_tokens
-            
+        elif isinstance(response, CompleteResponse) and response.content:
+            # Fallback: estimate completion tokens from response content
+            assistant_message = Message(
+                role=MessageRole.ASSISTANT,
+                content=response.content,
+                reasoning_content=response.reasoning,
+            )
+            latest_usage.completion_tokens = self.token_counter.count_output_tokens(assistant_message)
+            latest_usage.total_tokens = latest_usage.prompt_tokens + latest_usage.completion_tokens
+
         # Always calculate costs using current token counts
         latest_usage.prompt_cost = self.usage_tracker.calculate_cost(
             latest_usage.prompt_tokens, True)
         latest_usage.completion_cost = self.usage_tracker.calculate_cost(
             latest_usage.completion_tokens, False)
         latest_usage.total_cost = latest_usage.prompt_cost + latest_usage.completion_cost
-                
+
         self._latest_usage = latest_usage
-
-    def on_user_message_added(self, message: Message) -> None:
-        """Track usage whenever a user message is added. Here input message argument is not used, because the input token counts should consider all the input messages"""
-        if not self.is_enabled:
-            return
-        self.usage_tracker.calculate_input_messages(self.llm.messages)
-
-    def on_assistant_message_added(self, message: Message) -> None:
-        """Track usage whenever an assistant message is added."""
-        if not self.is_enabled:
-            return
-        self.usage_tracker.calculate_output_message(message)
 
     def get_total_cost(self) -> float:
         if not self.is_enabled:
@@ -113,4 +114,3 @@ class TokenUsageTrackingExtension(LLMExtension):
         if self.usage_tracker is not None:
             self.usage_tracker.clear_history()
         self._latest_usage = None
-

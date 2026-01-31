@@ -4,13 +4,43 @@ from autobyteus.llm.llm_factory import LLMFactory
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.models import LLMModel, ModelInfo, LLMProvider
 from autobyteus.llm.runtimes import LLMRuntime
-from autobyteus.llm.api.openai_llm import OpenAILLM
 from autobyteus.llm.utils.llm_config import LLMConfig
 
 # Ensure the factory is initialized before tests are generated
 LLMFactory.ensure_initialized()
 # Get all unique model identifiers for parametrization
-all_model_identifiers = [model.model_identifier for model in LLMFactory.list_available_models()]
+_all_models = LLMFactory.list_available_models()
+all_model_identifiers = [model.model_identifier for model in _all_models]
+_model_info_by_id = {model.model_identifier: model for model in _all_models}
+
+
+def _maybe_skip_missing_api_key(model_identifier: str) -> None:
+    model_info = _model_info_by_id.get(model_identifier)
+    if not model_info:
+        return
+
+    provider = model_info.provider
+    if isinstance(provider, str):
+        try:
+            provider = LLMProvider(provider)
+        except ValueError:
+            return
+    # Map providers to required API keys for instantiation.
+    required_env = {
+        LLMProvider.MINIMAX: "MINIMAX_API_KEY",
+        LLMProvider.QWEN: "DASHSCOPE_API_KEY",
+        LLMProvider.DEEPSEEK: "DEEPSEEK_API_KEY",
+        LLMProvider.KIMI: "KIMI_API_KEY",
+        LLMProvider.GROK: "GROK_API_KEY",
+        LLMProvider.ZHIPU: "ZHIPU_API_KEY",
+        LLMProvider.MISTRAL: "MISTRAL_API_KEY",
+        LLMProvider.ANTHROPIC: "ANTHROPIC_API_KEY",
+        LLMProvider.OPENAI: "OPENAI_API_KEY",
+    }
+
+    env_var = required_env.get(provider)
+    if env_var and not os.getenv(env_var):
+        pytest.skip(f"{env_var} not set for provider {provider}. Skipping {model_identifier}.")
 
 def pytest_generate_tests(metafunc):
     """Hook to dynamically parametrize tests that require 'model_identifier'."""
@@ -58,6 +88,7 @@ def test_list_available_models(llm_factory):
 
 def test_create_llm_valid_models(llm_factory, model_identifier):
     """Test that create_llm() successfully creates instances for all registered model identifiers."""
+    _maybe_skip_missing_api_key(model_identifier)
     llm_instance = llm_factory.create_llm(model_identifier)
     assert isinstance(llm_instance, BaseLLM), f"Instance for {model_identifier} should be a BaseLLM."
     assert llm_instance.model.model_identifier == model_identifier
@@ -65,6 +96,7 @@ def test_create_llm_valid_models(llm_factory, model_identifier):
 
 def test_llm_initialization_with_custom_config(llm_factory, model_identifier):
     """Test that create_llm() correctly initializes an LLM with a custom configuration."""
+    _maybe_skip_missing_api_key(model_identifier)
     custom_config = LLMConfig(temperature=0.99, max_tokens=1234)
     llm_instance = llm_factory.create_llm(model_identifier, llm_config=custom_config)
     
@@ -87,11 +119,29 @@ def test_create_llm_ambiguous_name(llm_factory):
     # To test this, we need to manually register two models with the same name but different runtimes.
     LLMFactory.reinitialize() # Start with a clean slate
     
-    # Register a dummy API model
-    LLMFactory.register_model(LLMModel(name="dummy-model", value="dummy-model", provider=LLMProvider.OPENAI, llm_class=OpenAILLM, canonical_name="dummy"))
-    
-    # Register a dummy runtime model with the same name
-    LLMFactory.register_model(LLMModel(name="dummy-model", value="dummy-model", provider=LLMProvider.OLLAMA, llm_class=BaseLLM, canonical_name="dummy", runtime=LLMRuntime.OLLAMA, host_url="http://localhost:11434"))
+    # Register dummy runtime models with the same name (no exact identifier match).
+    LLMFactory.register_model(
+        LLMModel(
+            name="dummy-model",
+            value="dummy-model",
+            provider=LLMProvider.OLLAMA,
+            llm_class=BaseLLM,
+            canonical_name="dummy",
+            runtime=LLMRuntime.OLLAMA,
+            host_url="http://localhost:11434",
+        )
+    )
+    LLMFactory.register_model(
+        LLMModel(
+            name="dummy-model",
+            value="dummy-model",
+            provider=LLMProvider.LMSTUDIO,
+            llm_class=BaseLLM,
+            canonical_name="dummy",
+            runtime=LLMRuntime.LMSTUDIO,
+            host_url="http://localhost:1234",
+        )
+    )
     
     ambiguous_name = "dummy-model"
     with pytest.raises(ValueError, match=f"The model name '{ambiguous_name}' is ambiguous."):
@@ -99,4 +149,3 @@ def test_create_llm_ambiguous_name(llm_factory):
 
     # Clean up and reinitialize for other tests
     LLMFactory.reinitialize()
-

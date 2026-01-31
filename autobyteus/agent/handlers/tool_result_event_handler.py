@@ -193,7 +193,8 @@ class ToolResultEventHandler(AgentEventHandler):
                     tool_name=original_invocation.name,
                     result=None,
                     error=f"Critical Error: Result for this tool call was lost.",
-                    tool_invocation_id=original_invocation.id
+                    tool_invocation_id=original_invocation.id,
+                    turn_id=original_invocation.turn_id,
                 ))
 
         await self._dispatch_results_to_input_pipeline(sorted_results, context)

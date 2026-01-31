@@ -64,8 +64,6 @@ async def test_send_user_message_includes_thinking_and_returns_reasoning():
 
         assert result.content == "Final answer."
         assert result.reasoning == "Thought summary."
-        assert llm.messages[-1].reasoning_content == "Thought summary."
-
         call_kwargs = mock_client.messages.create.call_args.kwargs
         assert call_kwargs["thinking"] == {"type": "enabled", "budget_tokens": 2048}
 
@@ -124,4 +122,3 @@ async def test_stream_emits_thinking_deltas():
 
         assert "".join(contents) == "Answer."
         assert "".join(reasonings) == "Thought."
-        assert llm.messages[-1].reasoning_content == "Thought."

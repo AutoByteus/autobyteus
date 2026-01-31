@@ -83,6 +83,8 @@ def test_llm_config_initialization_defaults():
     assert config.top_p is None
     assert config.frequency_penalty is None
     assert config.presence_penalty is None
+    assert config.compaction_ratio is None
+    assert config.safety_margin_tokens is None
     assert config.stop_sequences is None
     assert config.extra_params == {}
     assert isinstance(config.pricing_config, TokenPricingConfig)
@@ -97,6 +99,8 @@ def test_llm_config_initialization_custom_values():
         system_message="Be concise.",
         temperature=0.5,
         max_tokens=1024,
+        compaction_ratio=0.75,
+        safety_margin_tokens=128,
         stop_sequences=["\nUser:"],
         extra_params={"custom_key": "custom_value"},
         pricing_config=custom_pricing
@@ -105,6 +109,8 @@ def test_llm_config_initialization_custom_values():
     assert config.system_message == "Be concise."
     assert config.temperature == 0.5
     assert config.max_tokens == 1024
+    assert config.compaction_ratio == 0.75
+    assert config.safety_margin_tokens == 128
     assert config.stop_sequences == ["\nUser:"]
     assert config.extra_params == {"custom_key": "custom_value"}
     assert config.pricing_config == custom_pricing
@@ -140,6 +146,8 @@ def test_llm_config_to_dict_full_and_excludes_none():
         system_message="Test prompt",
         temperature=0.9,
         max_tokens=500, # A non-None value
+        compaction_ratio=0.5,
+        safety_margin_tokens=64,
         extra_params={"test": 1},
         pricing_config=TokenPricingConfig.from_dict(custom_pricing_dict)
     )
@@ -148,6 +156,8 @@ def test_llm_config_to_dict_full_and_excludes_none():
         "system_message": "Test prompt",
         "temperature": 0.9,
         "max_tokens": 500,
+        "compaction_ratio": 0.5,
+        "safety_margin_tokens": 64,
         "extra_params": {"test": 1},
         "pricing_config": custom_pricing_dict
     }
@@ -172,6 +182,8 @@ def test_llm_config_from_dict_full():
         "top_p": 0.9,
         "frequency_penalty": 0.1,
         "presence_penalty": 0.2,
+        "compaction_ratio": 0.6,
+        "safety_margin_tokens": 300,
         "stop_sequences": ["stop"],
         "extra_params": {"extra": "param"},
         "pricing_config": {'input_token_pricing': 0.07, 'output_token_pricing': 0.08}
@@ -181,6 +193,8 @@ def test_llm_config_from_dict_full():
     assert config.system_message == "Full dict test"
     assert config.temperature == 0.2
     assert config.max_tokens == 200
+    assert config.compaction_ratio == 0.6
+    assert config.safety_margin_tokens == 300
     assert config.extra_params == {"extra": "param"}
     assert isinstance(config.pricing_config, TokenPricingConfig)
     assert config.pricing_config.input_token_pricing == 0.07
@@ -302,4 +316,3 @@ def test_llm_config_merge_with_field_set_to_none_in_override_does_not_clear_base
     assert base.temperature == 0.5
     # system_message should be updated as override.system_message ("You are a helpful assistant.") is not None.
     assert base.system_message == "You are a helpful assistant."
-

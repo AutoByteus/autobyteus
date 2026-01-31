@@ -1,5 +1,5 @@
 """
-run_terminal_cmd tool - Execute commands in a stateful terminal.
+run_bash tool - Execute commands in a stateful terminal.
 
 This tool replaces the stateless bash_executor with a PTY-based
 implementation that maintains shell state (cd, environment variables).

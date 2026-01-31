@@ -1,16 +1,13 @@
-from typing import Dict, Optional, List, AsyncGenerator, Any
+from typing import List, AsyncGenerator
 from ollama import AsyncClient, ChatResponse, ResponseError
-from ollama import Image  # FIX: Import the Image type from the ollama library
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
 from autobyteus.llm.utils.llm_config import LLMConfig
-from autobyteus.llm.utils.messages import Message
+from autobyteus.llm.utils.messages import Message, MessageRole
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
-from autobyteus.llm.user_message import LLMUserMessage
-from autobyteus.llm.utils.media_payload_formatter import media_source_to_base64
+from autobyteus.llm.prompt_renderers.ollama_prompt_renderer import OllamaPromptRenderer
 import logging
-import asyncio
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -25,37 +22,12 @@ class OllamaLLM(BaseLLM):
         self.client = AsyncClient(host=model.host_url)
         
         super().__init__(model=model, llm_config=llm_config)
+        self._renderer = OllamaPromptRenderer()
         logger.info(f"OllamaLLM initialized with model: {self.model.model_identifier}")
 
-    async def _format_ollama_messages(self) -> List[Dict[str, Any]]:
-        """
-        Formats the conversation history for the Ollama API, including multimodal content.
-        """
-        formatted_messages = []
-        for msg in self.messages:
-            msg_dict = {
-                "role": msg.role.value,
-                "content": msg.content or ""
-            }
-            if msg.image_urls:
-                try:
-                    # Concurrently process all images using the centralized utility
-                    image_tasks = [media_source_to_base64(url) for url in msg.image_urls]
-                    prepared_base64_images = await asyncio.gather(*image_tasks)
-                    if prepared_base64_images:
-                        # FIX: Wrap each base64 string in the official ollama.Image object
-                        msg_dict["images"] = [Image(value=b64_string) for b64_string in prepared_base64_images]
-                except Exception as e:
-                    logger.error(f"Error processing images for Ollama, skipping them. Error: {e}")
-
-            formatted_messages.append(msg_dict)
-        return formatted_messages
-
-    async def _send_user_message_to_llm(self, user_message: LLMUserMessage, **kwargs) -> CompleteResponse:
-        self.add_user_message(user_message)
-
+    async def _send_messages_to_llm(self, messages: List[Message], **kwargs) -> CompleteResponse:
         try:
-            formatted_messages = await self._format_ollama_messages()
+            formatted_messages = await self._renderer.render(messages)
             response: ChatResponse = await self.client.chat(
                 model=self.model.value,
                 messages=formatted_messages
@@ -70,8 +42,6 @@ class OllamaLLM(BaseLLM):
                 if start_index < end_index:
                     reasoning_content = assistant_message[start_index + len("<think>"):end_index].strip()
                     main_content = (assistant_message[:start_index] + assistant_message[end_index + len("</think>"):])
-            
-            self.add_assistant_message(main_content, reasoning_content=reasoning_content)
             
             token_usage = TokenUsage(
                 prompt_tokens=response.get('prompt_eval_count', 0),
@@ -94,17 +64,16 @@ class OllamaLLM(BaseLLM):
             logging.error(f"Unexpected error in Ollama call: {e}")
             raise
 
-    async def _stream_user_message_to_llm(
-        self, user_message: LLMUserMessage, **kwargs
+    async def _stream_messages_to_llm(
+        self, messages: List[Message], **kwargs
     ) -> AsyncGenerator[ChunkResponse, None]:
-        self.add_user_message(user_message)
         accumulated_main = ""
         accumulated_reasoning = ""
         in_reasoning = False
         final_response = None
         
         try:
-            formatted_messages = await self._format_ollama_messages()
+            formatted_messages = await self._renderer.render(messages)
             async for part in await self.client.chat(
                 model=self.model.value,
                 messages=formatted_messages,
@@ -141,8 +110,6 @@ class OllamaLLM(BaseLLM):
                 )
 
             yield ChunkResponse(content="", reasoning=None, is_complete=True, usage=token_usage)
-            
-            self.add_assistant_message(accumulated_main, reasoning_content=accumulated_reasoning)
 
         except httpx.HTTPError as e:
             logging.error(f"HTTP Error in Ollama streaming: {e.response.status_code} - {e.response.text}")

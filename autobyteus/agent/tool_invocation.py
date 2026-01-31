@@ -1,6 +1,6 @@
 # file: autobyteus/autobyteus/agent/tool_invocation.py
 import logging
-from typing import Dict, Any, List, TYPE_CHECKING
+from typing import Dict, Any, List, TYPE_CHECKING, Optional
 from dataclasses import dataclass, field
 
 if TYPE_CHECKING:
@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 class ToolInvocation:
-    def __init__(self, name: str, arguments: Dict[str, Any], id: str):
+    def __init__(self, name: str, arguments: Dict[str, Any], id: str, turn_id: str = None):
         """
         Represents a tool invocation request.
 
@@ -28,6 +28,7 @@ class ToolInvocation:
         self.name: str = name
         self.arguments: Dict[str, Any] = arguments
         self.id: str = id
+        self.turn_id: Optional[str] = turn_id
 
     def is_valid(self) -> bool:
         """
@@ -37,7 +38,8 @@ class ToolInvocation:
         return self.name is not None and self.arguments is not None
 
     def __repr__(self) -> str:
-        return (f"ToolInvocation(id='{self.id}', name='{self.name}', "
+        turn_id_repr = f", turn_id='{self.turn_id}'" if self.turn_id else ""
+        return (f"ToolInvocation(id='{self.id}', name='{self.name}'{turn_id_repr}, "
                 f"arguments={self.arguments})")
 
 

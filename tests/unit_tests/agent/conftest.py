@@ -28,9 +28,9 @@ from autobyteus.llm.utils.llm_config import LLMConfig
 def mock_llm_instance():
     """Provides a mocked BaseLLM instance."""
     llm = MagicMock(spec=BaseLLM)
-    llm.stream_user_message = MagicMock() # Should be an async generator mock if needed
+    llm.stream_user_message = MagicMock() # Backward compatible in tests
+    llm.stream_messages = MagicMock() # New stateless interface
     llm.config = LLMConfig(system_message="Initial system message.")
-    llm.add_message_to_history = MagicMock()
     llm.cleanup = AsyncMock()
     return llm
 
@@ -119,7 +119,6 @@ def mock_agent_runtime_state(mock_agent_config, mock_workspace):
         workspace=mock_workspace
     )
     # Mock stateful methods directly on the state object if tests assert on them
-    state.add_message_to_history = MagicMock()
     state.store_pending_tool_invocation = MagicMock()
     state.retrieve_pending_tool_invocation = MagicMock(return_value=None)
     return state
@@ -162,4 +161,5 @@ def mock_tool_invocation():
     invocation.id = "test_tool_invocation_id"
     invocation.name = "mock_tool"
     invocation.arguments = {"arg1": "value1"}
+    invocation.turn_id = "turn_0001"
     return invocation

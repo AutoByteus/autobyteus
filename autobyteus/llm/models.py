@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from autobyteus.llm.llm_factory import LLMFactory
 
 logger = logging.getLogger(__name__)
+DEFAULT_MAX_CONTEXT_TOKENS = 200000
 
 @dataclass
 class ModelInfo:
@@ -104,7 +105,10 @@ class LLMModel(metaclass=LLMModelMeta):
         default_config: Optional[LLMConfig] = None,
         runtime: LLMRuntime = LLMRuntime.API,
         host_url: Optional[str] = None,
-        config_schema: Optional[ParameterSchema] = None
+        config_schema: Optional[ParameterSchema] = None,
+        max_context_tokens: Optional[int] = None,
+        default_compaction_ratio: float = 0.8,
+        default_safety_margin_tokens: int = 256,
     ):
         self._name = name
         self._value = value
@@ -112,6 +116,15 @@ class LLMModel(metaclass=LLMModelMeta):
         self.provider = provider
         self.llm_class = llm_class
         self.default_config = default_config if default_config else LLMConfig()
+        if max_context_tokens is None:
+            max_context_tokens = (
+                self.default_config.token_limit
+                if self.default_config.token_limit is not None
+                else DEFAULT_MAX_CONTEXT_TOKENS
+            )
+        self.max_context_tokens = max_context_tokens
+        self.default_compaction_ratio = default_compaction_ratio
+        self.default_safety_margin_tokens = default_safety_margin_tokens
         self.runtime = runtime
         self.host_url = host_url
         self.config_schema = config_schema
@@ -208,4 +221,3 @@ class LLMModel(metaclass=LLMModelMeta):
             f"LLMModel(identifier='{self.model_identifier}', name='{self.name}', "
             f"provider='{self.provider.name}', runtime='{self.runtime.name}')"
         )
-

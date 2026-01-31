@@ -48,7 +48,6 @@ async def test_deepseek_llm_streaming(deepseek_llm):
     assert len(received_tokens) > 0
     assert len(complete_response) > 0
     assert isinstance(complete_response, str)
-    assert len(deepseek_llm.messages) == 3
 
     await deepseek_llm.cleanup()
 
@@ -63,9 +62,6 @@ async def test_send_user_message(deepseek_llm):
     assert isinstance(response_obj.content, str)
     assert len(response_obj.content) > 0
 
-    assert len(deepseek_llm.messages) == 3
-    assert deepseek_llm.messages[1].content == user_message_text
-    assert deepseek_llm.messages[2].content == response_obj.content
 
 @pytest.mark.asyncio
 async def test_stream_user_message(deepseek_llm):
@@ -85,8 +81,5 @@ async def test_stream_user_message(deepseek_llm):
     assert len(complete_response) > 0
     assert isinstance(complete_response, str)
     
-    assert len(deepseek_llm.messages) == 3
-    assert deepseek_llm.messages[1].content == user_message_text
-    assert deepseek_llm.messages[2].content == complete_response
 
     await deepseek_llm.cleanup()

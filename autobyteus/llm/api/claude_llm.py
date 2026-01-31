@@ -1,8 +1,7 @@
-import asyncio
 import anthropic
 import os
 import logging
-from typing import Dict, Optional, List, AsyncGenerator, Tuple, Any
+from typing import Dict, Optional, List, AsyncGenerator, Tuple
 
 from autobyteus.llm.models import LLMModel
 from autobyteus.llm.base_llm import BaseLLM
@@ -10,13 +9,8 @@ from autobyteus.llm.utils.llm_config import LLMConfig
 from autobyteus.llm.utils.messages import MessageRole, Message
 from autobyteus.llm.utils.token_usage import TokenUsage
 from autobyteus.llm.utils.response_types import CompleteResponse, ChunkResponse
-from autobyteus.llm.user_message import LLMUserMessage
 from autobyteus.llm.converters import convert_anthropic_tool_call
-from autobyteus.llm.utils.media_payload_formatter import (
-    media_source_to_base64,
-    get_mime_type,
-    is_valid_media_path
-)
+from autobyteus.llm.prompt_renderers.anthropic_prompt_renderer import AnthropicPromptRenderer
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +59,14 @@ def _split_claude_content_blocks(blocks: List) -> Tuple[str, str]:
 
     return "".join(content_segments), "".join(thinking_segments)
 
+
+def _split_system_message(messages: List[Message]) -> Tuple[Optional[str], List[Message]]:
+    system_parts = [msg.content for msg in messages if msg.role == MessageRole.SYSTEM and msg.content]
+    system_prompt = "\n".join(system_parts) if system_parts else None
+    remaining = [msg for msg in messages if msg.role != MessageRole.SYSTEM]
+    return system_prompt, remaining
+
+
 class ClaudeLLM(BaseLLM):
     def __init__(self, model: LLMModel = None, llm_config: LLMConfig = None):
         if model is None:
@@ -74,6 +76,7 @@ class ClaudeLLM(BaseLLM):
             
         super().__init__(model=model, llm_config=llm_config)
         self.client = self.initialize()
+        self._renderer = AnthropicPromptRenderer()
         # Claude Sonnet 4.5 currently allows up to ~8k output tokens; let config override.
         self.max_tokens = llm_config.max_tokens if llm_config.max_tokens is not None else 8192
     
@@ -90,76 +93,6 @@ class ClaudeLLM(BaseLLM):
         except Exception as e:
             raise ValueError(f"Failed to initialize Anthropic client: {str(e)}")
     
-    async def _format_anthropic_messages(self) -> List[Dict]:
-        """
-        Convert internal Message objects into the shape expected by
-        Anthropic's messages API, handling both text and images.
-        """
-        formatted_messages: List[Dict] = []
-        valid_image_mimes = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
-
-        for msg in self.messages:
-            if msg.role == MessageRole.SYSTEM:
-                continue
-            
-            # Check for images in the message
-            if msg.image_urls:
-                content_blocks: List[Dict[str, Any]] = []
-                
-                # Process images
-                image_tasks = [media_source_to_base64(url) for url in msg.image_urls]
-                try:
-                    base64_images = await asyncio.gather(*image_tasks)
-                    
-                    for i, b64_data in enumerate(base64_images):
-                        original_url = msg.image_urls[i]
-                        # Determine MIME type
-                        mime_type = get_mime_type(original_url)
-                        
-                        # Validate MIME type 
-                        if mime_type not in valid_image_mimes:
-                            logger.warning(
-                                f"Unsupported image MIME type '{mime_type}' for {original_url}. "
-                                f"Anthropic supports: {valid_image_mimes}. Defaulting to image/jpeg."
-                            )
-                            mime_type = "image/jpeg"
-
-                        content_blocks.append({
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": mime_type,
-                                "data": b64_data
-                            }
-                        })
-                except Exception as e:
-                    logger.error(f"Error processing images for Claude: {e}")
-                    # Continue without images if processing fails, or maybe raise?
-                    # For now, let's log and proceed, potentially with just text.
-                
-                # Add text content if present
-                if msg.content:
-                    content_blocks.append({
-                        "type": "text",
-                        "text": msg.content
-                    })
-                    
-                formatted_messages.append({
-                    "role": msg.role.value,
-                    "content": content_blocks
-                })
-
-            else:
-                # Text-only message
-                formatted_messages.append(
-                    {
-                        "role": msg.role.value,
-                        "content": msg.content or "",
-                    }
-                )
-
-        return formatted_messages
-    
     def _create_token_usage(self, input_tokens: int, output_tokens: int) -> TokenUsage:
         return TokenUsage(
             prompt_tokens=input_tokens,
@@ -167,20 +100,19 @@ class ClaudeLLM(BaseLLM):
             total_tokens=input_tokens + output_tokens
         )
     
-    async def _send_user_message_to_llm(self, user_message: LLMUserMessage, **kwargs) -> CompleteResponse:
-        self.add_user_message(user_message)
-
+    async def _send_messages_to_llm(self, messages: List[Message], **kwargs) -> CompleteResponse:
         try:
-            # Prepare formatted messages (images + text)
-            formatted_messages = await self._format_anthropic_messages()
+            system_prompt, non_system = _split_system_message(messages)
+            formatted_messages = await self._renderer.render(non_system)
             thinking_param = _build_thinking_param(self.config.extra_params)
 
             request_kwargs = {
                 "model": self.model.value,
                 "max_tokens": self.max_tokens,
-                "system": self.system_message,
                 "messages": formatted_messages,
             }
+            if system_prompt:
+                request_kwargs["system"] = system_prompt
             if thinking_param:
                 # Extended thinking is not compatible with temperature modifications
                 request_kwargs["thinking"] = thinking_param
@@ -200,8 +132,6 @@ class ClaudeLLM(BaseLLM):
                 if parsed_thinking:
                     reasoning_summary = parsed_thinking
 
-            self.add_assistant_message(assistant_message, reasoning_content=reasoning_summary)
-
             token_usage = self._create_token_usage(
                 response.usage.input_tokens,
                 response.usage.output_tokens
@@ -218,10 +148,9 @@ class ClaudeLLM(BaseLLM):
             logger.error(f"Error in Claude API call: {str(e)}")
             raise ValueError(f"Error in Claude API call: {str(e)}")
     
-    async def _stream_user_message_to_llm(
-        self, user_message: LLMUserMessage, **kwargs
+    async def _stream_messages_to_llm(
+        self, messages: List[Message], **kwargs
     ) -> AsyncGenerator[ChunkResponse, None]:
-        self.add_user_message(user_message)
         complete_response = ""
         complete_reasoning = ""
         final_message = None
@@ -231,14 +160,16 @@ class ClaudeLLM(BaseLLM):
 
         try:
             # Prepare arguments for stream
-            formatted_messages = await self._format_anthropic_messages()
+            system_prompt, non_system = _split_system_message(messages)
+            formatted_messages = await self._renderer.render(non_system)
             thinking_param = _build_thinking_param(self.config.extra_params)
             stream_kwargs = {
                 "model": self.model.value,
                 "max_tokens": self.max_tokens,
-                "system": self.system_message,
                 "messages": formatted_messages,
             }
+            if system_prompt:
+                stream_kwargs["system"] = system_prompt
             if thinking_param:
                 # Extended thinking is not compatible with temperature modifications
                 stream_kwargs["thinking"] = thinking_param
@@ -296,8 +227,6 @@ class ClaudeLLM(BaseLLM):
             # Only add assistant message if there's actual content.
             # Tool-call-only responses should not add empty messages, as Claude API
             # rejects subsequent requests with "all messages must have non-empty content".
-            if complete_response:
-                self.add_assistant_message(complete_response, reasoning_content=complete_reasoning or None)
         except anthropic.APIError as e:
             logger.error(f"Error in Claude API streaming: {str(e)}")
             raise ValueError(f"Error in Claude API streaming: {str(e)}")
