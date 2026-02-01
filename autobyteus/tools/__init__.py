@@ -61,37 +61,12 @@ except ModuleNotFoundError as import_err:
     logger.warning("Download media tool not available: %s", import_err)
     DownloadMediaTool = None
 
-# Standalone Browser tools
+# Web tools
 try:
-    from .browser.standalone.navigate_to import NavigateTo as StandaloneNavigateTo # Alias to avoid name clash
-    from .browser.standalone.webpage_reader import WebPageReader as StandaloneWebPageReader # Alias
-    from .browser.standalone.webpage_screenshot_taker import WebPageScreenshotTaker as StandaloneWebPageScreenshotTaker # Alias
-    from .browser.standalone.webpage_image_downloader import WebPageImageDownloader
-    from .browser.standalone.web_page_pdf_generator import WebPagePDFGenerator
     from .web.read_url_tool import ReadUrl
 except ModuleNotFoundError as import_err:
-    logger.warning('Standalone browser tools not available: %s', import_err)
-    StandaloneNavigateTo = None
-    StandaloneWebPageReader = None
-    StandaloneWebPageScreenshotTaker = None
-    WebPageImageDownloader = None
-    WebPagePDFGenerator = None
+    logger.warning("ReadUrl tool not available: %s", import_err)
     ReadUrl = None
-
-# Session-Aware Browser tools
-try:
-    from .browser.session_aware.browser_session_aware_navigate_to import BrowserSessionAwareNavigateTo
-    from .browser.session_aware.browser_session_aware_web_element_trigger import BrowserSessionAwareWebElementTrigger
-    from .browser.session_aware.browser_session_aware_webpage_reader import BrowserSessionAwareWebPageReader
-    from .browser.session_aware.browser_session_aware_webpage_screenshot_taker import BrowserSessionAwareWebPageScreenshotTaker
-except ModuleNotFoundError as import_err:
-    logger.warning('Session-aware browser tools not available: %s', import_err)
-    BrowserSessionAwareNavigateTo = None
-    BrowserSessionAwareWebElementTrigger = None
-    BrowserSessionAwareWebPageReader = None
-    BrowserSessionAwareWebPageScreenshotTaker = None
-    BrowserSessionAwareWebPageReader = None
-    BrowserSessionAwareWebPageScreenshotTaker = None
 
 
 
@@ -124,19 +99,8 @@ __all__ = [
     "ReadMediaFile",
     "DownloadMediaTool",
 
-    # Re-exported Standalone Browser tools
-    "StandaloneNavigateTo",
-    "StandaloneWebPageReader",
-    "StandaloneWebPageScreenshotTaker",
-    "WebPageImageDownloader",
-    "WebPagePDFGenerator",
+    # Re-exported Web tools
     "ReadUrl",
-
-    # Re-exported Session-Aware Browser tools
-    "BrowserSessionAwareNavigateTo",
-    "BrowserSessionAwareWebElementTrigger",
-    "BrowserSessionAwareWebPageReader",
-    "BrowserSessionAwareWebPageScreenshotTaker",
 
     # Tool Formatting
     "register_tool_formatter",

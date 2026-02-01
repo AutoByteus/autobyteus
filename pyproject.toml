@@ -16,7 +16,6 @@ dependencies = [
     "beautifulsoup4",
     "boto3",
     "botocore",
-    "brui-core==1.1.0",
     "certifi==2025.4.26",
     "cryptography",
     "google-api-python-client",
