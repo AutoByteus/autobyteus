@@ -27,7 +27,6 @@ class AgentTeamRuntimeState:
     current_status: AgentTeamStatus = AgentTeamStatus.UNINITIALIZED
     
     # State populated by bootstrap steps
-    prepared_agent_prompts: Dict[str, str] = field(default_factory=dict)
     final_agent_configs: Dict[str, 'AgentConfig'] = field(default_factory=dict)
 
     # Core services

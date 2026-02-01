@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, List, Optional
 from autobyteus.agent_team.bootstrap_steps.base_agent_team_bootstrap_step import BaseAgentTeamBootstrapStep
 from autobyteus.agent_team.bootstrap_steps.team_context_initialization_step import TeamContextInitializationStep
 from autobyteus.agent_team.bootstrap_steps.task_notifier_initialization_step import TaskNotifierInitializationStep
-from autobyteus.agent_team.bootstrap_steps.team_manifest_injection_step import TeamManifestInjectionStep
 from autobyteus.agent_team.bootstrap_steps.agent_configuration_preparation_step import AgentConfigurationPreparationStep
 from autobyteus.agent_team.bootstrap_steps.coordinator_initialization_step import CoordinatorInitializationStep
 if TYPE_CHECKING:
@@ -19,7 +18,6 @@ class AgentTeamBootstrapper:
         self.bootstrap_steps = steps or [
             TeamContextInitializationStep(),
             TaskNotifierInitializationStep(),
-            TeamManifestInjectionStep(),
             AgentConfigurationPreparationStep(),
             CoordinatorInitializationStep(),
         ]

@@ -28,7 +28,6 @@ def test_bootstrapper_initialization_default(caplog):
     """Test that the bootstrapper initializes with default steps if none are provided."""
     with patch('autobyteus.agent_team.bootstrap_steps.agent_team_bootstrapper.TeamContextInitializationStep') as mock_ctx_init, \
          patch('autobyteus.agent_team.bootstrap_steps.agent_team_bootstrapper.TaskNotifierInitializationStep') as mock_notifier_init, \
-         patch('autobyteus.agent_team.bootstrap_steps.agent_team_bootstrapper.TeamManifestInjectionStep') as mock_prompt_prep, \
          patch('autobyteus.agent_team.bootstrap_steps.agent_team_bootstrapper.AgentConfigurationPreparationStep') as mock_config_prep, \
          patch('autobyteus.agent_team.bootstrap_steps.agent_team_bootstrapper.CoordinatorInitializationStep') as mock_coord_init:
         
@@ -36,11 +35,10 @@ def test_bootstrapper_initialization_default(caplog):
         
         mock_ctx_init.assert_called_once()
         mock_notifier_init.assert_called_once()
-        mock_prompt_prep.assert_called_once()
         mock_config_prep.assert_called_once()
         mock_coord_init.assert_called_once()
         
-        assert len(bootstrapper.bootstrap_steps) == 5
+        assert len(bootstrapper.bootstrap_steps) == 4
 
 def test_bootstrapper_initialization_custom(mock_step_1, mock_step_2):
     """Test that the bootstrapper initializes with a custom list of steps."""

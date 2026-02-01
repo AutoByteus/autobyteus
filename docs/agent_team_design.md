@@ -129,9 +129,8 @@ Team initialization runs inside the worker loop via `AgentTeamBootstrapper`:
 1. **Queue initialization** (`AgentTeamRuntimeQueueInitializationStep`)
 2. **TaskPlan setup + event bridging** (`TeamContextInitializationStep`)
 3. **Optional notifier** (SYSTEM_EVENT_DRIVEN only)
-4. **Team manifest injection** (inject `{{team}}` into prompts)
-5. **Final agent config preparation** (context injection)
-6. **Coordinator initialization** (ensure coordinator starts early)
+4. **Final agent config preparation** (context injection + attach TeamManifestInjectorProcessor). The processor replaces `{{team}}` if present; otherwise it appends a Team Manifest section automatically.
+5. **Coordinator initialization** (ensure coordinator starts early)
 
 When complete, the worker enqueues `AgentTeamReadyEvent` and the status updates to IDLE.
 
