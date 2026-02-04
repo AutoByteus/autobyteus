@@ -17,11 +17,21 @@ class _MockWorkspace:
         return str(self._base_path)
 
 def _is_vertex_runtime() -> bool:
-    return bool(os.getenv("VERTEX_AI_PROJECT") and os.getenv("VERTEX_AI_LOCATION"))
+    return bool(
+        os.getenv("VERTEX_AI_API_KEY")
+        or (os.getenv("VERTEX_AI_PROJECT") and os.getenv("VERTEX_AI_LOCATION"))
+    )
 @pytest.fixture(scope="module", autouse=True)
 def check_api_keys():
-    if not os.getenv("GEMINI_API_KEY"):
-        pytest.skip("GEMINI_API_KEY not set, skipping audio tool integration tests.")
+    has_vertex_api_key = bool(os.getenv("VERTEX_AI_API_KEY"))
+    has_vertex = bool(os.getenv("VERTEX_AI_PROJECT") and os.getenv("VERTEX_AI_LOCATION"))
+    has_api_key = bool(os.getenv("GEMINI_API_KEY"))
+    if not (has_vertex_api_key or has_vertex or has_api_key):
+        pytest.skip(
+            "No Gemini credentials set. Provide VERTEX_AI_API_KEY, "
+            "VERTEX_AI_PROJECT & VERTEX_AI_LOCATION, or GEMINI_API_KEY to run "
+            "audio tool integration tests."
+        )
 
 @pytest.fixture(autouse=True)
 def fix_models(monkeypatch):

@@ -50,13 +50,15 @@ def _save_image_to_temp(image_uri: str, tmp_path: Path, name: str) -> Path:
 @pytest.fixture(scope="module")
 def set_gemini_env():
     """Skip if neither Vertex nor API-key credentials are configured."""
+    has_vertex_api_key = bool(os.getenv("VERTEX_AI_API_KEY"))
     has_vertex = bool(os.getenv("VERTEX_AI_PROJECT") and os.getenv("VERTEX_AI_LOCATION"))
     has_api_key = bool(os.getenv("GEMINI_API_KEY"))
 
-    if not (has_vertex or has_api_key):
+    if not (has_vertex_api_key or has_vertex or has_api_key):
         pytest.skip(
-            "Gemini credentials not set. Provide VERTEX_AI_PROJECT & VERTEX_AI_LOCATION "
-            "or GEMINI_API_KEY to run Gemini image integration tests."
+            "Gemini credentials not set. Provide VERTEX_AI_API_KEY, "
+            "VERTEX_AI_PROJECT & VERTEX_AI_LOCATION, or GEMINI_API_KEY to run "
+            "Gemini image integration tests."
         )
 
 

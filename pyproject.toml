@@ -19,7 +19,7 @@ dependencies = [
     "certifi==2025.4.26",
     "cryptography",
     "google-api-python-client",
-    "google-genai==1.52.0",
+    "google-genai",
     "httpx",
     "Jinja2",
     "mcp[cli]",

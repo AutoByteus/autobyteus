@@ -9,6 +9,7 @@ from autobyteus.llm.user_message import LLMUserMessage
 
 PLACEHOLDER_VALUES = {
     "YOUR_GEMINI_API_KEY",
+    "YOUR_VERTEX_AI_API_KEY",
     "YOUR_VERTEX_AI_PROJECT",
     "YOUR_VERTEX_AI_LOCATION",
 }
@@ -26,13 +27,18 @@ def _maybe_skip_gemini_error(exc: Exception) -> None:
 def set_gemini_env(monkeypatch):
     """Ensure credentials are present for either Vertex AI or API-key mode.
 
-    Priority matches initialize_gemini_client_with_runtime(): Vertex first, then API key.
+    Priority matches initialize_gemini_client_with_runtime(): Vertex Express, then Vertex, then API key.
     Skips the test suite cleanly if nothing usable is configured (via .env.test).
     """
 
+    vertex_api_key = os.getenv("VERTEX_AI_API_KEY")
     vertex_project = os.getenv("VERTEX_AI_PROJECT")
     vertex_location = os.getenv("VERTEX_AI_LOCATION")
     api_key = os.getenv("GEMINI_API_KEY")
+
+    if not _is_missing(vertex_api_key):
+        monkeypatch.setenv("VERTEX_AI_API_KEY", vertex_api_key)
+        return "vertex"
 
     if not _is_missing(vertex_project) and not _is_missing(vertex_location):
         monkeypatch.setenv("VERTEX_AI_PROJECT", vertex_project)
@@ -44,8 +50,9 @@ def set_gemini_env(monkeypatch):
         return "api_key"
 
     pytest.skip(
-        "Gemini credentials not set. Provide VERTEX_AI_PROJECT & VERTEX_AI_LOCATION "
-        "for Vertex AI or GEMINI_API_KEY for API-key mode in .env.test"
+        "Gemini credentials not set. Provide VERTEX_AI_API_KEY for Vertex AI Express, "
+        "VERTEX_AI_PROJECT & VERTEX_AI_LOCATION for Vertex AI, or GEMINI_API_KEY for API-key "
+        "mode in .env.test"
     )
 
 @pytest.fixture

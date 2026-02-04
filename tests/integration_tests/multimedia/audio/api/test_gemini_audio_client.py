@@ -10,9 +10,15 @@ logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope="module")
 def set_gemini_env():
-    """Skips tests if the Gemini API key is not set."""
-    if not os.getenv("GEMINI_API_KEY"):
-        pytest.skip("GEMINI_API_KEY environment variable not set. Skipping Gemini audio tests.")
+    """Skips tests if no Gemini credentials are set."""
+    has_vertex_api_key = bool(os.getenv("VERTEX_AI_API_KEY"))
+    has_vertex = bool(os.getenv("VERTEX_AI_PROJECT") and os.getenv("VERTEX_AI_LOCATION"))
+    has_api_key = bool(os.getenv("GEMINI_API_KEY"))
+    if not (has_vertex_api_key or has_vertex or has_api_key):
+        pytest.skip(
+            "No Gemini credentials set. Provide VERTEX_AI_API_KEY, "
+            "VERTEX_AI_PROJECT & VERTEX_AI_LOCATION, or GEMINI_API_KEY."
+        )
 
 @pytest.fixture
 def tts_client(set_gemini_env):

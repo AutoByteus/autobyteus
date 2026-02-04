@@ -15,11 +15,12 @@ class GeminiRuntimeInfo:
 def initialize_gemini_client_with_runtime() -> tuple[genai.Client, GeminiRuntimeInfo]:
     """
     Initializes the Google GenAI Client based on available environment variables.
-    Supports both Vertex AI (GCP) and AI Studio (API Key) modes.
+    Supports Vertex AI (GCP), Vertex AI Express (API Key), and AI Studio (API Key) modes.
 
     Priority:
-    1. Vertex AI (requires VERTEX_AI_PROJECT and VERTEX_AI_LOCATION)
-    2. AI Studio (requires GEMINI_API_KEY)
+    1. Vertex AI Express (requires VERTEX_AI_API_KEY)
+    2. Vertex AI (requires VERTEX_AI_PROJECT and VERTEX_AI_LOCATION)
+    3. AI Studio (requires GEMINI_API_KEY)
 
     Returns:
         (client, runtime_info)
@@ -27,7 +28,14 @@ def initialize_gemini_client_with_runtime() -> tuple[genai.Client, GeminiRuntime
     Raises:
         ValueError: If neither configuration set is found.
     """
-    # 1. Try Vertex AI Configuration
+    # 1. Try Vertex AI Express Configuration (API Key)
+    vertex_api_key = os.environ.get("VERTEX_AI_API_KEY")
+    if vertex_api_key:
+        logger.info("Initializing Gemini Client in Vertex AI Express mode (API key).")
+        client = genai.Client(vertexai=True, api_key=vertex_api_key)
+        return client, GeminiRuntimeInfo(runtime="vertex", project=None, location=None)
+
+    # 2. Try Vertex AI Configuration (Project/Location + ADC)
     project = os.environ.get("VERTEX_AI_PROJECT")
     location = os.environ.get("VERTEX_AI_LOCATION")
 
@@ -38,7 +46,7 @@ def initialize_gemini_client_with_runtime() -> tuple[genai.Client, GeminiRuntime
         client = genai.Client(vertexai=True, project=project, location=location)
         return client, GeminiRuntimeInfo(runtime="vertex", project=project, location=location)
 
-    # 2. Try AI Studio Configuration (API Key)
+    # 3. Try AI Studio Configuration (API Key)
     api_key = os.environ.get("GEMINI_API_KEY")
     if api_key:
         logger.info("Initializing Gemini Client in AI Studio mode.")
@@ -48,9 +56,9 @@ def initialize_gemini_client_with_runtime() -> tuple[genai.Client, GeminiRuntime
     # 3. Fallback / Error
     error_msg = (
         "Failed to initialize Gemini Client: Missing configuration. "
-        "Please set 'GEMINI_API_KEY' for AI Studio mode, OR set both "
-        "'VERTEX_AI_PROJECT' and 'VERTEX_AI_LOCATION' for Vertex AI mode."
+        "Please set 'VERTEX_AI_API_KEY' for Vertex AI Express mode, OR set both "
+        "'VERTEX_AI_PROJECT' and 'VERTEX_AI_LOCATION' for Vertex AI mode, OR set "
+        "'GEMINI_API_KEY' for AI Studio mode."
     )
     logger.error(error_msg)
     raise ValueError(error_msg)
-

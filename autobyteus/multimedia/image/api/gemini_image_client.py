@@ -20,8 +20,9 @@ class GeminiImageClient(BaseImageClient):
     An image client that uses Google's Gemini models for image generation tasks.
 
     **Setup Requirements:**
-    1.  **AI Studio Mode:** Set `GEMINI_API_KEY`.
+    1.  **Vertex AI Express Mode:** Set `VERTEX_AI_API_KEY`.
     2.  **Vertex AI Mode:** Set `VERTEX_AI_PROJECT` and `VERTEX_AI_LOCATION`.
+    3.  **AI Studio Mode:** Set `GEMINI_API_KEY`.
     """
 
     def __init__(self, model: "ImageModel", config: "MultimediaConfig"):
