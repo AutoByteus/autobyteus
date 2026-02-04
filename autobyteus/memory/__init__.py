@@ -12,6 +12,7 @@ from autobyteus.memory.compaction.compaction_result import CompactionResult
 from autobyteus.memory.compaction.summarizer import Summarizer
 from autobyteus.memory.retrieval.memory_bundle import MemoryBundle
 from autobyteus.memory.retrieval.retriever import Retriever
+from autobyteus.memory.path_resolver import resolve_memory_base_dir, resolve_agent_memory_dir
 
 __all__ = [
     "MemoryType",
@@ -29,4 +30,6 @@ __all__ = [
     "Summarizer",
     "MemoryBundle",
     "Retriever",
+    "resolve_memory_base_dir",
+    "resolve_agent_memory_dir",
 ]

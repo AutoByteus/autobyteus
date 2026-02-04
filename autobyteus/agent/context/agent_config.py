@@ -48,7 +48,8 @@ class AgentConfig:
                  workspace: Optional['BaseAgentWorkspace'] = None,
                  lifecycle_processors: Optional[List['BaseLifecycleEventProcessor']] = None,
                  initial_custom_data: Optional[Dict[str, Any]] = None,
-                 skills: Optional[List[str]] = None):
+                 skills: Optional[List[str]] = None,
+                 memory_dir: Optional[str] = None):
         """
         Initializes the AgentConfig.
 
@@ -71,6 +72,7 @@ class AgentConfig:
             initial_custom_data: An optional dictionary of data to pre-populate
                                  the agent's runtime state `custom_data`.
             skills: An optional list of skill names or paths to be preloaded for this agent.
+            memory_dir: Optional override for the agent memory base directory.
         """
         self.name = name
         self.role = role
@@ -91,6 +93,7 @@ class AgentConfig:
         self.lifecycle_processors = lifecycle_processors or []
         self.initial_custom_data = initial_custom_data
         self.skills = skills or []
+        self.memory_dir = memory_dir
 
         # Filter out ToolManifestInjectorProcessor if in API_TOOL_CALL mode
         tool_call_format = resolve_tool_call_format()
@@ -133,6 +136,7 @@ class AgentConfig:
             lifecycle_processors=self.lifecycle_processors.copy(), # Shallow copy the list
             initial_custom_data=copy.deepcopy(self.initial_custom_data), # Deep copy for simple data
             skills=self.skills.copy(), # Shallow copy the list
+            memory_dir=self.memory_dir,
         )
 
     def __repr__(self) -> str:
