@@ -35,12 +35,11 @@ LLM calls are memory‑centric, and providers no longer own history.
 
 ## 4. Memory Types (Minimal Core)
 
-The memory kernel exposes four generic types:
+The memory kernel exposes three generic types:
 
 - **RAW_TRACE**: raw user/assistant/tool events
 - **EPISODIC**: summarized blocks of traces
 - **SEMANTIC**: stable facts, preferences, constraints, decisions
-- **TASK_STATE**: goals, progress, blockers, checkpoints
 
 Artifact memory (files, code structure, specs) is **out of scope** for the core
 and can be layered above.
@@ -55,34 +54,31 @@ and can be layered above.
 
 ## 5. Core Operations (Memory Kernel)
 
-The memory system is defined by its operations:
+The memory system is defined by its implemented operations:
 
-- **ingest(event)**: store trace as RAW_TRACE
-- **consolidate(window)**: summarize old traces into EPISODIC
-- **extract(episodic)**: derive SEMANTIC items
-- **retrieve(query, filters, k)**: return a ranked memory bundle
-- **update/merge(item)**: refresh or override existing knowledge
-- **decay(policy)**: reduce salience over time
-- **forget(policy)**: delete stale/low-value items
-- **compress(policy)**: shrink older episodic content
-
-These operations are **explicit** and callable by processors or lifecycle hooks.
+- **ingest(event)**: store trace as RAW_TRACE and append to the Active Transcript
+- **compact(turn_ids)**: summarize old traces into EPISODIC + SEMANTIC and prune RAW_TRACE
+- **retrieve(max_episodic, max_semantic)**: return a MemoryBundle for snapshot building
+- **build_snapshot(system_prompt, bundle, raw_tail)**: produce a Compaction Snapshot message list
+- **reset_transcript(snapshot)**: reset Active Transcript to the snapshot baseline
 
 ---
 
 ## 6. Data Model
 
-**MemoryItem (core fields)**
+**RAW_TRACE (RawTraceItem)**
 
-- `id`: unique ID
-- `type`: enum (RAW_TRACE / EPISODIC / SEMANTIC / TASK_STATE)
-- `content`: text or structured payload
-- `source`: event metadata (role/tool/event type)
-- `timestamp`: epoch time
-- `salience`: float (default 0.0-1.0)
-- `tags`: list of strings
-- `links`: list of MemoryItem IDs (optional)
-- `confidence`: optional float
+- `id`, `ts`, `turn_id`, `seq`, `trace_type`, `content`, `source_event`
+- Optional: `media`, `tool_name`, `tool_call_id`, `tool_args`, `tool_result`, `tool_error`,
+  `correlation_id`, `tags`, `tool_result_ref`
+
+**EPISODIC (EpisodicItem)**
+
+- `id`, `ts`, `turn_ids`, `summary`, `tags`, `salience`
+
+**SEMANTIC (SemanticItem)**
+
+- `id`, `ts`, `fact`, `tags`, `confidence`, `salience`
 
 **ToolInteraction (derived view)**
 
@@ -101,35 +97,21 @@ These operations are **explicit** and callable by processors or lifecycle hooks.
 **MemoryStore**
 
 - `add(items)`
-- `get(id)`
-- `search(query, filters, k)`
-- `delete(ids)`
 - `list(type, limit)`
 
-**Default backend**: file-backed store (JSONL + small metadata/index files).
-**Optional backend**: in-memory (testing), SQLite, or vector store.
+**Default backend**: file-backed store (JSONL). The file store also provides
+raw-trace archive helpers (`list_raw_trace_dicts`, `read_archive_raw_traces`,
+`prune_raw_traces`) used by compaction.
 
 ### 7.1 File-Backed Store Layout (Default)
 
-Memory is persisted per agent as append-only files for convenience and
-inspection. A minimal layout:
-
-```
-memory/
-  agents/
-    <agent_id>/
-      memory.jsonl          # all items, typed by field
-      metadata.json         # counts, last_compaction_ts, etc.
-      index.json            # optional lightweight index
-      raw_traces_archive.jsonl  # append-only archive (optional)
-```
+Memory is persisted per agent as append-only JSONL files for convenience and
+inspection:
 
 **Base directory selection**
 
 - Default: `<cwd>/memory`
 - Override via `AUTOBYTEUS_MEMORY_DIR`
-
-Alternative (typed files):
 
 ```
 memory/
@@ -139,12 +121,6 @@ memory/
       raw_traces_archive.jsonl  # append-only archive (optional)
       episodic.jsonl
       semantic.jsonl
-      metadata.json
-
-Archive naming alternatives (single file per agent):
-
-- `raw_traces_<agent_id>.jsonl`
-- `raw_traces_<agent_id>_archive.jsonl`
 ```
 
 ---
@@ -155,16 +131,12 @@ The memory module is **event-driven**. It is triggered by:
 
 ### Ingest
 - **Primary user ingest:** `LLMUserMessageReadyEvent` (processed input)
-- **Optional raw ingest:** `UserMessageReceivedEvent` (audit/debug only)
 - **Tool call intent:** `PendingToolInvocationEvent` (LLM decision to act)
 - `LLMCompleteResponseReceivedEvent`
 - `ToolResultEvent`
 
 ### Consolidation / Extraction
-- After N turns
-- When input prompt exceeds token budget
-- After large tool outputs
-- On task boundary or idle
+- When input prompt exceeds token budget (post-response usage)
 
 ### Retrieval (every LLM call)
 Before sending a user message to the LLM, memory prepares an **Active Transcript**
@@ -194,7 +166,7 @@ The transcript is a list of generic messages that includes:
 The snapshot is a compact replacement for the transcript base:
 
 1. System prompt (bootstrapped)
-2. Memory bundle (episodic + semantic + task)
+2. Memory bundle (episodic + semantic)
 3. Short RAW_TRACE tail (last few turns)
 
 After compaction, the transcript is reset to this snapshot, then new turns
@@ -246,7 +218,6 @@ Compaction policy:
 - Keep last 4-6 raw turns
 - Summarize older RAW_TRACE into EPISODIC
 - Extract SEMANTIC facts from EPISODIC
-- Decay and forget low-salience items
 
 ---
 
@@ -258,9 +229,6 @@ Active Transcript bounded and useful.
 ### Trigger Conditions
 
 - **Token pressure**: last LLM response reports prompt tokens exceeding input budget
-- **Turn count**: after N user/assistant cycles
-- **Large tool output**: a single tool result exceeds size threshold
-- **Manual**: explicit compaction request (future control)
 
 ### Compaction Outputs
 
@@ -275,11 +243,9 @@ Compaction produces **structured memory artifacts** and a new transcript base:
 ### Compaction Flow (LLM-driven)
 
 1. Select compaction window (oldest RAW_TRACE beyond tail).
-2. Build compaction prompt (template + window).
-3. Call LLM summarizer.
-4. Store EPISODIC summary.
-5. Extract SEMANTIC facts (LLM or rules).
-6. Prune RAW_TRACE outside tail.
+2. Call summarizer with the selected traces.
+3. Store EPISODIC summary + SEMANTIC facts from the result.
+4. Prune RAW_TRACE outside tail.
 
 ---
 
@@ -449,26 +415,27 @@ MemoryManager
 autobyteus/memory/
 ├── __init__.py
 ├── models/
-│   ├── memory_item.py            # MemoryItem dataclass + enums
-│   └── memory_types.py
+│   ├── memory_types.py
+│   ├── raw_trace_item.py
+│   ├── episodic_item.py
+│   ├── semantic_item.py
+│   └── tool_interaction.py
 ├── store/
 │   ├── base_store.py             # MemoryStore interface
 │   ├── file_store.py             # Default file-backed store (JSONL)
-│   └── in_memory_store.py        # Testing-only fallback
 ├── active_transcript.py          # Generic, append-only messages per epoch
 ├── compaction_snapshot_builder.py# Builds compact transcript baseline
-├── policies/
-│   ├── compaction_policy.py      # thresholds + tail sizes
-│   ├── retention_policy.py       # decay/forget rules
-│   └── salience_policy.py
 ├── compaction/
+│   ├── compaction_result.py
 │   ├── compactor.py              # orchestration of compaction flow
-│   ├── summarizer.py             # LLM-based summarization interface
-│   ├── prompts.py                # compaction prompt templates
-│   └── extractor.py              # semantic extraction from episodic
+│   └── summarizer.py             # LLM-based summarization interface
+├── policies/
+│   └── compaction_policy.py      # thresholds + tail sizes
 ├── retrieval/
-│   ├── retriever.py              # ranking + bundle creation
-│   └── scoring.py
+│   ├── memory_bundle.py
+│   └── retriever.py              # bundle creation
+├── tool_interaction_builder.py
+├── turn_tracker.py
 └── memory_manager.py             # event-driven entry point
 
 autobyteus/agent/
@@ -477,12 +444,13 @@ autobyteus/agent/
 
 ### Responsibility Map
 
-- **MemoryManager**: receives events, decides whether to compact, and manages
-  Active Transcript + Compaction Snapshot.
-- **Compactor**: runs compaction flow and writes EPISODIC/SEMANTIC items.
-- **Summarizer**: owns LLM call + prompt template.
-- **Extractor**: converts episodic to semantic.
-- **Policies**: define when and how compaction/decay happens.
+- **MemoryManager**: receives events, manages Active Transcript, and flags compaction.
+- **Compactor**: runs compaction flow, writes EPISODIC/SEMANTIC items, prunes RAW_TRACE.
+- **Summarizer**: produces episodic summary + semantic facts from raw traces.
+- **Retriever**: loads episodic/semantic items into a MemoryBundle.
+- **CompactionSnapshotBuilder**: formats the snapshot baseline messages.
+- **ToolInteractionBuilder**: derives tool interaction views from raw traces.
+- **CompactionPolicy**: defines trigger ratio and raw tail size.
 
 
 ---
@@ -1036,103 +1004,80 @@ Use this “debug-trace simulation” as a review checklist:
 
 ---
 
-## 16. File Responsibilities (Proposed)
+## 16. File Responsibilities (Implemented)
 
 ### Core
 
 - `autobyteus/memory/memory_manager.py`
   - Event-driven entry point
-  - Ingests traces
-  - Manages Active Transcript + Compaction Snapshot
-  - Compaction logic only (no renderer / token counter)
+  - Ingests traces and manages the Active Transcript
+  - Flags compaction requests
 
 - `autobyteus/agent/llm_request_assembler.py`
-  - Combines Memory + Prompt Renderer + Token Counter
-  - Decides compaction thresholds using model budgets
+  - Combines Memory + Prompt Renderer + Token Budget
+  - Applies compaction defaults using model budgets
   - Returns final messages/payload for LLM execution
 
 - `autobyteus/agent/token_budget.py`
   - Resolves model/config token budgets
   - Applies compaction defaults to the policy
 
-- `autobyteus/memory/models/memory_item.py`
-  - MemoryItem dataclass (type, content, metadata)
+- `autobyteus/memory/models/*`
+  - `memory_types.py`, `raw_trace_item.py`, `episodic_item.py`, `semantic_item.py`, `tool_interaction.py`
 
-- `autobyteus/memory/models/memory_types.py`
-  - Enums for RAW_TRACE, EPISODIC, SEMANTIC
+- `autobyteus/memory/active_transcript.py`
+  - Append/reset/build message list per compaction epoch
+
+- `autobyteus/memory/turn_tracker.py`
+  - Generates `turn_id` per user input
+
+- `autobyteus/memory/compaction_snapshot_builder.py`
+  - Builds the Compaction Snapshot from bundle + raw tail
+
+- `autobyteus/memory/tool_interaction_builder.py`
+  - Derives tool interaction views from RAW_TRACE
 
 ### Storage
 
 - `autobyteus/memory/store/base_store.py`
-  - Store interface (add/get/search/delete/list)
+  - Store interface (`add`, `list`)
 
 - `autobyteus/memory/store/file_store.py`
   - Default JSONL-backed persistence
-  - Handles per-agent file layout
-
-- `autobyteus/memory/store/in_memory_store.py`
-  - Testing-only fallback
+  - Supports raw trace archive + pruning helpers
 
 ### Compaction
 
 - `autobyteus/memory/compaction/compactor.py`
-  - Orchestrates compaction flow
   - Selects window, calls summarizer, stores outputs
 
 - `autobyteus/memory/compaction/compaction_result.py`
   - Data model for summarizer output
 
 - `autobyteus/memory/compaction/summarizer.py`
-  - LLM-based summarization interface
+  - Summarizer interface (returns episodic + semantic)
 
-- `autobyteus/memory/compaction/extractor.py`
-  - Extracts semantic facts from episodic summaries
-
-- `autobyteus/memory/compaction/prompts.py`
-  - Prompt templates for summarization/extraction
+- `autobyteus/memory/policies/compaction_policy.py`
+  - Thresholds, tail sizes, trigger ratios
 
 ### Retrieval
 
+- `autobyteus/memory/retrieval/memory_bundle.py`
+  - Container for episodic + semantic
+
 - `autobyteus/memory/retrieval/retriever.py`
-  - Builds memory bundle for compaction snapshot
-
-- `autobyteus/memory/retrieval/scoring.py`
-  - Relevance + salience scoring
-
-### Compaction Snapshot Assembly
-
-- `autobyteus/memory/compaction_snapshot_builder.py`
-  - Renders the Compaction Snapshot from memory bundle + raw tail
-
-### Active Transcript
-
-- `autobyteus/memory/active_transcript.py`
-  - Owns the generic, append-only message list per compaction epoch
-  - Contents: system + user + assistant + tool messages (structured)
-  - Responsibilities: append, reset (on compaction), and build messages for LLM
-  - Naming note: "Active Transcript" is the preferred name
+  - Loads bundle for snapshot building
 
 ### Token Usage (post-response)
 
 - `autobyteus/llm/token_counter/*`
-  - Provider-specific token counters (used for tracking/analytics)
-  - Compaction decisions use **provider usage** when available
+  - Provider-specific token counters (tracking/analytics)
+  - Compaction decisions use provider usage when available
 
 ### Prompt Rendering (LLM)
 
-- `autobyteus/llm/prompt_renderers/base_prompt_renderer.py`
+- `autobyteus/llm/prompt_renderers/*`
   - Renders generic messages into provider-specific payloads
-
-- `autobyteus/llm/prompt_renderers/openai_responses_renderer.py`
-  - OpenAI Responses API formatting
-
-- `autobyteus/llm/prompt_renderers/openai_chat_renderer.py`
-  - OpenAI Chat Completions formatting
-
-- Tool rendering:
-  - Map `MessageRole.TOOL` to provider tool message format
-  - Map assistant `tool_calls` metadata to provider tool-call fields
-  - Degrade to text for providers without tool support
 
 ### Ingest Processors
 
@@ -1141,17 +1086,6 @@ Use this “debug-trace simulation” as a review checklist:
 
 - `autobyteus/agent/tool_execution_result_processor/memory_ingest_tool_result_processor.py`
   - Captures tool results as RAW_TRACE entries
-
-### Policies
-
-- `autobyteus/memory/policies/compaction_policy.py`
-  - Thresholds, tail sizes, trigger ratios
-
-- `autobyteus/memory/policies/retention_policy.py`
-  - Decay/forget rules
-
-- `autobyteus/memory/policies/salience_policy.py`
-  - Default salience scoring
 
 ---
 
@@ -1170,13 +1104,12 @@ LLMUserMessageReadyEventHandler
   │     ├─► Prompt Renderer (provider payload)
   │     └─► Compaction check (token budget)
   │           └─► Compactor.compact(...)
-  │                 └─► Summarizer + Extractor
+  │                 └─► Summarizer
   ├─► LLM.stream_messages(request.messages, rendered_payload)
-  ├─► PendingToolInvocationEvent
+  ├─► Parse tool invocations
+  │     ├─► MemoryManager.ingest_tool_intent(...)
+  │     └─► PendingToolInvocationEvent
   └─► MemoryManager.ingest_assistant_response(...)
-
-ToolInvocationRequestEventHandler
-  └─► MemoryManager.ingest(tool_intent)
 
 ToolResultEventHandler
   └─► Tool result processors
@@ -1196,21 +1129,23 @@ Memory Store (file-backed)
 ### MemoryManager
 
 ```
-ingest_user(llm_user_message, turn_id) -> None
-ingest_tool_intent(tool_invocation, turn_id) -> None
-ingest_tool_result(tool_result_event, turn_id) -> None
-ingest_assistant(complete_response, turn_id) -> None
+start_turn() -> str
+ingest_user_message(llm_user_message, turn_id, source_event) -> None
+ingest_tool_intent(tool_invocation, turn_id=None) -> None
+ingest_tool_result(tool_result_event, turn_id=None) -> None
+ingest_assistant_response(complete_response, turn_id, source_event) -> None
 request_compaction() -> None
 clear_compaction_request() -> None
-get_transcript_messages() -> List[Message]
+get_raw_tail(tail_turns, exclude_turn_id=None) -> list[RawTraceItem]
+get_transcript_messages() -> list[Message]
 reset_transcript(snapshot_messages) -> None
-compact(turn_ids) -> CompactionResult
+get_tool_interactions(turn_id=None) -> list[ToolInteraction]
 ```
 
 ### LLMRequestAssembler
 
 ```
-prepare_request(processed_user_input) -> RequestPackage
+prepare_request(processed_user_input, current_turn_id=None, system_prompt=None) -> RequestPackage
 render_payload(messages) -> ProviderPayload
 ```
 
@@ -1218,8 +1153,8 @@ render_payload(messages) -> ProviderPayload
 
 ```
 compact(turn_ids: list[str]) -> CompactionResult
-select_compaction_window(keep_last_n_turns: int) -> list[str]
-prune_raw_traces(keep_last_n_turns: int) -> None
+select_compaction_window() -> list[str]
+get_traces_for_turns(turn_ids: list[str]) -> list[RawTraceItem]
 ```
 
 ### Summarizer
@@ -1228,16 +1163,10 @@ prune_raw_traces(keep_last_n_turns: int) -> None
 summarize(turns: list[RawTraceItem]) -> CompactionResult
 ```
 
-### Extractor (optional split)
-
-```
-extract_semantic(episodic_summary: str) -> list[SemanticItem]
-```
-
 ### Retriever
 
 ```
-retrieve(query, limits, filters) -> MemoryBundle
+retrieve(max_episodic: int, max_semantic: int) -> MemoryBundle
 ```
 
 ---
@@ -1258,7 +1187,6 @@ the Active Transcript.
 - `raw_tail_turns = 4`
 - `max_episodic_items = 3`
 - `max_semantic_items = 20`
-- `max_item_chars = 2000` (truncate long items)
 
 ### Formatting (recommended, deterministic)
 
@@ -1281,9 +1209,8 @@ Turn 12:
 
 ### Token Budget
 
-- Render transcript payload
-- Estimate tokens on provider payload
-- If over budget, compact and rebuild snapshot
+- Compaction is triggered by provider-reported `prompt_tokens` **after** a response.
+- When compaction is requested, the next request rebuilds the snapshot before calling the LLM.
 
 ---
 
@@ -1338,56 +1265,9 @@ Turns are created when a processed user message is ready.
 }
 ```
 
-### Metadata (metadata.json)
-
-```
-{
-  "last_compaction_ts": 1738100502.0,
-  "last_turn_id": "turn_0012",
-  "raw_trace_count": 120,
-  "episodic_count": 5,
-  "semantic_count": 38
-}
-```
-
 ---
 
-## 22. Compaction Prompt (Template + Output Schema)
-
-### Prompt Template (LLM)
-
-```
-You are compressing agent memory. Summarize the following turns.
-Return STRICT JSON with the schema below. Do not include extra text.
-
-Turns:
-{{TURN_BLOCK}}
-
-JSON Schema:
-{
-  "episodic_summary": "string",
-  "semantic_facts": [
-    { "fact": "string", "tags": ["string"], "confidence": 0.0-1.0 }
-  ],
-  "decisions": ["string"],
-  "constraints": ["string"],
-  "open_questions": ["string"],
-  "next_steps": ["string"]
-}
-```
-
-### Output Handling
-
-- Store `episodic_summary` as EPISODIC item
-- Convert `semantic_facts` into SEMANTIC items
-- Optionally include `decisions` and `constraints` as SEMANTIC items
-- Do **not** store chain-of-thought; only the summary JSON
-
-If summarization fails, **do not prune raw traces**.
-
----
-
-## 23. Design Decisions (Locked Defaults)
+## 22. Design Decisions (Locked Defaults)
 
 These decisions are required to keep data flow consistent and avoid ambiguity:
 
@@ -1406,10 +1286,3 @@ These decisions are required to keep data flow consistent and avoid ambiguity:
 4. **Token budget source**  
    - Add `max_context_tokens` to `LLMModel` metadata.  
    - Use provider-reported `prompt_tokens` (post-response) to trigger compaction.
-
-5. **Inter-agent messages**  
-   - Store as `trace_type = "inter_agent"` in RAW_TRACE.
-
-6. **Large tool output handling**  
-   - Truncate in RAW_TRACE.  
-   - Store full payload as a reference file, link via `tool_result_ref`.
