@@ -119,6 +119,7 @@ celerybeat.pid
 # Environments
 .direnv/
 .env
+.env.test
 .env.template
 .venv
 env/
