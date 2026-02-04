@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 
 from autobyteus.agent.input_processor.base_user_input_processor import BaseAgentUserInputMessageProcessor
 from autobyteus.agent.message.multimodal_message_builder import build_llm_user_message
+from autobyteus.agent.sender_type import SenderType
 
 if TYPE_CHECKING:
     from autobyteus.agent.message.agent_input_user_message import AgentInputUserMessage
@@ -25,6 +26,9 @@ class MemoryIngestInputProcessor(BaseAgentUserInputMessageProcessor):
     ) -> "AgentInputUserMessage":
         memory_manager = getattr(context.state, "memory_manager", None)
         if not memory_manager:
+            return message
+        if message.sender_type == SenderType.TOOL:
+            logger.debug("MemoryIngestInputProcessor skipping TOOL-originated message to avoid duplicate tool results.")
             return message
 
         turn_id = memory_manager.start_turn()
