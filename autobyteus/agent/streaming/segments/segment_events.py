@@ -17,6 +17,7 @@ class SegmentType(str, Enum):
     PATCH_FILE = "patch_file"
     RUN_BASH = "run_bash"
     REASONING = "reasoning"
+    MEDIA = "media"
 
 
 class SegmentEventType(str, Enum):
