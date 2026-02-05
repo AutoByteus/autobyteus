@@ -31,6 +31,14 @@ This document serves as the master index for:
 - **Atomic Commits**: Do not use `git add -A` or `git add .`. These commands stage files indiscriminately and can accidentally include unwanted changes or untracked files.
 - **Explicit Staging**: Always use `git add <file_path>` to stage specific files. This ensures you are conscious of exactly what is going into each commit.
 
+## 4. Releases (Tag-Driven)
+- **Trigger**: Releases are created by pushing a git tag that matches `v*.*.*`.
+- **Minimal steps**:
+  1. Ensure you are on the correct commit (usually `main`) and working tree is clean.
+  2. Create the tag: `git tag vX.Y.Z`
+  3. Push the tag: `git push origin vX.Y.Z`
+- **Note**: The tag alone is sufficient to trigger the release workflow.
+
 ---
 
 # Agent Testing Notes
