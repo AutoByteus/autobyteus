@@ -48,7 +48,7 @@ and can be layered above.
 
 - **TOOL_INTERACTION**: a paired view that links a tool call with its result
   using `tool_call_id`. This is for human-friendly inspection and summaries,
-  while the underlying transcript remains event-based.
+  while the underlying working context snapshot remains event-based.
 
 ---
 
@@ -56,11 +56,11 @@ and can be layered above.
 
 The memory system is defined by its implemented operations:
 
-- **ingest(event)**: store trace as RAW_TRACE and append to the Active Transcript
+- **ingest(event)**: store trace as RAW_TRACE and append to the Working Context Snapshot
 - **compact(turn_ids)**: summarize old traces into EPISODIC + SEMANTIC and prune RAW_TRACE
 - **retrieve(max_episodic, max_semantic)**: return a MemoryBundle for snapshot building
 - **build_snapshot(system_prompt, bundle, raw_tail)**: produce a Compaction Snapshot message list
-- **reset_transcript(snapshot)**: reset Active Transcript to the snapshot baseline
+- **reset_working_context_snapshot(snapshot)**: reset Working Context Snapshot to the snapshot baseline
 
 ---
 
@@ -139,23 +139,23 @@ The memory module is **event-driven**. It is triggered by:
 - When input prompt exceeds token budget (post-response usage)
 
 ### Retrieval (every LLM call)
-Before sending a user message to the LLM, memory prepares an **Active Transcript**
+Before sending a user message to the LLM, memory prepares a **Working Context Snapshot**
 for the current compaction epoch. If compaction is triggered, memory builds a
-**Compaction Snapshot** and resets the transcript to that snapshot before the call.
+**Compaction Snapshot** and resets the working context snapshot to that snapshot before the call.
 
 ---
 
-## 9. Prompt Assembly (Active Transcript + Compaction Snapshot)
+## 9. Prompt Assembly (Working Context Snapshot + Compaction Snapshot)
 
-The memory layer maintains an **Active Transcript**: a generic, append-only
+The memory layer maintains a **Working Context Snapshot**: a generic, append-only
 message list that grows between compaction boundaries. This is what the LLM
 receives on each call.
 
 When compaction triggers, memory builds a **Compaction Snapshot** (a compact,
-curated baseline) and **resets** the Active Transcript to that snapshot.
+curated baseline) and **resets** the Working Context Snapshot to that snapshot.
 
-### Active Transcript (per-epoch)
-The transcript is a list of generic messages that includes:
+### Working Context Snapshot (per-epoch)
+The working context snapshot is a list of generic messages that includes:
 
 1. System prompt (bootstrapped)
 2. Prior user / assistant messages (since last compaction)
@@ -163,23 +163,23 @@ The transcript is a list of generic messages that includes:
 4. Current user input
 
 ### Compaction Snapshot (handoff baseline)
-The snapshot is a compact replacement for the transcript base:
+The snapshot is a compact replacement for the working context snapshot base:
 
 1. System prompt (bootstrapped)
 2. Memory bundle (episodic + semantic)
 3. Short RAW_TRACE tail (last few turns)
 
-After compaction, the transcript is reset to this snapshot, then new turns
+After compaction, the working context snapshot is reset to this snapshot, then new turns
 append again.
 
 ### Prompt Renderer (provider adaptation)
-LLMs consume provider-specific payloads, so the generic transcript is rendered
+LLMs consume provider-specific payloads, so the generic working context snapshot is rendered
 by a **Prompt Renderer** per provider (OpenAI, Anthropic, etc.). This keeps the
 memory layer canonical and makes LLMs stateless executors.
 
 **Note (Python today):** system prompts are configured on the LLM instance
 during bootstrap. In memory-centric mode, the system prompt can be injected
-directly into the transcript to make the LLM fully stateless.
+directly into the working context snapshot to make the LLM fully stateless.
 
 ---
 
@@ -209,7 +209,7 @@ values are set.
 **Trigger (post-response)**
 
 - If the **last response** reports `prompt_tokens > input_budget`, mark
-  compaction required and rebuild the transcript **before the next call**
+  compaction required and rebuild the working context snapshot **before the next call**
   via Compaction Snapshot.
 - Early trigger: `prompt_tokens > compaction_ratio * input_budget`
 
@@ -224,7 +224,7 @@ Compaction policy:
 ## 10.1 Compaction Pipeline (Primary Priority)
 
 Compaction is the **first priority** of the memory system because it keeps the
-Active Transcript bounded and useful.
+Working Context Snapshot bounded and useful.
 
 ### Trigger Conditions
 
@@ -232,13 +232,13 @@ Active Transcript bounded and useful.
 
 ### Compaction Outputs
 
-Compaction produces **structured memory artifacts** and a new transcript base:
+Compaction produces **structured memory artifacts** and a new working context snapshot base:
 
 1. **EPISODIC summary** (compressed narrative of older RAW_TRACE)
 2. **SEMANTIC facts** (stable preferences/decisions/constraints)
 3. **RAW_TRACE tail** preserved (last N turns)
 4. **Pruned RAW_TRACE** (oldest traces removed)
-5. **Compaction Snapshot** (new base for the Active Transcript)
+5. **Compaction Snapshot** (new base for the Working Context Snapshot)
 
 ### Compaction Flow (LLM-driven)
 
@@ -391,7 +391,7 @@ LLMUserMessageReadyEvent
    ▼
 LLMUserMessageReadyEventHandler
    │
-   ├─► LLM.stream_messages(Active Transcript)
+   ├─► LLM.stream_messages(Working Context Snapshot)
    │
    ├─► PendingToolInvocationEvent
    │      └─► ToolInvocationRequestEventHandler
@@ -423,8 +423,8 @@ autobyteus/memory/
 ├── store/
 │   ├── base_store.py             # MemoryStore interface
 │   ├── file_store.py             # Default file-backed store (JSONL)
-├── active_transcript.py          # Generic, append-only messages per epoch
-├── compaction_snapshot_builder.py# Builds compact transcript baseline
+├── working_context_snapshot.py          # Generic, append-only messages per epoch
+├── compaction_snapshot_builder.py# Builds compact working context snapshot baseline
 ├── compaction/
 │   ├── compaction_result.py
 │   ├── compactor.py              # orchestration of compaction flow
@@ -444,7 +444,7 @@ autobyteus/agent/
 
 ### Responsibility Map
 
-- **MemoryManager**: receives events, manages Active Transcript, and flags compaction.
+- **MemoryManager**: receives events, manages Working Context Snapshot, and flags compaction.
 - **Compactor**: runs compaction flow, writes EPISODIC/SEMANTIC items, prunes RAW_TRACE.
 - **Summarizer**: produces episodic summary + semantic facts from raw traces.
 - **Retriever**: loads episodic/semantic items into a MemoryBundle.
@@ -460,15 +460,15 @@ autobyteus/agent/
 **Suggested integration**
 
 - Add `MemoryManager` to `AgentRuntimeState`
-- Keep ingest processors (user/tool/assistant) to append to Active Transcript
-- Add a pre-LLM hook to request a transcript render + compaction check
+- Keep ingest processors (user/tool/assistant) to append to Working Context Snapshot
+- Add a pre-LLM hook to request a working context snapshot render + compaction check
 - Route tool results and messages into memory ingest
 
 **Migration path**
 
 1. **Hybrid epoch mode**: append to LLM history until compaction, then reset
    from Compaction Snapshot.
-2. **Memory-centric mode**: LLM history becomes stateless; memory owns transcript.
+2. **Memory-centric mode**: LLM history becomes stateless; memory owns working context snapshot.
 3. **Full core mode**: all history and context sourced from memory store.
 
 ---
@@ -484,7 +484,7 @@ autobyteus/agent/
 ## 13. Memory-Centric Architecture (LLM as a Service)
 
 In memory-centric mode, the LLM does **not** own history. Memory is the source
-of truth and the LLM is invoked with an **Active Transcript** built from memory
+of truth and the LLM is invoked with a **Working Context Snapshot** built from memory
 state (and reset from Compaction Snapshot when needed).
 
 ```
@@ -496,7 +496,7 @@ MemoryManager (ingest)
    ├─► Compactor (if compaction_required)
    │      └─► Summarizer (LLM)
    │
-   ├─► Active Transcript (append or reset)
+   ├─► Working Context Snapshot (append or reset)
    │      └─► Compaction Snapshot (if needed)
    │
    └─► Prompt Renderer (provider payload)
@@ -543,7 +543,7 @@ if prompt_tokens > 0.8 * input_budget:
 - **LLMRequestAssembler.prepare_request(...)** (pre-next-call):
   1. Checks `compaction_required`
   2. Runs compaction + snapshot reset when requested
-  3. Appends the new user/tool input to the transcript
+  3. Appends the new user/tool input to the working context snapshot
   4. Renders provider payload
 
 This keeps compaction centralized **without token estimation** and avoids
@@ -587,7 +587,7 @@ Key changes:
 - Add `memory_manager` to `AgentRuntimeState`
 - Ingest **processed** user input (LLMUserMessageReadyEvent), plus tool intent,
   tool results, and assistant response events
-- Build or reset Active Transcript before every LLM call (via assembler)
+- Build or reset Working Context Snapshot before every LLM call (via assembler)
 - Keep LLM stateless (no internal history ownership)
 
 ### 15.4 Refactor targets (files)
@@ -676,7 +676,7 @@ messages and renders provider payloads via Prompt Renderers.
 
 **Where used**
 
-- Active Transcript appends tool call intents and tool results as structured
+- Working Context Snapshot appends tool call intents and tool results as structured
   messages.
 - Prompt Renderers map tool messages to provider-specific formats.
 
@@ -789,17 +789,17 @@ ToolPayload = ToolCallPayload | ToolResultPayload
 
 ---
 
-### Phase C — Memory owns transcript
+### Phase C — Memory owns working context snapshot
 
-**Goal:** Memory produces the transcript used by LLM.
+**Goal:** Memory produces the working context snapshot used by LLM.
 
-- Add `autobyteus/memory/active_transcript.py`
+- Add `autobyteus/memory/working_context_snapshot.py`
 - Add `autobyteus/memory/compaction_snapshot_builder.py`
 - Update `MemoryManager` to:
-- append to Active Transcript on each ingest
+- append to Working Context Snapshot on each ingest
   - build Compaction Snapshot on compaction
-  - reset transcript to snapshot at compaction boundary
-- expose Active Transcript accessors (messages + metadata)
+  - reset working context snapshot to snapshot at compaction boundary
+- expose Working Context Snapshot accessors (messages + metadata)
 
 **Tool events (structured)**
 
@@ -815,9 +815,9 @@ ToolPayload = ToolCallPayload | ToolResultPayload
 
 **Tests**
 
-- Transcript append ordering
+- Working context snapshot append ordering
 - Snapshot reset behavior
-- Compaction boundary resets transcript
+- Compaction boundary resets working context snapshot
 
 ---
 
@@ -837,7 +837,7 @@ ToolPayload = ToolCallPayload | ToolResultPayload
 
 - Streaming parser continues to detect tool calls (XML / JSON / API-native).
 - After parsing tool calls, append an assistant message with `tool_calls`
-  metadata to the Active Transcript.
+  metadata to the Working Context Snapshot.
 - Tool results are appended as `MessageRole.TOOL` messages.
 - The next turn is triggered by a short user continuation message.
 
@@ -860,8 +860,8 @@ LLMUserMessageReadyEventHandler.handle(...)
   at autobyteus/agent/handlers/llm_user_message_ready_event_handler.py
   └─► LLMRequestAssembler.prepare_request(...)
         at autobyteus/agent/llm_request_assembler.py
-        ├─► ActiveTranscript.build_messages()
-        │     at autobyteus/memory/active_transcript.py
+        ├─► WorkingContextSnapshot.build_messages()
+        │     at autobyteus/memory/working_context_snapshot.py
         ├─► PromptRenderer.render(...)
         │     at autobyteus/llm/prompt_renderers/openai_responses_renderer.py
         └─► (no compaction)
@@ -871,8 +871,8 @@ LLMUserMessageReadyEventHandler.handle(...)
               at autobyteus/llm/api/openai_responses_llm.py
   └─► MemoryManager.ingest_assistant_response(...)
         at autobyteus/memory/memory_manager.py
-        └─► ActiveTranscript.append_assistant(...)
-              at autobyteus/memory/active_transcript.py
+        └─► WorkingContextSnapshot.append_assistant(...)
+              at autobyteus/memory/working_context_snapshot.py
 ```
 
 **Gap check**  
@@ -898,8 +898,8 @@ LLMUserMessageReadyEventHandler.handle(...)
               at autobyteus/agent/streaming/*
               └─► MemoryManager.ingest_tool_intent(...)
                     at autobyteus/memory/memory_manager.py
-                    └─► ActiveTranscript.append_tool_calls(...)
-                          at autobyteus/memory/active_transcript.py
+                    └─► WorkingContextSnapshot.append_tool_calls(...)
+                          at autobyteus/memory/working_context_snapshot.py
               └─► PendingToolInvocationEvent
                     at autobyteus/agent/events/agent_events.py
                     └─► ToolInvocationRequestEventHandler.handle(...)
@@ -910,8 +910,8 @@ LLMUserMessageReadyEventHandler.handle(...)
                                       at autobyteus/agent/tool_execution_result_processor/memory_ingest_tool_result_processor.py
                                       └─► MemoryManager.ingest_tool_result(...)
                                             at autobyteus/memory/memory_manager.py
-                                            └─► ActiveTranscript.append_tool_result(...)
-                                                  at autobyteus/memory/active_transcript.py
+                                            └─► WorkingContextSnapshot.append_tool_result(...)
+                                                  at autobyteus/memory/working_context_snapshot.py
                                 └─► ToolResultEventHandler.handle(...)
                                       at autobyteus/agent/handlers/tool_result_event_handler.py
                                       └─► enqueue UserMessageReceivedEvent
@@ -942,11 +942,11 @@ LLMUserMessageReadyEventHandler.handle(...)
         │           at autobyteus/memory/compaction/summarizer.py
         ├─► CompactionSnapshotBuilder.build(...)
         │     at autobyteus/memory/compaction_snapshot_builder.py
-        ├─► ActiveTranscript.reset(snapshot)
-        │     at autobyteus/memory/active_transcript.py
+        ├─► WorkingContextSnapshot.reset(snapshot)
+        │     at autobyteus/memory/working_context_snapshot.py
         └─► PromptRenderer.render(messages)
               at autobyteus/llm/prompt_renderers/openai_responses_renderer.py
-  └─► LLM.stream_messages(compacted transcript)
+  └─► LLM.stream_messages(compacted working context snapshot)
 ```
 
 **Gap check**  
@@ -961,7 +961,7 @@ Use this “debug-trace simulation” as a review checklist:
 - Each step has an explicit owner (file + class).
 - No hidden mutation of LLM history.
 - Tool calls/results are structured messages.
-- Compaction resets transcript and changes the next prompt.
+- Compaction resets working context snapshot and changes the next prompt.
 
 **Tests**
 
@@ -1000,7 +1000,7 @@ Use this “debug-trace simulation” as a review checklist:
 **Tests**
 
 - Ensure no history is stored inside LLM
-- Ensure memory is the only transcript source
+- Ensure memory is the only working context snapshot source
 
 ---
 
@@ -1010,7 +1010,7 @@ Use this “debug-trace simulation” as a review checklist:
 
 - `autobyteus/memory/memory_manager.py`
   - Event-driven entry point
-  - Ingests traces and manages the Active Transcript
+  - Ingests traces and manages the Working Context Snapshot
   - Flags compaction requests
 
 - `autobyteus/agent/llm_request_assembler.py`
@@ -1025,7 +1025,7 @@ Use this “debug-trace simulation” as a review checklist:
 - `autobyteus/memory/models/*`
   - `memory_types.py`, `raw_trace_item.py`, `episodic_item.py`, `semantic_item.py`, `tool_interaction.py`
 
-- `autobyteus/memory/active_transcript.py`
+- `autobyteus/memory/working_context_snapshot.py`
   - Append/reset/build message list per compaction epoch
 
 - `autobyteus/memory/turn_tracker.py`
@@ -1137,8 +1137,8 @@ ingest_assistant_response(complete_response, turn_id, source_event) -> None
 request_compaction() -> None
 clear_compaction_request() -> None
 get_raw_tail(tail_turns, exclude_turn_id=None) -> list[RawTraceItem]
-get_transcript_messages() -> list[Message]
-reset_transcript(snapshot_messages) -> None
+get_working_context_messages() -> list[Message]
+reset_working_context_snapshot(snapshot_messages) -> None
 get_tool_interactions(turn_id=None) -> list[ToolInteraction]
 ```
 
@@ -1174,7 +1174,7 @@ retrieve(max_episodic: int, max_semantic: int) -> MemoryBundle
 ## 19. Compaction Snapshot Assembly Rules
 
 The Compaction Snapshot is used only at the **compaction boundary** to reset
-the Active Transcript.
+the Working Context Snapshot.
 
 ### Ordering
 

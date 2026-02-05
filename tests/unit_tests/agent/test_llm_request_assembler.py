@@ -6,7 +6,7 @@ import pytest
 from autobyteus.agent.llm_request_assembler import LLMRequestAssembler
 from autobyteus.llm.prompt_renderers.base_prompt_renderer import BasePromptRenderer
 from autobyteus.llm.utils.messages import Message, MessageRole
-from autobyteus.memory.active_transcript import ActiveTranscript
+from autobyteus.memory.working_context_snapshot import WorkingContextSnapshot
 from autobyteus.memory.compaction_snapshot_builder import CompactionSnapshotBuilder
 from autobyteus.memory.models.episodic_item import EpisodicItem
 from autobyteus.memory.models.raw_trace_item import RawTraceItem
@@ -22,7 +22,7 @@ class FakeRenderer(BasePromptRenderer):
 
 class FakeMemoryManager:
     def __init__(self, raw_tail=None):
-        self.active_transcript = ActiveTranscript()
+        self.working_context_snapshot = WorkingContextSnapshot()
         self.compaction_policy = CompactionPolicy()
         self.compactor = SimpleNamespace()
         self.compactor.select_compaction_window = lambda: []
@@ -38,11 +38,11 @@ class FakeMemoryManager:
     def clear_compaction_request(self):
         self.compaction_required = False
 
-    def get_transcript_messages(self):
-        return self.active_transcript.build_messages()
+    def get_working_context_messages(self):
+        return self.working_context_snapshot.build_messages()
 
-    def reset_transcript(self, snapshot_messages):
-        self.active_transcript.reset(snapshot_messages)
+    def reset_working_context_snapshot(self, snapshot_messages):
+        self.working_context_snapshot.reset(snapshot_messages)
 
     def get_raw_tail(self, tail_turns, exclude_turn_id=None):
         if exclude_turn_id:
@@ -66,11 +66,11 @@ async def test_prepare_request_no_compaction():
 
     assert request.did_compact is False
     assert [m.role for m in request.messages] == [MessageRole.SYSTEM, MessageRole.USER]
-    assert memory_manager.active_transcript.build_messages() == request.messages
+    assert memory_manager.working_context_snapshot.build_messages() == request.messages
 
 
 @pytest.mark.asyncio
-async def test_prepare_request_compacts_and_resets_transcript():
+async def test_prepare_request_compacts_and_resets_working_context_snapshot():
     raw_tail = [
         RawTraceItem(
             id="rt_1",
@@ -106,8 +106,8 @@ async def test_prepare_request_compacts_and_resets_transcript():
     )
 
     assert request.did_compact is True
-    assert memory_manager.active_transcript.epoch_id == 2
-    assert memory_manager.active_transcript.last_compaction_ts is not None
+    assert memory_manager.working_context_snapshot.epoch_id == 2
+    assert memory_manager.working_context_snapshot.last_compaction_ts is not None
     assert [m.role for m in request.messages] == [
         MessageRole.SYSTEM,
         MessageRole.USER,

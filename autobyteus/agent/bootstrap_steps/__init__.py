@@ -9,6 +9,7 @@ from .workspace_context_initialization_step import WorkspaceContextInitializatio
 # ToolInitializationStep is no longer a bootstrap step.
 from .system_prompt_processing_step import SystemPromptProcessingStep
 from .mcp_server_prewarming_step import McpServerPrewarmingStep
+from .working_context_snapshot_restore_step import WorkingContextSnapshotRestoreStep
 # LLMConfigFinalizationStep and LLMInstanceCreationStep removed.
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "WorkspaceContextInitializationStep",
     "SystemPromptProcessingStep",
     "McpServerPrewarmingStep",
+    "WorkingContextSnapshotRestoreStep",
 ]

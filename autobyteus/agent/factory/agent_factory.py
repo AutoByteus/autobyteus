@@ -14,6 +14,8 @@ from autobyteus.agent.handlers import *
 from autobyteus.utils.singleton import SingletonMeta
 from autobyteus.tools.base_tool import BaseTool
 from autobyteus.memory import FileMemoryStore, MemoryManager, resolve_memory_base_dir
+from autobyteus.memory.store.working_context_snapshot_store import WorkingContextSnapshotStore
+from autobyteus.memory.restore.working_context_snapshot_bootstrapper import WorkingContextSnapshotBootstrapOptions
 from autobyteus.agent.input_processor.memory_ingest_input_processor import MemoryIngestInputProcessor
 from autobyteus.agent.tool_execution_result_processor.memory_ingest_tool_result_processor import (
     MemoryIngestToolResultProcessor,
@@ -103,10 +105,12 @@ class AgentFactory(metaclass=SingletonMeta):
         
         config.skills = updated_skills
 
-    def _create_runtime(self, 
-                        agent_id: str, 
-                        config: AgentConfig
-                        ) -> 'AgentRuntime': 
+    def _create_runtime_with_id(self,
+                                agent_id: str,
+                                config: AgentConfig,
+                                memory_dir_override: Optional[str] = None,
+                                restore_options: Optional[WorkingContextSnapshotBootstrapOptions] = None
+                                ) -> 'AgentRuntime':
         from autobyteus.agent.runtime.agent_runtime import AgentRuntime 
 
         # Prepare skills (resolve paths to names and register them)
@@ -120,9 +124,11 @@ class AgentFactory(metaclass=SingletonMeta):
         )
 
         # Memory manager (file-backed) initialization
-        memory_dir = resolve_memory_base_dir(override_dir=config.memory_dir)
+        memory_dir = resolve_memory_base_dir(override_dir=memory_dir_override or config.memory_dir)
         memory_store = FileMemoryStore(base_dir=memory_dir, agent_id=agent_id)
-        runtime_state.memory_manager = MemoryManager(store=memory_store)
+        working_context_snapshot_store = WorkingContextSnapshotStore(base_dir=memory_dir, agent_id=agent_id)
+        runtime_state.memory_manager = MemoryManager(store=memory_store, working_context_snapshot_store=working_context_snapshot_store)
+        runtime_state.restore_options = restore_options
 
         # Ensure memory ingest processors are present
         if not any(isinstance(p, MemoryIngestInputProcessor) for p in config.input_processors):
@@ -142,7 +148,7 @@ class AgentFactory(metaclass=SingletonMeta):
         logger.info(f"Instantiating AgentRuntime for agent_id: '{agent_id}' with config: '{config.name}'.")
         
         return AgentRuntime(
-            context=context, 
+            context=context,
             event_handler_registry=event_handler_registry
         )
 
@@ -162,7 +168,7 @@ class AgentFactory(metaclass=SingletonMeta):
         while agent_id in self._active_agents:
             agent_id = f"{config.name}_{config.role}_{random.randint(1000, 9999)}"
 
-        runtime = self._create_runtime(
+        runtime = self._create_runtime_with_id(
             agent_id=agent_id,
             config=config,
         )
@@ -170,6 +176,29 @@ class AgentFactory(metaclass=SingletonMeta):
         agent = Agent(runtime=runtime)
         self._active_agents[agent_id] = agent
         logger.info(f"Agent '{agent_id}' created and stored successfully.")
+        return agent
+
+    def restore_agent(
+        self,
+        agent_id: str,
+        config: AgentConfig,
+        memory_dir: Optional[str] = None,
+    ) -> Agent:
+        if not agent_id or not isinstance(agent_id, str):
+            raise ValueError("restore_agent requires a non-empty string agent_id.")
+        if agent_id in self._active_agents:
+            raise ValueError(f"Agent '{agent_id}' is already active.")
+
+        restore_options = WorkingContextSnapshotBootstrapOptions()
+        runtime = self._create_runtime_with_id(
+            agent_id=agent_id,
+            config=config,
+            memory_dir_override=memory_dir,
+            restore_options=restore_options,
+        )
+        agent = Agent(runtime=runtime)
+        self._active_agents[agent_id] = agent
+        logger.info(f"Agent '{agent_id}' restored and stored successfully.")
         return agent
 
     def get_agent(self, agent_id: str) -> Optional[Agent]:

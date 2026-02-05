@@ -70,13 +70,13 @@ def test_get_default_event_handler_registry(agent_factory: AgentFactory):
 def test_create_agent_success(agent_factory: AgentFactory, valid_agent_config: AgentConfig):
     """Tests the successful creation of an Agent."""
 
-    # Create a mock instance of AgentRuntime. This is what _create_runtime should return.
+    # Create a mock instance of AgentRuntime. This is what _create_runtime_with_id should return.
     mock_runtime_instance = MagicMock(spec=AgentRuntime)
     # FIX: Explicitly create the 'context' attribute on the mock, so we can set its 'agent_id'.
     mock_runtime_instance.context = MagicMock()
 
     # Define a side_effect function for our mock. This function will be called
-    # instead of the real _create_runtime. It allows us to capture the randomly
+    # instead of the real _create_runtime_with_id. It allows us to capture the randomly
     # generated agent_id and attach it to our mock_runtime_instance.
     def mock_create_runtime_side_effect(agent_id: str, config: AgentConfig):
         # The Agent constructor reads the agent_id from runtime.context.agent_id.
@@ -84,13 +84,13 @@ def test_create_agent_success(agent_factory: AgentFactory, valid_agent_config: A
         mock_runtime_instance.context.agent_id = agent_id
         return mock_runtime_instance
 
-    with patch.object(agent_factory, '_create_runtime', side_effect=mock_create_runtime_side_effect) as mock_create_runtime:
+    with patch.object(agent_factory, '_create_runtime_with_id', side_effect=mock_create_runtime_side_effect) as mock_create_runtime:
         agent = agent_factory.create_agent(config=valid_agent_config)
 
         assert isinstance(agent, Agent)
         assert agent.agent_id.startswith(f"{valid_agent_config.name}_{valid_agent_config.role}")
         
-        # Verify that _create_runtime was called correctly with the agent_id that the agent ended up with
+        # Verify that _create_runtime_with_id was called correctly with the agent_id that the agent ended up with
         mock_create_runtime.assert_called_once_with(
             agent_id=agent.agent_id, 
             config=valid_agent_config,
@@ -104,6 +104,25 @@ def test_create_agent_invalid_config(agent_factory: AgentFactory):
     """Tests that create_agent raises TypeError for invalid config."""
     with pytest.raises(TypeError, match="Expected AgentConfig instance"):
         agent_factory.create_agent(config="not a config")
+
+
+def test_restore_agent_uses_existing_id(agent_factory: AgentFactory, valid_agent_config: AgentConfig):
+    mock_runtime_instance = MagicMock(spec=AgentRuntime)
+    mock_runtime_instance.context = MagicMock()
+
+    def mock_create_runtime_side_effect(agent_id: str, config: AgentConfig, memory_dir_override=None, restore_options=None):
+        mock_runtime_instance.context.agent_id = agent_id
+        return mock_runtime_instance
+
+    with patch.object(agent_factory, '_create_runtime_with_id', side_effect=mock_create_runtime_side_effect) as mock_create_runtime:
+        agent = agent_factory.restore_agent(agent_id="restored_agent", config=valid_agent_config, memory_dir="/tmp/memory")
+
+        assert isinstance(agent, Agent)
+        assert agent.agent_id == "restored_agent"
+        mock_create_runtime.assert_called_once()
+        _, kwargs = mock_create_runtime.call_args
+        assert kwargs["memory_dir_override"] == "/tmp/memory"
+        assert kwargs["restore_options"] is not None
 
 def test_prepare_tool_instances(agent_factory: AgentFactory, mock_tool_for_factory):
     """Tests the internal logic for preparing the tool instance dictionary."""
@@ -138,9 +157,9 @@ def test_create_runtime_populates_state(MockAgentRuntimeState, MockAgentContext,
     """
     mock_state_instance = MockAgentRuntimeState.return_value
     
-    # We call the real _create_runtime method. The decorators will intercept the
+    # We call the real _create_runtime_with_id method. The decorators will intercept the
     # creation of AgentRuntimeState, AgentContext, and AgentRuntime.
-    runtime = agent_factory._create_runtime(
+    runtime = agent_factory._create_runtime_with_id(
         agent_id="test-runtime-agent",
         config=valid_agent_config,
     )

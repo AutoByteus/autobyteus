@@ -140,7 +140,7 @@ wheels = [
 
 [[package]]
 name = "autobyteus"
-version = "1.2.2"
+version = "1.2.3"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -215,7 +215,7 @@ requires-dist = [
     { name = "flake8", marker = "extra == 'dev'" },
     { name = "gitpython", marker = "extra == 'dev'", specifier = "==3.1.31" },
     { name = "google-api-python-client" },
-    { name = "google-genai", specifier = "==1.52.0" },
+    { name = "google-genai" },
     { name = "httpx" },
     { name = "isort", marker = "extra == 'dev'" },
     { name = "jinja2" },

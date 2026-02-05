@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from autobyteus.tools.base_tool import BaseTool 
     from autobyteus.agent.tool_invocation import ToolInvocationTurn
     from autobyteus.memory.memory_manager import MemoryManager
+    from autobyteus.memory.restore.working_context_snapshot_bootstrapper import WorkingContextSnapshotBootstrapOptions
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,7 @@ class AgentRuntimeState:
         # NEW: Memory manager and active turn tracking
         self.memory_manager: Optional["MemoryManager"] = None
         self.active_turn_id: Optional[str] = None
+        self.restore_options: Optional["WorkingContextSnapshotBootstrapOptions"] = None
         
         self.processed_system_prompt: Optional[str] = None
         # self.final_llm_config_for_creation removed

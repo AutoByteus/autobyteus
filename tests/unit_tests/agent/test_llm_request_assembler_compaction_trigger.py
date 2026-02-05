@@ -70,6 +70,6 @@ async def test_prepare_request_triggers_compaction_when_budget_exceeded(tmp_path
     )
 
     assert request.did_compact is True
-    assert manager.active_transcript.epoch_id == 2
+    assert manager.working_context_snapshot.epoch_id == 2
     assert [m.role for m in request.messages][:2] == [MessageRole.SYSTEM, MessageRole.USER]
     assert "[MEMORY:EPISODIC]" in request.messages[1].content

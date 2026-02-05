@@ -10,7 +10,7 @@ from autobyteus.llm.utils.messages import (
 )
 
 
-class ActiveTranscript:
+class WorkingContextSnapshot:
     def __init__(self, initial_messages: Optional[Iterable[Message]] = None):
         self._messages: List[Message] = list(initial_messages) if initial_messages else []
         self.epoch_id: int = 1

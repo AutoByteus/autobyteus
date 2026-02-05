@@ -60,12 +60,12 @@ class LLMRequestAssembler:
                     bundle=bundle,
                     raw_tail=raw_tail,
                 )
-                self.memory_manager.reset_transcript(snapshot_messages)
+                self.memory_manager.reset_working_context_snapshot(snapshot_messages)
                 self.memory_manager.clear_compaction_request()
                 did_compact = True
 
-        self.memory_manager.active_transcript.append_message(user_message)
-        final_messages = self.memory_manager.get_transcript_messages()
+        self.memory_manager.working_context_snapshot.append_message(user_message)
+        final_messages = self.memory_manager.get_working_context_messages()
         rendered_payload = await self.render_payload(final_messages)
 
         return RequestPackage(
@@ -91,8 +91,8 @@ class LLMRequestAssembler:
     def _ensure_system_prompt(self, system_prompt: Optional[str]) -> None:
         if not system_prompt:
             return
-        existing = self.memory_manager.get_transcript_messages()
+        existing = self.memory_manager.get_working_context_messages()
         if not existing:
-            self.memory_manager.active_transcript.append_message(
+            self.memory_manager.working_context_snapshot.append_message(
                 Message(role=MessageRole.SYSTEM, content=system_prompt)
             )

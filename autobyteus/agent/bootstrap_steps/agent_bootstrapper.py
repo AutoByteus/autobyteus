@@ -5,6 +5,7 @@ from typing import List, Optional
 from .base_bootstrap_step import BaseBootstrapStep
 from .workspace_context_initialization_step import WorkspaceContextInitializationStep
 from .system_prompt_processing_step import SystemPromptProcessingStep
+from .working_context_snapshot_restore_step import WorkingContextSnapshotRestoreStep
 from .mcp_server_prewarming_step import McpServerPrewarmingStep
 
 logger = logging.getLogger(__name__)
@@ -27,6 +28,7 @@ class AgentBootstrapper:
                 WorkspaceContextInitializationStep(),
                 McpServerPrewarmingStep(),
                 SystemPromptProcessingStep(),
+                WorkingContextSnapshotRestoreStep(),
             ]
             logger.debug("AgentBootstrapper initialized with default steps.")
         else:
