@@ -528,6 +528,38 @@ class LLMFactory(metaclass=SingletonMeta):
         return None
 
     @staticmethod
+    def get_provider(model_identifier: str) -> Optional[LLMProvider]:
+        """
+        Retrieves the provider for a given model identifier.
+
+        Returns:
+            Optional[LLMProvider]: The provider when a single match exists; otherwise None.
+
+        Raises:
+            ValueError: If `model_identifier` resolves to multiple models by name.
+        """
+        LLMFactory.ensure_initialized()
+
+        # Prefer exact identifier lookup.
+        model = LLMFactory._models_by_identifier.get(model_identifier)
+        if model:
+            return model.provider
+
+        # Fallback to name lookup for convenience.
+        found_by_name = [m for m in LLMFactory._models_by_identifier.values() if m.name == model_identifier]
+        if len(found_by_name) == 1:
+            return found_by_name[0].provider
+        if len(found_by_name) > 1:
+            identifiers = [m.model_identifier for m in found_by_name]
+            raise ValueError(
+                f"The model name '{model_identifier}' is ambiguous. Please use one of the unique "
+                f"model identifiers: {identifiers}"
+            )
+
+        logger.warning(f"Could not find model with identifier '{model_identifier}' to get its provider.")
+        return None
+
+    @staticmethod
     def reload_models(provider: LLMProvider) -> int:
         """
         Reloads models for a specific provider.
