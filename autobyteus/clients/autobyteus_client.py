@@ -6,6 +6,7 @@ from typing import Any, AsyncGenerator, Dict, List, Optional, Union
 from urllib.parse import urljoin
 
 import httpx
+from autobyteus.llm.utils.media_payload_formatter import media_source_to_data_uri
 
 logger = logging.getLogger(__name__)
 
@@ -225,13 +226,16 @@ class AutobyteusClient:
     ) -> Dict[str, Any]:
         """Send a message and get a response."""
         try:
+            normalized_image_urls = await self._normalize_media_sources(image_urls)
+            normalized_audio_urls = await self._normalize_media_sources(audio_urls)
+            normalized_video_urls = await self._normalize_media_sources(video_urls)
             data = {
                 "conversation_id": conversation_id,
                 "model_name": model_name,
                 "user_message": user_message,
-                "image_urls": image_urls or [],
-                "audio_urls": audio_urls or [],
-                "video_urls": video_urls or [],
+                "image_urls": normalized_image_urls,
+                "audio_urls": normalized_audio_urls,
+                "video_urls": normalized_video_urls,
             }
             response = await self.async_client.post(
                 urljoin(self.server_url, "/send-message"),
@@ -257,13 +261,16 @@ class AutobyteusClient:
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Stream a message and get responses."""
         try:
+            normalized_image_urls = await self._normalize_media_sources(image_urls)
+            normalized_audio_urls = await self._normalize_media_sources(audio_urls)
+            normalized_video_urls = await self._normalize_media_sources(video_urls)
             data = {
                 "conversation_id": conversation_id,
                 "model_name": model_name,
                 "user_message": user_message,
-                "image_urls": image_urls or [],
-                "audio_urls": audio_urls or [],
-                "video_urls": video_urls or [],
+                "image_urls": normalized_image_urls,
+                "audio_urls": normalized_audio_urls,
+                "video_urls": normalized_video_urls,
             }
 
             async with self.async_client.stream(
@@ -302,11 +309,13 @@ class AutobyteusClient:
     ) -> Dict[str, Any]:
         """Generate or edit an image and return the server response."""
         try:
+            normalized_input_image_urls = await self._normalize_media_sources(input_image_urls)
+            normalized_mask_url = await self._normalize_single_media_source(mask_url)
             data = {
                 "model_name": model_name,
                 "prompt": prompt,
-                "input_image_urls": input_image_urls or [],
-                "mask_url": mask_url,
+                "input_image_urls": normalized_input_image_urls,
+                "mask_url": normalized_mask_url,
                 "generation_config": generation_config or {},
                 "session_id": session_id,
             }
@@ -398,6 +407,32 @@ class AutobyteusClient:
         except httpx.HTTPError as exc:
             logger.error("Audio session cleanup error: %s", exc)
             raise RuntimeError(str(exc)) from exc
+
+    async def _normalize_media_sources(
+        self, media_sources: Optional[List[str]]
+    ) -> List[str]:
+        if not media_sources:
+            return []
+
+        normalized: List[str] = []
+        for source in media_sources:
+            if not isinstance(source, str):
+                continue
+            trimmed = source.strip()
+            if not trimmed:
+                continue
+            normalized.append(await media_source_to_data_uri(trimmed))
+        return normalized
+
+    async def _normalize_single_media_source(
+        self, media_source: Optional[str]
+    ) -> Optional[str]:
+        if not isinstance(media_source, str):
+            return None
+        trimmed = media_source.strip()
+        if not trimmed:
+            return None
+        return await media_source_to_data_uri(trimmed)
 
     async def close(self) -> None:
         """Close both HTTP clients."""

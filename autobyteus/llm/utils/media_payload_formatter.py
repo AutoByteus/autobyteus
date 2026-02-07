@@ -1,9 +1,10 @@
 import base64
 import mimetypes
-from typing import Dict, Union
+from typing import Dict
 from pathlib import Path
 import httpx
 import logging
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,19 @@ def create_data_uri(mime_type: str, base64_data: str) -> Dict:
         }
     }
 
+
+def is_data_uri(value: str) -> bool:
+    """Checks whether the value is already a data URI."""
+    return isinstance(value, str) and value.startswith("data:")
+
+
+def _is_existing_file_path(path: str) -> bool:
+    try:
+        return Path(path).is_file()
+    except (TypeError, ValueError):
+        return False
+
+
 def file_to_base64(path: str) -> str:
     """Reads a file from a local path and returns it as a base64 encoded string."""
     try:
@@ -104,3 +118,40 @@ async def media_source_to_base64(media_source: str) -> str:
         return media_source
 
     raise ValueError(f"Invalid media source: not a valid file path, URL, or base64 string.")
+
+
+async def media_source_to_data_uri(media_source: str) -> str:
+    """
+    Converts a media source (data URI, local path, URL, or raw base64)
+    into a data URI string.
+    """
+    if is_data_uri(media_source):
+        return media_source
+
+    if media_source.startswith(("http://", "https://")):
+        try:
+            response = await _http_client.get(media_source)
+            response.raise_for_status()
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to convert URL to data URI {media_source}: {e}")
+            raise
+
+        header_content_type = response.headers.get("content-type", "")
+        mime_type_from_header = header_content_type.split(";")[0].strip() if header_content_type else ""
+        parsed_path = urlparse(media_source).path
+        mime_type_from_path = get_mime_type(parsed_path)
+        mime_type = mime_type_from_header or mime_type_from_path or "application/octet-stream"
+        base64_data = base64.b64encode(response.content).decode("utf-8")
+        return f"data:{mime_type};base64,{base64_data}"
+
+    if _is_existing_file_path(media_source):
+        base64_data = file_to_base64(media_source)
+        mime_type = get_mime_type(media_source)
+        return f"data:{mime_type};base64,{base64_data}"
+
+    if is_base64(media_source):
+        return f"data:application/octet-stream;base64,{media_source}"
+
+    raise ValueError(
+        "Invalid media source: not a valid file path, URL, base64 string, or data URI."
+    )

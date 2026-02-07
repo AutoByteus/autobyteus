@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import pytest
 
@@ -16,6 +16,27 @@ class DummyClient:
 
     def close(self) -> None:
         return None
+
+
+class DummyResponse:
+    def __init__(self, payload: Optional[Dict[str, Any]] = None) -> None:
+        self._payload = payload or {"ok": True}
+
+    def raise_for_status(self) -> None:
+        return None
+
+    def json(self) -> Dict[str, Any]:
+        return self._payload
+
+
+class RecordingAsyncClient(DummyClient):
+    def __init__(self, **kwargs: Dict[str, Any]) -> None:
+        super().__init__(**kwargs)
+        self.post_calls: list[tuple[str, Dict[str, Any]]] = []
+
+    async def post(self, url: str, json: Dict[str, Any]) -> DummyResponse:
+        self.post_calls.append((url, json))
+        return DummyResponse()
 
 
 @pytest.fixture(autouse=True)
@@ -87,3 +108,69 @@ async def test_async_context_manager(monkeypatch: pytest.MonkeyPatch):
 
     async with AutobyteusClient() as client:
         assert isinstance(client, AutobyteusClient)
+
+
+@pytest.mark.asyncio
+async def test_send_message_normalizes_media_sources(monkeypatch: pytest.MonkeyPatch):
+    recording_client = RecordingAsyncClient()
+    monkeypatch.setattr("httpx.AsyncClient", lambda **_: recording_client)
+    monkeypatch.setattr("httpx.Client", lambda **_: DummyClient())
+
+    async def fake_media_source_to_data_uri(source: str) -> str:
+        return f"data:mock;base64,{source}"
+
+    monkeypatch.setattr(
+        "autobyteus.clients.autobyteus_client.media_source_to_data_uri",
+        fake_media_source_to_data_uri,
+    )
+
+    client = AutobyteusClient(server_url="https://example.com")
+    await client.send_message(
+        conversation_id="conv-1",
+        model_name="model-1",
+        user_message="hello",
+        image_urls=[" image1.png ", "https://example.com/image2.jpg", ""],
+        audio_urls=["audio.mp3"],
+        video_urls=[123, "video.mp4"],  # type: ignore[list-item]
+    )
+
+    assert len(recording_client.post_calls) == 1
+    _, payload = recording_client.post_calls[0]
+    assert payload["image_urls"] == [
+        "data:mock;base64,image1.png",
+        "data:mock;base64,https://example.com/image2.jpg",
+    ]
+    assert payload["audio_urls"] == ["data:mock;base64,audio.mp3"]
+    assert payload["video_urls"] == ["data:mock;base64,video.mp4"]
+
+
+@pytest.mark.asyncio
+async def test_generate_image_normalizes_media_sources(monkeypatch: pytest.MonkeyPatch):
+    recording_client = RecordingAsyncClient()
+    monkeypatch.setattr("httpx.AsyncClient", lambda **_: recording_client)
+    monkeypatch.setattr("httpx.Client", lambda **_: DummyClient())
+
+    async def fake_media_source_to_data_uri(source: str) -> str:
+        return f"data:mock;base64,{source}"
+
+    monkeypatch.setattr(
+        "autobyteus.clients.autobyteus_client.media_source_to_data_uri",
+        fake_media_source_to_data_uri,
+    )
+
+    client = AutobyteusClient(server_url="https://example.com")
+    await client.generate_image(
+        model_name="image-model",
+        prompt="enhance",
+        input_image_urls=[" img1.png ", "img2.png"],
+        mask_url=" mask.png ",
+        generation_config={"size": "1024x1024"},
+    )
+
+    assert len(recording_client.post_calls) == 1
+    _, payload = recording_client.post_calls[0]
+    assert payload["input_image_urls"] == [
+        "data:mock;base64,img1.png",
+        "data:mock;base64,img2.png",
+    ]
+    assert payload["mask_url"] == "data:mock;base64,mask.png"

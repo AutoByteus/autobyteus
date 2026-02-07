@@ -8,6 +8,7 @@ from autobyteus.llm.utils.media_payload_formatter import (
     file_to_base64,
     url_to_base64,
     media_source_to_base64,
+    media_source_to_data_uri,
 )
 
 # A valid 1x1 pixel red dot GIF, base64 encoded
@@ -120,4 +121,38 @@ async def test_media_source_to_base64_orchestrator(temp_image_file: Path, temp_a
         await media_source_to_base64("this is not a valid source")
         
     # Restore original client
+    media_payload_formatter._http_client = original_client
+
+
+@pytest.mark.asyncio
+async def test_media_source_to_data_uri_orchestrator(temp_image_file: Path):
+    async def mock_transport(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            content=IMAGE_BYTES,
+            headers={"content-type": "image/jpeg"},
+        )
+
+    from autobyteus.llm.utils import media_payload_formatter
+
+    original_client = media_payload_formatter._http_client
+    media_payload_formatter._http_client = httpx.AsyncClient(
+        transport=httpx.MockTransport(mock_transport)
+    )
+
+    result_from_data_uri = await media_source_to_data_uri("data:image/png;base64,abc123")
+    assert result_from_data_uri == "data:image/png;base64,abc123"
+
+    result_from_file = await media_source_to_data_uri(str(temp_image_file))
+    assert result_from_file.startswith("data:image/png;base64,")
+
+    result_from_url = await media_source_to_data_uri(USER_PROVIDED_IMAGE_URL)
+    assert result_from_url.startswith("data:image/jpeg;base64,")
+
+    result_from_base64 = await media_source_to_data_uri(VALID_BASE64_IMAGE)
+    assert result_from_base64 == f"data:application/octet-stream;base64,{VALID_BASE64_IMAGE}"
+
+    with pytest.raises(ValueError):
+        await media_source_to_data_uri("not-a-valid-source")
+
     media_payload_formatter._http_client = original_client
