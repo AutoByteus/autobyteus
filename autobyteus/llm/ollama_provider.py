@@ -23,15 +23,9 @@ class OllamaModelProvider:
     @staticmethod
     def _get_hosts() -> List[str]:
         """Gets Ollama hosts from env vars, supporting comma-separated list."""
-        # New multi-host variable
         hosts_str = os.getenv('OLLAMA_HOSTS')
         if hosts_str:
             return [host.strip() for host in hosts_str.split(',')]
-        
-        # Legacy single-host variable for backward compatibility
-        legacy_host = os.getenv('DEFAULT_OLLAMA_HOST')
-        if legacy_host:
-            return [legacy_host]
 
         return [OllamaModelProvider.DEFAULT_OLLAMA_HOST]
 
@@ -119,4 +113,3 @@ class OllamaModelProvider:
 
         except Exception as e:
             logger.error(f"An unexpected error occurred during Ollama model discovery: {e}")
-

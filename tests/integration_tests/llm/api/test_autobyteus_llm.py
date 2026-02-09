@@ -16,7 +16,7 @@ from autobyteus.llm.utils.token_usage import TokenUsage
 
 logger = logging.getLogger(__name__)
 AUTOBYTEUS_API_KEY_ENV = "AUTOBYTEUS_API_KEY"
-AUTOBYTEUS_SERVER_ENV = "AUTOBYTEUS_LLM_SERVER_URL"
+AUTOBYTEUS_SERVER_ENV = "AUTOBYTEUS_LLM_SERVER_HOSTS"
 AUTOBYTEUS_SSL_CERT_ENV = "AUTOBYTEUS_SSL_CERT_FILE"
 AUTOBYTEUS_LLM_MODEL_ID_ENV = "AUTOBYTEUS_LLM_MODEL_ID"
 AUTOBYTEUS_IMAGE_MODEL_ID_ENV = "AUTOBYTEUS_IMAGE_MODEL_ID"
@@ -28,7 +28,12 @@ def find_autobyteus_model(is_image_model: bool = False) -> Optional[ModelInfo]:
     if not api_key:
         pytest.skip(f"{AUTOBYTEUS_API_KEY_ENV} not set. Skipping Autobyteus integration tests.")
 
-    server_url = os.getenv(AUTOBYTEUS_SERVER_ENV, "https://api.autobyteus.com")
+    hosts = os.getenv(AUTOBYTEUS_SERVER_ENV)
+    server_url = "https://api.autobyteus.com"
+    if hosts:
+        first_host = next((host.strip() for host in hosts.split(",") if host.strip()), None)
+        if first_host:
+            server_url = first_host
     ssl_cert_path = os.getenv(AUTOBYTEUS_SSL_CERT_ENV)
     verify_param = False
     if ssl_cert_path:

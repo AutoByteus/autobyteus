@@ -25,11 +25,7 @@ class AutobyteusAudioModelProvider:
         hosts_str = os.getenv('AUTOBYTEUS_LLM_SERVER_HOSTS')
         if hosts_str:
             return [host.strip() for host in hosts_str.split(',')]
-        
-        legacy_host = os.getenv('AUTOBYTEUS_LLM_SERVER_URL')
-        if legacy_host:
-            return [legacy_host]
-            
+
         return []
 
     @staticmethod

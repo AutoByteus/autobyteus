@@ -55,7 +55,7 @@ def test_missing_api_key_raises_value_error(monkeypatch: pytest.MonkeyPatch):
 
 
 def test_server_url_override(monkeypatch: pytest.MonkeyPatch):
-    os.environ["AUTOBYTEUS_LLM_SERVER_URL"] = "https://env-host"
+    os.environ["AUTOBYTEUS_LLM_SERVER_HOSTS"] = "https://env-host-1,https://env-host-2"
 
     captured: Dict[str, Any] = {}
 
@@ -75,6 +75,16 @@ def test_server_url_override(monkeypatch: pytest.MonkeyPatch):
 
     assert captured["async"]["verify"] is False
     assert captured["sync"]["verify"] is False
+
+
+def test_default_server_url_uses_first_host(monkeypatch: pytest.MonkeyPatch):
+    os.environ["AUTOBYTEUS_LLM_SERVER_HOSTS"] = "https://first-host,https://second-host"
+
+    monkeypatch.setattr("httpx.AsyncClient", lambda **_: DummyClient())
+    monkeypatch.setattr("httpx.Client", lambda **_: DummyClient())
+
+    client = AutobyteusClient()
+    assert client.server_url == "https://first-host"
 
 
 def test_custom_cert_path_enables_verification(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):

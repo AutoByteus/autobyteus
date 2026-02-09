@@ -22,9 +22,18 @@ def set_lmstudio_env(monkeypatch):
     """Set the dummy API key required by the OpenAI client."""
     monkeypatch.setenv("LMSTUDIO_API_KEY", os.getenv("LMSTUDIO_API_KEY", "lm-studio"))
     # Also support host override for testing against specific servers
-    host = os.getenv("LMSTUDIO_HOST")
-    if host:
-         monkeypatch.setenv("LMSTUDIO_HOST", host)
+    hosts = os.getenv("LMSTUDIO_HOSTS")
+    if hosts:
+        monkeypatch.setenv("LMSTUDIO_HOSTS", hosts)
+
+
+def _resolve_lmstudio_host() -> str:
+    hosts = os.getenv("LMSTUDIO_HOSTS")
+    if hosts:
+        first_host = next((host.strip() for host in hosts.split(",") if host.strip()), None)
+        if first_host:
+            return first_host
+    return LMStudioModelProvider.DEFAULT_LMSTUDIO_HOST
 
 @pytest.fixture
 def lmstudio_text_llm(set_lmstudio_env):
@@ -90,7 +99,7 @@ def _create_lmstudio_llm(model_id: str):
         llm_class=LMStudioLLM,
         canonical_name=model_id,
         runtime=LLMRuntime.LMSTUDIO,
-        host_url=os.getenv("LMSTUDIO_HOST", LMStudioModelProvider.DEFAULT_LMSTUDIO_HOST),
+        host_url=_resolve_lmstudio_host(),
         default_config=LLMConfig(pricing_config=TokenPricingConfig(0.0, 0.0))
     )
     # Directly call create_llm on the model object since factory might not have it registered

@@ -23,6 +23,18 @@ class AutobyteusClient:
     API_KEY_ENV_VAR = "AUTOBYTEUS_API_KEY"
     SSL_CERT_FILE_ENV_VAR = "AUTOBYTEUS_SSL_CERT_FILE"
 
+    @staticmethod
+    def _get_default_server_url_from_env() -> str:
+        hosts = os.getenv("AUTOBYTEUS_LLM_SERVER_HOSTS")
+        if not hosts:
+            return AutobyteusClient.DEFAULT_SERVER_URL
+
+        first_host = next(
+            (host.strip() for host in hosts.split(",") if host.strip()),
+            None,
+        )
+        return first_host or AutobyteusClient.DEFAULT_SERVER_URL
+
     def __init__(self, server_url: Optional[str] = None):
         """
         Initialize the client.
@@ -30,9 +42,7 @@ class AutobyteusClient:
         Args:
             server_url: Explicit server URL. Takes precedence over env vars.
         """
-        self.server_url = server_url or os.getenv(
-            "AUTOBYTEUS_LLM_SERVER_URL", self.DEFAULT_SERVER_URL
-        )
+        self.server_url = server_url or self._get_default_server_url_from_env()
         self.api_key = os.getenv(self.API_KEY_ENV_VAR)
 
         if not self.api_key:

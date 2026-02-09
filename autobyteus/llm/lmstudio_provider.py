@@ -23,11 +23,7 @@ class LMStudioModelProvider:
         hosts_str = os.getenv('LMSTUDIO_HOSTS')
         if hosts_str:
             return [host.strip() for host in hosts_str.split(',')]
-        
-        legacy_host = os.getenv('LMSTUDIO_HOST') # For backward compatibility
-        if legacy_host:
-            return [legacy_host]
-        
+
         return [LMStudioModelProvider.DEFAULT_LMSTUDIO_HOST]
 
     @staticmethod
