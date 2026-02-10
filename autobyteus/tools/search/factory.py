@@ -7,7 +7,7 @@ from .providers import SearchProvider
 from .client import SearchClient
 from .serper_strategy import SerperSearchStrategy
 from .serpapi_strategy import SerpApiSearchStrategy
-from .google_cse_strategy import GoogleCSESearchStrategy
+from .vertex_ai_search_strategy import VertexAISearchStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -30,22 +30,30 @@ class SearchClientFactory(metaclass=SingletonMeta):
         
         serper_key = os.getenv("SERPER_API_KEY")
         serpapi_key = os.getenv("SERPAPI_API_KEY")
-        google_api_key = os.getenv("GOOGLE_CSE_API_KEY")
-        google_cse_id = os.getenv("GOOGLE_CSE_ID")
+        vertex_api_key = os.getenv("VERTEX_AI_SEARCH_API_KEY")
+        vertex_serving_config = os.getenv("VERTEX_AI_SEARCH_SERVING_CONFIG")
         
         is_serper_configured = bool(serper_key)
         is_serpapi_configured = bool(serpapi_key)
-        is_google_cse_configured = bool(google_api_key and google_cse_id)
+        is_vertex_ai_search_configured = bool(vertex_api_key and vertex_serving_config)
         
         strategy = None
 
-        if provider_name == SearchProvider.GOOGLE_CSE:
-            if is_google_cse_configured:
-                logger.info("DEFAULT_SEARCH_PROVIDER is 'google_cse', using Google CSE strategy.")
-                strategy = GoogleCSESearchStrategy()
+        if provider_name == "google_cse":
+            raise ValueError(
+                "DEFAULT_SEARCH_PROVIDER 'google_cse' is no longer supported. "
+                "Use 'serper', 'serpapi', or 'vertex_ai_search'."
+            )
+
+        elif provider_name == SearchProvider.VERTEX_AI_SEARCH:
+            if is_vertex_ai_search_configured:
+                logger.info("DEFAULT_SEARCH_PROVIDER is 'vertex_ai_search', using Vertex AI Search strategy.")
+                strategy = VertexAISearchStrategy()
             else:
-                raise ValueError("DEFAULT_SEARCH_PROVIDER is 'google_cse', but Google CSE is not configured. "
-                                 "Set GOOGLE_CSE_API_KEY and GOOGLE_CSE_ID.")
+                raise ValueError(
+                    "DEFAULT_SEARCH_PROVIDER is 'vertex_ai_search', but Vertex AI Search is not configured. "
+                    "Set VERTEX_AI_SEARCH_API_KEY and VERTEX_AI_SEARCH_SERVING_CONFIG."
+                )
 
         elif provider_name == SearchProvider.SERPAPI:
             if is_serpapi_configured:
@@ -69,13 +77,13 @@ class SearchClientFactory(metaclass=SingletonMeta):
             logger.info("Serper not configured, falling back to available SerpApi strategy.")
             strategy = SerpApiSearchStrategy()
 
-        elif is_google_cse_configured:
-            logger.info("Neither Serper nor SerpApi are configured, falling back to available Google CSE strategy.")
-            strategy = GoogleCSESearchStrategy()
+        elif is_vertex_ai_search_configured:
+            logger.info("Neither Serper nor SerpApi are configured, falling back to available Vertex AI Search strategy.")
+            strategy = VertexAISearchStrategy()
         
         else:
             raise ValueError("No search provider is configured. Please set either SERPER_API_KEY, SERPAPI_API_KEY, "
-                             "or both GOOGLE_CSE_API_KEY and GOOGLE_CSE_ID environment variables.")
+                             "or both VERTEX_AI_SEARCH_API_KEY and VERTEX_AI_SEARCH_SERVING_CONFIG environment variables.")
 
         self._instance = SearchClient(strategy=strategy)
         return self._instance

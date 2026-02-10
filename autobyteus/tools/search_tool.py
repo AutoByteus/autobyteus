@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class Search(BaseTool):
     """
-    Performs a web search using a configurable backend provider (e.g., Serper.dev, Google CSE).
+    Performs a web search using a configurable backend provider (e.g., Serper.dev, SerpApi, Vertex AI Search).
     Returns a structured summary of the results.
     Configuration is managed via environment variables (see SearchClientFactory for details).
     """

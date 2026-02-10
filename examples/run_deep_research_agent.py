@@ -130,7 +130,9 @@ def _summarize_search_config() -> str:
     provider = os.getenv("DEFAULT_SEARCH_PROVIDER", "").lower()
     has_serper = bool(os.getenv("SERPER_API_KEY"))
     has_serpapi = bool(os.getenv("SERPAPI_API_KEY"))
-    has_google = bool(os.getenv("GOOGLE_CSE_API_KEY") and os.getenv("GOOGLE_CSE_ID"))
+    has_vertex = bool(
+        os.getenv("VERTEX_AI_SEARCH_API_KEY") and os.getenv("VERTEX_AI_SEARCH_SERVING_CONFIG")
+    )
 
     if provider:
         provider_info = f"DEFAULT_SEARCH_PROVIDER={provider}"
@@ -142,8 +144,8 @@ def _summarize_search_config() -> str:
         flags.append("SERPER_API_KEY")
     if has_serpapi:
         flags.append("SERPAPI_API_KEY")
-    if has_google:
-        flags.append("GOOGLE_CSE_API_KEY+GOOGLE_CSE_ID")
+    if has_vertex:
+        flags.append("VERTEX_AI_SEARCH_API_KEY+VERTEX_AI_SEARCH_SERVING_CONFIG")
 
     if flags:
         return f"{provider_info}; configured providers: {', '.join(flags)}"

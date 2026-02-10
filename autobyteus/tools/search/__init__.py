@@ -2,7 +2,7 @@ from .providers import SearchProvider
 from .base_strategy import SearchStrategy
 from .serper_strategy import SerperSearchStrategy
 from .serpapi_strategy import SerpApiSearchStrategy
-from .google_cse_strategy import GoogleCSESearchStrategy
+from .vertex_ai_search_strategy import VertexAISearchStrategy
 from .client import SearchClient
 from .factory import SearchClientFactory
 
@@ -11,7 +11,7 @@ __all__ = [
     "SearchStrategy",
     "SerperSearchStrategy",
     "SerpApiSearchStrategy",
-    "GoogleCSESearchStrategy",
+    "VertexAISearchStrategy",
     "SearchClient",
     "SearchClientFactory",
 ]
