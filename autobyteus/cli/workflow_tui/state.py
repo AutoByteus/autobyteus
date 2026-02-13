@@ -12,7 +12,7 @@ from autobyteus.agent.status.status_enum import AgentStatus
 from autobyteus.workflow.status.workflow_status import WorkflowStatus
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent, StreamEventType as AgentStreamEventType
 from autobyteus.agent.streaming.stream_event_payloads import (
-    AgentStatusUpdateData, ToolInvocationApprovalRequestedData, 
+    AgentStatusUpdateData, ToolApprovalRequestedData, 
     AssistantCompleteResponseData
 )
 from autobyteus.workflow.streaming.workflow_stream_events import WorkflowStreamEvent
@@ -42,7 +42,7 @@ class TUIStateStore:
         self._workflow_statuses: Dict[str, WorkflowStatus] = {self.workflow_name: WorkflowStatus.UNINITIALIZED}
         self._agent_event_history: Dict[str, List[AgentStreamEvent]] = {}
         self._workflow_event_history: Dict[str, List[WorkflowStreamEvent]] = {self.workflow_name: []}
-        self._pending_approvals: Dict[str, ToolInvocationApprovalRequestedData] = {}
+        self._pending_approvals: Dict[str, ToolApprovalRequestedData] = {}
         self._speaking_agents: Dict[str, bool] = {}
         
         # REMOVED: The complex stream aggregator is the source of the bug.
@@ -118,7 +118,7 @@ class TUIStateStore:
                 self._agent_statuses[agent_name] = status_data.new_status
                 if agent_name in self._pending_approvals:
                     del self._pending_approvals[agent_name]
-            elif agent_event.event_type == AgentStreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED:
+            elif agent_event.event_type == AgentStreamEventType.TOOL_APPROVAL_REQUESTED:
                 self._pending_approvals[agent_name] = agent_event.data
 
         # SUB-WORKFLOW EVENT (BRANCH NODE)
@@ -172,7 +172,7 @@ class TUIStateStore:
             return []
         return []
         
-    def get_pending_approval_for_agent(self, agent_name: str) -> Optional[ToolInvocationApprovalRequestedData]:
+    def get_pending_approval_for_agent(self, agent_name: str) -> Optional[ToolApprovalRequestedData]:
         """Gets pending approval data for a specific agent."""
         return self._pending_approvals.get(agent_name)
 

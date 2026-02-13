@@ -37,11 +37,12 @@ def test_bootstrapper_initialization_default(caplog):
     """Test that the bootstrapper initializes with default steps if none are provided."""
     with patch('autobyteus.agent.bootstrap_steps.agent_bootstrapper.WorkspaceContextInitializationStep'), \
          patch('autobyteus.agent.bootstrap_steps.agent_bootstrapper.McpServerPrewarmingStep'), \
-         patch('autobyteus.agent.bootstrap_steps.agent_bootstrapper.SystemPromptProcessingStep'):
+         patch('autobyteus.agent.bootstrap_steps.agent_bootstrapper.SystemPromptProcessingStep'), \
+         patch('autobyteus.agent.bootstrap_steps.agent_bootstrapper.WorkingContextSnapshotRestoreStep'):
         with caplog.at_level(logging.DEBUG):
             bootstrapper = AgentBootstrapper()
         
-        assert len(bootstrapper.bootstrap_steps) == 3
+        assert len(bootstrapper.bootstrap_steps) == 4
         assert "AgentBootstrapper initialized with default steps" in caplog.text
 
 

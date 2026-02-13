@@ -126,6 +126,7 @@ class ToolResultEvent(AgentOperationalEvent):
     turn_id: Optional[str] = None
     error: Optional[str] = None
     tool_args: Optional[Dict[str, Any]] = None # Carries original arguments for internal processing (e.g. artifacts)
+    is_denied: bool = False
 
 @dataclass
 class ToolExecutionApprovalEvent(AgentOperationalEvent): 
@@ -135,8 +136,8 @@ class ToolExecutionApprovalEvent(AgentOperationalEvent):
     reason: Optional[str] = None 
 
 @dataclass
-class ApprovedToolInvocationEvent(AgentOperationalEvent):
-    """Event indicating a tool invocation has been approved and is ready for execution."""
+class ExecuteToolInvocationEvent(AgentOperationalEvent):
+    """Event indicating a tool invocation should be executed."""
     tool_invocation: ToolInvocation
 
 

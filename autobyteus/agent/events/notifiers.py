@@ -104,12 +104,23 @@ class AgentExternalEventNotifier(EventEmitter):
     def notify_agent_data_tool_log_stream_end(self): 
         self._emit_event(EventType.AGENT_DATA_TOOL_LOG_STREAM_END) 
     
-    def notify_agent_request_tool_invocation_approval(self, approval_data: Dict[str, Any]): 
-        self._emit_event(EventType.AGENT_REQUEST_TOOL_INVOCATION_APPROVAL, payload_content=approval_data) 
+    def notify_agent_tool_approval_requested(self, approval_data: Dict[str, Any]):
+        self._emit_event(EventType.AGENT_TOOL_APPROVAL_REQUESTED, payload_content=approval_data)
 
-    def notify_agent_tool_invocation_auto_executing(self, auto_exec_data: Dict[str, Any]):
-        """Notifies that a tool is being automatically executed."""
-        self._emit_event(EventType.AGENT_TOOL_INVOCATION_AUTO_EXECUTING, payload_content=auto_exec_data)
+    def notify_agent_tool_approved(self, approval_data: Dict[str, Any]):
+        self._emit_event(EventType.AGENT_TOOL_APPROVED, payload_content=approval_data)
+
+    def notify_agent_tool_denied(self, denial_data: Dict[str, Any]):
+        self._emit_event(EventType.AGENT_TOOL_DENIED, payload_content=denial_data)
+
+    def notify_agent_tool_execution_started(self, start_data: Dict[str, Any]):
+        self._emit_event(EventType.AGENT_TOOL_EXECUTION_STARTED, payload_content=start_data)
+
+    def notify_agent_tool_execution_succeeded(self, success_data: Dict[str, Any]):
+        self._emit_event(EventType.AGENT_TOOL_EXECUTION_SUCCEEDED, payload_content=success_data)
+
+    def notify_agent_tool_execution_failed(self, error_data: Dict[str, Any]):
+        self._emit_event(EventType.AGENT_TOOL_EXECUTION_FAILED, payload_content=error_data)
         
     def notify_agent_data_system_task_notification_received(self, notification_data: Dict[str, Any]):
         """Notifies that the agent has received a system-generated task notification."""

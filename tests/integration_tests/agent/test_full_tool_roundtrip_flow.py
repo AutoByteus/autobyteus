@@ -117,8 +117,12 @@ async def test_full_tool_roundtrip_flow(tmp_path, lmstudio_llm, monkeypatch):
             notify_agent_segment_event=lambda *_args, **_kwargs: None,
             notify_agent_error_output_generation=lambda *_args, **_kwargs: None,
             notify_agent_data_tool_log=lambda *_args, **_kwargs: None,
-            notify_agent_request_tool_invocation_approval=lambda *_args, **_kwargs: None,
-            notify_agent_tool_invocation_auto_executing=lambda *_args, **_kwargs: None,
+            notify_agent_tool_approval_requested=lambda *_args, **_kwargs: None,
+            notify_agent_tool_approved=lambda *_args, **_kwargs: None,
+            notify_agent_tool_denied=lambda *_args, **_kwargs: None,
+            notify_agent_tool_execution_started=lambda *_args, **_kwargs: None,
+            notify_agent_tool_execution_succeeded=lambda *_args, **_kwargs: None,
+            notify_agent_tool_execution_failed=lambda *_args, **_kwargs: None,
         )
     )
 

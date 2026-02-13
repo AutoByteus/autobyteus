@@ -32,7 +32,7 @@ from .agent_events import (
     PendingToolInvocationEvent, 
     ToolResultEvent,
     ToolExecutionApprovalEvent,
-    ApprovedToolInvocationEvent,
+    ExecuteToolInvocationEvent,
     # General Purpose Event
     GenericEvent
 )
@@ -62,6 +62,6 @@ __all__ = [
     "PendingToolInvocationEvent",
     "ToolResultEvent",
     "ToolExecutionApprovalEvent",
-    "ApprovedToolInvocationEvent",
+    "ExecuteToolInvocationEvent",
     "GenericEvent",
 ]

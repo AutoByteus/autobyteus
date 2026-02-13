@@ -27,9 +27,13 @@ class EventType(Enum):
     AGENT_ARTIFACT_PERSISTED = "agent_artifact_persisted" # NEW: artifact persistence confirmation
     AGENT_ARTIFACT_UPDATED = "agent_artifact_updated" # NEW: artifact content updated (e.g., patch_file)
     
-    # --- Agent Requests for External Interaction ---
-    AGENT_REQUEST_TOOL_INVOCATION_APPROVAL = "agent_request_tool_invocation_approval" 
-    AGENT_TOOL_INVOCATION_AUTO_EXECUTING = "agent_tool_invocation_auto_executing"
+    # --- Agent Tool Lifecycle Events ---
+    AGENT_TOOL_APPROVAL_REQUESTED = "agent_tool_approval_requested"
+    AGENT_TOOL_APPROVED = "agent_tool_approved"
+    AGENT_TOOL_DENIED = "agent_tool_denied"
+    AGENT_TOOL_EXECUTION_STARTED = "agent_tool_execution_started"
+    AGENT_TOOL_EXECUTION_SUCCEEDED = "agent_tool_execution_succeeded"
+    AGENT_TOOL_EXECUTION_FAILED = "agent_tool_execution_failed"
     
     # --- Agent Errors (not necessarily status changes, e.g., error during output generation) ---
     AGENT_ERROR_OUTPUT_GENERATION = "agent_error_output_generation"

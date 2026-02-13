@@ -17,7 +17,7 @@ from autobyteus.agent.events.agent_events import (
     LLMCompleteResponseReceivedEvent,
     PendingToolInvocationEvent,
     ToolExecutionApprovalEvent,
-    ApprovedToolInvocationEvent,
+    ExecuteToolInvocationEvent,
     ToolResultEvent,
 )
 
@@ -82,7 +82,7 @@ class AgentStatusDeriver:
             if context and not context.auto_execute_tools:
                 return AgentStatus.AWAITING_TOOL_APPROVAL
             return AgentStatus.EXECUTING_TOOL
-        if isinstance(event, ApprovedToolInvocationEvent):
+        if isinstance(event, ExecuteToolInvocationEvent):
             return AgentStatus.EXECUTING_TOOL
         if isinstance(event, ToolExecutionApprovalEvent):
             if event.is_approved:

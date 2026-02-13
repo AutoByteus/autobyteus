@@ -18,7 +18,7 @@ from autobyteus.agent.events.agent_events import (
     LLMCompleteResponseReceivedEvent,
     PendingToolInvocationEvent,
     ToolExecutionApprovalEvent,
-    ApprovedToolInvocationEvent,
+    ExecuteToolInvocationEvent,
     ToolResultEvent,
 )
 from autobyteus.agent.tool_invocation import ToolInvocation
@@ -118,7 +118,7 @@ def test_tool_related_transitions():
     old_status, new_status = deriver.apply(pending_event, context)
     assert new_status == AgentStatus.EXECUTING_TOOL
 
-    approved_event = ApprovedToolInvocationEvent(tool_invocation=tool_invocation)
+    approved_event = ExecuteToolInvocationEvent(tool_invocation=tool_invocation)
     deriver = AgentStatusDeriver(initial_status=AgentStatus.IDLE)
     old_status, new_status = deriver.apply(approved_event, context)
     assert new_status == AgentStatus.EXECUTING_TOOL

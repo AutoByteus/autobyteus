@@ -9,7 +9,7 @@ from autobyteus.agent.events.agent_events import (
     UserMessageReceivedEvent,
     PendingToolInvocationEvent,
     ToolExecutionApprovalEvent,
-    ApprovedToolInvocationEvent,
+    ExecuteToolInvocationEvent,
     ToolResultEvent,
     AgentErrorEvent,
 )
@@ -32,7 +32,7 @@ def test_build_status_update_data_executing_tool_pending_invocation(agent_contex
 
 def test_build_status_update_data_executing_tool_approved_invocation(agent_context):
     invocation = ToolInvocation(name="approved_tool", arguments={}, id="tid2")
-    event = ApprovedToolInvocationEvent(tool_invocation=invocation)
+    event = ExecuteToolInvocationEvent(tool_invocation=invocation)
     data = build_status_update_data(event, agent_context, AgentStatus.EXECUTING_TOOL)
     assert data == {"tool_name": "approved_tool"}
 

@@ -18,7 +18,7 @@ from autobyteus.workflow.status.workflow_status import WorkflowStatus
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent, StreamEventType as AgentStreamEventType
 from autobyteus.agent.streaming.stream_event_payloads import (
     AgentStatusUpdateData, AssistantChunkData, AssistantCompleteResponseData,
-    ErrorEventData, ToolInteractionLogEntryData, ToolInvocationApprovalRequestedData, ToolInvocationAutoExecutingData,
+    ErrorEventData, ToolInteractionLogEntryData, ToolApprovalRequestedData, ToolExecutionStartedData,
     SegmentEventData,
 )
 from autobyteus.agent.streaming.parser.events import SegmentEventType, SegmentType
@@ -53,7 +53,7 @@ class FocusPane(Static):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._focused_node_data: Optional[Dict[str, Any]] = None
-        self._pending_approval_data: Optional[ToolInvocationApprovalRequestedData] = None
+        self._pending_approval_data: Optional[ToolApprovalRequestedData] = None
         
         # State variables for streaming
         self._thinking_widget: Optional[Static] = None
@@ -164,7 +164,7 @@ class FocusPane(Static):
         self._update_title(all_agent_statuses, all_workflow_statuses)
 
     async def update_content(self, node_data: Dict[str, Any], history: List[Any], 
-                             pending_approval: Optional[ToolInvocationApprovalRequestedData], 
+                             pending_approval: Optional[ToolApprovalRequestedData], 
                              all_agent_statuses: Dict[str, AgentStatus], 
                              all_workflow_statuses: Dict[str, WorkflowStatus]):
         """The main method to update the entire pane based on new state.
@@ -401,8 +401,8 @@ class FocusPane(Static):
         # For all other events, first check if they should break an ongoing stream.
         is_stream_breaking_event = event_type in [
             AgentStreamEventType.TOOL_INTERACTION_LOG_ENTRY,
-            AgentStreamEventType.TOOL_INVOCATION_AUTO_EXECUTING,
-            AgentStreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED,
+            AgentStreamEventType.TOOL_EXECUTION_STARTED,
+            AgentStreamEventType.TOOL_APPROVAL_REQUESTED,
             AgentStreamEventType.ERROR_EVENT,
         ]
 
@@ -418,9 +418,9 @@ class FocusPane(Static):
         
         if event_type == AgentStreamEventType.TOOL_INTERACTION_LOG_ENTRY:
             renderable = renderables.render_tool_interaction_log(event.data)
-        elif event_type == AgentStreamEventType.TOOL_INVOCATION_AUTO_EXECUTING:
-            renderable = renderables.render_tool_auto_executing(event.data)
-        elif event_type == AgentStreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED:
+        elif event_type == AgentStreamEventType.TOOL_EXECUTION_STARTED:
+            renderable = renderables.render_tool_execution_started(event.data)
+        elif event_type == AgentStreamEventType.TOOL_APPROVAL_REQUESTED:
             renderable = renderables.render_tool_approval_request(event.data)
             self._pending_approval_data = event.data
             await self._show_approval_prompt()

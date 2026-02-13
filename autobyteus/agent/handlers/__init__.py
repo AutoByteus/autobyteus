@@ -11,8 +11,8 @@ from .inter_agent_message_event_handler import InterAgentMessageReceivedEventHan
 from .llm_user_message_ready_event_handler import LLMUserMessageReadyEventHandler 
 from .llm_complete_response_received_event_handler import LLMCompleteResponseReceivedEventHandler
 from .tool_invocation_request_event_handler import ToolInvocationRequestEventHandler
+from .tool_invocation_execution_event_handler import ToolInvocationExecutionEventHandler
 from .tool_result_event_handler import ToolResultEventHandler
-from .approved_tool_invocation_event_handler import ApprovedToolInvocationEventHandler
 from .tool_execution_approval_event_handler import ToolExecutionApprovalEventHandler
 from .bootstrap_event_handler import BootstrapEventHandler
 
@@ -29,8 +29,8 @@ __all__ = [
     "LLMUserMessageReadyEventHandler", 
     "LLMCompleteResponseReceivedEventHandler", 
     "ToolInvocationRequestEventHandler",
+    "ToolInvocationExecutionEventHandler",
     "ToolResultEventHandler",
-    "ApprovedToolInvocationEventHandler",
     "ToolExecutionApprovalEventHandler",
     "BootstrapEventHandler",
     "GenericEventHandler",

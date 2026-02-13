@@ -9,11 +9,11 @@ from autobyteus.agent.streaming.stream_events import StreamEvent, StreamEventTyp
 from autobyteus.agent.streaming.stream_event_payloads import (
     AssistantChunkData,
     AssistantCompleteResponseData,
-    ToolInvocationApprovalRequestedData,
+    ToolApprovalRequestedData,
     ToolInteractionLogEntryData,
     AgentStatusUpdateData,
     ErrorEventData,
-    ToolInvocationAutoExecutingData,
+    ToolExecutionStartedData,
     SegmentEventData,
 )
 from autobyteus.agent.streaming.parser.events import SegmentEventType, SegmentType
@@ -31,7 +31,7 @@ class InteractiveCLIDisplay:
         self.show_token_usage = show_token_usage
         self.current_line_empty = True
         self.agent_has_spoken_this_turn = False
-        self.pending_approval_data: Optional[ToolInvocationApprovalRequestedData] = None
+        self.pending_approval_data: Optional[ToolApprovalRequestedData] = None
         self.approval_prompt_shown: bool = False
         self.current_status: Optional[AgentStatus] = None
         self.awaiting_approval: bool = False
@@ -294,12 +294,12 @@ class InteractiveCLIDisplay:
             self.current_line_empty = True
             self.reset_turn_state() # Reset for next turn
 
-        elif event.event_type == StreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED and isinstance(event.data, ToolInvocationApprovalRequestedData):
+        elif event.event_type == StreamEventType.TOOL_APPROVAL_REQUESTED and isinstance(event.data, ToolApprovalRequestedData):
             self.pending_approval_data = event.data
             if self.awaiting_approval or self.current_status == AgentStatus.AWAITING_TOOL_APPROVAL:
                 self.agent_turn_complete_event.set()
 
-        elif event.event_type == StreamEventType.TOOL_INVOCATION_AUTO_EXECUTING and isinstance(event.data, ToolInvocationAutoExecutingData):
+        elif event.event_type == StreamEventType.TOOL_EXECUTION_STARTED and isinstance(event.data, ToolExecutionStartedData):
             tool_name = event.data.tool_name
             self._ensure_new_line()
             sys.stdout.write(f"Agent: Automatically executing tool '{tool_name}'...\n")

@@ -11,7 +11,7 @@ from autobyteus.agent.status.status_enum import AgentStatus
 from autobyteus.agent_team.status.agent_team_status import AgentTeamStatus
 from autobyteus.agent.streaming.stream_events import StreamEvent as AgentStreamEvent, StreamEventType as AgentStreamEventType
 from autobyteus.agent.streaming.stream_event_payloads import (
-    AgentStatusUpdateData, ToolInvocationApprovalRequestedData, 
+    AgentStatusUpdateData, ToolApprovalRequestedData, 
     AssistantCompleteResponseData
 )
 from autobyteus.agent_team.streaming.agent_team_stream_events import AgentTeamStreamEvent
@@ -43,7 +43,7 @@ class TUIStateStore:
         self._team_statuses: Dict[str, AgentTeamStatus] = {self.team_name: AgentTeamStatus.UNINITIALIZED}
         self._agent_event_history: Dict[str, List[AgentStreamEvent]] = {}
         self._team_event_history: Dict[str, List[AgentTeamStreamEvent]] = {self.team_name: []}
-        self._pending_approvals: Dict[str, ToolInvocationApprovalRequestedData] = {}
+        self._pending_approvals: Dict[str, ToolApprovalRequestedData] = {}
         self._speaking_agents: Dict[str, bool] = {}
         
         # State for task plans
@@ -124,7 +124,7 @@ class TUIStateStore:
             if agent_event.event_type == AgentStreamEventType.AGENT_STATUS_UPDATED:
                 self._agent_statuses[agent_name] = agent_event.data.new_status
                 if agent_name in self._pending_approvals: del self._pending_approvals[agent_name]
-            elif agent_event.event_type == AgentStreamEventType.TOOL_INVOCATION_APPROVAL_REQUESTED:
+            elif agent_event.event_type == AgentStreamEventType.TOOL_APPROVAL_REQUESTED:
                 self._pending_approvals[agent_name] = agent_event.data
 
         elif isinstance(event.data, SubTeamEventRebroadcastPayload):
@@ -159,7 +159,7 @@ class TUIStateStore:
         if node_type == 'agent': return self._agent_event_history.get(node_name, [])
         return []
         
-    def get_pending_approval_for_agent(self, agent_name: str) -> Optional[ToolInvocationApprovalRequestedData]:
+    def get_pending_approval_for_agent(self, agent_name: str) -> Optional[ToolApprovalRequestedData]:
         return self._pending_approvals.get(agent_name)
         
     def get_task_plan_tasks(self, team_name: str) -> Optional[List[Task]]:

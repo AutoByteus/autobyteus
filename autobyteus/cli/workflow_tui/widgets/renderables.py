@@ -11,7 +11,7 @@ from rich.panel import Panel
 
 from autobyteus.agent.streaming.stream_event_payloads import (
     AgentStatusUpdateData, AssistantCompleteResponseData,
-    ErrorEventData, ToolInteractionLogEntryData, ToolInvocationApprovalRequestedData, ToolInvocationAutoExecutingData
+    ErrorEventData, ToolInteractionLogEntryData, ToolApprovalRequestedData, ToolExecutionStartedData
 )
 from .shared import ASSISTANT_ICON, TOOL_ICON, PROMPT_ICON, ERROR_ICON, LOG_ICON
 
@@ -36,8 +36,8 @@ def render_tool_interaction_log(data: ToolInteractionLogEntryData) -> Text:
     """Renders a tool interaction log entry."""
     return Text(f"{LOG_ICON} [tool-log] {data.log_entry}", style="dim")
 
-def render_tool_auto_executing(data: ToolInvocationAutoExecutingData) -> Text:
-    """Renders a notification that a tool is being executed automatically."""
+def render_tool_execution_started(data: ToolExecutionStartedData) -> Text:
+    """Renders a notification that a tool execution started."""
     try:
         args_str = json.dumps(data.arguments, indent=2)
     except (TypeError, OverflowError):
@@ -49,7 +49,7 @@ def render_tool_auto_executing(data: ToolInvocationAutoExecutingData) -> Text:
     text_content.append(args_str, style="yellow")
     return text_content
     
-def render_tool_approval_request(data: ToolInvocationApprovalRequestedData) -> Text:
+def render_tool_approval_request(data: ToolApprovalRequestedData) -> Text:
     """Renders a prompt for the user to approve a tool call."""
     try:
         args_str = json.dumps(data.arguments, indent=2)

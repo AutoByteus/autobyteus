@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, AsyncMock, patch, call
 from autobyteus.agent.events.worker_event_dispatcher import WorkerEventDispatcher
 from autobyteus.agent.events.agent_events import (
     BaseEvent, UserMessageReceivedEvent, InterAgentMessageReceivedEvent, LLMUserMessageReadyEvent,
-    PendingToolInvocationEvent, ToolExecutionApprovalEvent, ApprovedToolInvocationEvent, ToolResultEvent,
+    PendingToolInvocationEvent, ToolExecutionApprovalEvent, ExecuteToolInvocationEvent, ToolResultEvent,
     LLMCompleteResponseReceivedEvent, AgentReadyEvent, AgentErrorEvent, AgentIdleEvent
 )
 from autobyteus.agent.handlers.base_event_handler import AgentEventHandler

@@ -6,7 +6,7 @@ from autobyteus.agent.status.status_enum import AgentStatus
 from autobyteus.agent.events.agent_events import (
     AgentErrorEvent,
     PendingToolInvocationEvent,
-    ApprovedToolInvocationEvent,
+    ExecuteToolInvocationEvent,
     ToolExecutionApprovalEvent,
     ToolResultEvent,
 )
@@ -28,7 +28,7 @@ def build_status_update_data(event: 'BaseEvent',
         tool_name = None
         if isinstance(event, PendingToolInvocationEvent):
             tool_name = event.tool_invocation.name
-        elif isinstance(event, ApprovedToolInvocationEvent):
+        elif isinstance(event, ExecuteToolInvocationEvent):
             tool_name = event.tool_invocation.name
         elif isinstance(event, ToolExecutionApprovalEvent):
             pending_invocation = context.state.pending_tool_approvals.get(event.tool_invocation_id)
