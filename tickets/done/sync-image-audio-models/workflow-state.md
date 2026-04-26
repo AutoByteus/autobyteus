@@ -4,11 +4,11 @@
 
 - Ticket: `sync-image-audio-models`
 - Current Stage: `10`
-- Next Stage: `Commit Push Merge Tag Release`
+- Next Stage: `Complete`
 - Code Edit Permission: `Locked`
 - Active Re-Entry: `No`
 - Re-Entry Classification (`Local Fix`/`Validation Gap`/`Design Impact`/`Requirement Gap`/`Unclear`): `N/A`
-- Last Transition ID: `T-025`
+- Last Transition ID: `T-026`
 - Last Updated: `2026-04-26`
 
 ## Stage 0 Bootstrap Record
@@ -38,7 +38,7 @@
 | 7 API/E2E + Executable Validation | Pass | executable validation implementation complete + acceptance-criteria and spine scenario gates complete | `api-e2e-testing.md`; live Python and MCP image generation/edit passed with `gemini-3-pro-image-preview` and `gemini-3.1-flash-image-preview` using `image_config` |
 | 8 Code Review | Pass | Code review gate `Pass`/`Fail` recorded + mandatory scorecard/checks satisfied | `code-review.md`; no findings after Gemini image control-surface implementation |
 | 9 Docs Sync | Pass | `docs-sync.md` current + docs updated or no-impact rationale recorded | `docs-sync.md`; no long-lived docs update required |
-| 10 Handoff / Ticket State | In Progress | `handoff-summary.md` current + explicit user verification received + ticket moved to `done` + repository finalization if requested/confirmed | Ticket archived to `tickets/done/sync-image-audio-models`; `1.4.3` build and `twine check` passed; commit/push/merge/tag/release in progress |
+| 10 Handoff / Ticket State | Pass | `handoff-summary.md` current + explicit user verification received + ticket moved to `done` + repository finalization if requested/confirmed | Ticket archived to `tickets/done/sync-image-audio-models`; Autobyteus `main` pushed at `cf520ec`; tag `v1.4.3` pushed; Release workflow `24948487446` passed; PyPI reports `autobyteus 1.4.3`; temporary worktree/local branch cleanup completed |
 
 ## Pre-Edit Checklist (Stage 6 Source-Code Edits)
 
@@ -86,6 +86,7 @@
 | T-023 | 2026-04-26 | 8 | 10 | Code review and docs sync re-check passed after Gemini image control-surface implementation | N/A | Locked | `code-review.md`, `docs-sync.md`, `handoff-summary.md`, `workflow-state.md` |
 | T-024 | 2026-04-26 | 10 | 10 | User explicitly requested ticket finalization and release; prepared release notes and `1.4.3` version bump | N/A | Locked | `release-notes.md`, `pyproject.toml`, `uv.lock`, `workflow-state.md` |
 | T-025 | 2026-04-26 | 10 | 10 | Ticket archived and local release checks passed (`29 passed`, build, `twine check`) | N/A | Locked | `tickets/done/sync-image-audio-models`, build artifacts checked then removed |
+| T-026 | 2026-04-26 | 10 | 10 | Repository finalization, tag release, PyPI publication verification, downstream MCP dependency update, and worktree cleanup completed | N/A | Locked | `v1.4.3`, Release workflow `24948487446`, PyPI `autobyteus 1.4.3`, MCP commit `d04d9ab`, cleanup verification |
 
 ## Audible Notification Log
 
@@ -101,6 +102,7 @@
 | 2026-04-26 | Re-entry | Requirement-gap re-entry recorded for Gemini image control-surface support; Stage 6 implementation became active and source edits were unlocked. | Success | N/A |
 | 2026-04-26 | Transition | Gemini image generation/edit schema implementation and live validation passed; Stage 10 handoff became active again with source edits locked. | Success | N/A |
 | 2026-04-26 | Transition | Stage 10 finalization started after user confirmation; release notes and Autobyteus `1.4.3` version bump prepared. | Success | N/A |
+| 2026-04-26 | Transition | Stage 10 finalization completed; Autobyteus `1.4.3` was published, MCP `main` was updated to use it, and cleanup finished. | Success | N/A |
 
 ## Process Violation Log
 

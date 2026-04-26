@@ -1,6 +1,6 @@
 # Handoff Summary: Sync Image And Audio Models
 
-Status: Awaiting User Verification
+Status: Complete
 
 ## What Changed
 
@@ -18,6 +18,7 @@ Status: Awaiting User Verification
 - Added Gemini image `image_config` schemas so agents can discover official `aspect_ratio` and, for Gemini 3 image models, `image_size`.
 - Refreshed the Python Google GenAI SDK lock to `google-genai 1.73.1`.
 - Aligned `uv.lock` editable package version with `pyproject.toml` (`1.4.2`).
+- Released Autobyteus `1.4.3` and updated the image/audio MCP to depend on the published `autobyteus==1.4.3`.
 
 ## Validation
 
@@ -32,6 +33,10 @@ Status: Awaiting User Verification
 - Python live image generation/edit: passed for `gemini-3-pro-image-preview` and `gemini-3.1-flash-image-preview` with `generation_config.image_config`.
 - MCP live image generation/edit: passed for `gemini-3-pro-image-preview` and `gemini-3.1-flash-image-preview` with `generation_config.image_config`.
 - `git diff --check`: passed.
+- Autobyteus release workflow for tag `v1.4.3`: passed.
+- PyPI release availability: `autobyteus 1.4.3` confirmed.
+- MCP project tests against released `autobyteus 1.4.3`: `7 passed, 2 skipped`.
+- MCP live release validation against released `autobyteus 1.4.3`: `list_audio_models`, `list_image_models`, `gemini-3.1-flash-tts`, `gemini-3-pro-image-preview` generation/edit, and `gemini-3.1-flash-image-preview` generation/edit passed.
 
 ## Not Done / Residual Risk
 
@@ -45,4 +50,4 @@ Release notes are required because the user requested package finalization/relea
 
 ## Stage 10 State
 
-The user explicitly confirmed ticket finalization. Stage 10 repository finalization/release is in progress.
+The user explicitly confirmed ticket finalization. Stage 10 repository finalization, Autobyteus release, downstream MCP dependency update, and worktree cleanup are complete.
