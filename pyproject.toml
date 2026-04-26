@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "autobyteus"
-version = "1.4.2"
+version = "1.4.3"
 description = "Multi-Agent framework"
 readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.11,<3.12"
@@ -19,7 +19,7 @@ dependencies = [
     "certifi==2025.4.26",
     "cryptography",
     "google-api-python-client",
-    "google-genai",
+    "google-genai>=1.73.1",
     "httpx",
     "Jinja2",
     "mcp[cli]",

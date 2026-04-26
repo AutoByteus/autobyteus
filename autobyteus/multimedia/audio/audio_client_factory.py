@@ -58,6 +58,18 @@ _voice_descriptions_list = [
 ]
 GEMINI_VOICE_METADATA_DESC = "\n\nDetailed Voice Options:\n" + "\n".join(_voice_descriptions_list)
 
+GEMINI_TTS_LANGUAGE_CODE_DESC = (
+    "Optional BCP-47 language code to pass to Gemini SpeechConfig.language_code "
+    "when callers need to pin the synthesis language. Gemini TTS auto-detects "
+    "the input language when this is omitted. Examples: 'en', 'en-US', 'ja', 'cmn'."
+)
+
+GEMINI_TTS_PROMPT_CONTROL_DESC = (
+    "Gemini TTS expressive controls are primarily prompt-driven. Put style, tone, "
+    "accent, pace, audio tags like '[whispers]' or '[laughs]', and advanced sections "
+    "such as AUDIO PROFILE, SCENE, DIRECTOR'S NOTES, and TRANSCRIPT directly in the prompt."
+)
+
 
 OPENAI_TTS_VOICES = [
     "alloy", "ash", "ballad", "coral", "echo", "fable", "onyx",
@@ -115,7 +127,10 @@ class AudioClientFactory(metaclass=SingletonMeta):
                 param_type=ParameterType.ENUM,
                 default_value="single-speaker",
                 enum_values=["single-speaker", "multi-speaker"],
-                description="The speech generation mode. 'single-speaker' for a consistent voice, or 'multi-speaker' to assign different voices to speakers identified in the prompt."
+                description=(
+                    "The speech generation mode. 'single-speaker' uses one configured voice. "
+                    "'multi-speaker' assigns voices to speaker labels in the prompt; Gemini TTS currently supports up to 2 distinct speakers."
+                )
             ),
             ParameterDefinition(
                 name="voice_name",
@@ -127,12 +142,23 @@ class AudioClientFactory(metaclass=SingletonMeta):
             ParameterDefinition(
                 name="style_instructions",
                 param_type=ParameterType.STRING,
-                description="Optional instructions on the style of speech, e.g., 'Say this in a dramatic whisper'."
+                description=(
+                    "Optional director-style delivery instructions prepended to the prompt without being spoken. "
+                    "Use for tone, style, accent, pacing, breathing, articulation, or emotional direction. "
+                    + GEMINI_TTS_PROMPT_CONTROL_DESC
+                )
+            ),
+            ParameterDefinition(
+                name="language_code",
+                param_type=ParameterType.STRING,
+                description=GEMINI_TTS_LANGUAGE_CODE_DESC
             ),
             ParameterDefinition(
                 name="speaker_mapping",
                 param_type=ParameterType.ARRAY,
-                description="Required for multi-speaker mode. A list of objects, each mapping a speaker name from the prompt to a voice name.",
+                description=(
+                    "Required for multi-speaker mode. A list of up to 2 objects, each mapping a speaker name from the prompt to a voice name."
+                ),
                 array_item_schema=speaker_mapping_item_schema
             )
         ])
@@ -140,6 +166,22 @@ class AudioClientFactory(metaclass=SingletonMeta):
         gemini_tts_model = AudioModel(
             name="gemini-2.5-flash-tts",
             value="gemini-2.5-flash-preview-tts",
+            provider=MultimediaProvider.GEMINI,
+            client_class=GeminiAudioClient,
+            parameter_schema=gemini_tts_schema
+        )
+
+        gemini_pro_tts_model = AudioModel(
+            name="gemini-2.5-pro-tts",
+            value="gemini-2.5-pro-preview-tts",
+            provider=MultimediaProvider.GEMINI,
+            client_class=GeminiAudioClient,
+            parameter_schema=gemini_tts_schema
+        )
+
+        gemini_31_flash_tts_model = AudioModel(
+            name="gemini-3.1-flash-tts",
+            value="gemini-3.1-flash-tts-preview",
             provider=MultimediaProvider.GEMINI,
             client_class=GeminiAudioClient,
             parameter_schema=gemini_tts_schema
@@ -178,6 +220,8 @@ class AudioClientFactory(metaclass=SingletonMeta):
         models_to_register = [
             openai_tts_model,
             gemini_tts_model,
+            gemini_pro_tts_model,
+            gemini_31_flash_tts_model,
         ]
         
         for model in models_to_register:

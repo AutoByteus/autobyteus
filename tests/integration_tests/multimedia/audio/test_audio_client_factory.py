@@ -29,6 +29,20 @@ def test_list_available_models(audio_client_factory):
         assert isinstance(model.model_identifier, str) and model.model_identifier
         assert isinstance(model.runtime, MultimediaRuntime)
 
+def test_latest_google_audio_models_registered(audio_client_factory):
+    models_by_identifier = {model.model_identifier: model for model in list(AudioModel)}
+
+    assert models_by_identifier["gemini-2.5-pro-tts"].value == "gemini-2.5-pro-preview-tts"
+    assert models_by_identifier["gemini-3.1-flash-tts"].value == "gemini-3.1-flash-tts-preview"
+
+    for identifier in ("gemini-2.5-pro-tts", "gemini-3.1-flash-tts"):
+        model = models_by_identifier[identifier]
+        assert model.provider.value == "GEMINI"
+        assert model.default_config.to_dict()["mode"] == "single-speaker"
+        assert model.default_config.to_dict()["voice_name"] == "Kore"
+        assert model.parameter_schema.get_parameter("language_code") is not None
+        assert model.parameter_schema.get_parameter("style_instructions") is not None
+
 def test_create_audio_client_valid_models(audio_client_factory, model_identifier):
     """Test that create_audio_client() successfully creates instances for all registered models."""
     client_instance = audio_client_factory.create_audio_client(model_identifier)

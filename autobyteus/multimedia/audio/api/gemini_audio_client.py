@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 _AUDIO_TEMP_DIR = "/tmp/autobyteus_audio"
+_MAX_TTS_ATTEMPTS = 3
 
 _AUDIO_MIME_EXTENSION_MAP = {
     "audio/wav": "wav",
@@ -91,6 +92,26 @@ def _coerce_audio_bytes(audio_data: Any) -> bytes:
     return bytes(audio_data)
 
 
+def _build_prompt_with_style_instructions(prompt: str, style_instructions: Optional[str]) -> str:
+    if not style_instructions:
+        return prompt
+
+    return (
+        "Synthesize speech for the transcript below. Follow the director's notes for delivery, "
+        "but do not speak the notes themselves.\n\n"
+        "### DIRECTOR'S NOTES\n"
+        f"{style_instructions}\n\n"
+        "### TRANSCRIPT\n"
+        f"{prompt}"
+    )
+
+
+def _is_retryable_tts_error(error: Exception) -> bool:
+    message = str(error).lower()
+    retryable_markers = ("500", "internal", "unavailable", "temporarily", "timeout")
+    return any(marker in message for marker in retryable_markers)
+
+
 class GeminiAudioClient(BaseAudioClient):
     """
     An audio client that uses Google's Gemini models for audio tasks.
@@ -128,19 +149,22 @@ class GeminiAudioClient(BaseAudioClient):
             if generation_config:
                 final_config.update(generation_config)
             
-            # Handle style instructions by prepending them to the prompt
             style_instructions = final_config.get("style_instructions")
-            final_prompt = f"{style_instructions}: {prompt}" if style_instructions else prompt
+            final_prompt = _build_prompt_with_style_instructions(prompt, style_instructions)
             logger.debug(f"Final prompt for TTS: '{final_prompt[:100]}...'")
 
             speech_config = None
             mode = final_config.get("mode", "single-speaker")
+            language_code = final_config.get("language_code")
+            speech_config_kwargs = {"language_code": language_code} if language_code else {}
 
             # Handle multi-speaker generation
             if mode == "multi-speaker":
                 speaker_mapping_list = final_config.get("speaker_mapping")
                 if not speaker_mapping_list or not isinstance(speaker_mapping_list, list):
                     raise ValueError("Multi-speaker mode requires a 'speaker_mapping' list in generation_config.")
+                if len(speaker_mapping_list) > 2:
+                    raise ValueError("Gemini multi-speaker TTS supports up to 2 distinct speakers.")
                 
                 logger.info(f"Configuring multi-speaker TTS with mapping: {speaker_mapping_list}")
                 speaker_voice_configs = []
@@ -164,7 +188,8 @@ class GeminiAudioClient(BaseAudioClient):
                     raise ValueError("The 'speaker_mapping' list was empty or contained no valid mappings.")
 
                 speech_config = genai_types.SpeechConfig(
-                    multi_speaker_voice_config=genai_types.MultiSpeakerVoiceConfig(speaker_voice_configs=speaker_voice_configs)
+                    multi_speaker_voice_config=genai_types.MultiSpeakerVoiceConfig(speaker_voice_configs=speaker_voice_configs),
+                    **speech_config_kwargs
                 )
 
             # Handle single-speaker generation (default)
@@ -174,7 +199,8 @@ class GeminiAudioClient(BaseAudioClient):
                 speech_config = genai_types.SpeechConfig(
                     voice_config=genai_types.VoiceConfig(
                         prebuilt_voice_config=genai_types.PrebuiltVoiceConfig(voice_name=voice_name)
-                    )
+                    ),
+                    **speech_config_kwargs
                 )
 
             # The google-genai library's TTS endpoint uses a synchronous call.
@@ -189,17 +215,38 @@ class GeminiAudioClient(BaseAudioClient):
                 runtime_adjusted_model,
                 self.model.value,
                 )
-            resp = self.client.models.generate_content(
-                model=runtime_adjusted_model,
-                contents=final_prompt,
-                config=genai_types.GenerateContentConfig(
-                    response_modalities=["AUDIO"],
-                    speech_config=speech_config
-                ),
-            )
-            
-            part = resp.candidates[0].content.parts[0]
-            inline_data = part.inline_data
+            inline_data = None
+            last_error = None
+            for attempt in range(1, _MAX_TTS_ATTEMPTS + 1):
+                try:
+                    resp = self.client.models.generate_content(
+                        model=runtime_adjusted_model,
+                        contents=final_prompt,
+                        config=genai_types.GenerateContentConfig(
+                            response_modalities=["AUDIO"],
+                            speech_config=speech_config
+                        ),
+                    )
+                    part = resp.candidates[0].content.parts[0]
+                    inline_data = part.inline_data
+                    if inline_data and inline_data.data:
+                        break
+                    last_error = ValueError("Gemini TTS response did not include audio data.")
+                except Exception as e:
+                    last_error = e
+                    if attempt >= _MAX_TTS_ATTEMPTS or not _is_retryable_tts_error(e):
+                        raise
+                if attempt < _MAX_TTS_ATTEMPTS:
+                    logger.warning(
+                        "Gemini TTS attempt %d/%d failed for model '%s': %s",
+                        attempt,
+                        _MAX_TTS_ATTEMPTS,
+                        runtime_adjusted_model,
+                        last_error,
+                    )
+
+            if last_error and (not inline_data or not inline_data.data):
+                raise last_error
             if not inline_data or not inline_data.data:
                 raise ValueError("Gemini TTS response did not include audio data.")
 

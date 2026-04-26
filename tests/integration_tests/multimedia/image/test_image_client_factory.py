@@ -50,6 +50,39 @@ def test_list_available_models(image_client_factory):
             assert "@" in model.model_identifier
 
 
+def test_latest_google_image_models_registered(image_client_factory):
+    models_by_identifier = {model.model_identifier: model for model in list(ImageModel)}
+
+    assert "gemini-3.1-flash-image-preview" in models_by_identifier
+    model = models_by_identifier["gemini-3.1-flash-image-preview"]
+    assert model.value == "gemini-3.1-flash-image-preview"
+    assert model.provider.value == "GEMINI"
+    image_config = model.parameter_schema.get_parameter("image_config")
+    assert image_config is not None
+    assert image_config.object_schema.get_parameter("aspect_ratio") is not None
+    assert image_config.object_schema.get_parameter("image_size") is not None
+
+
+def test_google_image_model_schemas_expose_official_image_config(image_client_factory):
+    models_by_identifier = {model.model_identifier: model for model in list(ImageModel)}
+
+    flash_25_schema = models_by_identifier["gemini-2.5-flash-image"].parameter_schema
+    flash_25_image_config = flash_25_schema.get_parameter("image_config")
+    assert flash_25_image_config is not None
+    assert flash_25_image_config.object_schema.get_parameter("aspect_ratio") is not None
+    assert flash_25_image_config.object_schema.get_parameter("image_size") is None
+
+    for identifier in ("gemini-3-pro-image-preview", "gemini-3.1-flash-image-preview"):
+        image_config = models_by_identifier[identifier].parameter_schema.get_parameter("image_config")
+        assert image_config is not None
+        aspect_ratio = image_config.object_schema.get_parameter("aspect_ratio")
+        image_size = image_config.object_schema.get_parameter("image_size")
+        assert aspect_ratio is not None
+        assert "16:9" in aspect_ratio.enum_values
+        assert image_size is not None
+        assert image_size.enum_values == ["512", "1K", "2K", "4K"]
+
+
 def test_create_image_client_valid_models(image_client_factory, model_identifier):
     """Test that create_image_client() successfully creates instances for all registered models."""
     client_instance = image_client_factory.create_image_client(model_identifier)

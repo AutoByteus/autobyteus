@@ -23,6 +23,10 @@ _MODEL_RUNTIME_MAP = {
             "vertex": "gemini-2.5-pro-tts",
             "api_key": "gemini-2.5-pro-preview-tts",
         },
+        "gemini-3.1-flash-tts-preview": {
+            "vertex": "gemini-3.1-flash-tts-preview",
+            "api_key": "gemini-3.1-flash-tts-preview",
+        },
     },
     # For LLM & image the names are currently uniform across runtimes,
     # but the structure is ready should Google introduce divergent aliases.
@@ -44,6 +48,10 @@ _MODEL_RUNTIME_MAP = {
         "gemini-2.5-flash-image": {
             "vertex": "gemini-2.5-flash-image",
             "api_key": "gemini-2.5-flash-image",
+        },
+        "gemini-3.1-flash-image-preview": {
+            "vertex": "gemini-3.1-flash-image-preview",
+            "api_key": "gemini-3.1-flash-image-preview",
         },
     },
 }

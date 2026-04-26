@@ -106,8 +106,10 @@ class GenerateSpeechTool(BaseTool):
                 name="prompt",
                 param_type=ParameterType.STRING,
                 description=(
-                    "The text to be converted into spoken audio. For multi-speaker mode, you must format the prompt "
-                    "with speaker labels that match the speakers defined in 'speaker_mapping'. "
+                    "The text and delivery guidance to convert into spoken audio. Gemini TTS supports rich prompt control: "
+                    "audio tags such as '[whispers]', '[laughs]', or '[very fast]', plus advanced sections like "
+                    "AUDIO PROFILE, SCENE, DIRECTOR'S NOTES, and TRANSCRIPT. "
+                    "For multi-speaker mode, you must format the prompt with speaker labels that match the speakers defined in 'speaker_mapping'. "
                     "CRITICAL: Each speaker's dialogue MUST be on a new line. "
                     "Example: 'Joe: Hello Jane.\nJane: Hi Joe, how are you?'"
                 ),
