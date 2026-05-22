@@ -51,6 +51,11 @@ except ModuleNotFoundError as import_err:
     GenerateImageTool = None
     EditImageTool = None
 try:
+    from .multimedia.video_tools import GenerateVideoTool
+except ModuleNotFoundError as import_err:
+    logger.warning("Video tools not available: %s", import_err)
+    GenerateVideoTool = None
+try:
     from .multimedia.media_reader_tool import ReadMediaFile
 except ModuleNotFoundError as import_err:
     logger.warning("Media reader tool not available: %s", import_err)
@@ -96,6 +101,7 @@ __all__ = [
     "Search",
     "GenerateImageTool",
     "EditImageTool",
+    "GenerateVideoTool",
     "ReadMediaFile",
     "DownloadMediaTool",
 

@@ -33,10 +33,25 @@ class RecordingAsyncClient(DummyClient):
     def __init__(self, **kwargs: Dict[str, Any]) -> None:
         super().__init__(**kwargs)
         self.post_calls: list[tuple[str, Dict[str, Any]]] = []
+        self.get_calls: list[str] = []
 
     async def post(self, url: str, json: Dict[str, Any]) -> DummyResponse:
         self.post_calls.append((url, json))
         return DummyResponse()
+
+    async def get(self, url: str) -> DummyResponse:
+        self.get_calls.append(url)
+        return DummyResponse({"models": []})
+
+
+class RecordingSyncClient(DummyClient):
+    def __init__(self, **kwargs: Dict[str, Any]) -> None:
+        super().__init__(**kwargs)
+        self.get_calls: list[str] = []
+
+    def get(self, url: str) -> DummyResponse:
+        self.get_calls.append(url)
+        return DummyResponse({"models": []})
 
 
 @pytest.fixture(autouse=True)
@@ -184,3 +199,74 @@ async def test_generate_image_normalizes_media_sources(monkeypatch: pytest.Monke
         "data:mock;base64,img2.png",
     ]
     assert payload["mask_url"] == "data:mock;base64,mask.png"
+
+
+@pytest.mark.asyncio
+async def test_get_available_video_models_uses_video_endpoint(monkeypatch: pytest.MonkeyPatch):
+    recording_async_client = RecordingAsyncClient()
+    recording_sync_client = RecordingSyncClient()
+    monkeypatch.setattr("httpx.AsyncClient", lambda **_: recording_async_client)
+    monkeypatch.setattr("httpx.Client", lambda **_: recording_sync_client)
+
+    client = AutobyteusClient(server_url="https://example.com")
+
+    async_response = await client.get_available_video_models()
+    sync_response = client.get_available_video_models_sync()
+
+    assert async_response == {"models": []}
+    assert sync_response == {"models": []}
+    assert recording_async_client.get_calls == ["https://example.com/models/video"]
+    assert recording_sync_client.get_calls == ["https://example.com/models/video"]
+
+
+@pytest.mark.asyncio
+async def test_generate_video_normalizes_media_sources(monkeypatch: pytest.MonkeyPatch):
+    recording_client = RecordingAsyncClient()
+    monkeypatch.setattr("httpx.AsyncClient", lambda **_: recording_client)
+    monkeypatch.setattr("httpx.Client", lambda **_: DummyClient())
+
+    async def fake_media_source_to_data_uri(source: str) -> str:
+        return f"data:mock;base64,{source}"
+
+    monkeypatch.setattr(
+        "autobyteus.clients.autobyteus_client.media_source_to_data_uri",
+        fake_media_source_to_data_uri,
+    )
+
+    client = AutobyteusClient(server_url="https://example.com")
+    await client.generate_video(
+        model_name="video-model",
+        prompt="animate this scene",
+        input_image_urls=[" image.png "],
+        input_audio_urls=[" audio.wav "],
+        input_video_urls=[" clip.mp4 "],
+        generation_config={"duration_seconds": 8},
+        session_id="video-session",
+    )
+
+    assert len(recording_client.post_calls) == 1
+    url, payload = recording_client.post_calls[0]
+    assert url == "https://example.com/generate-video"
+    assert payload == {
+        "model_name": "video-model",
+        "prompt": "animate this scene",
+        "input_image_urls": ["data:mock;base64,image.png"],
+        "input_audio_urls": ["data:mock;base64,audio.wav"],
+        "input_video_urls": ["data:mock;base64,clip.mp4"],
+        "generation_config": {"duration_seconds": 8},
+        "session_id": "video-session",
+    }
+
+
+@pytest.mark.asyncio
+async def test_cleanup_video_session_uses_video_cleanup_endpoint(monkeypatch: pytest.MonkeyPatch):
+    recording_client = RecordingAsyncClient()
+    monkeypatch.setattr("httpx.AsyncClient", lambda **_: recording_client)
+    monkeypatch.setattr("httpx.Client", lambda **_: DummyClient())
+
+    client = AutobyteusClient(server_url="https://example.com")
+    await client.cleanup_video_session("video-session")
+
+    assert recording_client.post_calls == [
+        ("https://example.com/cleanup/video", {"session_id": "video-session"})
+    ]
