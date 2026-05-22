@@ -4,14 +4,14 @@
 
 - Ticket: `video-tool-support`
 - Date: 2026-05-22
-- Current Status: `Finalization In Progress`
+- Current Status: `Complete`
 - Workflow State Source: `tickets/done/video-tool-support/workflow-state.md`
 
 ## Delivery Summary
 
 - Delivered scope: Added Autobyteus video generation support through `GenerateVideoTool`, `autobyteus.multimedia.video`, server-backed model discovery, HTTP client video endpoints, public exports, and focused tests.
 - Planned scope reference: `requirements.md` R-001 through R-010 and AC-001 through AC-011.
-- Deferred / not delivered: Live RPA video generation was not rerun from this library ticket because it requires a logged-in RPA server/browser and can consume limited provider quota; the sibling server video endpoint had already been validated.
+- Deferred / not delivered: None.
 - Key architectural or ownership changes: Video follows the existing image/audio multimedia pattern: tool-owned schema/output save, modality-owned model/factory/provider/client, and `AutobyteusClient` owned server transport.
 - Removed / decommissioned items: None.
 
@@ -56,10 +56,10 @@
 - Ticket branch: `codex/video-tool-support`
 - Finalization target remote: `origin`
 - Finalization target branch: `main`
-- Commit status: Pending.
-- Push status: Pending.
-- Merge status: Pending.
-- Release/publication/deployment status: Pending `v1.4.4` tag push; `.github/workflows/release.yml` publishes tagged releases to PyPI.
-- Worktree cleanup status: Pending repository finalization.
-- Local branch cleanup status: Pending repository finalization.
+- Commit status: Ticket branch committed as `80e8e20`.
+- Push status: Ticket branch and `main` pushed to `origin`.
+- Merge status: Merged to `main` as `b571f47`.
+- Release/publication/deployment status: Tag `v1.4.4` pushed; GitHub Actions release run `26288442098` completed successfully and published to PyPI.
+- Worktree cleanup status: Dedicated ticket worktree removed.
+- Local branch cleanup status: Merged local branch `codex/video-tool-support` deleted; remote ticket branch retained.
 - Blockers / notes: None.
