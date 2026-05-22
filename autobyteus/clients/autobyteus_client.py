@@ -24,7 +24,8 @@ class AutobyteusClient:
     SSL_CERT_FILE_ENV_VAR = "AUTOBYTEUS_SSL_CERT_FILE"
 
     @staticmethod
-    def _get_default_server_url_from_env() -> str:
+    def get_default_server_url() -> str:
+        """Resolve the default Autobyteus server URL from environment configuration."""
         hosts = os.getenv("AUTOBYTEUS_LLM_SERVER_HOSTS")
         if not hosts:
             return AutobyteusClient.DEFAULT_SERVER_URL
@@ -34,6 +35,10 @@ class AutobyteusClient:
             None,
         )
         return first_host or AutobyteusClient.DEFAULT_SERVER_URL
+
+    @staticmethod
+    def _get_default_server_url_from_env() -> str:
+        return AutobyteusClient.get_default_server_url()
 
     def __init__(self, server_url: Optional[str] = None):
         """
@@ -225,6 +230,36 @@ class AutobyteusClient:
             logger.error("Sync audio model fetch error: %s", exc)
             raise RuntimeError(str(exc)) from exc
 
+    async def get_available_video_models(self) -> Dict[str, Any]:
+        """Async discovery of available video models."""
+        try:
+            response = await self.async_client.get(
+                urljoin(self.server_url, "/models/video")
+            )
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as exc:
+            logger.error("Async video model fetch error: %s", exc)
+            raise self._wrap_http_error(exc)
+        except httpx.HTTPError as exc:
+            logger.error("Async video model fetch error: %s", exc)
+            raise RuntimeError(str(exc)) from exc
+
+    def get_available_video_models_sync(self) -> Dict[str, Any]:
+        """Synchronous discovery of available video models."""
+        try:
+            response = self.sync_client.get(
+                urljoin(self.server_url, "/models/video")
+            )
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as exc:
+            logger.error("Sync video model fetch error: %s", exc)
+            raise self._wrap_http_error(exc)
+        except httpx.HTTPError as exc:
+            logger.error("Sync video model fetch error: %s", exc)
+            raise RuntimeError(str(exc)) from exc
+
     async def send_message(
         self,
         conversation_id: str,
@@ -370,6 +405,43 @@ class AutobyteusClient:
             logger.error("Error generating speech: %s", exc)
             raise RuntimeError(str(exc)) from exc
 
+    async def generate_video(
+        self,
+        model_name: str,
+        prompt: str,
+        input_image_urls: Optional[List[str]] = None,
+        input_audio_urls: Optional[List[str]] = None,
+        input_video_urls: Optional[List[str]] = None,
+        generation_config: Optional[Dict[str, Any]] = None,
+        session_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Generate a video and return the server response."""
+        try:
+            normalized_input_image_urls = await self._normalize_media_sources(input_image_urls)
+            normalized_input_audio_urls = await self._normalize_media_sources(input_audio_urls)
+            normalized_input_video_urls = await self._normalize_media_sources(input_video_urls)
+            data = {
+                "model_name": model_name,
+                "prompt": prompt,
+                "input_image_urls": normalized_input_image_urls,
+                "input_audio_urls": normalized_input_audio_urls,
+                "input_video_urls": normalized_input_video_urls,
+                "generation_config": generation_config or {},
+                "session_id": session_id,
+            }
+            response = await self.async_client.post(
+                urljoin(self.server_url, "/generate-video"),
+                json=data,
+            )
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as exc:
+            logger.error("Error generating video: %s", exc)
+            raise self._wrap_http_error(exc)
+        except httpx.HTTPError as exc:
+            logger.error("Error generating video: %s", exc)
+            raise RuntimeError(str(exc)) from exc
+
     async def cleanup(self, conversation_id: str) -> Dict[str, Any]:
         """Clean up a conversation (LLM)."""
         try:
@@ -416,6 +488,22 @@ class AutobyteusClient:
             raise self._wrap_http_error(exc)
         except httpx.HTTPError as exc:
             logger.error("Audio session cleanup error: %s", exc)
+            raise RuntimeError(str(exc)) from exc
+
+    async def cleanup_video_session(self, session_id: str) -> Dict[str, Any]:
+        """Clean up a video session."""
+        try:
+            response = await self.async_client.post(
+                urljoin(self.server_url, "/cleanup/video"),
+                json={"session_id": session_id},
+            )
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as exc:
+            logger.error("Video session cleanup error: %s", exc)
+            raise self._wrap_http_error(exc)
+        except httpx.HTTPError as exc:
+            logger.error("Video session cleanup error: %s", exc)
             raise RuntimeError(str(exc)) from exc
 
     async def _normalize_media_sources(

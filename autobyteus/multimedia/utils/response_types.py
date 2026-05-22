@@ -11,3 +11,8 @@ class ImageGenerationResponse:
 class SpeechGenerationResponse:
     """Response for speech generation (Text-to-Speech)."""
     audio_urls: List[str]
+
+@dataclass
+class VideoGenerationResponse:
+    """Response for video generation."""
+    video_urls: List[str]
